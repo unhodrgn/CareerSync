@@ -51,6 +51,9 @@ export default function JobList() {
             <span className={`chip ${job.status === "published" ? "chip-green" : "chip-gray"}`}>
               {job.status === "published" && job.expired ? "기간 만료" : STATUS_LABEL[job.status]}
             </span>
+            {job.status !== "draft" && (
+              <Link className="btn btn-small" to={`/company/applicants?job=${job.id}`}>지원자 보기</Link>
+            )}
             <Link className="btn btn-small" to={`/company/jobs/${job.id}/edit`}>
               {job.status === "draft" ? "이어서 작성" : "보기·수정"}
             </Link>

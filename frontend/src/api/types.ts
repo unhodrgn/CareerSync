@@ -157,3 +157,164 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   education: "학력(전공·학위)",
   other: "기타",
 };
+
+// ── CV (schema cv_profile.v1) ──
+
+export interface Experience {
+  org: string;
+  role: string;
+  start: string | null; // YYYY-MM
+  end: string | null; // YYYY-MM, null if current
+  description: string;
+  source: string;
+}
+
+export interface Project {
+  name: string;
+  role: string;
+  tech: string[];
+  description: string;
+  source: string;
+}
+
+export interface Education {
+  school: string;
+  major: string;
+  degree: string;
+  source: string;
+}
+
+export interface Certificate {
+  name: string;
+  date: string | null;
+  source: string;
+}
+
+export interface CvProfile {
+  skills: string[];
+  experiences: Experience[];
+  projects: Project[];
+  education: Education[];
+  certificates: Certificate[];
+  summary: string;
+}
+
+export interface CvOut {
+  id: number;
+  document_id: number;
+  file_name: string;
+  pages: number;
+  version: number;
+  profile: CvProfile;
+  method: string; // "rules", "llm:<model>" or "seeker"
+  confirmed: boolean;
+  confirmed_at: string | null;
+  masked_kinds: string[];
+  total_experience_months: number;
+  created_at: string;
+}
+
+export const MASKED_LABEL: Record<string, string> = {
+  email: "이메일",
+  phone: "전화번호",
+  url: "URL",
+  rrn: "주민등록번호",
+  birth: "생년월일",
+  address: "주소",
+  name: "이름",
+};
+
+// ── Applications and evaluations ──
+
+export type ApplicationStatus = "submitted" | "reviewing" | "interview" | "on_hold" | "passed" | "rejected";
+export type EvaluationStatus = "pending" | "done" | "failed";
+
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  submitted: "검토 전",
+  reviewing: "서류 검토",
+  interview: "면접 예정",
+  on_hold: "보류",
+  passed: "합격",
+  rejected: "불합격",
+};
+
+export const EVALUATION_STATUS_LABEL: Record<EvaluationStatus, string> = {
+  pending: "AI 분석 중",
+  done: "분석 완료",
+  failed: "분석 실패",
+};
+
+export interface ApplicationOut {
+  id: number;
+  job_id: number;
+  job_title: string;
+  company_name: string;
+  status: ApplicationStatus;
+  evaluation_status: EvaluationStatus | null;
+  created_at: string;
+}
+
+export interface CriterionBrief {
+  id: number;
+  name: string;
+  category: Category;
+  weight: number; // effective weight used for Fit
+}
+
+export interface ExcludedBrief {
+  id: number;
+  name: string;
+}
+
+export interface ApplicantRow {
+  application_id: number;
+  rank: number | null;
+  name: string;
+  email: string;
+  status: ApplicationStatus;
+  applied_at: string;
+  experience_months: number;
+  evaluation_status: EvaluationStatus;
+  fit: number | null;
+  strong_count: number;
+  scores: { criterion_id: number; score: number }[];
+}
+
+export interface ApplicantList {
+  job_id: number;
+  job_title: string;
+  criteria: CriterionBrief[];
+  excluded_criteria: ExcludedBrief[];
+  items: ApplicantRow[];
+  notice: string;
+}
+
+export interface CriterionEvaluation {
+  criterion_id: number;
+  name: string;
+  description: string;
+  category: Category;
+  weight: number;
+  score: number;
+  level: number;
+  reason: string;
+  evidence: string[];
+  method: string;
+}
+
+export interface EvaluationOut {
+  application_id: number;
+  job_id: number;
+  name: string;
+  status: EvaluationStatus;
+  error: string;
+  fit: number | null;
+  summary: string;
+  items: CriterionEvaluation[];
+  excluded_criteria: ExcludedBrief[];
+  llm_model: string;
+  embedding_model: string;
+  prompt_version: string;
+  finished_at: string | null;
+  notice: string;
+}
