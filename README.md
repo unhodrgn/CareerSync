@@ -303,6 +303,8 @@ This starts the frontend, backend, database and seed data.
 | Start everything | `docker compose up` |
 | Rebuild after changes | `docker compose up --build` |
 | Stop everything | `docker compose down` |
+| Run tests (from repo root) | `pip install -r backend/requirements.txt && pytest` |
+| Apply DB migrations | `cd backend && alembic upgrade head` |
 
 ## 🗓️ Timeline
 
