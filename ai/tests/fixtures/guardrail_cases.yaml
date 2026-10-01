@@ -1,0 +1,94 @@
+# Labeled phrases for the criteria guardrail. block: expected rule id; allow: must pass.
+block:
+  - [키 175cm 이상, physical.height]
+  - [신장 170 이상인 분, physical.height]
+  - [키가 큰 지원자, physical.height]
+  - [키 180 이상, physical.height]
+  - [Height over 180cm, physical.height]
+  - [체중 80kg 이하, physical.weight]
+  - [몸무게 관리가 된 분, physical.weight]
+  - [용모 단정, physical.appearance]
+  - [외모가 호감형인 분, physical.appearance]
+  - [인상이 좋은 분, physical.appearance]
+  - [Good-looking candidates, physical.appearance]
+  - [체격이 건장한 분, physical.appearance]
+  - [서울 출신 우대, origin.region]
+  - [경상도 출신, origin.region]
+  - [출신 지역 고려, origin.region]
+  - [고향이 부산인 분, origin.region]
+  - [미혼자 우대, marital.status]
+  - [기혼자 선호, marital.status]
+  - [결혼 여부, marital.status]
+  - [결혼 계획 없는 분, marital.status]
+  - [Married applicants preferred, marital.status]
+  - [재산 규모, wealth.assets]
+  - [자가 보유자 우대, wealth.assets]
+  - [부동산 보유 여부, wealth.assets]
+  - [자산 규모 1억 이상, wealth.assets]
+  - [부모님 직업, family.background]
+  - [아버지의 학력, family.background]
+  - [형제자매 학력, family.background]
+  - [가족 재산, family.background]
+  - [가정 환경이 화목한 분, family.background]
+  - [Family background, family.background]
+  - [남성 우대, gender]
+  - [여성 지원자만, gender]
+  - [성별, gender]
+  - [임신 계획 없는 분, gender]
+  - [출산 계획 여부, gender]
+  - [Male only, gender]
+  - [30세 이하, age]
+  - [만 35세 미만, age]
+  - [20대 초반, age]
+  - [나이 제한, age]
+  - [젊은 인재, age]
+  - [95년생 이후, age]
+  - [Age limit 30, age]
+  - [기독교 신자 우대, religion]
+  - [종교 활동, religion]
+  - [장애 없는 분, health.disability]
+  - [병력 없는 자, health.disability]
+  - [건강 상태 양호, health.disability]
+  - [정신 질환 이력, health.disability]
+  - [SKY 출신, school.prestige]
+  - [명문대 졸업, school.prestige]
+  - [인서울 대학, school.prestige]
+  - [서울대 출신 우대, school.prestige]
+  - [출신 학교, school.prestige]
+  - [학벌, school.prestige]
+  - [KAIST 졸업자, school.prestige]
+  - [ｋｅｙ 아님 키　１７５ｃｍ, physical.height]   # full-width text, NFKC
+
+allow:
+  - Java 활용 능력
+  - Spring 경험
+  - DB 경험
+  - 프로젝트 경험
+  - 관련 자격증
+  - 컴퓨터공학 전공
+  - 학사 학위 이상
+  - 정보처리기사 자격증
+  - API 키 관리 경험
+  - RSA 키 2048비트 암호화 구현 경험
+  - 키 크기와 암호 강도 이해
+  - 키보드 단축키 설계
+  - 통신 장비 개발 경험
+  - 장애 대응 경험
+  - 장애 처리 및 온콜 경험
+  - 얼굴 인식 모델 개발 경험
+  - 부동산 플랫폼 개발 경험
+  - 재산세 계산 시스템 개발
+  - 결혼 정보 서비스 백엔드 개발
+  - 나이브 베이즈 분류기 구현
+  - 서버 30대 규모 클러스터 운영 경험
+  - 어린이 교육 앱 개발
+  - 건강 상태 모니터링 앱 개발
+  - UI 외형 개선 경험
+  - 서울 근무 가능
+  - 5년 이상 경력
+  - 신입 가능
+  - AWS 클라우드 운영 경험
+  - Skype API 연동
+  - React 성능 최적화
+  - 영어 회화 가능
+  - 팀 리더 경험

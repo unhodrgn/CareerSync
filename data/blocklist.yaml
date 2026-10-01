@@ -1,0 +1,179 @@
+# Blocklist of disallowed hiring criteria.
+#
+# Checked on every criteria save (name + description) and again when criteria are loaded for scoring.
+# Matching runs on normalized text: NFKC, lowercase, whitespace collapsed (ai/guardrails/normalize.py).
+#   patterns: a match blocks the criterion
+#   allow:    a pattern match that falls entirely inside an allow match is ignored
+# Write phrases, not bare words: "키" alone would block "키보드", "장애" alone would block "장애 대응 경험".
+# Every change needs a matching case in ai/tests/fixtures/guardrail_cases.yaml and a version bump.
+#
+# law_ref values are the team's reading of the law; confirm with the advisor before the demo.
+
+version: "2026.10.1"
+
+rules:
+  # ── 채용절차법 제4조의3 제1호: 구직자 본인의 용모·키·체중 등 신체적 조건 ──
+  - id: physical.height
+    category: physical_condition
+    law_ref: "채용절차법 제4조의3 제1호"
+    reason: "키는 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '키\s*1[4-9]\d(?!\d)'  # 140~199; not "RSA 키 2048"
+      - '키\s*(가|는)?\s*(큰|작은|크신|작으신|크고|작고)'  # not "키 크기"
+      - '신장'
+      - '\d{3}\s*cm'
+      - '\bheight\b'
+      - '\btall\b'
+    allow:
+      - '신장\s*(질환|이식|투석)'  # medical; handled by health.medical
+  - id: physical.weight
+    category: physical_condition
+    law_ref: "채용절차법 제4조의3 제1호"
+    reason: "체중은 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '체중'
+      - '몸무게'
+      - '\d+\s*kg\s*(이하|이상|미만|초과)'
+      - '\bbody\s*weight\b'
+  - id: physical.appearance
+    category: physical_condition
+    law_ref: "채용절차법 제4조의3 제1호"
+    reason: "용모·외모는 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '용모'
+      - '외모'
+      - '외형'
+      - '인상\s*(이|이\s*좋|좋)'
+      - '얼굴'
+      - '이목구비'
+      - '체격'
+      - '몸매'
+      - '\bappearance\b'
+      - '\bgood[- ]?looking\b'
+      - '\battractive\b'
+    allow:
+      - '얼굴\s*(인식|검출|탐지|인증|감지|랜드마크)'
+      - '(ui|화면|앱|웹)\s*외형'
+
+  # ── 채용절차법 제4조의3 제2호: 구직자 본인의 출신지역·혼인여부·재산 ──
+  - id: origin.region
+    category: origin_region
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "출신지역은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '출신\s*지역'
+      - '지역\s*출신'
+      - '(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충청|충북|충남|전라|전북|전남|경상|경북|경남|제주|호남|영남)\S{0,2}\s*(출신|태생)'
+      - '고향'
+      - '본적'
+      - '\bhometown\b'
+  - id: marital.status
+    category: marital_status
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "혼인 여부는 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '혼인'
+      - '기혼'
+      - '미혼'
+      - '독신'
+      - '결혼\s*(여부|유무|계획|예정|하지|안\s*한|한\s*(사람|분|자))'
+      - '배우자\s*(유무|여부|있|없)'
+      - '\bmarri(ed|age)\b'
+      - '\bmarital\b'
+      - '\bsingle\s*only\b'
+  - id: wealth.assets
+    category: wealth
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "재산은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '재산'
+      - '재력'
+      - '자산\s*(규모|보유|현황|수준)'
+      - '(부동산|주택|아파트|건물|차량|자동차)\s*(보유|소유)'
+      - '자가\s*(보유|소유|거주)'
+      - '\bnet\s*worth\b'
+      - '\bwealth'
+    allow:
+      - '재산\S*\s*(관리|조회|계산|평가)?\s*(시스템|서비스|앱|플랫폼|솔루션|도메인|개발)'
+
+  # ── 채용절차법 제4조의3 제3호: 직계 존비속 및 형제자매의 학력·직업·재산 ──
+  - id: family.background
+    category: family_background
+    law_ref: "채용절차법 제4조의3 제3호"
+    reason: "가족의 학력·직업·재산은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    patterns:
+      - '(부모|부친|모친|아버지|어머니|형제|자매|가족|친인척|직계|존속|비속)\S{0,3}\s*(의\s*)?(학력|직업|직장|재산|직위|직급|근무처|출신|소득)'
+      - '가정\s*환경'
+      - '집안'
+      - '\bparents?.?\s*(job|occupation|education|income)'
+      - '\bfamily\s*background\b'
+
+  # ── Beyond Art. 4-3: other legally protected traits (decision 3 in the plan) ──
+  - id: gender
+    category: gender
+    law_ref: "남녀고용평등법 제7조"
+    reason: "성별·임신·출산 계획은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    patterns:
+      - '(남성|여성|남자|여자)\s*(우대|만|한정|지원자|선호|우선|채용)'
+      - '성별'
+      - '임신'
+      - '출산\s*(계획|예정|여부)'
+      - '육아\s*(여부|계획|부담)'
+      - '\b(male|female|men|women)\s*only\b'
+      - '\bgender\b'
+  - id: age
+    category: age
+    law_ref: "고령자고용법 제4조의4"
+    reason: "연령은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    patterns:
+      - '\d{2}\s*(세|살)\s*(이하|이상|미만|까지|이내|초과|미만인)'
+      - '만\s*\d{2}\s*세'
+      - '[2-6]0\s*대\s*(초반|중반|후반|만|우대|선호|한정|지원자|이하|이상)'
+      - '연령'
+      - '나이(?!브|키|트)'  # not 나이브 베이즈
+      - '젊은'
+      - '어린\s*(사람|지원자|분|나이|친구)'
+      - '\d{2,4}\s*년생'
+      - '\bage\s*(limit|under|below|above)\b'
+      - '\bunder\s*\d{2}\s*(years|yrs)\b'
+  - id: religion
+    category: religion
+    law_ref: "고용정책기본법 제7조"
+    reason: "종교·신앙은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    patterns:
+      - '종교'
+      - '신앙'
+      - '(기독교|개신교|천주교|불교|원불교|이슬람|무슬림|교회|성당|사찰)\s*(신자|인|다니|출석|우대)'
+      - '\breligio'
+  - id: health.disability
+    category: disability_health
+    law_ref: "장애인차별금지법 제10조, 고용정책기본법 제7조"
+    reason: "장애 여부와 병력은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    patterns:
+      - '장애\s*(가\s*)?(없|여부|유무)'
+      - '장애인\s*(제외|불가|아닌)'
+      - '비장애'
+      - '병력'
+      - '건강\s*(상태|검진|이상|한\s*(사람|분|자))'
+      - '질병\s*(이력|여부|유무)'
+      - '정신\s*질환'
+      - '신장\s*(질환|이식|투석)'
+      - '\bdisabilit'
+      - '\bmedical\s*history\b'
+    allow:
+      - '(건강|질병|병력)[^,.]{0,6}?(모니터링|관리|분석|예측|데이터|앱|서비스|시스템|플랫폼)'
+  - id: school.prestige
+    category: school_prestige
+    law_ref: "고용정책기본법 제7조"
+    reason: "출신학교·학벌은 차별 사유이므로 평가 기준으로 사용할 수 없습니다. 전공·학위는 '학력(education)' 항목으로 평가할 수 있습니다."
+    patterns:
+      - '출신\s*(학교|대학|대)'
+      - '학벌'
+      - '명문\s*(대|학교)'
+      - '(?<![가-힣])인\s*서울'
+      - '지방대'
+      - '상위권\s*대학'
+      - '대학\s*서열'
+      - '(?<![a-z])sky(?![a-z])'
+      - '(서울대|연세대|고려대|카이스트|포스텍|kaist|postech)\s*(출신|졸업|이상|우대|만)?'
+      - '\b(ivy\s*league|top[- ]tier\s*(school|university))\b'
