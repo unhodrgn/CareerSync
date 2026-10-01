@@ -1,8 +1,14 @@
 import type {
+  ApplicantList,
+  ApplicationOut,
+  ApplicationStatus,
   CheckResult,
   Company,
   CriteriaSetOut,
   CriterionIn,
+  CvOut,
+  CvProfile,
+  EvaluationOut,
   Job,
   JobInput,
   JobListItem,
@@ -52,14 +58,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const headers: Record<string, string> = {};
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = body instanceof FormData;
+  // FormData sets its own multipart boundary header
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
 
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, "NETWORK", "서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인하세요.");
@@ -109,4 +117,22 @@ export const api = {
     request<CriteriaSetOut>("POST", `/jobs/${jobId}/criteria/copy-from/${sourceId}`),
   checkCriterion: (name: string, description: string) =>
     request<CheckResult>("POST", "/criteria/check", { name, description }),
+
+  uploadCv: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<CvOut>("POST", "/cv", form);
+  },
+  myCv: () => request<CvOut>("GET", "/cv/me"),
+  updateCv: (profileId: number, profile: CvProfile, confirm = true) =>
+    request<CvOut>("PUT", `/cv/${profileId}`, { profile, confirm }),
+
+  apply: (jobId: number) => request<ApplicationOut>("POST", `/jobs/${jobId}/applications`),
+  myApplications: () => request<ApplicationOut[]>("GET", "/applications/mine"),
+  applicants: (jobId: number) => request<ApplicantList>("GET", `/jobs/${jobId}/applications`),
+  evaluation: (applicationId: number) => request<EvaluationOut>("GET", `/applications/${applicationId}/evaluation`),
+  retryEvaluation: (applicationId: number) =>
+    request<EvaluationOut>("POST", `/applications/${applicationId}/evaluation/retry`),
+  setApplicationStatus: (applicationId: number, status: ApplicationStatus) =>
+    request<ApplicationOut>("PUT", `/applications/${applicationId}/status`, { status }),
 };
