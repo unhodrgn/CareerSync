@@ -305,6 +305,7 @@ This starts the frontend, backend, database and seed data.
 | Stop everything | `docker compose down` |
 | Run tests (from repo root) | `pip install -r backend/requirements.txt && pytest` |
 | Apply DB migrations | `cd backend && alembic upgrade head` |
+| Load demo data (password `demo1234`) | `cd backend && python ../scripts/seed.py` |
 
 ## 🗓️ Timeline
 

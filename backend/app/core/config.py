@@ -21,6 +21,9 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
 
+    # Version of the consent text shown at registration; stored with each user
+    CONSENT_VERSION: str = "2026-10-01"
+
     BLOCKLIST_PATH: Path = Path(os.getenv("BLOCKLIST_PATH", REPO_ROOT / "data" / "blocklist.yaml"))
 
     # Evaluation criteria
