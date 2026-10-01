@@ -4,10 +4,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, status
 
+from ai.parsing.extract import analyze_jd
 from app.core.deps import CompanyUser, CurrentUser, DbSession
 from app.models import JobPosting
 from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
-from app.services import job_service
+from app.schemas.cv import JdAnalysisOut
+from app.services import ai_runtime, job_service
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -109,3 +111,10 @@ def publish_job(job_id: int, db: DbSession, user: CompanyUser):
 def close_job(job_id: int, db: DbSession, user: CompanyUser):
     job = job_service.get_owned_job(db, job_id, user)
     return _out(job_service.close(db, job))
+
+
+@router.post("/{job_id}/analyze", response_model=JdAnalysisOut, summary="AI parses the JD and suggests a criteria draft (not saved)")
+def analyze_job(job_id: int, db: DbSession, user: CompanyUser):
+    job = job_service.get_owned_job(db, job_id, user)
+    analysis, method = analyze_jd(job.title, job.description, job.min_experience_years, ai_runtime.skills(), ai_runtime.llm())
+    return JdAnalysisOut(job_id=job.id, analysis=analysis, method=method)

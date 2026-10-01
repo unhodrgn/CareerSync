@@ -7,6 +7,14 @@ pydantic>=2.7
 pyjwt>=2.8
 argon2-cffi>=23.1
 pyyaml>=6.0
+python-multipart>=0.0.9
+
+# AI layer (ai/)
+pymupdf>=1.24
+anthropic>=1.0
+# Embeddings: intfloat/multilingual-e5-base (weights download on first use).
+# If the package or the weights are unavailable, a hashing embedder is used instead.
+sentence-transformers>=3.0
 
 # tests
 pytest>=8

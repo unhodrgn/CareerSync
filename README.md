@@ -280,7 +280,14 @@ DB_PASSWORD=your_db_password
 DB_NAME=careersync_db
 JWT_SECRET_KEY=replace_with_a_secure_random_secret
 LLM_API_KEY=your_llm_api_key
+# Optional AI settings
+LLM_MODEL=claude-opus-5-5
+EMBEDDING_MODEL=intfloat/multilingual-e5-base
 ```
+
+Without `LLM_API_KEY`, CV analysis and the project/other criteria fall back to rules and keyword
+retrieval, so the app still runs end to end. If the embedding model cannot be loaded, a hashing
+embedder is used instead (set `EMBEDDING_MODEL=hashing-ngram-v1` to force it, as the tests do).
 
 > 🔒 **Security:** Never commit `.env` files or real credentials. Commit a `.env.example` with placeholders only.
 

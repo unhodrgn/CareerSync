@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import auth, companies, criteria, jobs, users
+from app.api.v1 import applications, auth, companies, criteria, cv, jobs, users
 from app.core.errors import AppError
 
 app = FastAPI(title="CareerSync API")
@@ -12,6 +12,8 @@ app.include_router(users.router, prefix="/api")
 app.include_router(companies.router, prefix="/api")
 app.include_router(criteria.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
+app.include_router(cv.router, prefix="/api")
+app.include_router(applications.router, prefix="/api")
 
 
 @app.exception_handler(AppError)

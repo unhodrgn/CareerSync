@@ -25,6 +25,7 @@ class Settings:
     CONSENT_VERSION: str = "2026-10-01"
 
     BLOCKLIST_PATH: Path = Path(os.getenv("BLOCKLIST_PATH", REPO_ROOT / "data" / "blocklist.yaml"))
+    SKILLS_PATH: Path = Path(os.getenv("SKILLS_PATH", REPO_ROOT / "data" / "skills.yaml"))
 
     # Evaluation criteria
     CRITERIA_MAX_ITEMS: int = 10
