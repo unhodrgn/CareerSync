@@ -15,20 +15,15 @@ from sqlalchemy.orm import Session
 from ai.guardrails.blocklist import Blocklist, load_blocklist
 from ai.guardrails.criteria import GuardrailHit, GuardrailResult, check_criterion
 from app.core.config import settings
-from app.models import CriteriaGuardrailLog, JobCriterion, JobPosting, User
+from app.core.errors import AppError
+from app.models import CriteriaGuardrailLog, JobCriterion, JobPosting
 from app.models.job import JobStatus
 from app.schemas.criteria import CriterionIn
+from app.services.job_service import get_owned_job, get_published_job  # noqa: F401  (re-exported for routes)
 
 
-class CriteriaError(Exception):
-    """Business-rule error rendered as {"code", "message", **extra} by the handler in main.py."""
-
-    def __init__(self, status_code: int, code: str, message: str, **extra):
-        super().__init__(message)
-        self.status_code = status_code
-        self.code = code
-        self.message = message
-        self.extra = extra
+class CriteriaError(AppError):
+    """Criteria rule violation (kept as its own type for callers that catch it)."""
 
 
 def blocklist() -> Blocklist:
@@ -57,24 +52,6 @@ def hit_dict(hit: GuardrailHit, index: int | None = None) -> dict:
         "reason": hit.reason,
         "law_ref": hit.law_ref,
     }
-
-
-# ── Access ──
-
-
-def get_owned_job(db: Session, job_id: int, user: User) -> JobPosting:
-    """The job if it belongs to the user's company. 404 otherwise, so other companies' job ids are not probeable."""
-    job = db.get(JobPosting, job_id)
-    if job is None or user.role != "company" or job.company_id != user.company_id:
-        raise CriteriaError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
-    return job
-
-
-def get_published_job(db: Session, job_id: int) -> JobPosting:
-    job = db.get(JobPosting, job_id)
-    if job is None or job.status != JobStatus.PUBLISHED:
-        raise CriteriaError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
-    return job
 
 
 # ── Validation ──
