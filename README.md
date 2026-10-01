@@ -306,6 +306,8 @@ This starts the frontend, backend, database and seed data.
 | Run tests (from repo root) | `pip install -r backend/requirements.txt && pytest` |
 | Apply DB migrations | `cd backend && alembic upgrade head` |
 | Load demo data (password `demo1234`) | `cd backend && python ../scripts/seed.py` |
+| Run the frontend (needs Node 20+, backend on port 8000) | `cd frontend && npm install && npm run dev`, then open `http://localhost:3000` |
+| Typecheck and build the frontend | `cd frontend && npm run build` |
 
 ## 🗓️ Timeline
 
@@ -327,3 +329,5 @@ This starts the frontend, backend, database and seed data.
 ### LLM call returns an authentication error
 
 ### Frontend cannot reach the backend
+
+In development the Vite server forwards `/api` to `http://127.0.0.1:8000`. Start the backend first. If it runs elsewhere, set `VITE_API_TARGET` (for example `VITE_API_TARGET=http://127.0.0.1:8001 npm run dev`).
