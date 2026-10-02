@@ -265,7 +265,7 @@ The product does not collect sensitive group attributes. Bias is audited offline
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/<your-org>/careersync.git
+git clone https://github.com/unhodrgn/careersync.git
 cd careersync
 ```
 
