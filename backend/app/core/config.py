@@ -1,8 +1,17 @@
-"""App settings, read from environment variables (see README for the .env keys)."""
+"""App settings, read from environment variables (see README for the .env keys).
+
+The repo-root `.env` is loaded first, so local runs need no `$env:...` per terminal. Variables
+already set in the shell win over `.env`. Tests set CAREERSYNC_DOTENV=0 to skip the file.
+"""
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+if os.getenv("CAREERSYNC_DOTENV", "1") != "0":
+    load_dotenv(REPO_ROOT / ".env", override=False)
 
 
 def _database_url() -> str:
@@ -11,8 +20,9 @@ def _database_url() -> str:
     user = os.getenv("DB_USER", "postgres")
     password = os.getenv("DB_PASSWORD", "postgres")
     host = os.getenv("DB_HOST", "localhost")
+    port = os.getenv("DB_PORT", "5432")
     name = os.getenv("DB_NAME", "careersync_db")
-    return f"postgresql+psycopg://{user}:{password}@{host}/{name}"
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}"
 
 
 class Settings:
