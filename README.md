@@ -271,10 +271,13 @@ cd careersync
 
 ### 2. Configure Environment Variables
 
-Create `.env` from the example file and fill in your values:
+Copy `.env.example` to `.env` in the repo root and fill in your values. The backend and
+`alembic` read this file on startup, so there is no need to set variables in each terminal.
+Variables already set in the shell take precedence over `.env`.
 
 ```env
 DB_HOST=db
+DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_db_password
 DB_NAME=careersync_db
@@ -288,6 +291,10 @@ EMBEDDING_MODEL=intfloat/multilingual-e5-base
 Without `LLM_API_KEY`, CV analysis and the project/other criteria fall back to rules and keyword
 retrieval, so the app still runs end to end. If the embedding model cannot be loaded, a hashing
 embedder is used instead (set `EMBEDDING_MODEL=hashing-ngram-v1` to force it, as the tests do).
+
+When running the backend outside Docker against a Postgres container published on another port,
+set `DB_HOST=localhost` and `DB_PORT` to that port, or set `DATABASE_URL` directly, e.g.
+`DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db`.
 
 > 🔒 **Security:** Never commit `.env` files or real credentials. Commit a `.env.example` with placeholders only.
 
