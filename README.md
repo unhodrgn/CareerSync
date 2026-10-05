@@ -37,7 +37,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 | 🎯 Job recommendation | ⏳ Planned | No `/api/recommendations` yet. The seeker 추천 공고 page shows real jobs but demo match % (yellow "데모" banner) |
 | 🔎 Talent recommendation (인재 추천) | ⏳ Planned | Placeholder page; waiting on a privacy decision about showing non-applicants to companies |
 | 🛡️ Bias audit, AI cache | ⏳ Planned | `ai/bias/` and `ai/cache/` are stubs |
-| 🐳 `docker compose up` | ⏳ Planned | `docker-compose.yml` is still an empty stub. Run the app with the local steps below |
+| 🐳 `docker compose up` | Implemented; Docker runtime verification pending | Starts DB, migrations + demo seed, backend and frontend. See [Compose guide](docs/docker-compose.md) |
 
 ## 🧠 How Scoring Works
 
@@ -68,6 +68,10 @@ Browser ──► Vite dev server :3000 ──(/api proxy)──► FastAPI :800
                                                         │
                                                         └──► ai/ (parsing, scoring, guardrails) ──► LLM API (optional)
 ```
+
+## 🐳 Run with Docker Compose
+
+With Docker Desktop running, create `.env` from `.env.example` if needed, set `EMBEDDING_MODEL=hashing-ngram-v1` for a fast demo, then run `docker compose up --build -d`. Open http://localhost:3000. See [the full guide](docs/docker-compose.md) for ports, logs and stopping the app. This uses a separate database from the manual setup below.
 
 ## ⚙️ Run It Locally
 
@@ -411,7 +415,7 @@ CareerSync/
 ├── .env.example                 # Copy to .env (repo root)
 ├── conftest.py                  # Test-wide settings: no network, no .env, hashing embedder
 ├── pyproject.toml               # pytest config (run pytest from the repo root)
-├── docker-compose.yml           # Stub, not usable yet
+├── docker-compose.yml           # DB, init, backend and frontend
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
 │   ├── migrations/versions/     # 0001 … 0004
