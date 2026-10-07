@@ -40,7 +40,7 @@ class CriterionResult:
     level: int  # nearest of LEVELS
     reason: str  # one Korean sentence
     evidence: tuple[str, ...] = field(default_factory=tuple)
-    # How the score was produced, e.g. "rule:skill", "llm:claude-opus-5-5", "retrieval"
+    # How the score was produced, e.g. "rule:skill", "llm:claude-sonnet-5-5", "retrieval"
     method: str = ""
 
 
