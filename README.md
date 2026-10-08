@@ -158,7 +158,7 @@ EMBEDDING_MODEL=intfloat/multilingual-e5-base
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
 | `JWT_SECRET_KEY` | for anything shared | Any long random string. A dev default is used if empty |
 | `LLM_API_KEY` | **no** | Anthropic API key. Without it, CV analysis and project/other criteria use rules and keyword retrieval, and the app still runs end to end |
-| `LLM_MODEL` | no | Defaults to `claude-opus-5-5` |
+| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 |
 | `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning) |
 
 > 🔒 Never commit `.env`. It is in `.gitignore`; only `.env.example` with placeholders is committed.
