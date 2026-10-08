@@ -14,7 +14,17 @@ from ai.parsing.pdf import PdfError, extract_text
 from ai.parsing.pii import mask_pii
 from ai.parsing.profile import CV_SCHEMA_VERSION, CvProfile as ProfileData
 from app.core.errors import AppError
-from app.models import CvDocument, CvProfile, User
+from app.models import (
+    CvCertificate,
+    CvDocument,
+    CvEducation,
+    CvExperience,
+    CvProfile,
+    CvProject,
+    CvProjectTech,
+    CvSkill,
+    User,
+)
 from app.schemas.cv import CvOut
 from app.services import ai_runtime
 
@@ -28,8 +38,107 @@ def _not_found() -> AppError:
     return AppError(404, "CV_NOT_FOUND", "이력서를 찾을 수 없습니다.")
 
 
+def _fill_relational_profile(row: CvProfile, data: ProfileData) -> None:
+    row.summary = data.summary
+
+    row.skills = [
+        CvSkill(skill_name=skill)
+        for skill in data.skills
+    ]
+
+    row.experiences = [
+        CvExperience(
+            org=item.org,
+            role=item.role,
+            start=item.start,
+            end=item.end,
+            description=item.description,
+            source=item.source,
+        )
+        for item in data.experiences
+    ]
+
+    row.projects = [
+        CvProject(
+            name=item.name,
+            role=item.role,
+            description=item.description,
+            source=item.source,
+            techs=[
+                CvProjectTech(tech_name=tech)
+                for tech in item.tech
+            ],
+        )
+        for item in data.projects
+    ]
+
+    row.educations = [
+        CvEducation(
+            school=item.school,
+            major=item.major,
+            degree=item.degree,
+            source=item.source,
+        )
+        for item in data.education
+    ]
+
+    row.certificates = [
+        CvCertificate(
+            name=item.name,
+            date=item.date,
+            source=item.source,
+        )
+        for item in data.certificates
+    ]
+
+
+def to_profile_data(row: CvProfile) -> ProfileData:
+    return ProfileData(
+        skills=[item.skill_name for item in row.skills],
+        experiences=[
+            {
+                "org": item.org,
+                "role": item.role,
+                "start": item.start,
+                "end": item.end,
+                "description": item.description,
+                "source": item.source,
+            }
+            for item in row.experiences
+        ],
+        projects=[
+            {
+                "name": item.name,
+                "role": item.role,
+                "tech": [tech.tech_name for tech in item.techs],
+                "description": item.description,
+                "source": item.source,
+            }
+            for item in row.projects
+        ],
+        education=[
+            {
+                "school": item.school,
+                "major": item.major,
+                "degree": item.degree,
+                "source": item.source,
+            }
+            for item in row.educations
+        ],
+        certificates=[
+            {
+                "name": item.name,
+                "date": item.date,
+                "source": item.source,
+            }
+            for item in row.certificates
+        ],
+        summary=row.summary,
+    )
+
+
 def to_out(p: CvProfile) -> CvOut:
-    data = ProfileData.model_validate(p.profile)
+    data = to_profile_data(p)
     return CvOut(
         id=p.id,
         document_id=p.cv_document_id,
@@ -62,15 +171,16 @@ def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
         masked_text=masked.text,
         masked_kinds=list(masked.masked),
     )
-    doc.profiles.append(
-        CvProfile(
-            seeker_id=user.id,
-            version=1,
-            profile=profile.model_dump(mode="json"),
-            schema_version=CV_SCHEMA_VERSION,
-            method=method,
-        )
+    new_profile = CvProfile(
+        seeker_id=user.id,
+        version=1,
+        schema_version=CV_SCHEMA_VERSION,
+        method=method,
     )
+
+    _fill_relational_profile(new_profile, profile)
+
+    doc.profiles.append(new_profile)
     db.add(doc)
     db.commit()
     db.refresh(doc)
@@ -113,11 +223,13 @@ def update(db: Session, user: User, profile_id: int, data: ProfileData, confirm:
         cv_document_id=current.cv_document_id,
         seeker_id=user.id,
         version=newest + 1,
-        profile=cleaned.model_dump(mode="json"),
         schema_version=CV_SCHEMA_VERSION,
         method="seeker",
         confirmed_at=datetime.now(UTC) if confirm else None,
     )
+
+    _fill_relational_profile(p, cleaned)
+
     db.add(p)
     db.commit()
     db.refresh(p)

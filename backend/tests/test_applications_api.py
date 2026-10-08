@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 
 from ai.tests.helpers import SAMPLE_CV, FakeLLM, make_pdf
-from app.models import Evaluation, User
+from app.models import CvProfile, Evaluation, User
 from app.services import ai_runtime
 from tests.conftest import _PASSWORD_HASH, auth
 
@@ -68,6 +68,19 @@ def test_upload_masks_pii_and_structures(client, db):
     assert "Java" in cv["profile"]["skills"]
     assert cv["total_experience_months"] > 60
     assert "jiwon.kim@example.com" not in str(cv)
+
+
+def test_cv_profile_is_stored_relationally(client, db):
+    h = seeker(db, "relational@seeker.test", "김지원")
+    body = upload(client, h).json()
+
+    row = db.get(CvProfile, body["id"])
+    assert row is not None
+    assert "Java" in [skill.skill_name for skill in row.skills]
+    assert row.experiences
+    assert row.projects
+    assert row.educations
+    assert row.summary == body["profile"]["summary"]
 
 
 def test_upload_rejects_non_pdf_and_company_users(client, db, world):

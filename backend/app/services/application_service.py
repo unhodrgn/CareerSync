@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai.parsing.extract import total_experience_months
-from ai.parsing.profile import CvProfile as ProfileData
 from ai.scoring.fit import RankItem, rank, summary_comment
 from app.core.errors import AppError
 from app.models import Application, Evaluation, JobPosting, User
@@ -112,7 +111,7 @@ def ranked(db: Session, user: User, job_id: int) -> ApplicantList:
     for a in apps:
         ev = evs.get(a.cv_profile_id)
         fit, strong = evaluation_service.fit_of(ev, weights)
-        profile = ProfileData.model_validate(a.cv_profile.profile)
+        profile = cv_service.to_profile_data(a.cv_profile)
         rows[a.id] = ApplicantRow(
             application_id=a.id,
             rank=None,

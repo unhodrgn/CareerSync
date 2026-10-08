@@ -12,7 +12,7 @@ x-backend: &backend
     DB_NAME: ${DB_NAME:-careersync_db}
     JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-demo-secret-change-before-sharing}
     LLM_API_KEY: ${LLM_API_KEY:-}
-    LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
+    LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
     EMBEDDING_MODEL: ${EMBEDDING_MODEL:-hashing-ngram-v1}
   volumes:
     - model-cache:/root/.cache/huggingface

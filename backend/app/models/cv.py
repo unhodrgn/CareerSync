@@ -41,7 +41,6 @@ class CvProfile(Base):
     cv_document_id: Mapped[int] = mapped_column(ForeignKey("cv_documents.id", ondelete="CASCADE"), index=True)
     seeker_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     version: Mapped[int] = mapped_column(Integer)
-    profile: Mapped[dict] = mapped_column(JsonType)
     schema_version: Mapped[str] = mapped_column(String(20))
     # "rules", "llm:<model>" or "seeker" (edited by the seeker)
     method: Mapped[str] = mapped_column(String(60))
@@ -49,4 +48,110 @@ class CvProfile(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    summary: Mapped[str] = mapped_column(Text, default="")
+
     document: Mapped[CvDocument] = relationship(back_populates="profiles")
+
+    skills: Mapped[list["CvSkill"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="CvSkill.id"
+    )
+    experiences: Mapped[list["CvExperience"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="CvExperience.id"
+    )
+    projects: Mapped[list["CvProject"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="CvProject.id"
+    )
+    educations: Mapped[list["CvEducation"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="CvEducation.id"
+    )
+    certificates: Mapped[list["CvCertificate"]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan", order_by="CvCertificate.id"
+    )
+
+
+class CvSkill(Base):
+    __tablename__ = "cv_skills"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True
+    )
+    skill_name: Mapped[str] = mapped_column(String(100))
+
+    profile: Mapped["CvProfile"] = relationship(back_populates="skills")
+
+
+class CvExperience(Base):
+    __tablename__ = "cv_experiences"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True
+    )
+    org: Mapped[str] = mapped_column(String(100), default="")
+    role: Mapped[str] = mapped_column(String(100), default="")
+    start: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    end: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(500), default="")
+
+    profile: Mapped["CvProfile"] = relationship(back_populates="experiences")
+
+
+class CvProject(Base):
+    __tablename__ = "cv_projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), default="")
+    role: Mapped[str] = mapped_column(String(100), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(500), default="")
+
+    profile: Mapped["CvProfile"] = relationship(back_populates="projects")
+    techs: Mapped[list["CvProjectTech"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", order_by="CvProjectTech.id"
+    )
+
+
+class CvProjectTech(Base):
+    __tablename__ = "cv_project_techs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_project_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_projects.id", ondelete="CASCADE"), index=True
+    )
+    tech_name: Mapped[str] = mapped_column(String(100))
+
+    project: Mapped["CvProject"] = relationship(back_populates="techs")
+
+
+class CvEducation(Base):
+    __tablename__ = "cv_educations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True
+    )
+    school: Mapped[str] = mapped_column(String(100), default="")
+    major: Mapped[str] = mapped_column(String(100), default="")
+    degree: Mapped[str] = mapped_column(String(20), default="")
+    source: Mapped[str] = mapped_column(String(500), default="")
+
+    profile: Mapped["CvProfile"] = relationship(back_populates="educations")
+
+
+class CvCertificate(Base):
+    __tablename__ = "cv_certificates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cv_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(100), default="")
+    date: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    source: Mapped[str] = mapped_column(String(500), default="")
+
+    profile: Mapped["CvProfile"] = relationship(back_populates="certificates")
