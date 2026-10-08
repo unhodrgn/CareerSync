@@ -12,12 +12,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ai.parsing.extract import PROMPT_VERSION
-from ai.parsing.profile import CvProfile as ProfileData
 from ai.scoring.fit import STRONG_SCORE, aggregate_fit, score_candidate
 from ai.scoring.types import Candidate, Criterion, JobContext
 from app.models import CriterionScore, CvProfile, Evaluation, JobPosting
 from app.models.application import EvaluationStatus
-from app.services import ai_runtime, criteria_service
+from app.services import ai_runtime, criteria_service, cv_service
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ def evaluate(db: Session, ev: Evaluation) -> Evaluation:
         profile_row = db.get(CvProfile, ev.cv_profile_id)
         loaded = criteria_service.load_for_scoring(db, ev.job_id)
         criteria = [Criterion(c.id, c.name, c.description, c.category, c.effective_weight) for c in loaded.items]
-        candidate = Candidate(ProfileData.model_validate(profile_row.profile), profile_row.document.masked_text)
+        candidate = Candidate(cv_service.to_profile_data(profile_row), profile_row.document.masked_text)
         context = JobContext(
             title=job.title,
             description=job.description,
