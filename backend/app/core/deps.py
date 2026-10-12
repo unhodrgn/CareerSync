@@ -23,6 +23,15 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    db: DbSession, credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]
+) -> User | None:
+    """None for a guest (no Bearer token); a token that is sent must be valid (401 otherwise)."""
+    if credentials is None:
+        return None
+    return get_current_user(db, credentials)
+
+
 def get_company_user(user: Annotated[User, Depends(get_current_user)]) -> User:
     if user.role != "company":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "기업 회원만 사용할 수 있습니다.")
@@ -30,4 +39,5 @@ def get_company_user(user: Annotated[User, Depends(get_current_user)]) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 CompanyUser = Annotated[User, Depends(get_company_user)]

@@ -1,4 +1,4 @@
-"""App settings, read from environment variables (see README for the .env keys).
+"""App settings, read from environment variables (see PROJECT_DOCUMENTATION.md §9 for the .env keys).
 
 The repo-root `.env` is loaded first, so local runs need no `$env:...` per terminal. Variables
 already set in the shell win over `.env`. Tests set CAREERSYNC_DOTENV=0 to skip the file.

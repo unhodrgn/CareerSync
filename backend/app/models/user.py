@@ -1,4 +1,4 @@
-"""Users and companies. 1 recruiter account = 1 company (README assumption)."""
+"""Users and companies. 1 recruiter account = 1 company (PROJECT_DOCUMENTATION.md §1)."""
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func, text

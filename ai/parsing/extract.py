@@ -236,7 +236,8 @@ def structure_cv(masked_text: str, skills: SkillDictionary, llm: LLMClient | Non
     return normalize_profile(structure_cv_rules(masked_text, skills), skills), "rules"
 
 
-_YEARS = re.compile(r"(\d{1,2})\s*(?:년|years?)\s*(?:이상|\+|or more)?", re.IGNORECASE)
+# "3년 이상", "3~5년" (lower bound), "5+ years"; not a year like "2020년"
+_YEARS = re.compile(r"(?<!\d)(\d{1,2})\s*(?:[~\-–]\s*\d{1,2}\s*)?\+?\s*(?:년|years?)", re.IGNORECASE)
 
 
 def analyze_jd_rules(title: str, text: str, min_years: int | None, skills: SkillDictionary) -> JdAnalysis:

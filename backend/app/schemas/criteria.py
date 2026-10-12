@@ -45,7 +45,7 @@ class CriteriaSetOut(BaseModel):
 
 
 class SeekerCriterionOut(BaseModel):
-    """What a seeker may see: no raw weights (README scoring rules)."""
+    """What a seeker may see: no raw weights (docs/DECISIONS.md D1)."""
 
     name: str
     category: Category

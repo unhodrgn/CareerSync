@@ -1,4 +1,4 @@
-"""PDF → plain text with PyMuPDF. Text-layer PDFs only (no OCR, per README scope)."""
+"""PDF → plain text with PyMuPDF. Text-layer PDFs only (no OCR)."""
 from dataclasses import dataclass
 
 MAX_BYTES = 5 * 1024 * 1024

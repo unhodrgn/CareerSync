@@ -7,7 +7,7 @@
 # Write phrases, not bare words: "키" alone would block "키보드", "장애" alone would block "장애 대응 경험".
 # Every change needs a matching case in ai/tests/fixtures/guardrail_cases.yaml and a version bump.
 #
-# law_ref values are the team's reading of the law; confirm with the advisor before the demo.
+# law_ref values are an unverified reading of the law; re-check their legal validity before the demo.
 
 version: "2026.10.1"
 
@@ -108,7 +108,7 @@ rules:
       - '\bparents?.?\s*(job|occupation|education|income)'
       - '\bfamily\s*background\b'
 
-  # ── Beyond Art. 4-3: other legally protected traits (decision 3 in the plan) ──
+  # ── Beyond Art. 4-3: other legally protected traits ──
   - id: gender
     category: gender
     law_ref: "남녀고용평등법 제7조"

@@ -80,6 +80,13 @@ def test_jd_rules_suggest_a_valid_criteria_draft():
     assert {c.category for c in analysis.criteria} == {"skill", "experience", "project", "certificate"}
 
 
+def test_jd_rules_do_not_read_a_year_as_experience():
+    founded = analyze_jd("백엔드 개발자", "2020년 설립된 회사입니다. Java API 개발.", None, SKILLS, None)[0]
+    assert founded.profile.min_years is None
+    both = analyze_jd("백엔드 개발자", "2020년 설립. Java API 개발, 경력 3~5년.", None, SKILLS, None)[0]
+    assert both.profile.min_years == 3
+
+
 def test_jd_llm_weights_are_rescaled_to_100():
     llm = FakeLLM(
         {

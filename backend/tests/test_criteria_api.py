@@ -176,3 +176,54 @@ def test_load_for_scoring_excludes_newly_blocked(client, world, db, monkeypatch)
     assert [c.name for c in result.excluded] == ["관련 자격증"]
     assert round(sum(c.effective_weight for c in result.items), 6) == 100
     assert round(result.items[0].effective_weight, 4) == round(30 * 100 / 90, 4)
+
+
+# ── education criteria must name a major (or 이공계/STEM) ──
+
+NO_MAJOR = {"name": "관련 전공", "category": "education", "weight": 10}
+
+
+def _with(education: dict) -> list[dict]:
+    return [*PLAN_EXAMPLE[:4], education]
+
+
+def test_education_without_major_is_rejected(client, world):
+    r = put(client, world["job"].id, _with(NO_MAJOR), world["recruiter"])
+    assert r.status_code == 422
+    body = r.json()
+    assert body["code"] == "CRITERIA_MAJOR_REQUIRED" and "전공" in body["message"]
+    assert body["items"] == [{"index": 4, "name": "관련 전공"}]
+
+
+def test_education_with_major_or_stem_is_saved(client, world):
+    for education in (
+        {"name": "컴퓨터공학 관련 전공", "category": "education", "weight": 10},
+        {"name": "전공", "description": "경영학과 또는 유관 전공", "category": "education", "weight": 10},
+        {"name": "이공계 전공", "category": "education", "weight": 10},
+    ):
+        r = put(client, world["job"].id, _with(education), world["recruiter"])
+        assert r.status_code == 200, (education, r.json())
+
+
+def test_old_education_criterion_blocks_publish_and_copy(client, world, db):
+    job = world["job"]
+    put(client, job.id, PLAN_EXAMPLE, world["recruiter"])
+    # As if saved before the rule: written straight to the DB
+    job.criteria[-1].name, job.criteria[-1].category = "관련 전공", "education"
+    db.commit()
+    r = publish(client, job.id, world["recruiter"])
+    assert (r.status_code, r.json()["code"]) == (422, "CRITERIA_MAJOR_REQUIRED")
+    r = client.post(f"/api/jobs/{world['job2'].id}/criteria/copy-from/{job.id}", headers=world["recruiter"])
+    assert (r.status_code, r.json()["code"]) == (422, "CRITERIA_MAJOR_REQUIRED")
+
+
+def test_published_job_with_old_education_criterion_can_change_weights(client, world, db):
+    job = world["job"]
+    put(client, job.id, _with({"name": "컴퓨터공학 전공", "category": "education", "weight": 10}), world["recruiter"])
+    assert publish(client, job.id, world["recruiter"]).status_code == 200
+    job.criteria[-1].name = "관련 전공"  # as if saved before the rule
+    db.commit()
+    items = client.get(f"/api/jobs/{job.id}/criteria", headers=world["recruiter"]).json()["items"]
+    reweighted = [{**i, "weight": w} for i, w in zip(items, [25, 25, 20, 20, 10], strict=True)]
+    r = put(client, job.id, reweighted, world["recruiter"])
+    assert r.status_code == 200, r.json()

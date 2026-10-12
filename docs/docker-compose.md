@@ -17,7 +17,7 @@ Demo accounts: seeker@demo.test, hr@nextcode.test, hr@cloudlab.test.
 All demo passwords: demo1234.
 
 The first build downloads Python/Node dependencies and can take several minutes.
-Compose waits for PostgreSQL, runs Alembic and the existing idempotent seed script,
+Compose waits for PostgreSQL, runs Alembic and the idempotent seed script,
 then starts the backend and frontend. The init container exiting with code 0 is normal.
 No host Python or Node installation is needed.
 
@@ -34,7 +34,8 @@ the credentials already stored in PostgreSQL.
 
 Optional .env variables: COMPOSE_DB_PORT (5434), COMPOSE_BACKEND_PORT (8000),
 COMPOSE_FRONTEND_PORT (3000). Access the corresponding port if changed.
-LLM_API_KEY is optional; without a key the existing rule-based mode is used.
+AI_MODE defaults to rules. AI_MODE=llm needs LLM_API_KEY, otherwise the backend
+does not start; in rules mode the key is ignored.
 The model cache persists if you choose the e5 embedder.
 
 ```powershell
@@ -46,9 +47,7 @@ docker compose up --build -d
 
 For demo verification: log in as seeker, upload and confirm a text PDF CV,
 apply to the Nextcode job, then log in as hr@nextcode.test and view applicants.
-Job recommendation percentages remain demo values; Compose does not implement
-the recommendation API.
+Job recommendation percentages are demo values (no recommendation API yet).
 
-This is a local development/demo setup using Vite, not production hosting.
-Ports bind only to localhost. Do not use docker compose down -v unless you
-intend to delete this demo database and model cache.
+Local dev/demo setup (Vite dev server), not production. Ports bind to localhost
+only. `docker compose down -v` deletes the demo database and model cache.

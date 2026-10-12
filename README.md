@@ -2,11 +2,11 @@
 
 **Criteria-Based Hiring & Job Matching Platform**
 
-*Company-defined criteria. Explainable fit scores. Two-way recommendations.*
-
 A multi-company recruiting platform where each company's own evaluation criteria are used both to score applicants and to recommend jobs to people who haven't applied yet.
 
 Soongsil University RISE Capstone project. This is a working prototype under active development; the [Status](#-status) section says what runs today and what is still planned.
+
+Decisions and scope: [`docs/DECISIONS.md`](docs/DECISIONS.md) (source of truth). Technical reference: [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
 
 [Status](#-status) · [Run It Locally](#️-run-it-locally) · [Troubleshooting](#️-troubleshooting) · [API](#-api-overview) · [Project Structure](#-project-structure)
 
@@ -21,7 +21,7 @@ CareerSync connects a company's real hiring criteria with a job seeker's skills 
 
 The core idea: **one set of company-defined criteria powers two things**: scoring submitted applicants and recommending jobs to non-applicants, on a single shared platform.
 
-> AI only supports decisions. Recruiters make the final call. The system never auto-accepts or auto-rejects a candidate.
+> AI never accepts or rejects a candidate; application status changes only by recruiter action.
 
 ## 🚦 Status
 
@@ -43,9 +43,9 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 
 | Step | Approach |
 | --- | --- |
-| CV / JD structuring | LLM with JSON output when `LLM_API_KEY` is set, rule-based otherwise; skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
+| CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (default `AI_MODE=rules`); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
 | Skill, experience, education, certificate criteria | Rule-based scoring, skill matching with multilingual embeddings (`intfloat/multilingual-e5-base`) |
-| Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; without an API key, keyword retrieval is used instead |
+| Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; in `AI_MODE=rules`, keyword retrieval is used instead |
 | Fit score | Weighted sum of stored per-criterion scores, recomputed from the current weights |
 | Criteria guardrail | `data/blocklist.yaml`: 채용절차법 제4조의3 items plus gender, age, religion, disability, each tagged with its law |
 | Privacy | Name, email and phone are masked before any text is sent to the LLM |
@@ -75,7 +75,7 @@ With Docker Desktop running, create `.env` from `.env.example` if needed, set `E
 
 ## ⚙️ Run It Locally
 
-These steps were run end to end on a fresh clone (migrations, seed, login, 168 tests, frontend build and dev server). Every command has a **bash** (macOS/Linux/Git Bash) and a **PowerShell** (Windows) version where they differ.
+Commands: **bash** (macOS/Linux/Git Bash) and **PowerShell** (Windows) where they differ.
 
 You need **three terminals** in the end: PostgreSQL runs in Docker in the background, the backend runs in terminal 1, the frontend in terminal 2.
 
@@ -97,7 +97,7 @@ git clone https://github.com/unhodrgn/CareerSync.git
 cd CareerSync
 ```
 
-All commands below start from this **repo root** (the folder that contains `backend/`, `frontend/`, `.env.example`) unless they say `cd backend` or `cd frontend`.
+Commands run from the **repo root** unless they `cd backend` / `cd frontend`.
 
 ### 2. Start PostgreSQL in Docker (port 5433)
 
@@ -135,7 +135,7 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-The file must be **`.env` in the repo root**, not in `backend/`. The backend, `alembic` and `scripts/seed.py` all read it on startup, so you do not need to set variables in each terminal. Variables already set in the shell win over `.env`.
+The file must be **`.env` in the repo root**, not in `backend/`. The backend, `alembic` and `scripts/seed.py` all read it on startup. Variables already set in the shell win over `.env`.
 
 The defaults already match the Docker command above:
 
@@ -149,6 +149,7 @@ DB_NAME=careersync_db
 JWT_SECRET_KEY=replace_with_a_secure_random_secret
 
 # Optional
+AI_MODE=rules
 LLM_API_KEY=
 EMBEDDING_MODEL=intfloat/multilingual-e5-base
 ```
@@ -157,7 +158,8 @@ EMBEDDING_MODEL=intfloat/multilingual-e5-base
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
 | `JWT_SECRET_KEY` | for anything shared | Any long random string. A dev default is used if empty |
-| `LLM_API_KEY` | **no** | Anthropic API key. Without it, CV analysis and project/other criteria use rules and keyword retrieval, and the app still runs end to end |
+| `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis and project/other criteria use rules and keyword retrieval and no LLM is called, even with a key. Any other value stops the backend at startup |
+| `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
 | `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 |
 | `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning) |
 
@@ -179,7 +181,7 @@ python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
-The prompt now starts with `(.venv)`. **Activate the venv again in every new terminal** before running `alembic`, `uvicorn`, `pytest` or the seed script.
+**Activate the venv again in every new terminal** before running `alembic`, `uvicorn`, `pytest` or the seed script.
 
 `sentence-transformers` pulls in PyTorch, so the first install takes a few minutes and several GB. On Linux, installing the CPU build first keeps it much smaller: `pip install torch --index-url https://download.pytorch.org/whl/cpu`, then the requirements.
 
@@ -194,7 +196,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0003 -> 0004 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0007 -> 0008 ...` and then:
 
 ```
 added hr@nextcode.test
@@ -250,7 +252,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `168 passed`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 52 backend tests.
+Expected: `228 passed`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 69 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -263,7 +265,7 @@ npm run build
 
 ### 10. After `git pull`
 
-Dependencies and migrations change as features land. After every pull:
+After every pull:
 
 ```bash
 source .venv/bin/activate            # PowerShell: .\.venv\Scripts\Activate.ps1
@@ -337,7 +339,7 @@ The first use downloads the `multilingual-e5-base` model (about 1 GB). Set `EMBE
 
 ### CV analysis or project criteria look basic
 
-That is the no-key mode. `LLM_API_KEY` is optional; without it, extraction and judgment criteria use rules and keyword retrieval. Add an Anthropic API key to `.env` and restart the backend for LLM-refined results. A wrong key shows up as an authentication error in the backend log and the evaluation is marked failed; recruiters can re-run it with 다시 분석 in 지원자 관리.
+That is the rules mode (`AI_MODE=rules`, the default); extraction and judgment criteria use rules and keyword retrieval. Set `AI_MODE=llm` and an Anthropic API key (`LLM_API_KEY`) in `.env` and restart the backend for LLM-refined results; with `AI_MODE=llm` and no key the backend does not start. A wrong key shows up as an authentication error in the backend log and the evaluation is marked failed; recruiters can re-run it with 다시 분석 in 지원자 관리.
 
 ### The frontend shows network errors or "인증이 필요합니다"
 
@@ -350,7 +352,7 @@ Node is too old for Vite 8. Check `node --version` and install Node 22 LTS (or 2
 
 ## 🔌 API Overview
 
-Base URL `http://localhost:8000`. The full, always-current list with request/response schemas is at **http://localhost:8000/docs**. All endpoints except register, login and `/health` need `Authorization: Bearer <token>`.
+Base URL `http://localhost:8000`. Request/response schemas as currently implemented are at **http://localhost:8000/docs**; the API in `PROJECT_DOCUMENTATION.md` §4 is the standard. All endpoints except register, login, `/health`, `GET /api/jobs` and `GET /api/jobs/{job_id}` need `Authorization: Bearer <token>`.
 
 ### Auth & users
 
@@ -418,7 +420,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
-│   ├── migrations/versions/     # 0001 … 0004
+│   ├── migrations/versions/     # 0001 … 0008
 │   ├── requirements.txt         # Backend + AI + test dependencies
 │   ├── app/
 │   │   ├── main.py              # FastAPI app (run uvicorn from backend/)
@@ -430,7 +432,7 @@ CareerSync/
 │   │   └── db/                  # Engine and session
 │   └── tests/                   # API tests (SQLite in memory)
 ├── ai/
-│   ├── llm/client.py            # LLMClient (Anthropic); None when no key is set
+│   ├── llm/client.py            # LLMClient (Anthropic); None unless AI_MODE=llm
 │   ├── prompts/v1/              # cv_structure, jd_analyze, rubric_score
 │   ├── parsing/                 # PDF → text, PII masking, CV/JD structuring
 │   ├── embedding/               # e5 / hashing embedders, skill dictionary

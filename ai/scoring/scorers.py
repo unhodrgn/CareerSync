@@ -29,13 +29,18 @@ SKILL_LISTED = 70  # the skill is on the CV
 SKILL_USE_BONUS = 10  # per experience or project that uses it
 SIMILAR_STRONG, SIMILAR_WEAK = 0.85, 0.80  # embedding similarity to a related skill
 PARTIAL_STRONG, PARTIAL_WEAK = 50, 30
-# Experience: target when neither the criterion nor the job states years
-DEFAULT_TARGET_YEARS = 2
 # Certificates that say nothing about job skills
 _LANGUAGE_CERTS = {"TOEIC", "OPIc"}
-# Education: majors related to software jobs
-_RELATED_MAJOR = ("컴퓨터", "소프트웨어", "정보", "전산", "인공지능", "ai", "데이터", "computer", "software", "통계", "전자", "전기", "정보통신", "산업공학")
-_STEM_MAJOR = ("공학", "수학", "물리", "화학", "과학", "engineering", "science", "math")
+# Education: only majors the criterion names count as related; 이공계/STEM criteria use this list
+_STEM_MAJOR = (
+    "공학", "수학", "물리", "화학", "과학", "컴퓨터", "소프트웨어", "전산", "통계", "생명", "생물",
+    "engineering", "science", "math",
+)
+_STEM_WORDS = ("이공계", "이공", "stem")
+# Education criteria saved before a major was required ("관련 전공"): same score for everyone
+EDUCATION_NEUTRAL_SCORE = 50
+_MAJOR_SUFFIXES = ("공학", "학과", "학부", "전공", "학")
+_NOT_MAJORS = {"관련", "유관", "해당", "동등", "전공", "학과", "학부", "대학", "입학", "재학", "휴학", "이공계", "이공"}
 
 
 @dataclass
@@ -53,10 +58,12 @@ class ScoringContext:
         return self._chunks
 
 
-def _result(c: Criterion, score: float, reason: str, evidence: list[str], method: str) -> CriterionResult:
+def _result(
+    c: Criterion, score: float, reason: str, evidence: list[str], method: str, evidence_required: bool = True
+) -> CriterionResult:
     s = max(0, min(100, round(score)))
-    if s > 0 and not evidence:
-        # Every non-zero score carries evidence (README explainability target)
+    if s > 0 and not evidence and evidence_required:
+        # Every non-zero score carries evidence (explainability target)
         s, reason = 0, NO_EVIDENCE
     return CriterionResult(c.id, s, nearest_level(s), reason, tuple(evidence[:3]), method)
 
@@ -114,22 +121,48 @@ def _most_similar(skill: str, have: list[str], embedder: Embedder) -> tuple[str,
 
 # ── experience ──
 
-_YEARS = re.compile(r"(\d{1,2})\s*(?:년|years?)", re.IGNORECASE)
+# "3년", "10년차", "3~5년" (lower bound), "5+ years", "1년 6개월"; not a year like "2020년"
+_YEARS = re.compile(
+    r"(?<!\d)(\d{1,2})\s*(?:[~\-–]\s*\d{1,2}\s*)?\+?\s*(?:년|years?)(?:\s*(\d{1,2})\s*(?:개월|months?))?", re.IGNORECASE
+)
+_MONTHS = re.compile(r"(?<!\d)(\d{1,2})\s*(?:개월|months?)", re.IGNORECASE)
+
+
+def required_years(text: str) -> float | None:
+    """Years of experience a criterion asks for: months count as fractions, 신입 is 0, None if not stated."""
+    if m := _YEARS.search(text):
+        return int(m.group(1)) + int(m.group(2) or 0) / 12
+    if m := _MONTHS.search(text):
+        return int(m.group(1)) / 12
+    if "신입" in text:
+        return 0
+    return None
+
+
+def _span(months: int) -> str:
+    years, rest = divmod(months, 12)
+    if not years:
+        return f"{rest}개월"
+    return f"{years}년 {rest}개월" if rest else f"{years}년"
 
 
 def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
-    m = _YEARS.search(f"{c.name} {c.description}")
-    required = int(m.group(1)) if m else ctx.job.min_experience_years
-    target_months = 12 * (required if required else DEFAULT_TARGET_YEARS)
+    required = required_years(f"{c.name} {c.description}")
+    if required is None:
+        # The job's min_experience_years; NULL means 신입 가능 (0 years)
+        required = ctx.job.min_experience_years or 0
     exps = [e for e in candidate.profile.experiences if e.start]
     months = total_experience_months(exps, ctx.today)
+    evidence = [e.source for e in exps if e.source][:3]
+    if required == 0:
+        # No experience required (신입): everyone meets it, so no CV evidence is needed
+        reason = "경력 요건 없음(신입)" + (f", 확인된 경력 약 {_span(months)}" if months else "")
+        return _result(c, 100, reason, evidence, "rule:experience", evidence_required=False)
     if not months:
         return _result(c, 0, "확인된 경력 없음", [], "rule:experience")
-    years, rest = divmod(months, 12)
-    span = f"{years}년 {rest}개월" if years else f"{rest}개월"
-    req = f" (요구 {required}년)" if required else ""
-    evidence = [e.source for e in exps if e.source][:3]
-    return _result(c, 100 * months / target_months, f"확인된 경력 약 {span}{req}", evidence, "rule:experience")
+    target_months = round(12 * required)
+    reason = f"확인된 경력 약 {_span(months)} (요구 {_span(target_months)})"
+    return _result(c, 100 * months / target_months, reason, evidence, "rule:experience")
 
 
 # ── certificate ──
@@ -164,22 +197,44 @@ def score_certificate(c: Criterion, candidate: Candidate, ctx: ScoringContext) -
 # ── education ──
 
 
+def wanted_majors(text: str) -> list[str]:
+    """Majors named in a criterion, e.g. "컴퓨터공학 관련 전공" → ["컴퓨터공학"], "경영학과" → ["경영"]."""
+    majors = []
+    for word in re.findall(r"[가-힣]{2,}", text):
+        if word in _NOT_MAJORS or not word.endswith(_MAJOR_SUFFIXES):
+            continue
+        core = word.removesuffix("전공").removesuffix("학과").removesuffix("학부")
+        if len(core) >= 2 and core not in _NOT_MAJORS:
+            majors.append(core)
+    return list(dict.fromkeys(majors))
+
+
+def education_target(name: str, description: str) -> tuple[list[str], bool]:
+    """(majors named, whether 이공계/STEM is asked). An education criterion must name one of them;
+    criteria_service rejects the save otherwise."""
+    text = f"{name}\n{description}"
+    return wanted_majors(text), any(w in text.lower() for w in _STEM_WORDS)
+
+
 def score_education(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
-    """Major relevance only. School names are never scored (blocked by the guardrail as a criterion too)."""
-    wanted = [w for w in re.findall(r"[가-힣A-Za-z]{2,}", c.description) if w.endswith(("공학", "학과", "전공"))]
+    """Major relevance against the majors the criterion names; no built-in list of related majors.
+    School names are never scored (blocked by the guardrail as a criterion too)."""
+    wanted, stem = education_target(c.name, c.description)
+    if not wanted and not stem:
+        # Saved before a major was required: nothing to compare, so the same neutral score for everyone
+        reason = "전공 미지정: 평가 기준에 전공이 없어 중립 점수"
+        return _result(c, EDUCATION_NEUTRAL_SCORE, reason, [], "rule:education", evidence_required=False)
     best, best_line, best_reason = 0, "", "확인된 전공 정보 없음"
     for e in candidate.profile.education:
         major = e.major.lower()
         if not major:
             continue
-        if wanted and any(w.lower().removesuffix("전공") in major for w in wanted):
+        if any(w.lower() in major for w in wanted):
             s, why = 100, f"요구 전공과 일치하는 {e.major}"
-        elif any(k in major for k in _RELATED_MAJOR):
-            s, why = 100, f"직무 관련 전공 {e.major}"
-        elif any(k in major for k in _STEM_MAJOR):
-            s, why = 60, f"이공계 전공 {e.major}"
+        elif stem and any(k in major for k in _STEM_MAJOR):
+            s, why = 100, f"이공계 전공 {e.major}"
         else:
-            s, why = 30, f"비관련 전공 {e.major}"
+            s, why = 30, f"요구 전공과 다른 전공 {e.major}"
         if s > best:
             best, best_line, best_reason = s, e.source or e.major, why
     return _result(c, best, best_reason, [best_line] if best_line else [], "rule:education")

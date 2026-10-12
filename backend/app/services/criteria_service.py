@@ -1,7 +1,8 @@
 """Company evaluation criteria: validation, guardrail, lifecycle rules and the read path for scoring.
 
-Rules (see README "Scoring Rules"):
+Rules (see PROJECT_DOCUMENTATION.md §3.2):
 - 1 to CRITERIA_MAX_ITEMS items per job, names unique (case-insensitive), integer weights summing to 100.
+- An education criterion names at least one major (or 이공계/STEM); checked for drafts and on publish.
 - Every save passes the criteria guardrail (ai/guardrails); blocked attempts are logged.
 - Draft job: the set is replaced freely. Published or closed job: only weights and order may change.
 - Scoring and recommendation read criteria through `load_for_scoring` only.
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ai.guardrails.blocklist import Blocklist, load_blocklist
 from ai.guardrails.criteria import GuardrailHit, GuardrailResult, check_criterion
+from ai.scoring.scorers import education_target
 from app.core.config import settings
 from app.core.errors import AppError
 from app.models import CriteriaGuardrailLog, JobCriterion, JobPosting
@@ -78,6 +80,21 @@ def _validate_shape(items: list[CriterionIn]) -> None:
         )
 
 
+def _validate_education(items: list[CriterionIn]) -> None:
+    missing = [
+        {"index": index, "name": item.name}
+        for index, item in enumerate(items)
+        if item.category == "education" and education_target(item.name, item.description) == ([], False)
+    ]
+    if missing:
+        raise CriteriaError(
+            422,
+            "CRITERIA_MAJOR_REQUIRED",
+            "학력(전공) 항목에는 평가할 전공을 하나 이상 적어야 합니다. 예: '컴퓨터공학 전공', '경영학과', '이공계 전공'",
+            items=missing,
+        )
+
+
 def _enforce_guardrail(db: Session, job: JobPosting, items: list[CriterionIn]) -> str:
     """Reject the whole set if any item is blocked, logging each hit. Returns the blocklist version."""
     bl = blocklist()
@@ -123,6 +140,8 @@ def replace_set(db: Session, job: JobPosting, items: list[CriterionIn]) -> JobPo
     version = _enforce_guardrail(db, job, items)
 
     if job.status == JobStatus.DRAFT:
+        # Published sets are locked, so old education criteria without a major stay editable by weight
+        _validate_education(items)
         # No scores exist before publish, so a draft set is simply rebuilt; ids are stable from publish on.
         job.criteria.clear()
         db.flush()
@@ -172,6 +191,7 @@ def assert_publishable(job: JobPosting) -> None:
         for c in job.criteria
     ]
     _validate_shape(items)
+    _validate_education(items)
     blocked = [hit_dict(hit, i) for i, item in enumerate(items) for hit in check(item.name, item.description).hits]
     if blocked:
         raise CriteriaError(422, "CRITERIA_BLOCKED", "사용할 수 없는 평가 기준이 포함되어 있습니다.", items=blocked)

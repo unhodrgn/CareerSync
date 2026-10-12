@@ -5,6 +5,7 @@ import pytest
 
 from ai.tests.helpers import SAMPLE_CV, FakeLLM, make_pdf
 from app.models import CvProfile, Evaluation, User
+from app.schemas.application import AI_NOTICE
 from app.services import ai_runtime
 from tests.conftest import _PASSWORD_HASH, auth
 
@@ -225,3 +226,14 @@ def test_jd_analysis_suggests_criteria(client, world):
     assert {"Java", "Spring"} <= set(body["analysis"]["profile"]["required_skills"])
     assert sum(c["weight"] for c in body["analysis"]["criteria"]) == 100
     assert client.post(f"/api/jobs/{job_id}/analyze", headers=world["rival"]).status_code == 404
+
+
+def test_ai_responses_carry_the_notice(client, db, world):
+    h = seeker(db, "kim@seeker.test", "김지원")
+    cv = upload(client, h).json()
+    assert cv["notice"] == AI_NOTICE
+    assert client.get("/api/cv/me", headers=h).json()["notice"] == AI_NOTICE
+    assert client.get(f"/api/cv/{cv['id']}", headers=h).json()["notice"] == AI_NOTICE
+    assert confirm(client, h, cv).json()["notice"] == AI_NOTICE
+    analysis = client.post(f"/api/jobs/{world['job'].id}/analyze", headers=world["recruiter"]).json()
+    assert analysis["notice"] == AI_NOTICE

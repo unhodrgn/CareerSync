@@ -1,9 +1,13 @@
 from datetime import date
 
+import pytest
+
 from ai.guardrails.evidence import quote_in_text, verify_quotes
 from ai.parsing.extract import structure_cv
 from ai.parsing.pii import mask_pii
+from ai.parsing.profile import CvProfile, Education, Experience
 from ai.scoring.fit import RankItem, aggregate_fit, rank, score_candidate, summary_comment
+from ai.scoring.scorers import education_target, required_years, wanted_majors
 from ai.scoring.types import Candidate, Criterion, JobContext
 from ai.tests.helpers import EMBEDDER, SAMPLE_CV, SKILLS, FakeLLM
 
@@ -61,7 +65,7 @@ def test_scores_are_identical_across_runs():
 
 
 def test_education_scores_major_never_school():
-    edu = Criterion(7, "관련 전공", "", "education", 100)
+    edu = Criterion(7, "컴퓨터공학 관련 전공", "", "education", 100)
     a = run([edu], cand=candidate(SAMPLE_CV))[0]
     b = run([edu], cand=candidate(SAMPLE_CV.replace("한국대학교", "서울대학교")))[0]
     assert a.score == b.score == 100
@@ -118,3 +122,121 @@ def test_fit_and_rank():
 def test_summary_mentions_strong_and_weak_items():
     text = summary_comment({1: "Java", 2: "자격증"}, {1: 90, 2: 10}, {1: 50, 2: 50})
     assert "Java" in text and "자격증" in text
+
+# ── experience: years asked for ──
+
+
+@pytest.mark.parametrize(
+    "text, years",
+    [
+        ("2020년 이후 경력", None),  # a year, not a duration
+        ("2020년 이후 3년 이상", 3),
+        ("경력 3년 이상", 3),
+        ("경력 5년", 5),
+        ("10년차", 10),
+        ("3~5년", 3),
+        ("3-5 years", 3),
+        ("5+ years", 5),
+        ("1년 6개월", 1.5),
+        ("6개월 이상", 0.5),
+        ("신입", 0),
+        ("신입 또는 경력 2년", 2),
+        ("100년", None),
+        ("관련 직무 경력", None),
+    ],
+)
+def test_required_years(text, years):
+    assert required_years(text) == years
+
+
+def _experienced(months_ago_start: str, end: str | None = None) -> Candidate:
+    line = f"Acme 개발자 {months_ago_start} - {end or '현재'}"
+    exp = Experience(org="Acme", role="개발자", start=months_ago_start, end=end, source=line)
+    return Candidate(CvProfile(experiences=[exp]), line)
+
+
+def test_year_in_criterion_is_not_a_requirement():
+    job = JobContext(title="백엔드 개발자", min_experience_years=4)
+    c = Criterion(1, "2020년 이후 경력", "", "experience", 100)
+    r = score_candidate([c], _experienced("2024-11"), job, skills=SKILLS, embedder=EMBEDDER, llm=None, today=TODAY)[0]
+    assert "요구 4년" in r.reason and "20년" not in r.reason
+    assert r.score == 50  # 24 of 48 months
+
+
+def test_months_count_toward_the_requirement():
+    c = Criterion(1, "경력 1년 6개월 이상", "", "experience", 100)
+    r = run([c], cand=_experienced("2026-02"))[0]  # 9 months, start month included
+    assert r.score == 50 and "요구 1년 6개월" in r.reason
+    r = run([Criterion(2, "6개월 이상", "", "experience", 100)], cand=_experienced("2026-02"))[0]
+    assert r.score == 100 and "요구 6개월" in r.reason
+
+
+def test_entry_level_criterion_scores_everyone_100():
+    c = Criterion(1, "신입 가능", "", "experience", 100)
+    newcomer = Candidate(CvProfile(), "자기소개\n열심히 배우겠습니다.")
+    r = run([c], cand=newcomer)[0]
+    assert (r.score, r.evidence) == (100, ()) and "신입" in r.reason
+    assert run([c])[0].score == 100  # experienced candidates meet it too
+
+    # A job asking for 0 years, or NULL (신입 가능), behaves the same when the criterion states no number
+    general = Criterion(2, "관련 직무 경력", "", "experience", 100)
+    for min_years in (0, None):
+        job = JobContext(title="백엔드 개발자", min_experience_years=min_years)
+        r = score_candidate([general], newcomer, job, skills=SKILLS, embedder=EMBEDDER, llm=None, today=TODAY)[0]
+        assert r.score == 100 and "신입" in r.reason, min_years
+
+
+# ── education: only majors the criterion names ──
+
+
+@pytest.mark.parametrize(
+    "text, majors",
+    [
+        ("컴퓨터공학 관련 전공", ["컴퓨터공학"]),
+        ("경영학 전공", ["경영학"]),
+        ("경영학과 졸업", ["경영"]),
+        ("전자공학 또는 전기공학 전공", ["전자공학", "전기공학"]),
+        ("관련 전공", []),
+        ("이공계 전공", []),
+    ],
+)
+def test_wanted_majors(text, majors):
+    assert wanted_majors(text) == majors
+
+
+def _graduate(major: str) -> Candidate:
+    line = f"한국대학교 {major} 학사"
+    return Candidate(CvProfile(education=[Education(school="한국대학교", major=major, degree="학사", source=line)]), line)
+
+
+def test_education_has_no_built_in_it_bias():
+    business = Criterion(1, "경영학 전공", "", "education", 100)
+    assert run([business], cand=_graduate("컴퓨터공학과"))[0].score == 30
+    r = run([business], cand=_graduate("경영학과"))[0]
+    assert r.score == 100 and "경영학과" in r.reason
+
+
+def test_education_major_in_name_or_description():
+    in_name = Criterion(1, "컴퓨터공학 관련 전공", "", "education", 100)
+    in_description = Criterion(2, "전공", "컴퓨터공학 또는 유관 전공", "education", 100)
+    cand = _graduate("컴퓨터공학과")
+    assert [r.score for r in run([in_name, in_description], cand=cand)] == [100, 100]
+
+
+def test_education_stem_criterion():
+    stem = Criterion(1, "이공계 전공", "", "education", 100)
+    assert run([stem], cand=_graduate("물리학과"))[0].score == 100
+    assert run([stem], cand=_graduate("국어국문학과"))[0].score == 30
+
+
+def test_education_target():
+    assert education_target("컴퓨터공학 관련 전공", "") == (["컴퓨터공학"], False)
+    assert education_target("전공", "이공계 우대") == ([], True)
+    assert education_target("관련 전공", "") == ([], False)
+
+
+def test_old_education_criterion_without_major_scores_neutral():
+    old = Criterion(1, "관련 전공", "", "education", 100)
+    scores = [run([old], cand=cand)[0] for cand in (candidate(), _graduate("국어국문학과"), Candidate(CvProfile(), ""))]
+    assert {(r.score, r.method) for r in scores} == {(50, "rule:education")}
+    assert "전공 미지정" in scores[0].reason and scores[0].evidence == ()

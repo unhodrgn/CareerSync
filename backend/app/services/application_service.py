@@ -1,6 +1,6 @@
 """Applications: apply, the recruiter's ranked list, per-criterion evaluation, status changes.
 
-Status changes are recruiter actions only; the AI never accepts or rejects anyone (README).
+Status changes are recruiter actions only; the AI never accepts or rejects anyone (CLAUDE.md AI rule 5).
 """
 from datetime import UTC, date, datetime
 

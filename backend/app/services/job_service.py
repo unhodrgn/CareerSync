@@ -3,7 +3,7 @@
 Only drafts can be deleted (applications exist only after publish). After publish only the
 fields in EDITABLE_AFTER_PUBLISH change, because applicant scores were computed from the rest.
 A passed deadline hides a job from the public list but never changes its status: status changes
-are recruiter actions (README).
+are recruiter actions.
 """
 from datetime import UTC, date, datetime
 
@@ -52,10 +52,15 @@ def get_published_job(db: Session, job_id: int) -> JobPosting:
     return job
 
 
-def get_visible_job(db: Session, job_id: int, user: User) -> JobPosting:
-    """Published jobs for anyone; the owner also sees drafts and closed jobs."""
+def get_visible_job(db: Session, job_id: int, user: User | None) -> JobPosting:
+    """Guests (user None) see published, unexpired jobs. Logged-in users also see expired published
+    jobs; the owner also sees drafts and closed jobs."""
     job = db.get(JobPosting, job_id)
     if job is None:
+        raise _not_found()
+    if user is None:
+        if job.status == JobStatus.PUBLISHED and (job.deadline is None or job.deadline >= date.today()):
+            return job
         raise _not_found()
     if job.status == JobStatus.PUBLISHED or (user.role == "company" and job.company_id == user.company_id):
         return job

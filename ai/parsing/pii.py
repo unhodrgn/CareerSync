@@ -1,4 +1,4 @@
-"""Mask personal data before any LLM call (README: no name, email or phone sent to the LLM).
+"""Mask personal data before any LLM call (CLAUDE.md AI rule 3: the LLM sees only masked text).
 
 The masked text is also what evidence quotes are checked against, so evidence never carries PII.
 """

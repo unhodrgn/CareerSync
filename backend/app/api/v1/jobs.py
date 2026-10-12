@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Response, status
 
 from ai.parsing.extract import analyze_jd
-from app.core.deps import CompanyUser, CurrentUser, DbSession
+from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
 from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
 from app.schemas.cv import JdAnalysisOut
@@ -66,10 +66,10 @@ def create_job(body: JobCreate, db: DbSession, user: CompanyUser):
     return _out(job_service.create(db, user, body))
 
 
-@router.get("", response_model=JobPage, summary="Published jobs, newest first (deadline not passed)")
+@router.get("", response_model=JobPage, summary="Published jobs, newest first (deadline not passed); no login needed")
 def list_jobs(
     db: DbSession,
-    user: CurrentUser,
+    user: OptionalUser,
     q: Annotated[str | None, Query(max_length=100, description="Search in title")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -84,8 +84,8 @@ def list_my_jobs(db: DbSession, user: CompanyUser):
     return _items(db, job_service.list_mine(db, user))
 
 
-@router.get("/{job_id}", response_model=JobOut, summary="Job detail (owner also sees drafts and closed jobs)")
-def get_job(job_id: int, db: DbSession, user: CurrentUser):
+@router.get("/{job_id}", response_model=JobOut, summary="Job detail; no login needed (guests: published, unexpired; owner also sees drafts and closed jobs)")
+def get_job(job_id: int, db: DbSession, user: OptionalUser):
     return _out(job_service.get_visible_job(db, job_id, user))
 
 

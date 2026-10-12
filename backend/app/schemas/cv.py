@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from ai.parsing.profile import CvProfile, JdAnalysis
+from app.schemas.application import AI_NOTICE
 
 
 class CvOut(BaseModel):
@@ -20,6 +21,7 @@ class CvOut(BaseModel):
     masked_kinds: list[str]
     total_experience_months: int
     created_at: datetime
+    notice: str = AI_NOTICE
 
 
 class CvUpdate(BaseModel):
@@ -31,3 +33,4 @@ class JdAnalysisOut(BaseModel):
     job_id: int
     analysis: JdAnalysis
     method: str
+    notice: str = AI_NOTICE

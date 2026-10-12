@@ -1,11 +1,22 @@
 """FastAPI entrypoint."""
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from ai.llm.client import check_llm_config
 from app.api.v1 import applications, auth, companies, criteria, cv, jobs, users
 from app.core.errors import AppError
 
-app = FastAPI(title="CareerSync API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Fail fast: an invalid AI_MODE, or AI_MODE=llm without a key, stops startup (no silent fallback)
+    check_llm_config()
+    yield
+
+
+app = FastAPI(title="CareerSync API", lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")

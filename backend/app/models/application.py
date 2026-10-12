@@ -57,6 +57,7 @@ class Evaluation(Base):
     __table_args__ = (
         UniqueConstraint("job_id", "cv_profile_id", name="uq_evaluations_job_profile"),
         CheckConstraint("status IN ('pending', 'done', 'failed')", name="ck_evaluations_status"),
+        CheckConstraint("attempts >= 0", name="ck_evaluations_attempts"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -64,13 +65,15 @@ class Evaluation(Base):
     cv_profile_id: Mapped[int] = mapped_column(ForeignKey("cv_profiles.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(10), default=EvaluationStatus.PENDING, server_default="pending")
     error: Mapped[str] = mapped_column(Text, default="", server_default="")
-    # What produced the scores, stored with every result (README design rules)
+    # What produced the scores, stored with every result (CLAUDE.md AI rule 11)
     llm_model: Mapped[str] = mapped_column(String(60), default="", server_default="")
     embedding_model: Mapped[str] = mapped_column(String(100), default="", server_default="")
     prompt_version: Mapped[str] = mapped_column(String(20), default="", server_default="")
     skills_version: Mapped[str] = mapped_column(String(20), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
 
     scores: Mapped[list["CriterionScore"]] = relationship(back_populates="evaluation", cascade="all, delete-orphan")
 
