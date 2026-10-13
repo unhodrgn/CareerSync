@@ -268,7 +268,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 15 | ~~Issue 3: bằng chứng `experience`/chứng chỉ/“uses” lấy từ `masked_text`, không từ `source` seeker sửa được~~ ✅ xong (test `test_scoring.py`, `test_cv_edits_scoring.py`; kèm sửa che ngày sinh nuốt dòng mới trong `pii.py`) | Vừa | — |
-| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) | Lớn | #15–#17, Q10, issue 23, 24; Frontend: trang 인재 추천 |
+| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) — ✅ danh sách `GET /api/jobs/{id}/talent` (D19; test `test_talent_api.py`). Còn: offer + migration 0009 (lượt c) | Lớn | #15–#17, Q10, issue 23, 24; Frontend: trang 인재 추천 |
 
 #### P1-B — Roadmap kỹ năng + câu hỏi phỏng vấn
 
@@ -292,7 +292,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 16 | Issue 6: queue bền (worker riêng hoặc DB-polling) thay `BackgroundTasks` | Lớn | Thêm container worker (có thể Redis) vào Compose; có thể cần cột/bảng mới (migration) |
-| 17 | Issue 26: giới hạn chi phí cho talent (cột `triggered_by`/bảng đếm, hoặc chỉ dùng evaluation có sẵn) | Vừa | Migration nếu thêm cột/bảng |
+| 17 | ~~Issue 26: giới hạn chi phí cho talent~~ ✅ xong cùng #18: 10/lần, 30/công ty/ngày chỉ khi `llm`, đếm dư, không migration (D19) | Vừa | — |
 | 19 | Rate limit cho endpoint gọi LLM (issue 22) | Vừa | Có thể làm ở tầng proxy |
 | 20 | JWT: fail-fast khi `JWT_SECRET_KEY` rỗng/mặc định ngoài môi trường dev (issue 4) | Nhỏ | **Cần xác nhận** (auth/security); sửa cả compose |
 | 21 | Nợ test: `PRAGMA foreign_keys` cho SQLite (issue 5, Nhỏ), test drift migration (issue 18, Vừa), test ánh xạ lỗi `AnthropicClient` (Nhỏ) | Nhỏ–Vừa | Sửa `conftest.py` ở root |

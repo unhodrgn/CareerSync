@@ -65,5 +65,10 @@ class Settings:
     # Per seeker per day (KST), only in AI_MODE=llm, where scoring costs money
     RECO_DAILY_NEW_EVALUATIONS: int = 30
 
+    # Talent recommendation (docs/DECISIONS.md D19): evaluations one call may queue, always; and per company per
+    # day (KST) only in AI_MODE=llm, counted generously (every evaluation of the company's jobs that no application references)
+    TALENT_MAX_NEW_EVALUATIONS: int = 10
+    TALENT_DAILY_NEW_EVALUATIONS: int = 30
+
 
 settings = Settings()
