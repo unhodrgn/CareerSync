@@ -1,4 +1,4 @@
-"""Career preparation content for seekers: skill roadmap (interview questions follow) (docs/DECISIONS.md D21).
+"""Career preparation content for seekers: skill roadmap and interview questions (docs/DECISIONS.md D21).
 
 Any published, unexpired job; same seeker checks as job recommendation (AI consent at
 RECO_MIN_CONSENT_VERSION or later, newest CV confirmed). Gaps are computed in code from the job's public
@@ -9,6 +9,7 @@ AI_MODE=rules: the template, cached. AI_MODE=llm: a cached LLM result if any; ot
 under a lock on the seeker's `users` row, within CAREER_DAILY_LLM_GENERATIONS per day (KST). Over the limit, or
 when the LLM fails, the template is returned and not cached.
 """
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
@@ -16,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ai.career.gaps import Gap, find_gaps
+from ai.career.interview import CriterionInfo, Question, interview_rules, make_questions
 from ai.career.roadmap import Step, make_roadmap, roadmap_rules
 from ai.parsing.extract import PROMPT_VERSION
 from app.core.config import settings
@@ -23,7 +25,7 @@ from app.core.errors import AppError
 from app.models import CareerContent, CvProfile, JobPosting, User
 from app.models.career import CareerContentKind
 from app.models.job import JobStatus
-from app.schemas.career import RoadmapOut
+from app.schemas.career import InterviewOut, RoadmapOut
 from app.services import ai_runtime, criteria_service, recommendation_service
 
 KST = timezone(timedelta(hours=9))
@@ -103,6 +105,42 @@ def _roadmap_content(gaps: list[Gap], steps: list[Step]) -> dict:
     }
 
 
+def _serve(
+    db: Session,
+    user: User,
+    job: JobPosting,
+    profile: CvProfile,
+    kind: str,
+    rules_content: Callable[[], dict],
+    llm_content: Callable[[], tuple[dict, str]],
+) -> tuple[dict, str, bool]:
+    """(content, method, limited): the cache first; then the template (AI_MODE=rules, cached) or one LLM
+    generation within the daily limit (AI_MODE=llm, cached unless it fell back to the template)."""
+    llm_mode = ai_runtime.mode() == "llm"
+    if (hit := _cached(db, user.id, job.id, profile.id, kind, llm_mode)) is not None:
+        return hit.content, hit.method, False
+    if not llm_mode:
+        content = rules_content()
+        _store(db, user.id, job.id, profile.id, kind, "rules", content)
+        db.commit()
+        return content, "rules", False
+
+    # One generation per seeker at a time: the limit holds and parallel calls do not pay twice.
+    # The lock is held during the LLM call (issue 29).
+    db.execute(select(User.id).where(User.id == user.id).with_for_update())
+    if (hit := _cached(db, user.id, job.id, profile.id, kind, llm_mode)) is not None:
+        db.commit()
+        return hit.content, hit.method, False
+    if llm_generations_today(db, user.id) >= settings.CAREER_DAILY_LLM_GENERATIONS:
+        db.commit()
+        return rules_content(), "rules", True
+    content, method = llm_content()
+    if method != "rules":  # a template fallback after an LLM failure is not cached, so the next call retries
+        _store(db, user.id, job.id, profile.id, kind, method, content)
+    db.commit()
+    return content, method, False
+
+
 def roadmap(db: Session, user: User, job_id: int) -> RoadmapOut:
     profile = recommendation_service.check_seeker(db, user)
     job = _open_job(db, job_id)
@@ -112,31 +150,54 @@ def roadmap(db: Session, user: User, job_id: int) -> RoadmapOut:
     if not gaps:
         # Nothing to learn: no LLM call, nothing cached, not counted
         return RoadmapOut(job_id=job.id, method="rules", gaps=[], steps=[], message=NO_GAP_MESSAGE)
-
-    kind, llm_mode = CareerContentKind.ROADMAP, ai_runtime.mode() == "llm"
-    if (hit := _cached(db, user.id, job.id, profile.id, kind, llm_mode)) is not None:
-        return RoadmapOut(job_id=job.id, method=hit.method, **hit.content)
-
     resources = ai_runtime.resources()
-    if not llm_mode:
-        content = _roadmap_content(gaps, roadmap_rules(gaps, resources))
-        _store(db, user.id, job.id, profile.id, kind, "rules", content)
-        db.commit()
-        return RoadmapOut(job_id=job.id, method="rules", **content)
 
-    # One generation per seeker at a time: the limit holds and parallel calls do not pay twice
-    db.execute(select(User.id).where(User.id == user.id).with_for_update())
-    if (hit := _cached(db, user.id, job.id, profile.id, kind, llm_mode)) is not None:
-        db.commit()
-        return RoadmapOut(job_id=job.id, method=hit.method, **hit.content)
-    if llm_generations_today(db, user.id) >= settings.CAREER_DAILY_LLM_GENERATIONS:
-        db.commit()
-        content = _roadmap_content(gaps, roadmap_rules(gaps, resources))
-        return RoadmapOut(job_id=job.id, method="rules", limited=True, **content)
+    def llm_content() -> tuple[dict, str]:
+        have = skills.find_in_text(cv_text)
+        steps, method = make_roadmap(gaps, job.title, job.description, criteria, have, resources, ai_runtime.llm())
+        return _roadmap_content(gaps, steps), method
 
-    steps, method = make_roadmap(gaps, job.title, job.description, criteria, skills.find_in_text(cv_text), resources, ai_runtime.llm())
-    content = _roadmap_content(gaps, steps)
-    if method != "rules":  # a template fallback after an LLM failure is not cached, so the next call retries
-        _store(db, user.id, job.id, profile.id, kind, method, content)
-    db.commit()
-    return RoadmapOut(job_id=job.id, method=method, **content)
+    content, method, limited = _serve(
+        db, user, job, profile, CareerContentKind.ROADMAP, lambda: _roadmap_content(gaps, roadmap_rules(gaps, resources)), llm_content
+    )
+    return RoadmapOut(job_id=job.id, method=method, limited=limited, **content)
+
+
+# ── Interview questions ──
+
+
+def _questions_content(questions: list[Question]) -> dict:
+    return {
+        "questions": [
+            {
+                "question": q.question,
+                "criterion_id": q.criterion_id,
+                "criterion_name": q.criterion_name,
+                "kind": q.kind,
+                "intent": q.intent,
+                "answer_tips": list(q.answer_tips),
+                "cv_quote": q.cv_quote,
+            }
+            for q in questions
+        ]
+    }
+
+
+def interview_questions(db: Session, user: User, job_id: int) -> InterviewOut:
+    profile = recommendation_service.check_seeker(db, user)
+    job = _open_job(db, job_id)
+    criteria = [
+        CriterionInfo(c.id, c.name, c.category, c.description) for c in criteria_service.load_for_scoring(db, job.id).items
+    ]
+    masked_text = profile.document.masked_text
+
+    def llm_content() -> tuple[dict, str]:
+        questions, method = make_questions(
+            job.title, job.description, criteria, masked_text, ai_runtime.embedder(), criteria_service.blocklist(), ai_runtime.llm()
+        )
+        return _questions_content(questions), method
+
+    content, method, limited = _serve(
+        db, user, job, profile, CareerContentKind.INTERVIEW, lambda: _questions_content(interview_rules(criteria)), llm_content
+    )
+    return InterviewOut(job_id=job.id, method=method, limited=limited, **content)

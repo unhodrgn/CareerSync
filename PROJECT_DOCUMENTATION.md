@@ -46,7 +46,7 @@
 | Recruiter changes application status | [Current] | |
 | Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
-| Skill roadmap for a job (skills/certificates the job names that the CV lacks) | [Current] | `POST /api/jobs/{job_id}/roadmap` (D21); interview questions [Planned] (next step) |
+| Skill roadmap and interview practice questions for a job | [Current] | `POST /api/jobs/{job_id}/roadmap`, `POST /api/jobs/{job_id}/interview-questions` (D21) |
 | Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | Stub files |
@@ -159,7 +159,7 @@ Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`;
 | `talent_offers` | `company_id` FK (CASCADE) · `seeker_id` FK → users (CASCADE) · `job_id` FK (SET NULL, optional) · `status` `pending`\|`accepted`\|`rejected`\|`cancelled` · `message` varchar(1000), nullable (`0009`) · `created_at`, `responded_at` | Offers from a company to a seeker. `expired` is not stored: a `pending` offer older than `OFFER_EXPIRY_DAYS` is shown as expired. Contact details stay in `users` and are returned only after `accepted` |
 | `company_projects` | `company_id` FK (CASCADE) · `name` varchar(200) · `description` text · `created_at`, `updated_at` | Company's running projects |
 | `company_project_techs` | `company_project_id` FK (CASCADE) · `tech_name` varchar(100); unique per project | Technologies of a project |
-| `career_contents` (`0010`) | `seeker_id` FK → users, `job_id` FK, `cv_profile_id` FK (all CASCADE) · `kind` `roadmap`\|`interview` · `prompt_version` · `method` (`rules` or `llm:<model>`) · `content` JSON · `created_at`; unique (seeker, job, CV version, kind, prompt version, method) | Cached career content (D21). Template fallbacks after an LLM failure or over the daily limit are not stored |
+| `career_contents` (`0010`) | `seeker_id` FK → users, `job_id` FK, `cv_profile_id` FK (all CASCADE) · `kind` `roadmap`\|`interview` · `prompt_version` · `method` (`rules` or `llm:<model>`) · `content` JSON · `created_at`; unique (seeker, job, CV version, kind, prompt version, method) | Cached career content (D21): roadmaps and interview questions. Template fallbacks after an LLM failure or over the daily limit are not stored |
 
 ### 3.6 ERD
 ```mermaid
@@ -244,6 +244,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET | `/api/talent-offers/mine` | Offers the seeker received: company, job, message, status, `expires_at` | Seeker | 403 `SEEKER_ONLY` | `offer_service.mine` | — |
 | POST | `/api/talent-offers/{offer_id}/accept` · `/reject` | Answer a pending offer (also after leaving the talent pool) | Seeker (own) | 404 `OFFER_NOT_FOUND`; 409 `OFFER_NOT_PENDING` (+ `status`), `OFFER_EXPIRED` | `offer_service.respond` | — |
 | POST | `/api/jobs/{job_id}/roadmap` | Skills and certificates the job (criteria + JD) names that the CV text lacks, with one learning step each (≤ 6): `gaps`, `steps` (`goal`, `activities`, `resources` from `data/learning_resources.yaml`), `method`, `message` (when nothing is missing), `limited`, `notice`. Cached per CV version | Seeker | 404 `JOB_NOT_FOUND` (not published or expired); 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.roadmap` | **LLM** / template |
+| POST | `/api/jobs/{job_id}/interview-questions` | 3–10 practice questions from the posting, its criteria and up to 4 masked CV excerpts: `question`, `criterion_id`/`criterion_name` (a real criterion or null), `kind` (`technical`\|`experience`\|`behavioral`), `intent`, `answer_tips`, `cv_quote` (verified against the masked CV, or null); `method`, `limited`, `notice`. Cached per CV version; shares the daily LLM limit with the roadmap | Seeker | 404 `JOB_NOT_FOUND`; 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.interview_questions` | **LLM** / template |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
 Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`) and `POST /api/jobs/{job_id}/analyze`.
@@ -307,6 +308,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `scoring/` | One scorer per category, then Fit | see below | `evaluation_service.evaluate` |
 | `llm/client.py` | Only gateway to the LLM; `get_llm_client()` is `None` unless `AI_MODE=llm`, even with a key. `check_llm_config()` runs at startup (`main.py` lifespan) | Anthropic SDK, default `claude-sonnet-5-5`, effort `low` | `ai_runtime.llm()` |
 | `career/gaps.py`, `career/roadmap.py` | Skills/certificates the job names that the masked CV text lacks (code, `data/skills.yaml`); roadmap steps: LLM writes only goal/activities for computed gaps, other skills dropped, URLs stripped; resources only from `data/learning_resources.yaml` | Claude (`prompts/v1/roadmap.md`) or template | `career_service.roadmap` |
+| `career/interview.py` | Interview questions from the JD, criteria and up to 4 masked CV excerpts (retrieval). Checks: criterion ids must exist, `cv_quote` verified (`verify_quotes`), every question, intent and tip through the criteria guardrail, URLs stripped; < 3 left → template | Claude (`prompts/v1/interview_questions.md`) or template | `career_service.interview_questions` |
 | `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
@@ -515,6 +517,8 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 26 | Cost | Talent recommendation has no cost limit yet. It evaluates one job against every public seeker, and a per-company daily limit cannot be counted because `evaluations` does not store who triggered it. Options: a `triggered_by` / company column, a separate counter table, or using only existing evaluations for talent. **Must be resolved before enabling talent recommendation**, together with issues 3 and 6. **Fixed (D19):** 10 per call, 30 per company per day in `AI_MODE=llm`, counted generously without a new column | `services/talent_service.py` | Fixed |
 | 27 | Schema | Migration `0008` for `evaluations.queued_at` (timestamptz) + `evaluations.attempts` (smallint, default 0) — see [§3.4](#34-applications-and-evaluation). **Blocks** issue 2, issue 25 and [§6.1](#61-recommendation) (stale check, fencing, caps, attempt limit) | `backend/migrations/`, `models/application.py` | Fixed |
 | 28 | Consistency | `AI_NOTICE` is only in applicant/evaluation responses; `POST /api/cv` (AI-structured CV) and `POST /api/jobs/{job_id}/analyze` return AI output without it, although rule 8 in §10 and `CLAUDE.md` require it. **Fixed:** `CvOut` and `JdAnalysisOut` have `notice` | `schemas/cv.py`, `api/v1/jobs.py` | Fixed |
+| 29 | Concurrency | `career_service` holds the `FOR UPDATE` lock on the seeker's `users` row for the whole LLM call (up to ~60 s plus SDK retries), so one seeker's roadmap/interview calls wait for each other. Accepted for the demo. Planned fix (after the demo): reserve the daily slot in a short transaction (e.g. insert a placeholder row), release the lock, call the LLM, then fill in or remove the placeholder | `services/career_service.py` | Open |
+| 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7 | `data/blocklist.yaml`, `ai/career/interview.py` | Open |
 
 ---
 

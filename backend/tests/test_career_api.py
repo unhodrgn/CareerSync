@@ -1,4 +1,5 @@
-"""POST /api/jobs/{job_id}/roadmap (D21): gaps, cache, daily LLM limit, fallbacks, who may call."""
+"""POST /api/jobs/{job_id}/roadmap and /interview-questions (D21): gaps, cache, shared daily LLM limit,
+fallbacks, who may call."""
 import os
 import re
 import threading
@@ -10,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from ai.llm.client import LLMError
 from app.core.config import settings
-from app.models import CareerContent, JobPosting, User
+from app.models import CareerContent, CvProfile, JobPosting, User
 from app.services import ai_runtime, career_service
 
 from .test_applications_api import upload
@@ -20,8 +21,10 @@ from .test_recommendations_api import _seeker
 GAP_JD = "Kubernetes, Kafka 기반 데이터 플랫폼 운영. SQLP 우대"
 
 
-class RoadmapLLM:
-    """Writes one step per gap it is given; records calls. No network."""
+class CareerLLM:
+    """Answers roadmap prompts (one step per gap) and interview prompts (one question per criterion, quoting the
+    first CV excerpt line); records those calls. Anything else (e.g. CV structuring during upload) fails, so it
+    falls back to rules. No network."""
 
     model = "fake-llm"
 
@@ -29,20 +32,29 @@ class RoadmapLLM:
         self.calls, self.fail, self._lock = [], fail, threading.Lock()
 
     def complete_json(self, system, user, schema, max_tokens=4000):
-        if "<gaps>" not in user:
-            raise LLMError("only roadmaps here")  # e.g. CV structuring during upload falls back to rules
+        if "<gaps>" not in user and "<cv_excerpts>" not in user:
+            raise LLMError("only career content here")
         with self._lock:
             self.calls.append(user)
         if self.fail:
             raise LLMError("down")
-        gaps = re.search(r"<gaps>\n(.*?)\n</gaps>", user, re.S).group(1).splitlines()
-        names = [g.split(": ", 1)[1] for g in gaps]
-        return schema.model_validate({"steps": [{"skill": n, "goal": f"{n} 실무 활용", "activities": ["학습", "실습"]} for n in names]})
+        if "<gaps>" in user:
+            gaps = re.search(r"<gaps>\n(.*?)\n</gaps>", user, re.S).group(1).splitlines()
+            names = [g.split(": ", 1)[1] for g in gaps]
+            return schema.model_validate({"steps": [{"skill": n, "goal": f"{n} 실무 활용", "activities": ["학습", "실습"]} for n in names]})
+        criteria = re.search(r"<criteria>\n(.*?)\n</criteria>", user, re.S).group(1).splitlines()
+        quote = re.search(r"<cv_excerpts>\n(.*?)\n", user).group(1)
+        questions = [
+            {"question": f"{line.split(' | ')[1]} 관련 경험을 말씀해 주세요.", "criterion_id": int(line.split(" | ")[0]),
+             "kind": "experience", "intent": "경험 확인", "answer_tips": ["구체적으로"], "cv_quote": quote}
+            for line in criteria
+        ]
+        return schema.model_validate({"questions": questions})
 
 
 @pytest.fixture
 def llm_mode(monkeypatch):
-    llm = RoadmapLLM()
+    llm = CareerLLM()
     monkeypatch.setattr(ai_runtime, "mode", lambda: "llm")
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     return llm
@@ -195,3 +207,107 @@ def test_pg_parallel_generations_respect_the_limit_and_cache(client, db, world, 
     # Every call got either an LLM roadmap (new or cached) or the template marked as limited
     assert all(m.startswith("llm:") or (m == "rules" and limited) for _, m, limited in methods)
     assert {j for j, m, _ in methods if m.startswith("llm:")} == {r.job_id for r in rows}
+
+
+# ── Interview questions ──
+
+
+def _interview(client, h, job_id):
+    return client.post(f"/api/jobs/{job_id}/interview-questions", headers=h)
+
+
+def _criterion_ids(client, world, job_id) -> set[int]:
+    return {c["id"] for c in client.get(f"/api/jobs/{job_id}/criteria", headers=world["recruiter"]).json()["items"]}
+
+
+def test_interview_rules_mode_is_cached(client, db, world):
+    _, h = _seeker(client, db)
+    job_id = _job(client, world)
+    r = _interview(client, h, job_id)
+    assert r.status_code == 200, r.json()
+    body = r.json()
+    assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI 분석은 참고용")
+    assert 3 <= len(body["questions"]) <= 10
+    ids = {q["criterion_id"] for q in body["questions"]} - {None}
+    assert ids and ids <= _criterion_ids(client, world, job_id)
+    assert _interview(client, h, job_id).json() == body
+    assert [(c.kind, c.method) for c in _rows(db)] == [("interview", "rules")]
+
+
+def test_interview_llm_is_cached_and_quotes_are_from_the_masked_cv(client, db, world, llm_mode):
+    user, h = _seeker(client, db)
+    job_id = _job(client, world)
+    body = _interview(client, h, job_id).json()
+    assert body["method"] == "llm:fake-llm"
+    assert {q["criterion_id"] for q in body["questions"]} == _criterion_ids(client, world, job_id)
+    cached = db.scalars(select(CareerContent)).one()
+    text = db.get(CvProfile, cached.cv_profile_id).document.masked_text
+    assert all(q["cv_quote"] and q["cv_quote"] in text for q in body["questions"])
+    assert _interview(client, h, job_id).json() == body and len(llm_mode.calls) == 1
+    for secret in ("김지원", "kim@seeker.test", "jiwon.kim@example.com", "010-1234-5678"):
+        assert secret not in llm_mode.calls[0]
+
+
+def test_interview_llm_failure_falls_back_and_is_not_cached(client, db, world, llm_mode):
+    llm_mode.fail = True
+    _, h = _seeker(client, db)
+    job_id = _job(client, world)
+    assert _interview(client, h, job_id).json()["method"] == "rules"
+    assert _rows(db) == []
+
+
+def test_roadmap_and_interview_share_the_daily_limit(client, db, world, llm_mode, monkeypatch):
+    monkeypatch.setattr(settings, "CAREER_DAILY_LLM_GENERATIONS", 1)
+    _, h = _seeker(client, db)
+    job_id = _job(client, world)
+    assert _roadmap(client, h, job_id).json()["method"] == "llm:fake-llm"
+    limited = _interview(client, h, job_id).json()
+    assert (limited["method"], limited["limited"]) == ("rules", True) and len(limited["questions"]) >= 3
+    assert len(llm_mode.calls) == 1 and [c.kind for c in _rows(db)] == ["roadmap"]
+
+
+def test_interview_who_may_call(client, db, world):
+    user, h = _seeker(client, db)
+    assert _interview(client, h, world["job2"].id).json()["code"] == "JOB_NOT_FOUND"  # draft
+    open_job = _job(client, world)
+    assert _interview(client, world["recruiter"], open_job).json()["code"] == "SEEKER_ONLY"
+    assert client.post(f"/api/jobs/{open_job}/interview-questions").status_code == 401
+    user.consent_version = "2026-10-01"
+    db.commit()
+    assert _interview(client, h, open_job).json()["code"] == "AI_CONSENT_REQUIRED"
+
+
+@pytest.mark.skipif(
+    not os.getenv("TEST_DATABASE_URL", "").startswith("postgresql"), reason="needs TEST_DATABASE_URL on PostgreSQL"
+)
+def test_pg_parallel_roadmaps_and_interviews_share_the_limit(client, db, world, llm_mode, monkeypatch):
+    monkeypatch.setattr(settings, "CAREER_DAILY_LLM_GENERATIONS", 3)
+    _seeker(client, db)
+    jobs = [_job(client, world, title=f"공고 {i}") for i in range(2)]
+    targets = [(j, kind) for j in jobs for kind in ("roadmap", "interview")] * 2  # 4 distinct contents, each twice
+    sessions = sessionmaker(bind=db.get_bind(), autoflush=False, expire_on_commit=False)
+    barrier = threading.Barrier(len(targets))
+    results, lock = [], threading.Lock()
+
+    def call(job_id, kind):
+        session = sessions()
+        try:
+            user = session.scalars(select(User).where(User.email == "kim@seeker.test")).one()
+            barrier.wait()
+            fn = career_service.roadmap if kind == "roadmap" else career_service.interview_questions
+            out = fn(session, user, job_id)
+            with lock:
+                results.append((job_id, kind, out.method, out.limited))
+        finally:
+            session.close()
+
+    threads = [threading.Thread(target=call, args=t) for t in targets]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(60)
+    assert len(results) == len(targets)
+    assert len(llm_mode.calls) == 3  # the limit across both kinds
+    rows = _rows(db)
+    assert len(rows) == 3 and len({(r.job_id, r.kind) for r in rows}) == 3
+    assert all(m.startswith("llm:") or (m == "rules" and limited) for _, _, m, limited in results)

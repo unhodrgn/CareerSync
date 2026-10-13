@@ -38,3 +38,25 @@ class RoadmapOut(BaseModel):
     # True when the daily LLM limit was reached and the template was returned instead
     limited: bool = False
     notice: str = AI_NOTICE
+
+
+class InterviewQuestion(BaseModel):
+    question: str
+    # A criterion of this job, or null for a general question
+    criterion_id: int | None
+    criterion_name: str | None
+    kind: Literal["technical", "experience", "behavioral"]
+    intent: str
+    answer_tips: list[str]
+    # A line of the seeker's masked CV the question refers to, verified against it; null otherwise
+    cv_quote: str | None
+
+
+class InterviewOut(BaseModel):
+    job_id: int
+    # "rules" or "llm:<model>"
+    method: str
+    questions: list[InterviewQuestion]
+    # True when the daily LLM limit was reached and the template was returned instead
+    limited: bool = False
+    notice: str = AI_NOTICE

@@ -63,4 +63,4 @@ cd frontend && npm run build             # type-check + build
 ## Current focus (update when it changes)
 
 - Queue/retry rules are in place (`evaluation_service.claim()`, fencing on `queued_at`).
-- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Re-consent and AI-consent withdrawal are in place (D17). Next: frontend for recommendation, preferences and the consent screen. Talent list `GET /api/jobs/{job_id}/talent` and offers `/api/talent-offers*` are in place (D18–D20, migration `0009`). Skill roadmap `POST /api/jobs/{job_id}/roadmap` is in place (D21, migration `0010`); interview questions come next.
+- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Re-consent and AI-consent withdrawal are in place (D17). Next: frontend for recommendation, preferences and the consent screen. Talent list `GET /api/jobs/{job_id}/talent` and offers `/api/talent-offers*` are in place (D18–D20, migration `0009`). Skill roadmap and interview questions (`POST /api/jobs/{job_id}/roadmap`, `/interview-questions`) are in place (D21, migration `0010`).
