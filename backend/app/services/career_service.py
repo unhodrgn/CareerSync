@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from ai.career.gaps import Gap, find_gaps
 from ai.career.interview import CriterionInfo, Question, interview_rules, make_questions
 from ai.career.roadmap import Step, make_roadmap, roadmap_rules
+from ai.guardrails.blocklist import Blocklist, load_blocklist
 from ai.parsing.extract import PROMPT_VERSION
 from app.core.config import settings
 from app.core.errors import AppError
@@ -166,6 +167,11 @@ def roadmap(db: Session, user: User, job_id: int) -> RoadmapOut:
 # ── Interview questions ──
 
 
+def interview_blocklists() -> list[Blocklist]:
+    """The criteria guardrail first, then the interview blocklist (issue 30)."""
+    return [criteria_service.blocklist(), load_blocklist(settings.INTERVIEW_BLOCKLIST_PATH)]
+
+
 def _questions_content(questions: list[Question]) -> dict:
     return {
         "questions": [
@@ -190,14 +196,21 @@ def interview_questions(db: Session, user: User, job_id: int) -> InterviewOut:
         CriterionInfo(c.id, c.name, c.category, c.description) for c in criteria_service.load_for_scoring(db, job.id).items
     ]
     masked_text = profile.document.masked_text
+    blocklists = interview_blocklists()
 
     def llm_content() -> tuple[dict, str]:
         questions, method = make_questions(
-            job.title, job.description, criteria, masked_text, ai_runtime.embedder(), criteria_service.blocklist(), ai_runtime.llm()
+            job.title, job.description, criteria, masked_text, ai_runtime.embedder(), blocklists, ai_runtime.llm()
         )
         return _questions_content(questions), method
 
     content, method, limited = _serve(
-        db, user, job, profile, CareerContentKind.INTERVIEW, lambda: _questions_content(interview_rules(criteria)), llm_content
+        db,
+        user,
+        job,
+        profile,
+        CareerContentKind.INTERVIEW,
+        lambda: _questions_content(interview_rules(criteria, blocklists)),
+        llm_content,
     )
     return InterviewOut(job_id=job.id, method=method, limited=limited, **content)

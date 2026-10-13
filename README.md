@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `349 passed, 12 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 158 backend tests.
+Expected: `404 passed, 12 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 158 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 

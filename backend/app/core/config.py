@@ -41,6 +41,8 @@ class Settings:
 
     BLOCKLIST_PATH: Path = Path(os.getenv("BLOCKLIST_PATH", REPO_ROOT / "data" / "blocklist.yaml"))
     SKILLS_PATH: Path = Path(os.getenv("SKILLS_PATH", REPO_ROOT / "data" / "skills.yaml"))
+    # Interview questions only, after the criteria guardrail (issue 30); data/blocklist.yaml stays unchanged
+    INTERVIEW_BLOCKLIST_PATH: Path = Path(os.getenv("INTERVIEW_BLOCKLIST_PATH", REPO_ROOT / "data" / "interview_blocklist.yaml"))
 
     # Evaluation criteria
     CRITERIA_MAX_ITEMS: int = 10

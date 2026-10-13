@@ -2,11 +2,14 @@
 
 The LLM sees the JD, the criteria (no weights) and up to 4 excerpts of the masked CV. Its output is checked:
 `criterion_id` must be a criterion of the job (else null), `cv_quote` must be in the masked CV
-(`verify_quotes`, else null), every question must pass the criteria guardrail (data/blocklist.yaml, else
-dropped), URLs are stripped. Fewer than MIN_QUESTIONS left → the template.
+(`verify_quotes`, else null), URLs are stripped. Every question — LLM or template — must pass the criteria
+guardrail (data/blocklist.yaml) and then the interview blocklist (data/interview_blocklist.yaml, written for
+questions: marriage, children, dating, religion, age, appearance, origin, family, politics, health), checked
+on the question, its intent and its tips; a hit drops the question. Fewer than MIN_QUESTIONS left → the template.
 """
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -85,7 +88,22 @@ _GENERAL = (
 )
 
 
-def interview_rules(criteria: list[CriterionInfo]) -> list[Question]:
+def allowed(question: str, intent: str, tips: Sequence[str], blocklists: Sequence[Blocklist]) -> bool:
+    """False when any blocklist matches the question, its intent or a tip."""
+    detail = " ".join([intent, *tips])
+    return all(check_criterion(question, detail, bl).allowed for bl in blocklists)
+
+
+def screen(questions: list[Question], blocklists: Sequence[Blocklist]) -> list[Question]:
+    kept = [q for q in questions if allowed(q.question, q.intent, q.answer_tips, blocklists)]
+    for q in questions:
+        if q not in kept:
+            log.info("interview question dropped by a blocklist: %s", q.question)
+    return kept
+
+
+def interview_rules(criteria: list[CriterionInfo], blocklists: Sequence[Blocklist] = ()) -> list[Question]:
+    """Template questions, screened like LLM ones (a criterion name could carry a blocked word)."""
     out = []
     for c in criteria:
         template, kind, intent = _BY_CATEGORY.get(c.category, _BY_CATEGORY["other"])
@@ -96,7 +114,7 @@ def interview_rules(criteria: list[CriterionInfo]) -> list[Question]:
         if q.question not in seen:
             seen.add(q.question)
             unique.append(q)
-    return unique[:MAX_QUESTIONS]
+    return screen(unique, blocklists)[:MAX_QUESTIONS]
 
 
 # ── LLM ──
@@ -121,7 +139,7 @@ def interview_llm(
     criteria: list[CriterionInfo],
     excerpts: list[str],
     masked_text: str,
-    blocklist: Blocklist,
+    blocklists: Sequence[Blocklist],
     llm: LLMClient,
 ) -> list[Question]:
     """Validated LLM questions. Raises LLMError when fewer than MIN_QUESTIONS survive the checks."""
@@ -135,9 +153,9 @@ def interview_llm(
             continue
         intent = _clean(q.intent, 200)
         tips = tuple(t for t in (_clean(x, 150) for x in q.answer_tips) if t)
-        # Questions about protected attributes (age, family, origin, …) are dropped, like criteria
-        if not check_criterion(text, " ".join([intent, *tips]), blocklist).allowed:
-            log.info("interview question dropped by the guardrail: %s", text)
+        # Questions about protected attributes (age, family, origin, …) are dropped
+        if not allowed(text, intent, tips, blocklists):
+            log.info("interview question dropped by a blocklist: %s", text)
             continue
         cid = q.criterion_id if q.criterion_id in names else None
         verified = verify_quotes([q.cv_quote], masked_text) if q.cv_quote else []
@@ -154,15 +172,16 @@ def make_questions(
     criteria: list[CriterionInfo],
     masked_text: str,
     embedder: Embedder,
-    blocklist: Blocklist,
+    blocklists: Sequence[Blocklist],
     llm: LLMClient | None,
 ) -> tuple[list[Question], str]:
+    """`blocklists`: the criteria guardrail first, then the interview blocklist."""
     """(questions, method); method is "llm:<model>" or "rules". LLM failures fall back to the template."""
     if llm is not None:
         query = " ".join([job_title, *(c.name for c in criteria)])
         try:
             excerpts = cv_excerpts(masked_text, query, embedder)
-            return interview_llm(job_title, job_text, criteria, excerpts, masked_text, blocklist, llm), f"llm:{llm.model}"
+            return interview_llm(job_title, job_text, criteria, excerpts, masked_text, blocklists, llm), f"llm:{llm.model}"
         except LLMError as e:
             log.warning("interview questions by LLM failed, using the template: %s", e)
-    return interview_rules(criteria), "rules"
+    return interview_rules(criteria, blocklists), "rules"

@@ -305,7 +305,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | 28 | ~~Luồng đồng ý lại + rút lại đồng ý AI; upload CV kiểm tra consent~~ ✅ xong (D17; test `test_consent_api.py`). Còn: màn hình đồng ý lại ở frontend (đọc `consent_required`), nằm trong #27 | Nhỏ | — |
 | 29 | Frontend 이력서: nhắc seeker rằng sửa CV (kỹ năng, ngày, ngành…) **không đổi điểm** — điểm theo file PDF gốc; muốn đổi thì upload lại PDF đã sửa | Nhỏ | #15 xong; chạy `npm run build` |
 | 30 | Issue 29 (sau demo): `career_service` giữ khoá `users` trong lúc gọi LLM (~60 s) → giữ chỗ lượt trong transaction ngắn, nhả khoá rồi mới gọi LLM | Nhỏ–Vừa | Có thể cần cột trạng thái hoặc dòng tạm trong `career_contents` (migration) |
-| 31 | Issue 30: bổ sung pattern dạng câu hỏi vào `data/blocklist.yaml` (vd. “결혼하셨나요”, “자녀 계획”) — ảnh hưởng cả guardrail tiêu chí | Nhỏ | Cần xác nhận pháp lý (Q14 trong DECISIONS) |
+| 31 | ~~Issue 30: chặn câu hỏi phỏng vấn dạng hội thoại (“결혼하셨나요”, “자녀 계획”…)~~ ✅ xong bằng danh sách riêng `data/interview_blocklist.yaml`, không đụng `data/blocklist.yaml`; test `test_interview.py`. Còn: xác nhận pháp lý cả hai danh sách (Q14) | Nhỏ | Q14 |
 
 ---
 

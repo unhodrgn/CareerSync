@@ -1,0 +1,153 @@
+# Blocklist for generated interview questions only (question, intent, answer tips); docs/DECISIONS.md D21, issue 30.
+#
+# Runs AFTER the criteria guardrail (data/blocklist.yaml, unchanged) on both LLM and template questions. It is written
+# for questions and conversation ("결혼하셨나요?", "몇 살이세요?"), not criterion names, so it blocks generously:
+# a question that touches a protected topic at all is dropped, and an occasional over-block is acceptable.
+# Same format and matching as data/blocklist.yaml (normalized text: NFKC, lowercase, whitespace collapsed).
+# Avoid bare words that occur in technical questions: "보수" (유지보수), "장애" (장애 대응), "아이" (아이디어).
+# law_ref values are an unverified reading of the law (Q14); re-check before the demo.
+
+version: "2026.10.1"
+
+rules:
+  - id: interview.marital
+    category: marital_status
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "혼인 여부는 면접에서 물을 수 없습니다."
+    patterns:
+      - '결혼'
+      - '혼인'
+      - '기혼'
+      - '미혼'
+      - '배우자'
+      - '약혼'
+      - '신혼'
+      - '(아내|남편|와이프)'
+      - '\bmarri(ed|age)\b'
+
+  - id: interview.children
+    category: family_planning
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "자녀·출산·임신 계획은 면접에서 물을 수 없습니다."
+    patterns:
+      - '자녀'
+      - '출산'
+      - '임신'
+      - '육아'
+      - '아기'
+      - '아이\s*(가|는|를|들|계획|있|없|낳|키우)'
+      - '\b(children|pregnan\w*)\b'
+
+  - id: interview.dating
+    category: private_life
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "연애·교제 여부는 면접에서 물을 수 없습니다."
+    patterns:
+      - '(여자|남자|이성)\s*친구'
+      - '애인'
+      - '연애'
+      - '사귀'
+      - '교제\s*(중|하|여부)'
+
+  - id: interview.religion
+    category: religion
+    law_ref: "국가인권위원회법 제2조 제3호"
+    reason: "종교는 면접에서 물을 수 없습니다."
+    patterns:
+      - '종교'
+      - '신앙'
+      - '교회'
+      - '성당'
+      - '사찰'
+      - '(불교|기독교|천주교|개신교|이슬람|무교)'
+      - '\breligio\w*'
+
+  - id: interview.age
+    category: age
+    law_ref: "고용상 연령차별금지 및 고령자고용촉진에 관한 법률 제4조의4"
+    reason: "나이는 면접에서 물을 수 없습니다."
+    patterns:
+      - '나이'
+      - '연세'
+      - '연령'
+      - '몇\s*살'
+      - '\d+\s*살'
+      - '몇\s*년생'
+      - '\d{2,4}\s*년생'
+      - '생년'
+      - '\bhow\s+old\b'
+
+  - id: interview.appearance
+    category: physical
+    law_ref: "채용절차법 제4조의3 제1호"
+    reason: "외모·키·체중은 면접에서 물을 수 없습니다."
+    patterns:
+      - '외모'
+      - '용모'
+      - '얼굴'
+      - '신장'
+      - '체중'
+      - '몸무게'
+      - '키\s*(가|는|를)\s*(어떻게|몇|크|작|얼마)'
+      - '살\s*(을|이)?\s*(\S+\s+)?(빼|찌)'
+      - '다이어트'
+
+  - id: interview.origin
+    category: origin
+    law_ref: "채용절차법 제4조의3 제2호"
+    reason: "출신 지역·출신 학교는 면접에서 물을 수 없습니다."
+    patterns:
+      - '고향'
+      - '출신'
+      - '본적'
+      - '사투리'
+      - '태어난\s*곳'
+
+  - id: interview.family
+    category: family_background
+    law_ref: "채용절차법 제4조의3 제3호"
+    reason: "가족의 직업·학력·재산은 면접에서 물을 수 없습니다."
+    patterns:
+      - '부모'
+      - '아버지'
+      - '어머니'
+      - '부친'
+      - '모친'
+      - '가족'
+      - '형제'
+      - '자매'
+      - '집안'
+      - '가정\s*(환경|형편|사정)'
+      - '재산'
+      - '자산'
+      - '소득\s*수준'
+      - '\b(parents?|family)\b'
+
+  - id: interview.politics
+    category: politics
+    law_ref: "국가인권위원회법 제2조 제3호"
+    reason: "정치적 성향은 면접에서 물을 수 없습니다."
+    patterns:
+      - '정치'
+      - '정당'
+      - '선거'
+      - '투표'
+      - '이념'
+      - '(보수|진보)\s*(적|성향|정당|인가|이신가)'
+
+  - id: interview.health
+    category: health
+    law_ref: "국가인권위원회법 제2조 제3호"
+    reason: "건강 상태·장애는 면접에서 물을 수 없습니다."
+    patterns:
+      - '건강\s*(상태|문제|이상|은|이|하신|하세)'
+      - '질병'
+      - '지병'
+      - '병력'
+      - '장애인'
+      - '장애\s*(가\s*있|를\s*가지|등급|여부|유무|정도)'
+      - '복용'
+      - '수술'
+      - '정신\s*(건강|질환|과)'
+      - '우울'
+      - '\b(disabilit\w*|illness)\b'

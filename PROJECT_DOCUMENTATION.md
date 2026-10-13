@@ -308,7 +308,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `scoring/` | One scorer per category, then Fit | see below | `evaluation_service.evaluate` |
 | `llm/client.py` | Only gateway to the LLM; `get_llm_client()` is `None` unless `AI_MODE=llm`, even with a key. `check_llm_config()` runs at startup (`main.py` lifespan) | Anthropic SDK, default `claude-sonnet-5-5`, effort `low` | `ai_runtime.llm()` |
 | `career/gaps.py`, `career/roadmap.py` | Skills/certificates the job names that the masked CV text lacks (code, `data/skills.yaml`); roadmap steps: LLM writes only goal/activities for computed gaps, other skills dropped, URLs stripped; resources only from `data/learning_resources.yaml` | Claude (`prompts/v1/roadmap.md`) or template | `career_service.roadmap` |
-| `career/interview.py` | Interview questions from the JD, criteria and up to 4 masked CV excerpts (retrieval). Checks: criterion ids must exist, `cv_quote` verified (`verify_quotes`), every question, intent and tip through the criteria guardrail, URLs stripped; < 3 left → template | Claude (`prompts/v1/interview_questions.md`) or template | `career_service.interview_questions` |
+| `career/interview.py` | Interview questions from the JD, criteria and up to 4 masked CV excerpts (retrieval). Checks: criterion ids must exist, `cv_quote` verified (`verify_quotes`), URLs stripped; every question (LLM and template) with its intent and tips through the criteria guardrail and then `data/interview_blocklist.yaml` (marriage, children, dating, religion, age, appearance, origin, family, politics, health; written for questions, blocks generously); < 3 left → template | Claude (`prompts/v1/interview_questions.md`) or template | `career_service.interview_questions` |
 | `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
@@ -435,7 +435,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `LLM_API_KEY` | — | Required when `AI_MODE=llm`; ignored in `rules`. `ANTHROPIC_API_KEY` is not read |
 | `LLM_MODEL` / `LLM_EFFORT` | `claude-sonnet-5-5` / `low` | |
 | `EMBEDDING_MODEL` | `intfloat/multilingual-e5-base` | `hashing-ngram-v1` skips the ~1 GB download; Compose defaults to it when unset |
-| `BLOCKLIST_PATH`, `SKILLS_PATH`, `LEARNING_RESOURCES_PATH` | `data/blocklist.yaml`, `data/skills.yaml`, `data/learning_resources.yaml` | |
+| `BLOCKLIST_PATH`, `SKILLS_PATH`, `LEARNING_RESOURCES_PATH`, `INTERVIEW_BLOCKLIST_PATH` | `data/blocklist.yaml`, `data/skills.yaml`, `data/learning_resources.yaml`, `data/interview_blocklist.yaml` | |
 | `CAREERSYNC_DOTENV` | `1` | `0` skips `.env` (tests) |
 | `TEST_DATABASE_URL` | `sqlite://` | Point at a separate PostgreSQL DB to run tests on PostgreSQL |
 | `VITE_API_TARGET` | `http://127.0.0.1:8000` | Vite proxy target |
@@ -518,7 +518,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 27 | Schema | Migration `0008` for `evaluations.queued_at` (timestamptz) + `evaluations.attempts` (smallint, default 0) — see [§3.4](#34-applications-and-evaluation). **Blocks** issue 2, issue 25 and [§6.1](#61-recommendation) (stale check, fencing, caps, attempt limit) | `backend/migrations/`, `models/application.py` | Fixed |
 | 28 | Consistency | `AI_NOTICE` is only in applicant/evaluation responses; `POST /api/cv` (AI-structured CV) and `POST /api/jobs/{job_id}/analyze` return AI output without it, although rule 8 in §10 and `CLAUDE.md` require it. **Fixed:** `CvOut` and `JdAnalysisOut` have `notice` | `schemas/cv.py`, `api/v1/jobs.py` | Fixed |
 | 29 | Concurrency | `career_service` holds the `FOR UPDATE` lock on the seeker's `users` row for the whole LLM call (up to ~60 s plus SDK retries), so one seeker's roadmap/interview calls wait for each other. Accepted for the demo. Planned fix (after the demo): reserve the daily slot in a short transaction (e.g. insert a placeholder row), release the lock, call the LLM, then fill in or remove the placeholder | `services/career_service.py` | Open |
-| 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7 | `data/blocklist.yaml`, `ai/career/interview.py` | Open |
+| 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7. **Fixed for interview questions:** a separate `data/interview_blocklist.yaml`, written for questions, runs after the criteria guardrail on LLM and template questions (question, intent, tips). `data/blocklist.yaml` and the criteria guardrail are unchanged; the legal review of both lists (Q7 here, Q14 in docs/DECISIONS.md) is still open | `data/interview_blocklist.yaml`, `ai/career/interview.py` | Fixed |
 
 ---
 
