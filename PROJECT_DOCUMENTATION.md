@@ -45,7 +45,7 @@
 | Apply → background scoring → applicants ranked by Fit with evidence | [Current] | |
 | Recruiter changes application status | [Current] | |
 | Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
-| Seeker preferences (input for Pref) | [DB only] | API path planned |
+| Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
 | Job recommendation (Fit + Pref) | [Planned] | Tables ready (`evaluations`, `seeker_preferences`); rules planned ([§6.1](#61-recommendation-planned)); the page shows demo numbers |
 | Talent recommendation (opt-in, anonymous, offers) | [Planned] | Tables ready (`profile_public`, `talent_offers`); rules planned; blocked by issues 3, 6 and 26 ([§6.1](#61-recommendation-planned)) |
 | Bias audit, AI cache | [Planned] | Stub files |
@@ -146,8 +146,8 @@ Child tables of `cv_profiles` (all `cv_profile_id` FK → cv_profiles, CASCADE, 
 
 **`criterion_scores`** — `evaluation_id` FK (CASCADE) · `job_criteria_id` FK (CASCADE) · `score` 0–100 · `level` · `reason` · `evidence` JSON (quotes) · `method` (`rule:skill`, `llm:<model>`, `retrieval`, …). Unique (`evaluation_id`, `job_criteria_id`). Weights are **not** stored.
 
-### 3.5 Matching groundwork [DB only]
-Created in `0007`, no API or logic uses them yet.
+### 3.5 Matching groundwork
+Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` and `company_projects*` have no API or logic yet [DB only].
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -231,6 +231,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET | `/api/applications/{application_id}/evaluation` | Per-criterion score, reason, evidence | Company | 404 `APPLICATION_NOT_FOUND` | `application_service.evaluation` | — |
 | POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running) | `application_service.retry` | **scoring** |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes status | Company | 404, 422 | `application_service.set_status` | — |
+| GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`). GET returns empty lists before the first save. PUT trims, collapses whitespace and merges duplicates; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type) | `preference_service` | — |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
 Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`) and `POST /api/jobs/{job_id}/analyze`.
@@ -240,7 +241,6 @@ Paths are working names (design doc 상세 §3.1); field-level request/response 
 
 | Purpose | Path (working) | Who | Tables | Blocked by |
 |---|---|---|---|---|
-| Read/update seeker preferences (+ `profile_public`) | `GET` · `PUT /api/preferences/me` | Seeker | `seeker_preferences` + 3 children | — |
 | Job recommendation, Final = 0.5·Fit + 0.5·Pref | `GET /api/recommendations/jobs?limit=20` | Seeker | `evaluations`, `seeker_preferences` | [Q1](#12-open-questions) (synonyms only) |
 | Talent recommendation (anonymous list per job) | `GET /api/jobs/{job_id}/talent?limit=20` | Company | `seeker_preferences`, `evaluations` | Issues [3, 6, 26](#11-known-issues-and-risks) |
 | Send / cancel an offer | `POST /api/talent-offers` · `POST /api/talent-offers/{id}/cancel` | Company | `talent_offers` | — |
@@ -324,8 +324,8 @@ Decided parts: docs/DECISIONS.md D1–D3. No code yet. Core rule: the company's 
 
 **Job recommendation (seeker → jobs)**
 - Candidates: published, unexpired jobs. Excluded: jobs already applied to; seekers with no confirmed CV or no AI consent.
-- **Pref** (0–100) = desired location, desired employment type, desired role keywords (vs job title + JD), each 1/3. Free text is compared after whitespace/case normalization. Matching method (planned): location and employment type match when equal after normalization (location also matches when one contains the other, e.g. "서울" ⊂ "서울 강남구"); role keywords match when any keyword appears as a substring of the job title or JD. Synonyms stay in Q1. Pref takes only 0 / 33.3 / 66.7 / 100, so "≥ 40" means at least 2 of 3 match.
-- **Empty preferences** — planned: a field the seeker left empty counts as a match. Consequence: a seeker with no preferences has Pref = 100 for every job, so ranking is by Fit alone and the evaluation cap below is what limits cost. Planned: show a "희망 조건을 입력하면 추천이 정확해집니다" prompt on the page when all three are empty.
+- **Pref** (0–100, `ai/scoring/pref.py` `pref_score`; docs/DECISIONS.md D15) = mean over the preference fields the seeker **filled in**, each 0 or 100: desired locations (match when equal or one contains the other, e.g. "서울" ⊂ "서울 강남구"), employment types (job's type in the list), role keywords (any keyword in the job title or JD; a keyword starting or ending with a Latin letter or digit must sit on a word boundary there, so "Java" does not match "JavaScript"). Compared after whitespace/case normalization; synonyms stay in Q1. With 1 field filled Pref is 0/100, with 2 it is 0/50/100, with 3 it is 0/33.3/66.7/100, so "≥ 40" means at least half of the filled fields match. The result also lists matched and missed fields.
+- **Empty preferences**: an empty field is not counted. A seeker with no preferences has Pref = 100 for every job, so ranking is by Fit alone and the evaluation cap below is what limits cost. Planned: show a "희망 조건을 입력하면 추천이 정확해집니다" prompt on the page when all three are empty.
 - **Fit**: reuse the evaluation for (job, newest confirmed CV version); create it if missing. Fit is computed only for jobs with Pref ≥ 40, to limit LLM calls.
 - **Evaluation cap** (planned): one recommendation call creates at most `RECO_MAX_NEW_EVALUATIONS` (proposed 10) new evaluations, picking candidates with the highest Pref first, then newest `published_at`. Jobs over the cap are left out of this response and get evaluated on later calls.
 - **Daily cap per seeker** (planned): at most `RECO_DAILY_NEW_EVALUATIONS` (proposed 30) new evaluations per seeker per day (KST), so reloading the page cannot bypass the per-call cap. Counting rule and re-queues: see the next bullets (uses `queued_at`); evaluations queued by applying do not count. When the cap is reached, the call returns only existing `done` results. Talent recommendation needs its own per-company limit — see [issue 26](#11-known-issues-and-risks). Both endpoints are covered by [issue 22](#11-known-issues-and-risks). Further option if cost is still high: turn recommendation on only when at least one preference is filled.
@@ -434,7 +434,6 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `RECO_FIT_WEIGHT` / `RECO_PREF_WEIGHT` | `0.5` / `0.5` | Planned |
 | `RECO_MIN_FIT` / `RECO_MIN_PREF` | `40` / `40` | Planned |
 | `RECO_BAND_HIGH` / `RECO_BAND_MID` | `80` / `60` (below 60 = 낮음) | Planned |
-| `RECO_EMPTY_PREF_MATCHES` | `True` (empty field counts as match) | Planned |
 | `RECO_MAX_NEW_EVALUATIONS` | `10` per call | Planned |
 | `RECO_DAILY_NEW_EVALUATIONS` | `30` per seeker per day (KST), new + re-queued | Planned |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Planned |
@@ -506,7 +505,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 
 | # | Question | Blocks |
 |---|---|---|
-| Q1 | Pref beyond whitespace/case normalization: synonyms for locations and role keywords (e.g. "서울" vs "서울 강남구", "백엔드" vs "Backend")? Should a role mismatch alone exclude a job? Confirm the basic matching method proposed in §6.1 (equality / containment / substring). (Formula itself is decided — docs/DECISIONS.md D2) | Recommendation quality |
+| Q1 | Pref beyond normalization and containment: synonyms for locations and role keywords (e.g. "강남" vs "서울 강남구", "백엔드" vs "Backend")? Should a role mismatch alone exclude a job? (Formula: docs/DECISIONS.md D2; field rules: D15) | Recommendation quality |
 | Q3 | How do company projects affect evaluation: only context for suggesting criteria, or also part of the scoring prompt? One job ↔ one or many projects? (The 과제계획서 promises they are "reflected in the criteria".) | Projects API, scoring |
 | Q5 | Deleting a CV attached to an application: block (409), withdraw the application, or keep the application without CV text? Deleting a company account? | Delete APIs, FK `RESTRICT` |
 | Q6 | Issue 15: allow applying with an older confirmed CV version? | Apply, recommendation |

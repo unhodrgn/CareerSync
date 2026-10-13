@@ -10,7 +10,7 @@
 ## 0. Tóm tắt nhanh
 
 - **Luồng lõi “công ty tự định nghĩa tiêu chí → chấm ứng viên → xếp hạng”: ✅ chạy thật end-to-end** (CV PDF → che PII → cấu trúc hoá → seeker xác nhận → apply → chấm điểm nền → rank theo Fit + bằng chứng → recruiter đổi trạng thái).
-- **Toàn bộ nửa “gợi ý” chưa có code**: Pref, Final = 0.5·Fit + 0.5·Pref, ngưỡng 40, match band, API preferences, gợi ý job, gợi ý ứng viên (talent), offer. Mới có bảng DB (`0007`) và `recommendations.py` là stub 1 dòng, chưa mount.
+- **Nửa “gợi ý”**: ✅ API preferences + hàm Pref (D15). Chưa có code: Final = 0.5·Fit + 0.5·Pref, ngưỡng 40, match band, gợi ý job, gợi ý ứng viên (talent), offer. Mới có bảng DB (`0007`) và `recommendations.py` là stub 1 dòng, chưa mount.
 - **Thiếu hẳn**: roadmap kỹ năng, câu hỏi phỏng vấn, AI tự kiểm tra CV, AI viết JD (chỉ có phân tích JD có sẵn), filter nhanh ứng viên, CRUD project công ty.
 - **Switch rule/LLM**: ✅ cờ `AI_MODE` (`rules` mặc định / `llm`), key không tự bật LLM, không đọc `ANTHROPIC_API_KEY` (D12).
 - **Public (D4)**: ✅ `GET /api/jobs` và `GET /api/jobs/{id}` không cần login. Còn `/criteria` cho guest (Q19) và frontend cho guest (#26).
@@ -93,7 +93,7 @@ Mọi endpoint dưới đây đã implement. `backend/app/api/v1/recommendations
 | 29 | PUT | `/api/applications/{id}/status` | Company | Recruiter đổi trạng thái đơn | `applications.py:70` |
 | 30 | GET | `/health` | — | Health check | `main.py:24` |
 
-Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET /api/recommendations/jobs`, `GET /api/jobs/{job_id}/talent`, `/api/talent-offers*`, `/api/companies/me/projects` (doc §4.2).
+Endpoint `[Planned]`, **chưa tồn tại**: `GET /api/recommendations/jobs`, `GET /api/jobs/{job_id}/talent`, `/api/talent-offers*`, `/api/companies/me/projects` (doc §4.2).
 
 ---
 
@@ -106,7 +106,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET
 | Công ty tự định nghĩa tiêu chí, lưu DB | ✅ | `job_criteria` (`models/criteria.py`); `criteria_service.replace_set` (`criteria_service.py:121`); 1–10 mục, tên unique, tổng weight = 100 (`:60-78`); guardrail pháp lý + log (`:81-103`); khoá sau publish, chỉ đổi weight (`:106-115`) |
 | Dùng tiêu chí đó để **xếp hạng ứng viên** | ✅ | `evaluation_service.evaluate` (`evaluation_service.py:36`) → `score_candidate` (`ai/scoring/fit.py:22`); rank ở `application_service.ranked` (`application_service.py:98-144`); Fit tính lúc đọc từ weight hiện tại (`evaluation_service.py:93-99`) |
 | Dùng **cùng model** để gợi ý job cho seeker | ❌ | Không có code. Evaluation đã được key theo job × CV version để tái dùng (`models/application.py:58`), `load_for_scoring` ghi là “read path for scoring and recommendation” (`criteria_service.py:208`) — mới là chuẩn bị |
-| Pref, tính Pref trước | ❌ | Không có code; bảng `seeker_preferences` + 3 bảng con có (`models/matching.py:18-91`) |
+| Pref, tính Pref trước | 🟡 | Hàm `ai/scoring/pref.py` `pref_score` + API `GET/PUT /api/preferences/me` (D15). Thứ tự “Pref trước” thuộc API gợi ý job (#7), chưa có |
 | Final = 0.5·Fit + 0.5·Pref | ❌ | Không có; hằng `RECO_*` chưa có trong `core/config.py` |
 | Fit ≥ 40 **và** Pref ≥ 40 mới gợi ý | ❌ | Không có |
 | Seeker chỉ thấy match band, không thấy điểm từng tiêu chí | 🟡 | Phần “không thấy điểm”: ✅ — không endpoint nào trả score cho seeker (`ApplicationOut` chỉ có `evaluation_status`, `schemas/application.py:12-19`; seeker xem criteria không có weight, `criteria.py:48-55`). Phần “match band”: ❌ chưa có (frontend đang hiện % giả `demoMatch`) |
@@ -154,7 +154,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET
 |---|---|---|
 | Fit scoring (theo tiêu chí công ty) | ✅ | 6 category, rule cho `skill`/`experience`/`certificate`/`education`; `project`/`other` = LLM rubric (0/25/50/75/100) với quote được verify + retry 1 lần → fallback retrieval (`scorers.py:204-229`) |
 | Công thức Fit | ✅ đúng spec | `Σ(weight·score)/Σweight`, làm tròn 1 chữ số; tiêu chí thiếu điểm = 0 (`fit.py:48-53`). Weight là weight hiệu dụng (bỏ tiêu chí bị blocklist mới chặn, scale lại về 100) (`criteria_service.py:208-243`) |
-| Pref | ❌ | Không có code |
+| Pref | ✅ | `ai/scoring/pref.py` (D15); chưa endpoint nào dùng |
 | Final + ngưỡng 40 | ❌ | Không có code |
 | Match band (높음 ≥80 / 보통 60–79 / 낮음 40–59) | ❌ | Chỉ có “importance” của tiêu chí suy từ weight (`criteria_service.py:37-42`) — khác khái niệm |
 | Roadmap kỹ năng | ❌ | |
@@ -226,7 +226,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET
 Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 - `AnthropicClient` ánh xạ lỗi SDK → `LLMError` (có thể mock SDK, không gọi thật).
 - FK trên SQLite (`PRAGMA foreign_keys` tắt, issue 5); model ↔ migration drift (test dùng `create_all`, issue 18).
-- Toàn bộ phần gợi ý / preferences / talent (chưa có code).
+- Toàn bộ phần gợi ý / talent (chưa có code).
 
 ### 5.5 Bảo mật / quyền riêng tư
 
@@ -256,7 +256,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 | 3 | ~~Luật queue/retry (issue 2, 25, doc §6.1)~~ ✅ xong (`claim()`, fencing, `ensure()` savepoint, apply trùng → 409; test `test_evaluation_queue.py`) | Vừa | — |
 | 4 | ~~Public `GET /api/jobs`, `GET /api/jobs/{id}`~~ ✅ xong (`OptionalUser`, test `test_jobs_public.py`). Còn: `GET /api/jobs/{id}/criteria` cho guest | Nhỏ | Q19 |
 | 5 | ~~Thêm `AI_NOTICE` vào `CvOut`, `JdAnalysisOut` (issue 28)~~ ✅ xong. Còn: frontend hiển thị `notice` | Nhỏ | — |
-| 6 | API preferences `GET/PUT /api/preferences/me` (location, employment type, keyword, `profile_public`) | Vừa | Bảng có sẵn; Q10 (tắt `profile_public` khi có offer) chỉ chặn phần offer. Frontend: form |
+| 6 | ~~API preferences `GET/PUT /api/preferences/me`~~ ✅ xong (D15; test `test_preferences_api.py`, `test_pref.py`). Còn: frontend form | Vừa | Q10 khi làm offer |
 | 7 | Gợi ý job `GET /api/recommendations/jobs`: Pref (khớp theo doc §6.1) → bỏ < 40 → evaluation `done` + queue nền có cap 10/lần, 30/ngày → Fit, bỏ < 40 → Final = 0.5·Fit + 0.5·Pref → sort → band + tên tiêu chí matched/gap + `pending_count` + `AI_NOTICE`; thêm hằng `RECO_*` vào `config.py` | Lớn | #3, #6. Bump `CONSENT_VERSION` + luồng đồng ý lại (đã quyết) đụng auth → **cần xác nhận**. Frontend: thay `demoMatch`. Q1 (đồng nghĩa) không chặn bản cơ bản |
 
 ### P1 — feature trong spec nhưng chưa có (cần chốt phạm vi, doc Q8)
