@@ -2,7 +2,9 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
+
+from app.core.config import settings
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -74,3 +76,28 @@ class UserOut(BaseModel):
     company_id: int | None
     consent_version: str | None
     created_at: datetime
+    consent_ai_at: datetime | None = Field(None, exclude=True)
+
+    @computed_field
+    @property
+    def current_consent_version(self) -> str:
+        """The consent text version the server asks for now (CONSENT_VERSION)."""
+        return settings.CONSENT_VERSION
+
+    @computed_field
+    @property
+    def consent_required(self) -> bool:
+        """True when the user must (re-)consent: AI consent withdrawn or given to an older version."""
+        return self.consent_ai_at is None or self.consent_version != settings.CONSENT_VERSION
+
+
+class ConsentIn(BaseModel):
+    version: str = Field(max_length=20, description="Version of the consent text shown to the user; must be the current one")
+    consent_privacy: bool
+    consent_ai: bool
+
+    @model_validator(mode="after")
+    def _both(self) -> "ConsentIn":
+        if not (self.consent_privacy and self.consent_ai):
+            raise ValueError("개인정보 처리 및 AI 분석 안내에 모두 동의해야 합니다.")
+        return self

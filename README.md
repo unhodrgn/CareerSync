@@ -252,7 +252,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `280 passed, 6 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 108 backend tests.
+Expected: `287 passed, 6 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 115 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -360,7 +360,9 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | --- | --- | --- |
 | POST | `/api/auth/register` | Register as seeker or company (consents required) |
 | POST | `/api/auth/login` | Log in, returns a bearer token |
-| GET | `/api/users/me` | Current user |
+| GET | `/api/users/me` | Current user (`consent_required` → show the consent screen) |
+| POST | `/api/users/me/consent` | Consent again to the current consent text |
+| DELETE | `/api/users/me/consent/ai` | Seeker withdraws AI-analysis consent |
 
 ### Companies
 

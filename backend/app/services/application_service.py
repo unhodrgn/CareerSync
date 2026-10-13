@@ -222,6 +222,8 @@ def retry(db: Session, user: User, application_id: int) -> tuple[Evaluation, dat
     """Re-queue a failed or stale pending evaluation; returns it with the queue token.
     409 when it is done or a run still owns it (issue 2)."""
     app = get_owned(db, user, application_id)
+    if app.seeker.consent_ai_at is None:
+        raise AppError(409, "AI_CONSENT_WITHDRAWN", "지원자가 AI 분석 동의를 철회하여 다시 분석할 수 없습니다.")
     ev = evaluation_service.ensure(db, app.job_id, app.cv_profile_id)
     token = evaluation_service.claim(db, ev, reset_attempts=True)
     if token is None:

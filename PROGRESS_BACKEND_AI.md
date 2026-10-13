@@ -288,7 +288,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 | 25 | Issue 4: `JWT_SECRET_KEY` rỗng phải được coi như thiếu biến (dùng dev default, như README mô tả); hiện rỗng → login 500 | Nhỏ | `core/config.py`; liên quan #20 |
 | 26 | Frontend cho guest: vào danh sách và chi tiết job không cần login (`App.tsx` đang bắt login mọi trang); ẩn nút apply/khối tiêu chí khi chưa login | Nhỏ | Backend D4 xong; khối tiêu chí theo Q19; chạy `npm run build` |
 | 27 | Frontend gợi ý + consent: trang 추천 dùng `GET /api/recommendations/jobs` (band, `pending_count`, bỏ `demoMatch`); câu đồng ý AI ở 회원가입 nêu “지원 평가 및 맞춤 추천” | Nhỏ–Vừa | D16; chạy `npm run build` |
-| 28 | Luồng đồng ý lại cho user có `consent_version` cũ (hiện không có endpoint nào cập nhật consent → user cũ không nhận được gợi ý, trừ khi seed lại DB) | Nhỏ | Đụng auth/user API → cần xác nhận |
+| 28 | ~~Luồng đồng ý lại + rút lại đồng ý AI; upload CV kiểm tra consent~~ ✅ xong (D17; test `test_consent_api.py`). Còn: màn hình đồng ý lại ở frontend (đọc `consent_required`), nằm trong #27 | Nhỏ | — |
 
 ---
 

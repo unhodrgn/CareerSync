@@ -1,5 +1,6 @@
 """API test fixtures. Uses SQLite in memory by default; set TEST_DATABASE_URL to run against PostgreSQL."""
 import os
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.session import Base, get_db
 from app.main import app
@@ -50,7 +52,16 @@ def world(db):
     db.flush()
     recruiter = User(email="hr@acme.test", password_hash=_PASSWORD_HASH, role="company", company_id=acme.id)
     rival = User(email="hr@other.test", password_hash=_PASSWORD_HASH, role="company", company_id=other.id)
-    seeker = User(email="me@seeker.test", password_hash=_PASSWORD_HASH, role="seeker")
+    # Consented like every registered seeker (CV upload needs AI consent)
+    now = datetime.now(UTC)
+    seeker = User(
+        email="me@seeker.test",
+        password_hash=_PASSWORD_HASH,
+        role="seeker",
+        consent_privacy_at=now,
+        consent_ai_at=now,
+        consent_version=settings.CONSENT_VERSION,
+    )
     jd = "Java/Spring 백엔드 API 개발"
     job = JobPosting(company_id=acme.id, title="Backend Engineer", description=jd)
     job2 = JobPosting(company_id=acme.id, title="Platform Engineer", description=jd)

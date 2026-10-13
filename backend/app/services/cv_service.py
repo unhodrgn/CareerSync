@@ -157,6 +157,9 @@ def to_out(p: CvProfile) -> CvOut:
 
 def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
     _seeker_only(user)
+    # Any AI consent is enough (not the newest version): CV analysis was a purpose from the start (D17)
+    if user.consent_ai_at is None:
+        raise AppError(409, "AI_CONSENT_REQUIRED", "AI 분석 동의 후 이력서를 분석할 수 있습니다.")
     try:
         pdf = extract_text(data)
     except PdfError as e:

@@ -35,7 +35,7 @@
 
 | Feature | Status | Note |
 |---|---|---|
-| Register / log in with privacy + AI-analysis consent | [Current] | |
+| Register / log in with privacy + AI-analysis consent; re-consent and AI-consent withdrawal | [Current] | D17 |
 | Company profile (name, intro, 인재상) | [Current] | |
 | Company running projects | [DB only] | Use in scoring `TBD` (Q3) |
 | Jobs: draft → published → closed | [Current] | |
@@ -206,7 +206,9 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 |---|---|---|---|---|---|---|
 | POST | `/api/auth/register` | Register seeker or company (consents required) | Anyone | 409 `EMAIL_TAKEN` | `auth_service.register` | — |
 | POST | `/api/auth/login` | Bearer token | Anyone | 401 `INVALID_CREDENTIALS` | `auth_service.authenticate` | — |
-| GET | `/api/users/me` | Current user | Logged in | 401 | — | — |
+| GET | `/api/users/me` | Current user, plus `current_consent_version` and `consent_required` (AI consent withdrawn or `consent_version` ≠ `CONSENT_VERSION` → show the consent screen) | Logged in | 401 | — | — |
+| POST | `/api/users/me/consent` | Consent (again) to the current text: body `version` (must equal `CONSENT_VERSION`), `consent_privacy`, `consent_ai` (both true). Sets `consent_privacy_at`, `consent_ai_at`, `consent_version`; no history | Logged in | 409 `CONSENT_VERSION_OUTDATED` (+ `current_version`); 422 | `consent_service.consent` | — |
+| DELETE | `/api/users/me/consent/ai` | Withdraw AI consent: `consent_ai_at = null` (keeps `consent_version`), `profile_public` off. Stored CVs, evaluations and applications stay; a run already queued finishes | Seeker | 403 `SEEKER_ONLY` | `consent_service.withdraw_ai` | — |
 | GET / PUT | `/api/companies/me` | Own company profile | Company | 422 | route | — |
 | GET | `/api/companies/{company_id}` | Public company profile | Logged in | 404 `COMPANY_NOT_FOUND` | route | — |
 | POST | `/api/jobs` | Create draft | Company | 422 `DEADLINE_IN_PAST` | `job_service.create` | — |
@@ -222,14 +224,14 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | PUT | `/api/jobs/{job_id}/criteria` | Replace the criteria set | Company | 422 `CRITERIA_COUNT_INVALID`, `CRITERIA_DUPLICATE_NAME`, `WEIGHT_SUM_INVALID`, `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED`; 409 `CRITERIA_LOCKED` | `criteria_service.replace_set` | guardrail |
 | POST | `/api/jobs/{job_id}/criteria/copy-from/{source_job_id}` | Copy criteria into a draft | Company | 409 `CRITERIA_LOCKED`; 422 `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED` | `criteria_service.copy_set` | guardrail |
 | POST | `/api/criteria/check` | Live guardrail check (saves nothing) | Company | — | `criteria_service.check` | guardrail |
-| POST | `/api/cv` | Upload + analyze a PDF (multipart `file`) | Seeker | 422 `CV_TOO_LARGE`, `CV_NOT_PDF`, `CV_UNREADABLE`, `CV_ENCRYPTED`, `CV_TOO_MANY_PAGES`, `CV_NO_TEXT` | `cv_service.upload` | PDF, PII, **LLM** / rules |
+| POST | `/api/cv` | Upload + analyze a PDF (multipart `file`) | Seeker | 409 `AI_CONSENT_REQUIRED` (no AI consent; the version is not checked); 422 `CV_TOO_LARGE`, `CV_NOT_PDF`, `CV_UNREADABLE`, `CV_ENCRYPTED`, `CV_TOO_MANY_PAGES`, `CV_NO_TEXT` | `cv_service.upload` | PDF, PII, **LLM** / rules |
 | GET | `/api/cv/me` | Newest version of the newest CV | Seeker | 404 `CV_NOT_FOUND` | `cv_service.latest` | — |
 | GET / PUT | `/api/cv/{profile_id}` | Read a version / save edits as a new version (`confirm`) | Seeker (own) | 404 | `cv_service.get_own`, `update` | normalize |
 | POST | `/api/jobs/{job_id}/applications` | Apply with the newest confirmed CV; scoring runs in background | Seeker | 409 `JOB_EXPIRED`, `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`, `ALREADY_APPLIED` | `application_service.apply` | **scoring** |
 | GET | `/api/applications/mine` | Own applications | Logged in. Filters by `seeker_id = current user`, no role check — a company account gets `200 []` (companies cannot apply) | — | `application_service.list_mine` | — |
 | GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit | Company | 404 | `application_service.ranked` | Fit |
 | GET | `/api/applications/{application_id}/evaluation` | Per-criterion score, reason, evidence | Company | 404 `APPLICATION_NOT_FOUND` | `application_service.evaluation` | — |
-| POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running) | `application_service.retry` | **scoring** |
+| POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running), `AI_CONSENT_WITHDRAWN` (the applicant withdrew AI consent) | `application_service.retry` | **scoring** |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes status | Company | 404, 422 | `application_service.set_status` | — |
 | GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`). GET returns empty lists before the first save. PUT trims, collapses whitespace and merges duplicates; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type) | `preference_service` | — |
 | GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref, band only (`limit` 1–50, no offset). Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
@@ -347,7 +349,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - Anonymous profile — shown: anonymous ID, skills, total experience, experience roles (no org names), project roles and techs, major and degree, certificates, desired location/employment type/role keywords, Fit and per-criterion `score` (and `level`) for that job. Hidden: `display_name`, email, school name, org names, CV text, and the per-criterion `reason` and `evidence` — evidence quotes CV lines and reasons paraphrase them, which leaks text and makes re-identification easier ([issue 24](#11-known-issues-and-risks)). `reason`/`evidence` become visible only through the normal applicant view after the seeker applies.
 - Offers: create as `pending` (service blocks a duplicate pending offer from the same company to the same seeker — no DB constraint, see [issue 16](#11-known-issues-and-risks)); seeker accepts/rejects (`responded_at`); company can cancel while pending. Re-offering after `rejected` is not decided (issue 23). Contact (`display_name`, email from `users`) is returned **only after `accepted`**.
 
-**Consent:** `CONSENT_VERSION` is `2026-10-13`; recommendation requires `consent_version ≥ RECO_MIN_CONSENT_VERSION` (`2026-10-13`), else 409 `AI_CONSENT_REQUIRED`, so users who consented to an older version get no evaluation for jobs they did not apply to. Apply and CV upload do not check the version; existing applications stay valid. Not built yet: the consent text naming "지원 평가 및 맞춤 추천" (frontend) and a way for existing users to re-consent (no endpoint). Appearing in talent recommendation additionally requires the separate `profile_public` opt-in (`profile_public_at` records when).
+**Consent:** `CONSENT_VERSION` is `2026-10-13`; recommendation requires `consent_version ≥ RECO_MIN_CONSENT_VERSION` (`2026-10-13`), else 409 `AI_CONSENT_REQUIRED`, so users who consented to an older version get no evaluation for jobs they did not apply to. Apply and CV upload need AI consent but not the newest version; existing applications stay valid. Users re-consent with `POST /api/users/me/consent`; `/api/users/me` tells the frontend when (`consent_required`). A seeker may withdraw AI consent (`DELETE /api/users/me/consent/ai`): every new AI use of their data stops (CV upload, apply, recommendation, the company's 다시 분석), they leave the talent pool, stored data stays, and a run queued before the withdrawal is not cancelled (D17). Not built yet: the consent text naming "지원 평가 및 맞춤 추천" and the re-consent screen (frontend). Appearing in talent recommendation additionally requires the separate `profile_public` opt-in (`profile_public_at` records when).
 
 **Evaluation (AI quality) plan [Planned]:** synthetic data only — 20 synthetic CVs + 5 jobs with hand-made answers. Metrics: extraction precision/recall, quote-verification pass rate and evidence review, top-5 agreement of Fit ranking vs hand ranking, processing time (`POST /api/cv` → response; apply → `done`), failed-evaluation and upload-error rates. Each measured for rules-only and LLM mode.
 

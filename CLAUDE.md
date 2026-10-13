@@ -62,4 +62,4 @@ cd frontend && npm run build             # type-check + build
 ## Current focus (update when it changes)
 
 - Queue/retry rules are in place (`evaluation_service.claim()`, fencing on `queued_at`).
-- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Next: frontend for them; re-consent flow for users with an older `consent_version`. Talent recommendation stays off until doc issues 3, 6 and 26 are resolved.
+- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Re-consent and AI-consent withdrawal are in place (D17). Next: frontend for recommendation, preferences and the consent screen. Talent recommendation stays off until doc issues 3, 6 and 26 are resolved.
