@@ -1,7 +1,7 @@
 """The AI components the services use, behind one place so tests can replace them."""
 from ai.embedding.model import Embedder, get_embedder
 from ai.embedding.skills import SkillDictionary, load_dictionary
-from ai.llm.client import LLMClient, get_llm_client
+from ai.llm.client import LLMClient, ai_mode, get_llm_client
 from app.core.config import settings
 
 
@@ -15,3 +15,8 @@ def embedder() -> Embedder:
 
 def llm() -> LLMClient | None:
     return get_llm_client()
+
+
+def mode() -> str:
+    """`rules` or `llm` (AI_MODE)."""
+    return ai_mode()

@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from ai.parsing.extract import PROMPT_VERSION
 from ai.scoring.fit import STRONG_SCORE, aggregate_fit, score_candidate
@@ -52,12 +52,13 @@ def ensure(db: Session, job_id: int, cv_profile_id: int) -> Evaluation:
     return ev
 
 
-def claim(db: Session, ev: Evaluation, *, reset_attempts: bool) -> datetime | None:
+def claim(db: Session, ev: Evaluation, *, reset_attempts: bool, max_attempts: int | None = None) -> datetime | None:
     """Queue `ev` for scoring if no live run owns it: new (`queued_at` NULL), failed, or pending for
     longer than EVALUATION_STALE_MINUTES. Returns the token (the new `queued_at`) for the run, or
     None when it must not be queued. Does not commit; the caller commits before starting the run.
 
-    Apply and 다시 분석 reset `attempts` (they are not limited by it); other paths add one.
+    Apply and 다시 분석 reset `attempts` (they are not limited by it); other paths add one and may
+    pass `max_attempts` to stop re-queuing an evaluation that keeps failing.
     """
     now = datetime.now(UTC)
     stale = now - timedelta(minutes=settings.EVALUATION_STALE_MINUTES)
@@ -68,9 +69,12 @@ def claim(db: Session, ev: Evaluation, *, reset_attempts: bool) -> datetime | No
             or_(Evaluation.queued_at.is_(None), Evaluation.queued_at < stale),
         ),
     )
+    conditions = [Evaluation.id == ev.id, claimable]
+    if max_attempts is not None:
+        conditions.append(Evaluation.attempts < max_attempts)
     result = db.execute(
         update(Evaluation)
-        .where(Evaluation.id == ev.id, claimable)
+        .where(*conditions)
         .values(
             status=EvaluationStatus.PENDING,
             error="",
@@ -152,6 +156,12 @@ def evaluate(db: Session, ev: Evaluation, token: datetime) -> None:
             db.commit()
         else:
             db.rollback()
+
+
+def queue(background, db: Session, evaluation_id: int, token: datetime) -> None:
+    """Add the scoring run to FastAPI `BackgroundTasks`, with its own session factory."""
+    factory = sessionmaker(bind=db.get_bind(), autoflush=False, expire_on_commit=False)
+    background.add_task(run_in_background, factory, evaluation_id, token)
 
 
 def run_in_background(session_factory: Callable[[], Session], evaluation_id: int, token: datetime) -> None:

@@ -252,7 +252,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `262 passed, 5 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 89 backend tests.
+Expected: `280 passed, 6 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 108 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -408,6 +408,7 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | POST | `/api/applications/{application_id}/evaluation/retry` | Retry a failed evaluation |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes the status |
 | GET / PUT | `/api/preferences/me` | Seeker's job preferences and talent-pool opt-in |
+| GET | `/api/recommendations/jobs` | Recommended jobs with a match band (매우 적합 / 적합 / 참고) |
 
 Recommendations (`/api/recommendations`) are not built yet.
 
