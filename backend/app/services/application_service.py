@@ -5,6 +5,7 @@ Status changes are recruiter actions only; the AI never accepts or rejects anyon
 from datetime import UTC, date, datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ai.parsing.extract import total_experience_months
@@ -52,7 +53,17 @@ def to_out(db: Session, app: Application) -> ApplicationOut:
 # ── Seeker ──
 
 
-def apply(db: Session, user: User, job_id: int) -> tuple[Application, Evaluation]:
+def _already_applied(db: Session, job_id: int, seeker_id: int) -> bool:
+    return db.scalars(select(Application.id).where(Application.job_id == job_id, Application.seeker_id == seeker_id)).first() is not None
+
+
+def _already_applied_error() -> AppError:
+    return AppError(409, "ALREADY_APPLIED", "이미 지원한 공고입니다.")
+
+
+def apply(db: Session, user: User, job_id: int) -> tuple[Application, Evaluation, datetime | None]:
+    """The application, its evaluation, and the queue token when scoring must start (None if a run
+    already owns the evaluation or it is done)."""
     if user.role != "seeker":
         raise AppError(403, "SEEKER_ONLY", "구직자 회원만 지원할 수 있습니다.")
     job = job_service.get_published_job(db, job_id)
@@ -66,15 +77,21 @@ def apply(db: Session, user: User, job_id: int) -> tuple[Application, Evaluation
         profile = None
     if profile is None:
         raise AppError(409, "CV_NOT_CONFIRMED", "이력서 분석 결과를 확인(저장)한 뒤 지원할 수 있습니다.")
-    exists = db.scalars(select(Application).where(Application.job_id == job.id, Application.seeker_id == user.id)).first()
-    if exists is not None:
-        raise AppError(409, "ALREADY_APPLIED", "이미 지원한 공고입니다.")
+    if _already_applied(db, job.id, user.id):
+        raise _already_applied_error()
     app = Application(job_id=job.id, seeker_id=user.id, cv_profile_id=profile.id)
     db.add(app)
+    try:
+        db.flush()
+    except IntegrityError:
+        # A concurrent request by the same seeker applied first (uq_applications_job_seeker)
+        db.rollback()
+        raise _already_applied_error() from None
     ev = evaluation_service.ensure(db, job.id, profile.id)
+    token = evaluation_service.claim(db, ev, reset_attempts=True)
     db.commit()
     db.refresh(app)
-    return app, ev
+    return app, ev, token
 
 
 def list_mine(db: Session, user: User) -> list[Application]:
@@ -201,11 +218,17 @@ def set_status(db: Session, user: User, application_id: int, status: str) -> App
     return app
 
 
-def retry(db: Session, user: User, application_id: int) -> Evaluation:
+def retry(db: Session, user: User, application_id: int) -> tuple[Evaluation, datetime]:
+    """Re-queue a failed or stale pending evaluation; returns it with the queue token.
+    409 when it is done or a run still owns it (issue 2)."""
     app = get_owned(db, user, application_id)
     ev = evaluation_service.ensure(db, app.job_id, app.cv_profile_id)
-    if ev.status == EvaluationStatus.DONE:
-        raise AppError(409, "EVALUATION_DONE", "이미 완료된 평가입니다.")
-    ev.status, ev.error = EvaluationStatus.PENDING, ""
+    token = evaluation_service.claim(db, ev, reset_attempts=True)
+    if token is None:
+        db.rollback()
+        db.refresh(ev)
+        if ev.status == EvaluationStatus.DONE:
+            raise AppError(409, "EVALUATION_DONE", "이미 완료된 평가입니다.")
+        raise AppError(409, "EVALUATION_IN_PROGRESS", "평가가 진행 중입니다. 잠시 후 다시 시도하세요.")
     db.commit()
-    return ev
+    return ev, token

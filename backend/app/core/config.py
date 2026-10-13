@@ -44,5 +44,8 @@ class Settings:
     IMPORTANCE_HIGH: int = 25
     IMPORTANCE_MID: int = 10
 
+    # A pending evaluation queued longer ago than this is treated as dead (e.g. server restart) and may be re-queued
+    EVALUATION_STALE_MINUTES: int = 10
+
 
 settings = Settings()

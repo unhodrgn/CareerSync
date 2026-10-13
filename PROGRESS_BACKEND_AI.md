@@ -14,7 +14,7 @@
 - **Thiếu hẳn**: roadmap kỹ năng, câu hỏi phỏng vấn, AI tự kiểm tra CV, AI viết JD (chỉ có phân tích JD có sẵn), filter nhanh ứng viên, CRUD project công ty.
 - **Switch rule/LLM**: ✅ cờ `AI_MODE` (`rules` mặc định / `llm`), key không tự bật LLM, không đọc `ANTHROPIC_API_KEY` (D12).
 - **Public (D4)**: ✅ `GET /api/jobs` và `GET /api/jobs/{id}` không cần login. Còn `/criteria` cho guest (Q19) và frontend cho guest (#26).
-- **Bug đáng sửa trước demo**: retry/apply có thể chấm một evaluation hai lần (issue 2, 25).
+- **Queue/retry (issue 2, 25)**: ✅ `claim()` (UPDATE có điều kiện) + fencing theo `queued_at`; retry 409 khi đang chạy.
 - **Bảo mật/quyền riêng tư**: không thấy lộ điểm từng tiêu chí hay trọng số cho seeker; không lộ danh tính ứng viên chưa accept (vì tính năng talent chưa tồn tại). Rủi ro chính: JWT secret mặc định hardcode, không có rate limit cho endpoint gọi LLM.
 
 ---
@@ -89,7 +89,7 @@ Mọi endpoint dưới đây đã implement. `backend/app/api/v1/recommendations
 | 25 | GET | `/api/applications/mine` | Login (company nhận `[]`) | Đơn của mình + trạng thái + trạng thái đánh giá | `applications.py:36` |
 | 26 | GET | `/api/jobs/{job_id}/applications` | Company | Ứng viên xếp theo Fit | `applications.py:41`, `application_service.py:98` |
 | 27 | GET | `/api/applications/{id}/evaluation` | Company | Điểm, lý do, bằng chứng từng tiêu chí + tóm tắt mạnh/yếu | `applications.py:50`, `application_service.py:147` |
-| 28 | POST | `/api/applications/{id}/evaluation/retry` | Company | Chạy lại đánh giá chưa `done` | `applications.py:59`, `application_service.py:204` |
+| 28 | POST | `/api/applications/{id}/evaluation/retry` | Company | Chạy lại đánh giá `failed` hoặc `pending` quá 10 phút; 409 khi đang chạy | `applications.py:59`, `application_service.py:204` |
 | 29 | PUT | `/api/applications/{id}/status` | Company | Recruiter đổi trạng thái đơn | `applications.py:70` |
 | 30 | GET | `/health` | — | Health check | `main.py:24` |
 
@@ -196,9 +196,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET
 
 | Mức | Bug | Vị trí | Hậu quả |
 |---|---|---|---|
-| Cao | Apply xếp hàng chấm điểm khi evaluation khác `done`, kể cả `pending` mới; retry cho phép `pending` | `applications.py:31-32`, `application_service.py:204-211` | Một evaluation có thể được chấm 2 luồng song song, `evaluate()` xoá + ghi lại điểm → xung đột (issue 2, 25) |
 | Vừa | `ensure()` không bắt `IntegrityError` | `evaluation_service.py:24-33` | 2 request đồng thời cho cùng job × CV → 1 cái 500 (issue 25). Tương tự apply đồng thời → 500 do `uq_applications_job_seeker` |
-| Vừa | `queued_at`/`attempts` không được set ở đâu | toàn bộ `services/` | Cột từ `0008` vô dụng; chưa có stale-check / fencing |
 | Vừa | Regex năm kinh nghiệm đọc năm lịch thành số năm | `scorers.py:117-122` | Điểm `experience` sai (xem 4.2) |
 | Vừa | Scoring nằm trong `BackgroundTasks` cùng process | `applications.py:18-20` | Restart server → evaluation kẹt `pending` tới khi bấm 다시 분석 (issue 6) |
 | Thấp | Tên công ty toàn khoảng trắng qua validation rồi thành rỗng | `companies.py:20`, `schemas/company.py:14` | Issue 13 |
@@ -226,7 +224,6 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET/PUT /api/preferences/me`, `GET
 ### 5.4 Thiếu test
 
 Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
-- Apply/retry đồng thời, retry khi `pending`, `ensure()` + `IntegrityError` (issue 2, 25).
 - `AnthropicClient` ánh xạ lỗi SDK → `LLMError` (có thể mock SDK, không gọi thật).
 - FK trên SQLite (`PRAGMA foreign_keys` tắt, issue 5); model ↔ migration drift (test dùng `create_all`, issue 18).
 - Toàn bộ phần gợi ý / preferences / talent (chưa có code).
@@ -256,7 +253,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 | 0 | Commit `0008` + thay đổi `models/application.py` (đang chưa commit trên `main`) | — | Long commit |
 | 1 | ~~Cờ `AI_MODE` + bỏ đọc `ANTHROPIC_API_KEY` (issue 1)~~ ✅ xong (D12). Còn: bắt mọi lỗi SDK thành `LLMError` | Nhỏ | — |
 | 2 | ~~Sửa upload CV chặn event loop~~ ✅ xong (`upload_cv` là `def`; test `test_cv_upload_concurrency.py`) | Nhỏ | — |
-| 3 | Luật queue/retry: `ensure()` bắt `IntegrityError` trong savepoint; chỉ queue khi mới / `failed` / `pending` quá `EVALUATION_STALE_MINUTES`; set `queued_at` + `attempts`; fencing theo `queued_at`; retry 409 khi `pending` còn mới (issue 2, 25, doc §6.1) | Vừa | #0 (cột `0008`) |
+| 3 | ~~Luật queue/retry (issue 2, 25, doc §6.1)~~ ✅ xong (`claim()`, fencing, `ensure()` savepoint, apply trùng → 409; test `test_evaluation_queue.py`) | Vừa | — |
 | 4 | ~~Public `GET /api/jobs`, `GET /api/jobs/{id}`~~ ✅ xong (`OptionalUser`, test `test_jobs_public.py`). Còn: `GET /api/jobs/{id}/criteria` cho guest | Nhỏ | Q19 |
 | 5 | ~~Thêm `AI_NOTICE` vào `CvOut`, `JdAnalysisOut` (issue 28)~~ ✅ xong. Còn: frontend hiển thị `notice` | Nhỏ | — |
 | 6 | API preferences `GET/PUT /api/preferences/me` (location, employment type, keyword, `profile_public`) | Vừa | Bảng có sẵn; Q10 (tắt `profile_public` khi có offer) chỉ chặn phần offer. Frontend: form |

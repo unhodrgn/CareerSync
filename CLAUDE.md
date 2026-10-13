@@ -46,7 +46,7 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 | 10 | Criteria pass the legal guardrail (`data/blocklist.yaml`) on save. | Guaranteed on save; **not** for JD-suggested criteria (doc issue 7). |
 | 11 | Prompts live in `ai/prompts/vN/`; changing a prompt's meaning bumps `PROMPT_VERSION`. Evaluations record model, embedding, prompt and skills versions. | By convention. |
 | 12 | Pretrained models only; nothing is trained. | By convention. |
-| 13 | Evaluations are obtained through `evaluation_service.ensure()` (get-or-create on job × CV version). | Partly — apply uses it but re-queues non-`done` evaluations (doc issue 25). Follow the rule in doc §6.1 when you touch queuing. |
+| 13 | Evaluations are obtained through `evaluation_service.ensure()` (get-or-create on job × CV version). | By convention — apply and retry use `ensure()` then `evaluation_service.claim()`, which queues only new, `failed` or stale `pending` evaluations; runs write results only with their `queued_at` token. New queue paths must do the same. |
 
 ## Commands
 
@@ -61,5 +61,5 @@ cd frontend && npm run build             # type-check + build
 
 ## Current focus (update when it changes)
 
-- `evaluations.queued_at` and `evaluations.attempts` exist (migration `0008`), but **no code sets them yet**.
-- Next work: the queue/retry rules (doc issues 2, 25 and §6.1), then the preferences API, then job recommendation. Talent recommendation stays off until doc issues 3, 6 and 26 are resolved.
+- Queue/retry rules are in place (`evaluation_service.claim()`, fencing on `queued_at`).
+- Next work: the preferences API, then job recommendation. Talent recommendation stays off until doc issues 3, 6 and 26 are resolved.

@@ -3,11 +3,12 @@
 Applying queues the evaluation as a background task; the recruiter's list shows it as pending
 until it is done. Status changes are recruiter actions only.
 """
+from datetime import datetime
+
 from fastapi import APIRouter, BackgroundTasks, status
 from sqlalchemy.orm import sessionmaker
 
 from app.core.deps import CompanyUser, CurrentUser, DbSession
-from app.models.application import EvaluationStatus
 from app.schemas.application import ApplicantList, ApplicationOut, EvaluationOut, StatusUpdate
 from app.services import application_service as svc
 from app.services import evaluation_service
@@ -15,9 +16,9 @@ from app.services import evaluation_service
 router = APIRouter(tags=["applications"])
 
 
-def _queue(background: BackgroundTasks, db, evaluation_id: int) -> None:
+def _queue(background: BackgroundTasks, db, evaluation_id: int, token: datetime) -> None:
     factory = sessionmaker(bind=db.get_bind(), autoflush=False, expire_on_commit=False)
-    background.add_task(evaluation_service.run_in_background, factory, evaluation_id)
+    background.add_task(evaluation_service.run_in_background, factory, evaluation_id, token)
 
 
 @router.post(
@@ -27,9 +28,9 @@ def _queue(background: BackgroundTasks, db, evaluation_id: int) -> None:
     summary="Apply with the latest confirmed CV; the AI evaluation runs in the background",
 )
 def apply(job_id: int, background: BackgroundTasks, db: DbSession, user: CurrentUser):
-    app, ev = svc.apply(db, user, job_id)
-    if ev.status != EvaluationStatus.DONE:
-        _queue(background, db, ev.id)
+    app, ev, token = svc.apply(db, user, job_id)
+    if token is not None:
+        _queue(background, db, ev.id, token)
     return svc.to_out(db, app)
 
 
@@ -59,11 +60,11 @@ def get_evaluation(application_id: int, db: DbSession, user: CompanyUser):
 @router.post(
     "/applications/{application_id}/evaluation/retry",
     response_model=EvaluationOut,
-    summary="Re-run a pending or failed evaluation",
+    summary="Re-run a failed evaluation, or a pending one queued over EVALUATION_STALE_MINUTES ago (409 while running)",
 )
 def retry_evaluation(application_id: int, background: BackgroundTasks, db: DbSession, user: CompanyUser):
-    ev = svc.retry(db, user, application_id)
-    _queue(background, db, ev.id)
+    ev, token = svc.retry(db, user, application_id)
+    _queue(background, db, ev.id, token)
     return svc.evaluation(db, user, application_id)
 
 
