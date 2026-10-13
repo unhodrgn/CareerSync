@@ -3,6 +3,10 @@
 Rule scorers (skill, experience, certificate, education) are deterministic: the same CV and
 criterion always give the same score. Only project and other criteria use the LLM rubric, and
 they fall back to keyword + similarity retrieval when no LLM is configured.
+
+Seekers can edit the structured profile, but not the masked CV text. Rule scorers therefore give
+points only for what is found in `candidate.text`; the profile only says what to look for, and
+evidence is always a line of the text (PROJECT_DOCUMENTATION.md issue 3).
 """
 import logging
 import re
@@ -15,8 +19,8 @@ from ai.embedding.model import Embedder, cosine
 from ai.embedding.skills import SkillDictionary
 from ai.guardrails.evidence import verify_quotes
 from ai.llm.client import LLMClient, LLMError
-from ai.parsing.extract import PROMPT_DIR, total_experience_months
-from ai.parsing.sections import Chunk
+from ai.parsing.extract import _RANGE, PROMPT_DIR, line_in_text, verified_experience
+from ai.parsing.sections import Chunk, split_sections
 from ai.scoring.retrieval import best_lines, cv_chunks, retrieve
 from ai.scoring.types import Candidate, Criterion, CriterionResult, JobContext, nearest_level
 
@@ -71,16 +75,29 @@ def _result(
 # ── skill ──
 
 
+def _entries(text: str) -> list[list[str]]:
+    """Entries of the 경력 and 프로젝트 sections of the CV text: a line with a period
+    (YYYY.MM ~ …) starts a new entry; a section without periods is one entry."""
+    entries = []
+    for s in split_sections(text):
+        if s.key not in ("experience", "project"):
+            continue
+        cur: list[str] = []
+        for line in (raw.strip() for raw in s.text.splitlines()):
+            if not line:
+                continue
+            if cur and _RANGE.search(line):
+                entries.append(cur)
+                cur = []
+            cur.append(line)
+        if cur:
+            entries.append(cur)
+    return entries
+
+
 def _uses(skill: str, candidate: Candidate, ctx: ScoringContext) -> list[str]:
-    """Experience and project entries whose text mentions the skill."""
-    hits = []
-    for e in candidate.profile.experiences:
-        if ctx.skills.lines_mentioning(skill, f"{e.role}\n{e.description}"):
-            hits.append(e.source or e.org)
-    for p in candidate.profile.projects:
-        if skill in p.tech or ctx.skills.lines_mentioning(skill, f"{p.name}\n{p.description}"):
-            hits.append(p.source or p.name)
-    return hits
+    """First line of each 경력/프로젝트 entry of the CV text that mentions the skill."""
+    return [e[0] for e in _entries(candidate.text) if ctx.skills.lines_mentioning(skill, "\n".join(e))]
 
 
 def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
@@ -88,15 +105,16 @@ def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Crit
     if not wanted:
         # No known technology named: judge it like a free-text criterion
         return score_retrieval(c, candidate, ctx)
-    have = set(candidate.profile.skills)
+    # Skills the CV text mentions; the seeker-edited `profile.skills` is not trusted
+    have = set(ctx.skills.find_in_text(candidate.text))
     scores, reasons, evidence = [], [], []
     for skill in wanted:
         lines = ctx.skills.lines_mentioning(skill, candidate.text)
-        if skill in have or lines:
+        if lines:
             uses = _uses(skill, candidate, ctx)
             scores.append(min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)))
             reasons.append(f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""))
-            evidence.extend(lines[:2] or uses[:1])
+            evidence.extend(lines[:2])
             continue
         related = _most_similar(skill, sorted(have), ctx.embedder)
         if related and related[1] >= SIMILAR_WEAK:
@@ -151,9 +169,8 @@ def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) ->
     if required is None:
         # The job's min_experience_years; NULL means 신입 가능 (0 years)
         required = ctx.job.min_experience_years or 0
-    exps = [e for e in candidate.profile.experiences if e.start]
-    months = total_experience_months(exps, ctx.today)
-    evidence = [e.source for e in exps if e.source][:3]
+    # Periods read from the CV text, not the seeker-edited dates
+    months, evidence = verified_experience(candidate.text, candidate.profile.experiences, ctx.today)
     if required == 0:
         # No experience required (신입): everyone meets it, so no CV evidence is needed
         reason = "경력 요건 없음(신입)" + (f", 확인된 경력 약 {_span(months)}" if months else "")
@@ -170,7 +187,12 @@ def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) ->
 
 def score_certificate(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
     named = [name for name, _ in ctx.skills.find_certificates(f"{c.name}\n{c.description}")]
-    certs = candidate.profile.certificates
+    # Profile certificates count only when their line is in the CV text and names them
+    certs = [
+        x
+        for x in candidate.profile.certificates
+        if x.name and line_in_text(x.source, candidate.text) and x.name.casefold() in x.source.casefold()
+    ]
     known = {name: line for name, line in ctx.skills.find_certificates(candidate.text)}
     if named:
         scores, reasons, evidence = [], [], []
@@ -189,7 +211,7 @@ def score_certificate(c: Criterion, candidate: Candidate, ctx: ScoringContext) -
     points = len(related) + 0.5 * len(others)
     score = 0 if points == 0 else 35 if points < 1 else 70 if points < 2 else 100
     names = related + [x.name for x in others]
-    evidence = [known[n].strip() for n in related] + [x.source for x in others if x.source]
+    evidence = [known[n].strip() for n in related] + [x.source.strip() for x in others]
     reason = f"자격증 {len(names)}개 확인: {', '.join(names[:3])}" if names else "확인된 자격증 없음"
     return _result(c, score, reason, evidence, "rule:certificate")
 
@@ -227,7 +249,8 @@ def score_education(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> 
     best, best_line, best_reason = 0, "", "확인된 전공 정보 없음"
     for e in candidate.profile.education:
         major = e.major.lower()
-        if not major:
+        # The major counts only when its line is in the CV text and names it
+        if not major or not line_in_text(e.source, candidate.text) or major not in e.source.lower():
             continue
         if any(w.lower() in major for w in wanted):
             s, why = 100, f"요구 전공과 일치하는 {e.major}"
@@ -236,7 +259,7 @@ def score_education(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> 
         else:
             s, why = 30, f"요구 전공과 다른 전공 {e.major}"
         if s > best:
-            best, best_line, best_reason = s, e.source or e.major, why
+            best, best_line, best_reason = s, e.source.strip(), why
     return _result(c, best, best_reason, [best_line] if best_line else [], "rule:education")
 
 

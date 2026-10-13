@@ -291,7 +291,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | Component | Does | Model / method | Called from |
 |---|---|---|---|
 | `parsing/pdf.py` | PDF → text; checks size, pages, encryption, text present | PyMuPDF | `cv_service.upload` |
-| `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date, address, and the user's `display_name` | Regex | `cv_service.upload` |
+| `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date, address, and the user's `display_name`; line breaks are kept so section headings stay on their own line | Regex | `cv_service.upload` |
 | `parsing/extract.py` `structure_cv` | Masked text → `CvProfile`; skills normalized; experience months computed in code | Claude (`prompts/v1/cv_structure.md`) or rules | `cv_service.upload` |
 | `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100 | Claude (`jd_analyze.md`) or rules | `POST /jobs/{id}/analyze` |
 | `parsing/profile.py` | Pydantic schemas `cv_profile.v1`, `jd_profile.v1` (LLM output = API body) | — | everywhere |
@@ -303,12 +303,14 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
+Rule scorers give points only for what is found in the masked CV text (`cv_documents.masked_text`, not editable); the seeker-edited profile only says what to look for, and evidence is always a line of that text (issue 3).
+
 | Category | Method | LLM? |
 |---|---|---|
-| `skill` | Skills named in the criterion vs CV skills (dictionary + embedding similarity). No known skill named → scored as free text (retrieval) | No |
-| `experience` | Total experience months vs required years: from the criterion text ("3년", "3~5년" → 3, "1년 6개월" → 1.5, "6개월" → 0.5, "신입" → 0; a year such as "2020년" is not a duration), else `min_experience_years` (NULL = 신입, 0 years). Required 0 → 100 for everyone, without CV evidence | No |
-| `education` | Major only, against the majors the criterion names (name + description): match 100, other major 30, no major 0. "이공계"/STEM criteria accept STEM majors. Saving or publishing an education criterion without a major fails (`CRITERIA_MAJOR_REQUIRED`); one saved earlier (e.g. "관련 전공") scores a neutral 50 for everyone ("전공 미지정", no evidence). No built-in list of related majors. School names are never scored | No |
-| `certificate` | Named certificates found in the CV text; generic "related certificates" counted | No |
+| `skill` | Skills named in the criterion vs skills **mentioned in the CV text** (dictionary + embedding similarity; the profile's skill list is not used). "Uses" = 경력/프로젝트 entries of the text (a line with a period starts an entry) that mention the skill. No known skill named → scored as free text (retrieval) | No |
+| `experience` | Total experience months vs required years: from the criterion text ("3년", "3~5년" → 3, "1년 6개월" → 1.5, "6개월" → 0.5, "신입" → 0; a year such as "2020년" is not a duration), else `min_experience_years` (NULL = 신입, 0 years). Required 0 → 100 for everyone, without CV evidence. Months = periods (YYYY.MM ~ YYYY.MM / 현재) on the lines of the 경력 section of the CV text, overlaps once (`ai.parsing.extract.verified_experience`); without a 경력 heading, only profile entries whose `source` line is in the text and has a period, with dates read from that line. Edited dates are ignored | No |
+| `education` | Major only (an entry counts only if its `source` line is in the CV text and names the major), against the majors the criterion names (name + description): match 100, other major 30, no major 0. "이공계"/STEM criteria accept STEM majors. Saving or publishing an education criterion without a major fails (`CRITERIA_MAJOR_REQUIRED`); one saved earlier (e.g. "관련 전공") scores a neutral 50 for everyone ("전공 미지정", no evidence). No built-in list of related majors. School names are never scored | No |
+| `certificate` | Named certificates found in the CV text; generic "related certificates" counted (profile certificates only if their `source` line is in the text and names them) | No |
 | `project`, `other` | 4 most relevant CV passages → rubric (0/25/50/75/100) with ≤3 quotes → quotes verified, one retry. In `rules` mode or on failure: keyword/embedding retrieval. `other` adds the company's 인재상 to the query | **Yes** in `llm` mode |
 
 **Fit** = Σ(weight × score) / Σweight, rounded to 1 decimal (`ai/scoring/fit.py`). Ranking: Fit ↓, then more criteria ≥ `STRONG_SCORE`, then earlier application. LLM criteria run in parallel (up to 4 threads).
@@ -473,7 +475,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 |---|---|---|---|---|
 | 1 | Cost / security | `ANTHROPIC_API_KEY` is read as well as `LLM_API_KEY`; a machine with it set makes paid calls silently (Compose passes only `LLM_API_KEY`). **Fixed:** only `LLM_API_KEY` is read, and only when `AI_MODE=llm` | `ai/llm/client.py` | Fixed |
 | 2 | Concurrency | `retry` rejects only `done`; re-running a `pending` evaluation can start two scoring threads. **Planned fix:** allow retry only for `failed`, or `pending` older than 10 minutes; otherwise 409. Uses `evaluations.queued_at`. Related: issue 25. **Fixed:** as planned, 409 `EVALUATION_IN_PROGRESS` | `application_service.retry` | Fixed |
-| 3 | Trust | `experience`, generic certificates and skill "uses" take evidence from seeker-editable `source` fields, not from the masked CV text. **Must be fixed before enabling talent recommendation** ([§6.1](#61-recommendation)) | `ai/scoring/scorers.py` | Open |
+| 3 | Trust | `experience`, generic certificates and skill "uses" take evidence from seeker-editable `source` fields, not from the masked CV text. **Must be fixed before enabling talent recommendation** ([§6.1](#61-recommendation)). **Fixed:** rule scorers read only the masked text; the experience months shown to companies (`ApplicantRow.experience_months`) use the same `verified_experience`. The seeker's own `CvOut.total_experience_months` still follows their edits | `ai/scoring/scorers.py` | Fixed |
 | 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`) | `core/config.py` | Open |
 | 5 | Tests | SQLite tests do not enable `PRAGMA foreign_keys`; FK errors (e.g. RESTRICT) go unnoticed unless tests run on PostgreSQL | `backend/tests/conftest.py` | Open |
 | 6 | Architecture | Scoring runs in-process (`BackgroundTasks`); a restart leaves evaluations `pending` until 다시 분석. **Must be fixed before enabling talent recommendation** — recommendation multiplies the number of background evaluations | `api/v1/applications.py` | Open |

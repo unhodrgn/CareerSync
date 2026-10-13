@@ -11,8 +11,9 @@ _PATTERNS: tuple[tuple[str, str, re.Pattern], ...] = (
     # Resident registration number (주민등록번호) before phone, since both are digit runs
     ("rrn", "[주민번호]", re.compile(r"\b\d{6}\s*-\s*[1-4]\d{6}\b")),
     ("phone", "[전화번호]", re.compile(r"(?:\+82[\s-]?)?0\d{1,2}[\s.-]?\d{3,4}[\s.-]?\d{4}\b")),
-    # Birth date lines (생년월일 / 출생) keep the label but drop the date
-    ("birth", "[생년월일]", re.compile(r"(?<=생년월일)\s*[:：]?\s*\d{4}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?")),
+    # Birth date lines (생년월일 / 출생) keep the label but drop the date; the end must not eat the
+    # line break, or the next line (often a section heading such as 경력) merges into this one
+    ("birth", "[생년월일]", re.compile(r"(?<=생년월일)\s*[:：]?\s*\d{4}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}(?:[ \t]*일)?")),
     ("address", "[주소]", re.compile(r"(?<=주소)\s*[:：]?\s*[^\n]+")),
 )
 

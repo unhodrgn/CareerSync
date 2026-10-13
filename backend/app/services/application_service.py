@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ai.parsing.extract import total_experience_months
+from ai.parsing.extract import verified_experience
 from ai.scoring.fit import RankItem, rank, summary_comment
 from app.core.errors import AppError
 from app.models import Application, Evaluation, JobPosting, User
@@ -136,7 +136,8 @@ def ranked(db: Session, user: User, job_id: int) -> ApplicantList:
             email=a.seeker.email,
             status=a.status,
             applied_at=a.created_at,
-            experience_months=total_experience_months(profile.experiences, today),
+            # Shown to the company: read from the CV text like the scorer, not the seeker-edited dates
+            experience_months=verified_experience(a.cv_profile.document.masked_text, profile.experiences, today)[0],
             evaluation_status=ev.status if ev else EvaluationStatus.PENDING,
             fit=fit,
             strong_count=strong,

@@ -16,6 +16,13 @@ def test_pii_is_masked():
     assert "Java, Spring Boot 기반 주문 API 개발" in m.text
 
 
+def test_masking_a_birth_date_keeps_the_next_line_separate():
+    m = mask_pii("생년월일: 1997.05.12\n\n경력\n넥스트코드 2021.03 ~ 현재", [])
+    assert "1997" not in m.text and "[생년월일]\n\n경력" in m.text
+    assert [s.key for s in split_sections(m.text)] == ["other", "experience"]
+    assert mask_pii("생년월일 1997년 5월 12 일\n학력", []).text.endswith("[생년월일]\n학력")
+
+
 def test_name_with_spaces_between_syllables_is_masked():
     assert "[이름]" in mask_pii("지원자: 김 지 원", ["김지원"]).text
 

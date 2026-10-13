@@ -5,7 +5,7 @@ import pytest
 from ai.guardrails.evidence import quote_in_text, verify_quotes
 from ai.parsing.extract import structure_cv
 from ai.parsing.pii import mask_pii
-from ai.parsing.profile import CvProfile, Education, Experience
+from ai.parsing.profile import Certificate, CvProfile, Education, Experience
 from ai.scoring.fit import RankItem, aggregate_fit, rank, score_candidate, summary_comment
 from ai.scoring.scorers import education_target, required_years, wanted_majors
 from ai.scoring.types import Candidate, Criterion, JobContext
@@ -240,3 +240,69 @@ def test_old_education_criterion_without_major_scores_neutral():
     scores = [run([old], cand=cand)[0] for cand in (candidate(), _graduate("국어국문학과"), Candidate(CvProfile(), ""))]
     assert {(r.score, r.method) for r in scores} == {(50, "rule:education")}
     assert "전공 미지정" in scores[0].reason and scores[0].evidence == ()
+
+
+# ── Issue 3: edits to the structured profile never raise a rule score ──
+
+
+def _edited(**changes) -> Candidate:
+    """The sample CV with a seeker-edited profile; the masked text stays the uploaded one."""
+    original = candidate()
+    return Candidate(original.profile.model_copy(update=changes), original.text)
+
+
+def test_a_skill_added_only_to_the_profile_scores_nothing():
+    rust = Criterion(1, "Rust 활용", "", "skill", 100)
+    cand = _edited(skills=[*candidate().profile.skills, "Rust"])
+    r = run([rust], cand=cand)[0]
+    assert (r.score, r.reason) == (0, "Rust 경험 확인 안 됨")
+
+
+def test_skill_uses_are_counted_from_the_cv_text():
+    java = Criterion(1, "Java 활용 능력", "", "skill", 100)
+    # Descriptions edited to mention Java everywhere: still 1 entry of the text uses it
+    exps = [e.model_copy(update={"description": "Java Java Java"}) for e in candidate().profile.experiences]
+    r = run([java], cand=_edited(experiences=exps))[0]
+    assert r.score == 80 and "1건" in r.reason
+    assert all(quote_in_text(q, candidate().text) for q in r.evidence)
+
+
+def test_edited_experience_dates_do_not_change_the_months():
+    exp = Criterion(1, "경력 10년 이상", "", "experience", 100)
+    original = run([exp])[0]
+    longer = [e.model_copy(update={"start": "2005-01"}) for e in candidate().profile.experiences]
+    edited = run([exp], cand=_edited(experiences=longer))[0]
+    assert (edited.score, edited.reason, edited.evidence) == (original.score, original.reason, original.evidence)
+    assert "5년 8개월" in edited.reason
+
+
+def test_without_a_career_heading_only_verified_source_lines_count():
+    text = "김지원\n넥스트코드 백엔드 개발자 2021.03 ~ 2023.02\nJava 개발"
+    real = Experience(org="넥스트코드", start="2021-03", end="2023-02", source="넥스트코드 백엔드 개발자 2021.03 ~ 2023.02")
+    fake = Experience(org="가짜", start="2010-01", end="2020-12", source="가짜회사 개발자 2010.01 ~ 2020.12")
+    stretched = real.model_copy(update={"start": "2015-01"})  # source kept, dates edited
+    exp = Criterion(1, "경력 2년 이상", "", "experience", 100)
+    for exps in ([real], [real, fake], [stretched]):
+        r = run([exp], cand=Candidate(CvProfile(experiences=exps), text))[0]
+        assert r.score == 100 and "2년" in r.reason and r.evidence == ("넥스트코드 백엔드 개발자 2021.03 ~ 2023.02",)
+    r = run([exp], cand=Candidate(CvProfile(experiences=[fake]), text))[0]
+    assert (r.score, r.reason) == (0, "확인된 경력 없음")
+
+
+def test_a_certificate_added_only_to_the_profile_is_not_counted():
+    generic = Criterion(1, "관련 자격증", "", "certificate", 100)
+    original = run([generic])[0]
+    extra = Certificate(name="리눅스마스터 1급", source="리눅스마스터 1급 2022.01")
+    edited = run([generic], cand=_edited(certificates=[*candidate().profile.certificates, extra]))[0]
+    assert (edited.score, edited.reason) == (original.score, original.reason)
+
+
+def test_an_edited_major_does_not_match():
+    business = Criterion(1, "경영학 전공", "", "education", 100)
+    edu = candidate().profile.education[0]
+    major_only = edu.model_copy(update={"major": "경영학과"})  # source still says 컴퓨터공학과
+    both = edu.model_copy(update={"major": "경영학과", "source": edu.source.replace("컴퓨터공학과", "경영학과")})
+    for e in (major_only, both):
+        r = run([business], cand=_edited(education=[e]))[0]
+        assert r.score == 0 and r.evidence == ()
+    assert run([business])[0].score == 30  # the original 컴퓨터공학과, a different major

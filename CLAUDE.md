@@ -47,6 +47,7 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 | 11 | Prompts live in `ai/prompts/vN/`; changing a prompt's meaning bumps `PROMPT_VERSION`. Evaluations record model, embedding, prompt and skills versions. | By convention. |
 | 12 | Pretrained models only; nothing is trained. | By convention. |
 | 13 | Evaluations are obtained through `evaluation_service.ensure()` (get-or-create on job × CV version). | By convention — apply and retry use `ensure()` then `evaluation_service.claim()`, which queues only new, `failed` or stale `pending` evaluations; runs write results only with their `queued_at` token. New queue paths must do the same. |
+| 14 | Rule scorers give points only for what is in the masked CV text; the seeker-edited profile only says what to look for. Numbers shown to companies (experience) use the same check. | By design in `ai/scoring/scorers.py` (`verified_experience`, `line_in_text`); tested in `ai/tests/test_scoring.py`. Keep it for new rule scorers. |
 
 ## Commands
 

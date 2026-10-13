@@ -79,6 +79,44 @@ def total_experience_months(experiences: list[Experience], today: str) -> int:
     return total
 
 
+def _squash(s: str) -> str:
+    return " ".join(s.split()).casefold()
+
+
+def line_in_text(line: str, text: str) -> bool:
+    """`line` appears in `text` exactly, ignoring whitespace and case (no fuzzy match: seekers can edit `line`)."""
+    return bool(line.strip()) and _squash(line) in _squash(text)
+
+
+def _period(line: str) -> tuple[str, str | None] | None:
+    m = _RANGE.search(line)
+    if not m or not (start := _ym(m.group(1), m.group(2))):
+        return None
+    return start, _ym(m.group(3), m.group(4)) if m.group(3) else None
+
+
+def verified_experience(text: str, experiences: list[Experience], today: str) -> tuple[int, list[str]]:
+    """Experience months read from the CV text itself, and the lines they come from.
+
+    Seekers can edit the structured profile (dates, `source`), so neither is trusted: the periods
+    (YYYY.MM ~ YYYY.MM / 현재) are taken from the lines of the 경력 section of the masked text.
+    Without such a section, a profile entry counts only if its `source` line is in the text and
+    has a period, and the dates are read from that line. Overlaps are counted once.
+    """
+    lines = [
+        line.strip()
+        for s in split_sections(text)
+        if s.key == "experience"
+        for line in s.text.splitlines()
+        if _period(line)
+    ]
+    if not lines:
+        lines = [e.source.strip() for e in experiences if line_in_text(e.source, text) and _period(e.source)]
+    lines = list(dict.fromkeys(lines))
+    spans = [Experience(start=start, end=end) for start, end in map(_period, lines)]
+    return total_experience_months(spans, today), lines
+
+
 # ── Rule-based CV structuring ──
 
 _DEGREES = (("박사", "박사"), ("석사", "석사"), ("전문학사", "전문학사"), ("학사", "학사"), ("대학교", "학사"),

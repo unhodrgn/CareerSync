@@ -176,7 +176,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET /api/jobs/{job_id}/talent`, `/
   1. ✅ Đã sửa (`required_years`: không đọc năm như “2020년”, tháng quy ra năm, 신입 = 0; `min_experience_years` NULL = 신입, D14). Trước đây: `experience`: regex `(\d{1,2})\s*(?:년|years?)` lấy số đầu tiên trong tên/mô tả tiêu chí → “2020년 이후 경력” thành **yêu cầu 20 năm** (đã chạy thử) (`scorers.py:117-122`).
   2. `experience`: cộng **mọi** kinh nghiệm, không xét liên quan tới vị trí (tiêu chí “관련 직무 경력” vẫn đếm cả việc không liên quan) (`scorers.py:124-125`).
   3. ✅ Đã sửa (chỉ so với ngành tiêu chí nêu; tiêu chí education bắt buộc nêu ngành, tiêu chí cũ không nêu ngành → 50, D13). Trước đây: `education`: nếu mô tả tiêu chí không nêu ngành (từ kết thúc bằng 공학/학과/전공), dùng danh sách ngành **hardcode cho IT** (`_RELATED_MAJOR`, `scorers.py:37`) → job không phải IT vẫn cho ngành CNTT 100 điểm.
-  4. `skill`: danh sách skill do seeker tự sửa (`have = set(candidate.profile.skills)`, `scorers.py:84`) và `source` do seeker sửa được dùng làm bằng chứng cho `experience`/chứng chỉ chung/“uses” (issue 3) → seeker có thể tự nâng điểm. Chấp nhận được cho luồng apply (recruiter xem bằng chứng), **phải sửa trước talent**.
+  4. ✅ Đã sửa (#15: chấm theo luật chỉ đọc `masked_text`). Trước đây: `skill`: danh sách skill do seeker tự sửa (`have = set(candidate.profile.skills)`, `scorers.py:84`) và `source` do seeker sửa được dùng làm bằng chứng cho `experience`/chứng chỉ chung/“uses” (issue 3) → seeker có thể tự nâng điểm. Chấp nhận được cho luồng apply (recruiter xem bằng chứng), **phải sửa trước talent**.
   5. Retrieval embed lại toàn bộ chunk CV cho mỗi tiêu chí (issue 8); `_most_similar` embed lại toàn bộ skill cho mỗi skill thiếu (`scorers.py:107-112`). Chậm với e5 trên CPU, không sai.
 - **Quy tắc AI trong `CLAUDE.md`** (kiểm bằng grep): `ai/` không import `app.*` ✅; `anthropic` chỉ import trong `ai/llm/client.py:35` ✅; status đơn chỉ đổi bởi `set_status` ✅; `api/v1/jobs.py:7` và `api/v1/cv.py:6` import thẳng từ `ai.*` (không qua service/`ai_runtime`) — doc đã ghi nhận, không phạm quy tắc 2/8 nhưng lệch phân lớp.
 
@@ -261,11 +261,27 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 
 ### P1 — feature trong spec nhưng chưa có (cần chốt phạm vi, doc Q8)
 
+#### P1-A — Talent recommendation + offer
+
+Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn chi phí) làm cùng #18 bằng cách đếm dư, không migration.
+
+| # | Việc | Cỡ | Phụ thuộc |
+|---|---|---|---|
+| 15 | ~~Issue 3: bằng chứng `experience`/chứng chỉ/“uses” lấy từ `masked_text`, không từ `source` seeker sửa được~~ ✅ xong (test `test_scoring.py`, `test_cv_edits_scoring.py`; kèm sửa che ngày sinh nuốt dòng mới trong `pii.py`) | Vừa | — |
+| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) | Lớn | #15–#17, Q10, issue 23, 24; Frontend: trang 인재 추천 |
+
+#### P1-B — Roadmap kỹ năng + câu hỏi phỏng vấn
+
+| # | Việc | Cỡ | Phụ thuộc |
+|---|---|---|---|
+| 9 | Câu hỏi phỏng vấn theo JD (+ tiêu chí): prompt mới `ai/prompts/v1/…`, fallback rule (mẫu theo category/skill), `AI_NOTICE` | Vừa | Chưa có trong doc → cần chốt; Frontend: trang 취업 준비 |
+| 10 | Skill roadmap cho gap: từ tên tiêu chí `gaps` (của #7 hoặc job đã apply) + `data/skills.yaml` → bước học; không lộ điểm từng tiêu chí | Vừa | #7; cần dữ liệu tài nguyên học (`data/`); Q8; frontend |
+
+#### P1-C — Lặt vặt: AI tự kiểm tra CV, AI hỗ trợ viết JD, filter nhanh ứng viên, CRUD project công ty
+
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 8 | Filter nhanh ứng viên: query param `status`, `min_fit`, `evaluation_status` trên `GET /api/jobs/{id}/applications` | Nhỏ | Frontend: UI filter |
-| 9 | Câu hỏi phỏng vấn theo JD (+ tiêu chí): prompt mới `ai/prompts/v1/…`, fallback rule (mẫu theo category/skill), `AI_NOTICE` | Vừa | Chưa có trong doc → cần chốt; Frontend: trang 취업 준비 |
-| 10 | Skill roadmap cho gap: từ tên tiêu chí `gaps` (của #7 hoặc job đã apply) + `data/skills.yaml` → bước học; không lộ điểm từng tiêu chí | Vừa | #7; cần dữ liệu tài nguyên học (`data/`); Q8; frontend |
 | 11 | AI self-check CV (điểm mạnh / cần bổ sung), có fallback rule, quote phải verify (quy tắc 4) | Vừa | Q8; frontend |
 | 12 | AI hỗ trợ **viết** JD (sinh nháp từ tiêu đề/từ khoá) + chạy guardrail cho tiêu chí gợi ý (issue 7) | Vừa (guardrail riêng: Nhỏ) | Frontend chưa gọi `/analyze` |
 | 13 | CRUD project công ty `/api/companies/me/projects` | Nhỏ–Vừa | Q3 quyết cách dùng trong scoring (CRUD làm được trước). Frontend |
@@ -275,10 +291,8 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
-| 15 | Issue 3: bằng chứng `experience`/chứng chỉ/“uses” lấy từ `masked_text`, không từ `source` seeker sửa được | Vừa | Bắt buộc trước talent |
 | 16 | Issue 6: queue bền (worker riêng hoặc DB-polling) thay `BackgroundTasks` | Lớn | Thêm container worker (có thể Redis) vào Compose; có thể cần cột/bảng mới (migration) |
 | 17 | Issue 26: giới hạn chi phí cho talent (cột `triggered_by`/bảng đếm, hoặc chỉ dùng evaluation có sẵn) | Vừa | Migration nếu thêm cột/bảng |
-| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) | Lớn | #15–#17, Q10, issue 23, 24; Frontend: trang 인재 추천 |
 | 19 | Rate limit cho endpoint gọi LLM (issue 22) | Vừa | Có thể làm ở tầng proxy |
 | 20 | JWT: fail-fast khi `JWT_SECRET_KEY` rỗng/mặc định ngoài môi trường dev (issue 4) | Nhỏ | **Cần xác nhận** (auth/security); sửa cả compose |
 | 21 | Nợ test: `PRAGMA foreign_keys` cho SQLite (issue 5, Nhỏ), test drift migration (issue 18, Vừa), test ánh xạ lỗi `AnthropicClient` (Nhỏ) | Nhỏ–Vừa | Sửa `conftest.py` ở root |
@@ -289,6 +303,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 | 26 | Frontend cho guest: vào danh sách và chi tiết job không cần login (`App.tsx` đang bắt login mọi trang); ẩn nút apply/khối tiêu chí khi chưa login | Nhỏ | Backend D4 xong; khối tiêu chí theo Q19; chạy `npm run build` |
 | 27 | Frontend gợi ý + consent: trang 추천 dùng `GET /api/recommendations/jobs` (band, `pending_count`, bỏ `demoMatch`); câu đồng ý AI ở 회원가입 nêu “지원 평가 및 맞춤 추천” | Nhỏ–Vừa | D16; chạy `npm run build` |
 | 28 | ~~Luồng đồng ý lại + rút lại đồng ý AI; upload CV kiểm tra consent~~ ✅ xong (D17; test `test_consent_api.py`). Còn: màn hình đồng ý lại ở frontend (đọc `consent_required`), nằm trong #27 | Nhỏ | — |
+| 29 | Frontend 이력서: nhắc seeker rằng sửa CV (kỹ năng, ngày, ngành…) **không đổi điểm** — điểm theo file PDF gốc; muốn đổi thì upload lại PDF đã sửa | Nhỏ | #15 xong; chạy `npm run build` |
 
 ---
 
