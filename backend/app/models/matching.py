@@ -113,6 +113,8 @@ class TalentOffer(Base):
     # An offer may be general, so a job is optional. Keep the offer if the job is deleted.
     job_id: Mapped[int | None] = mapped_column(ForeignKey("job_postings.id", ondelete="SET NULL"), index=True)
     status: Mapped[str] = mapped_column(String(20), default=TalentOfferStatus.PENDING, server_default="pending")
+    # Optional note from the company to the seeker (migration 0009)
+    message: Mapped[str | None] = mapped_column(String(1000))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

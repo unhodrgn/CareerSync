@@ -30,6 +30,8 @@ class Settings:
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-only-secret-change-me-in-production-please")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
+    # Key for the HMAC behind talent anonymous IDs; separate from JWT_SECRET_KEY so rotating one does not change the other
+    TALENT_ID_SECRET: str = os.getenv("TALENT_ID_SECRET", "dev-only-talent-id-secret-change-me-in-production")
 
     # Version of the consent text shown at registration; stored with each user
     CONSENT_VERSION: str = "2026-10-13"
@@ -69,6 +71,9 @@ class Settings:
     # day (KST) only in AI_MODE=llm, counted generously (every evaluation of the company's jobs that no application references)
     TALENT_MAX_NEW_EVALUATIONS: int = 10
     TALENT_DAILY_NEW_EVALUATIONS: int = 30
+    # Talent offers (docs/DECISIONS.md D20)
+    OFFER_DAILY_LIMIT: int = 20  # per company per day (KST)
+    OFFER_EXPIRY_DAYS: int = 14  # a pending offer older than this is expired
 
 
 settings = Settings()

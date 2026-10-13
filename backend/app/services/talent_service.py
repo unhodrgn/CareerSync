@@ -40,31 +40,45 @@ class TalentResult:
 
 def anonymous_id(company_id: int, seeker_id: int) -> str:
     """Stable for one company, different across companies, not reversible without the server key."""
-    digest = hmac.new(settings.JWT_SECRET_KEY.encode(), f"talent:{company_id}:{seeker_id}".encode(), hashlib.sha256)
+    digest = hmac.new(settings.TALENT_ID_SECRET.encode(), f"talent:{company_id}:{seeker_id}".encode(), hashlib.sha256)
     return "C-" + digest.hexdigest()[:10].upper()
 
 
-def _published_own_job(db: Session, user: User, job_id: int) -> JobPosting:
+def published_own_job(db: Session, user: User, job_id: int) -> JobPosting:
     job = job_service.get_owned_job(db, job_id, user)
     if job.status != JobStatus.PUBLISHED:
         raise AppError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
     return job
 
 
-def _blocked_by_offers(db: Session, company_id: int, job_id: int) -> set[int]:
-    """Seekers with a pending or accepted offer from the company (any job), or who rejected one for this job."""
-    rows = db.execute(
-        select(TalentOffer.seeker_id, TalentOffer.status, TalentOffer.job_id).where(TalentOffer.company_id == company_id)
-    ).all()
-    return {
-        seeker_id
-        for seeker_id, status, offer_job in rows
-        if status in (TalentOfferStatus.PENDING, TalentOfferStatus.ACCEPTED)
-        or (status == TalentOfferStatus.REJECTED and offer_job == job_id)
-    }
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)  # SQLite returns naive UTC
 
 
-def _candidates(db: Session, job: JobPosting) -> list[tuple[User, SeekerPreference, CvProfile]]:
+def offer_expired(offer: TalentOffer, now: datetime | None = None) -> bool:
+    """A pending offer older than OFFER_EXPIRY_DAYS is expired (computed; the stored status stays `pending`)."""
+    now = now or datetime.now(UTC)
+    return offer.status == TalentOfferStatus.PENDING and _aware(offer.created_at) <= now - timedelta(days=settings.OFFER_EXPIRY_DAYS)
+
+
+def blocking_offer(offers: list[TalentOffer], job_id: int) -> TalentOffer | None:
+    """The company's offer that rules a seeker out for `job_id`: a live pending or an accepted one (any job),
+    or a rejected one for this job (no re-offer, issue 23)."""
+    for o in offers:
+        if (o.status == TalentOfferStatus.PENDING and not offer_expired(o)) or o.status == TalentOfferStatus.ACCEPTED:
+            return o
+    return next((o for o in offers if o.status == TalentOfferStatus.REJECTED and o.job_id == job_id), None)
+
+
+def _offers_by_seeker(db: Session, company_id: int) -> dict[int, list[TalentOffer]]:
+    out: dict[int, list[TalentOffer]] = {}
+    for o in db.scalars(select(TalentOffer).where(TalentOffer.company_id == company_id)):
+        out.setdefault(o.seeker_id, []).append(o)
+    return out
+
+
+def public_pool(db: Session, job: JobPosting) -> list[tuple[User, SeekerPreference, CvProfile]]:
+    """Seekers the company may see now: opted in, current AI consent, newest CV confirmed, not applied to the job."""
     applied = exists().where(Application.job_id == job.id, Application.seeker_id == User.id)
     rows = db.execute(
         select(User, SeekerPreference)
@@ -77,11 +91,8 @@ def _candidates(db: Session, job: JobPosting) -> list[tuple[User, SeekerPreferen
             ~applied,
         )
     ).all()
-    blocked = _blocked_by_offers(db, job.company_id, job.id)
     out = []
     for user, pref in rows:
-        if user.id in blocked:
-            continue
         try:
             profile = cv_service.latest_confirmed(db, user)
         except AppError:
@@ -104,7 +115,30 @@ def queued_today(db: Session, company_id: int) -> int:
     )
 
 
-def _anonymous_profile(pref: SeekerPreference, profile: CvProfile, today: str) -> dict:
+def visible_profile(db: Session, seeker_id: int) -> tuple[SeekerPreference, CvProfile] | None:
+    """The seeker's preferences and CV if a company may see their anonymous profile right now (Q10: never
+    after they turn the opt-in off or withdraw AI consent)."""
+    row = db.execute(
+        select(User, SeekerPreference)
+        .join(SeekerPreference, SeekerPreference.seeker_id == User.id)
+        .where(
+            User.id == seeker_id,
+            SeekerPreference.profile_public.is_(True),
+            User.consent_ai_at.is_not(None),
+            User.consent_version >= settings.RECO_MIN_CONSENT_VERSION,
+        )
+    ).first()
+    if row is None:
+        return None
+    try:
+        profile = cv_service.latest_confirmed(db, row[0])
+    except AppError:
+        profile = None
+    return (row[1], profile) if profile is not None else None
+
+
+def anonymous_profile(pref: SeekerPreference, profile: CvProfile, today: str | None = None) -> dict:
+    today = today or date.today().strftime("%Y-%m")
     data = cv_service.to_profile_data(profile)
     text = profile.document.masked_text
     skills = ai_runtime.skills()
@@ -134,23 +168,33 @@ def _anonymous_profile(pref: SeekerPreference, profile: CvProfile, today: str) -
     }
 
 
-def _last_offer_status(db: Session, company_id: int, seeker_id: int) -> str | None:
-    return db.scalar(
-        select(TalentOffer.status)
-        .where(TalentOffer.company_id == company_id, TalentOffer.seeker_id == seeker_id)
-        .order_by(TalentOffer.created_at.desc(), TalentOffer.id.desc())
-        .limit(1)
-    )
+def offer_status(offer: TalentOffer) -> str:
+    """The status shown in APIs: `expired` for a pending offer past OFFER_EXPIRY_DAYS."""
+    return "expired" if offer_expired(offer) else offer.status
+
+
+def qualifies(db: Session, job: JobPosting, pref: SeekerPreference, profile: CvProfile) -> bool:
+    """Pref and Fit both pass for this job, with a `done` evaluation (what the talent list would show)."""
+    facts = JobFacts(title=job.title, description=job.description, location=job.location, employment_type=job.employment_type)
+    if pref_score(preference_service.to_preferences(pref), facts).score < settings.RECO_MIN_PREF:
+        return False
+    ev = db.scalars(select(Evaluation).where(Evaluation.job_id == job.id, Evaluation.cv_profile_id == profile.id)).first()
+    weights = {c.id: c.effective_weight for c in criteria_service.load_for_scoring(db, job.id).items}
+    fit, _ = evaluation_service.fit_of(ev, weights)
+    return fit is not None and fit >= settings.RECO_MIN_FIT
 
 
 def recommend(db: Session, user: User, job_id: int, limit: int) -> TalentResult:
-    job = _published_own_job(db, user, job_id)
+    job = published_own_job(db, user, job_id)
     # One talent call per company at a time, so parallel calls cannot overrun the caps
     db.execute(select(Company.id).where(Company.id == job.company_id).with_for_update())
 
     facts = JobFacts(title=job.title, description=job.description, location=job.location, employment_type=job.employment_type)
+    offers = _offers_by_seeker(db, job.company_id)
     passed = []
-    for seeker, pref, profile in _candidates(db, job):
+    for seeker, pref, profile in public_pool(db, job):
+        if blocking_offer(offers.get(seeker.id, []), job.id):
+            continue
         score = pref_score(preference_service.to_preferences(pref), facts).score
         if score >= settings.RECO_MIN_PREF:
             passed.append((seeker, pref, profile, score))
@@ -199,8 +243,10 @@ def recommend(db: Session, user: User, job_id: int, limit: int) -> TalentResult:
                 for s in sorted(ev.scores, key=lambda s: s.job_criteria_id)
                 if s.job_criteria_id in names
             ],
-            offer_status=_last_offer_status(db, job.company_id, seeker.id),
-            **_anonymous_profile(pref, profile, today),
+            offer_status=offer_status(max(offers[seeker.id], key=lambda o: (_aware(o.created_at), o.id)))
+            if seeker.id in offers
+            else None,
+            **anonymous_profile(pref, profile, today),
         )
         for fit, _, pref, seeker, profile, ev in ranked[:limit]
     ]

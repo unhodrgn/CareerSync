@@ -147,6 +147,7 @@ DB_PASSWORD=postgres
 DB_NAME=careersync_db
 
 JWT_SECRET_KEY=replace_with_a_secure_random_secret
+TALENT_ID_SECRET=replace_with_another_secure_random_secret
 
 # Optional
 AI_MODE=rules
@@ -158,6 +159,7 @@ EMBEDDING_MODEL=intfloat/multilingual-e5-base
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
 | `JWT_SECRET_KEY` | for anything shared | Any long random string. A dev default is used if empty |
+| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing |
 | `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis and project/other criteria use rules and keyword retrieval and no LLM is called, even with a key. Any other value stops the backend at startup |
 | `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
 | `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 |
@@ -196,7 +198,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0007 -> 0008 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0008 -> 0009 ...` and then:
 
 ```
 added hr@nextcode.test
@@ -252,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `305 passed, 7 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 127 backend tests.
+Expected: `318 passed, 10 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 143 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -412,6 +414,11 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | GET / PUT | `/api/preferences/me` | Seeker's job preferences and talent-pool opt-in |
 | GET | `/api/recommendations/jobs` | Recommended jobs with a match band (매우 적합 / 적합 / 참고) |
 | GET | `/api/jobs/{job_id}/talent` | Company: anonymous opted-in seekers for a job, ranked by Fit |
+| POST | `/api/talent-offers` | Company sends an offer to an anonymous seeker |
+| GET | `/api/talent-offers/sent` | Company's sent offers (contact only after accepted) |
+| POST | `/api/talent-offers/{offer_id}/cancel` | Company cancels a pending offer |
+| GET | `/api/talent-offers/mine` | Seeker's received offers |
+| POST | `/api/talent-offers/{offer_id}/accept` · `/reject` | Seeker answers an offer |
 
 Recommendations (`/api/recommendations`) are not built yet.
 
@@ -425,7 +432,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
-│   ├── migrations/versions/     # 0001 … 0008
+│   ├── migrations/versions/     # 0001 … 0009
 │   ├── requirements.txt         # Backend + AI + test dependencies
 │   ├── app/
 │   │   ├── main.py              # FastAPI app (run uvicorn from backend/)

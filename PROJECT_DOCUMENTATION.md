@@ -47,7 +47,7 @@
 | Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
 | Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
-| Talent recommendation (opt-in, anonymous, offers) | [Current] list / [Planned] offers | `GET /api/jobs/{job_id}/talent` (D19); offers not built yet ([§6.1](#61-recommendation)) |
+| Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | Stub files |
 | Delete CV / account | `TBD` | Q5 |
 
@@ -101,7 +101,7 @@ flowchart LR
 
 ## 3. Database
 
-PostgreSQL 16, Alembic migrations `0001` → `0008`. List the current tables with:
+PostgreSQL 16, Alembic migrations `0001` → `0009`. List the current tables with:
 `python -c "import app.models; from app.db.session import Base; print(sorted(Base.metadata.tables))"` (from `backend/`).
 JSON columns are `JSONB` on PostgreSQL and `JSON` on SQLite. All `created_at`/`updated_at` columns are `timestamptz` with `now()` defaults.
 
@@ -147,7 +147,7 @@ Child tables of `cv_profiles` (all `cv_profile_id` FK → cv_profiles, CASCADE, 
 **`criterion_scores`** — `evaluation_id` FK (CASCADE) · `job_criteria_id` FK (CASCADE) · `score` 0–100 · `level` · `reason` · `evidence` JSON (quotes) · `method` (`rule:skill`, `llm:<model>`, `retrieval`, …). Unique (`evaluation_id`, `job_criteria_id`). Weights are **not** stored.
 
 ### 3.5 Matching groundwork
-Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` and `company_projects*` have no API or logic yet [DB only].
+Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` is used by talent offers (D20); `company_projects*` have no API or logic yet [DB only].
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -155,7 +155,7 @@ Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`;
 | `seeker_preferred_locations` | `preference_id` FK (CASCADE) · `location` varchar(100); unique per preference | Desired work locations (free text) |
 | `seeker_preferred_employment_types` | `preference_id` FK (CASCADE) · `employment_type` `full_time`\|`contract`\|`intern`; unique per preference | Desired employment types |
 | `seeker_job_keywords` | `preference_id` FK (CASCADE) · `keyword` varchar(100); unique per preference | Desired role keywords (free text) |
-| `talent_offers` | `company_id` FK (CASCADE) · `seeker_id` FK → users (CASCADE) · `job_id` FK (SET NULL, optional) · `status` `pending`\|`accepted`\|`rejected`\|`cancelled` · `created_at`, `responded_at` | Offers from a company to a seeker. Contact details stay in `users` and should be shown only after `accepted` |
+| `talent_offers` | `company_id` FK (CASCADE) · `seeker_id` FK → users (CASCADE) · `job_id` FK (SET NULL, optional) · `status` `pending`\|`accepted`\|`rejected`\|`cancelled` · `message` varchar(1000), nullable (`0009`) · `created_at`, `responded_at` | Offers from a company to a seeker. `expired` is not stored: a `pending` offer older than `OFFER_EXPIRY_DAYS` is shown as expired. Contact details stay in `users` and are returned only after `accepted` |
 | `company_projects` | `company_id` FK (CASCADE) · `name` varchar(200) · `description` text · `created_at`, `updated_at` | Company's running projects |
 | `company_project_techs` | `company_project_id` FK (CASCADE) · `tech_name` varchar(100); unique per project | Technologies of a project |
 
@@ -236,6 +236,11 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`). GET returns empty lists before the first save. PUT trims, collapses whitespace and merges duplicates; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type) | `preference_service` | — |
 | GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref, band only (`limit` 1–50, no offset). Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
 | GET | `/api/jobs/{job_id}/talent?limit=20` | Anonymous opted-in seekers for one of the company's published jobs, ranked by Fit (Pref ≥ 40, Fit ≥ 40). Queues missing/failed/stale evaluations in the background within the caps; not-yet-scored candidates are only counted in `pending_count` | Company (own job) | 404 `JOB_NOT_FOUND` (other company's or not published) | `talent_service.recommend` | Pref, Fit, **scoring** |
+| POST | `/api/talent-offers` | Send an offer: `job_id` (own published job), `anonymous_id` (from the talent list), `message` (optional, ≤ 1000) | Company | 404 `JOB_NOT_FOUND`, `TALENT_NOT_FOUND` (not in the pool or not passing Pref/Fit); 409 `OFFER_EXISTS` (+ `offer_id`), `OFFER_REJECTED`; 429 `OFFER_DAILY_LIMIT`; 422 | `offer_service.create` | — |
+| GET | `/api/talent-offers/sent?job_id=` | Offers the company sent: status (`expired` computed), `candidate` (anonymous profile, null while the seeker is not public), `contact` (`display_name`, email) only after `accepted` | Company | — | `offer_service.sent` | — |
+| POST | `/api/talent-offers/{offer_id}/cancel` | Cancel a pending offer | Company (own) | 404 `OFFER_NOT_FOUND`; 409 `OFFER_NOT_PENDING`, `OFFER_EXPIRED` | `offer_service.cancel` | — |
+| GET | `/api/talent-offers/mine` | Offers the seeker received: company, job, message, status, `expires_at` | Seeker | 403 `SEEKER_ONLY` | `offer_service.mine` | — |
+| POST | `/api/talent-offers/{offer_id}/accept` · `/reject` | Answer a pending offer (also after leaving the talent pool) | Seeker (own) | 404 `OFFER_NOT_FOUND`; 409 `OFFER_NOT_PENDING` (+ `status`), `OFFER_EXPIRED` | `offer_service.respond` | — |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
 Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`) and `POST /api/jobs/{job_id}/analyze`.
@@ -245,8 +250,6 @@ Paths are working names (design doc 상세 §3.1); field-level request/response 
 
 | Purpose | Path (working) | Who | Tables | Blocked by |
 |---|---|---|---|---|
-| Send / cancel an offer | `POST /api/talent-offers` · `POST /api/talent-offers/{id}/cancel` | Company | `talent_offers` | — |
-| List received offers / accept / reject | `GET /api/talent-offers/mine` · `POST /api/talent-offers/{id}/accept` · `/reject` | Seeker | `talent_offers` | — |
 | Company projects CRUD | `GET` · `POST` · `PUT` · `DELETE /api/companies/me/projects` | Company | `company_projects`, `company_project_techs` | [Q3](#12-open-questions) |
 | Delete CV / account | — | — | — | [Q5](#12-open-questions) |
 
@@ -254,7 +257,7 @@ Response sketches (field names not final). `pending_count` = candidates that pas
 ```
 GET /api/recommendations/jobs (implemented) → {"items": [{"job_id", "title", "company_name", "location", "employment_type", "deadline", "match_level": "매우 적합|적합|참고"}], "pending_count": 3, "notice": AI_NOTICE}
 GET /api/jobs/{job_id}/talent (implemented) → {"job_id", "items": [{"anonymous_id": "C-1A2B3C4D5E", "fit": 80.0, "criteria": [{"criterion_id", "name", "score", "level"}], "skills", "experience_years", "roles", "project_techs", "education": [{"degree", "major"}], "certificates", "desired": {"locations", "employment_types", "job_keywords"}, "offer_status"}], "pending_count": 5, "notice": AI_NOTICE}
-offer detail (company): pending/rejected/cancelled → {"offer_id", "status", "candidate": {anonymous fields}}; accepted → adds "contact": {"display_name", "email"}
+GET /api/talent-offers/sent (implemented) → [{"offer_id", "job_id", "job_title", "anonymous_id", "message", "status": "pending|accepted|rejected|cancelled|expired", "created_at", "expires_at", "responded_at", "candidate": {anonymous profile} | null, "contact": {"display_name", "email"} | null}]
 ```
 
 **`GET /api/jobs/{job_id}/criteria` without login** — planned: make it public together with job detail, returning the **seeker view** (name + category + importance, no weights) for published, unexpired jobs only; the company view (full rows) still needs the owner's token. Reason: the detail page already shows them, and they are what the company evaluates on publicly. If it stays behind login, the frontend must hide the criteria block for guests.
@@ -349,7 +352,8 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - Pref ≥ `RECO_MIN_PREF` filters first (the seeker's preferences against the job), then Fit ≥ `RECO_MIN_FIT`. Ranked by Fit, then more criteria ≥ `STRONG_SCORE`, then newest `profile_public_at`.
 - **New evaluations**: same queue rules as job recommendation (`claim(max_attempts=EVALUATION_MAX_ATTEMPTS)`, background only). At most `TALENT_MAX_NEW_EVALUATIONS` (10) queues per call, always; at most `TALENT_DAILY_NEW_EVALUATIONS` (30) per company per day (KST) only in `AI_MODE=llm`, counted generously as every evaluation of the company's jobs queued today that no application references (the seekers' own job recommendations count too). Highest Pref first, then the most recently confirmed CV. Calls of one company run one at a time (`SELECT … FOR UPDATE` on `companies`). The response lists `done` results plus `pending_count`.
 - Anonymous profile — shown: anonymous ID (`"C-"` + HMAC of company and seeker: stable within a company, different across companies), skills found in the CV text, experience in whole years (`verified_experience`, rounded down), experience roles (only when their `source` line is in the text), technologies found in the 프로젝트 section, degree and major (verified the same way), certificates, desired location/employment type/role keywords, Fit and per-criterion `score` and `level` for that job, and the latest offer status from this company. No minimum pool size. Hidden: `display_name`, email, user/CV ids, school name, org names, project names and descriptions, dates, `summary`, CV text, and the per-criterion `reason` and `evidence` — evidence quotes CV lines and reasons paraphrase them, which leaks text and makes re-identification easier ([issue 24](#11-known-issues-and-risks)). `reason`/`evidence` become visible only through the normal applicant view after the seeker applies.
-- Offers: create as `pending` (service blocks a duplicate pending offer from the same company to the same seeker — no DB constraint, see [issue 16](#11-known-issues-and-risks)); seeker accepts/rejects (`responded_at`); company can cancel while pending. Re-offering after `rejected` is not decided (issue 23). Contact (`display_name`, email from `users`) is returned **only after `accepted`**.
+- Offers (D20, `services/offer_service.py`): the company sends one to an `anonymous_id` for one of its published jobs, with an optional `message`; the seeker must pass the same rules as the talent list. One live offer per (company, seeker): a `pending` (not expired) or `accepted` one blocks a new offer for any job (issue 16, checked in the service under a `FOR UPDATE` lock on `companies`, no DB constraint). After `rejected` the company cannot offer the same job again; another job is fine; `cancelled` blocks nothing (issue 23). At most `OFFER_DAILY_LIMIT` (20) offers per company per day (KST). A `pending` offer expires `OFFER_EXPIRY_DAYS` (14) after `created_at` (computed, shown as `expired`). Accept, reject and cancel are each one conditional `UPDATE … WHERE status = 'pending'` and not expired, so of two concurrent answers one wins. Contact (`display_name`, email from `users`) is returned **only after `accepted`**.
+- **Leaving the pool with a pending offer** (former Q10, decided in D20): turning `profile_public` off or withdrawing AI consent keeps the offer answerable for the seeker; the company keeps the `anonymous_id` but no longer sees the anonymous profile (`candidate: null`). An accepted offer keeps its contact details.
 
 **Consent:** `CONSENT_VERSION` is `2026-10-13`; recommendation requires `consent_version ≥ RECO_MIN_CONSENT_VERSION` (`2026-10-13`), else 409 `AI_CONSENT_REQUIRED`, so users who consented to an older version get no evaluation for jobs they did not apply to. Apply and CV upload need AI consent but not the newest version; existing applications stay valid. Users re-consent with `POST /api/users/me/consent`; `/api/users/me` tells the frontend when (`consent_required`). A seeker may withdraw AI consent (`DELETE /api/users/me/consent/ai`): every new AI use of their data stops (CV upload, apply, recommendation, the company's 다시 분석), they leave the talent pool, stored data stays, and a run queued before the withdrawal is not cancelled (D17). Not built yet: the consent text naming "지원 평가 및 맞춤 추천" and the re-consent screen (frontend). Appearing in talent recommendation additionally requires the separate `profile_public` opt-in (`profile_public_at` records when).
 
@@ -419,6 +423,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `DATABASE_URL` | — | Replaces the five `DB_*` variables |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | `localhost` / `5432` / `postgres` / `postgres` / `careersync_db` | Manual Docker setup uses port 5433 (`.env.example`) |
 | `JWT_SECRET_KEY` | dev default, only when the variable is **missing** | Empty string breaks login ([issue 4](#11-known-issues-and-risks)) |
+| `TALENT_ID_SECRET` | dev default, only when the variable is **missing** | HMAC key for talent `anonymous_id`; separate from `JWT_SECRET_KEY`. Changing it changes every anonymous ID companies see (offers keep working; they store the seeker) |
 | `JWT_EXPIRE_MINUTES` | `120` | |
 | `AI_MODE` | `rules` | `rules` or `llm`, case-insensitive; empty = `rules`. Only `llm` makes Claude calls (paid). Another value, or `llm` without `LLM_API_KEY`, stops startup (`LLMConfigError`) |
 | `LLM_API_KEY` | — | Required when `AI_MODE=llm`; ignored in `rules`. `ANTHROPIC_API_KEY` is not read |
@@ -441,6 +446,8 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `RECO_DAILY_NEW_EVALUATIONS` | `30` per seeker per day (KST), new + re-queued, only in `AI_MODE=llm` | Current |
 | `TALENT_MAX_NEW_EVALUATIONS` | `10` per talent call, always | Current |
 | `TALENT_DAILY_NEW_EVALUATIONS` | `30` per company per day (KST), only in `AI_MODE=llm`, counted generously | Current |
+| `OFFER_DAILY_LIMIT` | `20` offers per company per day (KST) | Current |
+| `OFFER_EXPIRY_DAYS` | `14` days after `created_at` for a `pending` offer | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |
 
@@ -490,14 +497,14 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 13 | Data quality | A whitespace-only company name passes validation and becomes empty | `api/v1/companies.py` | Open |
 | 14 | Staleness | Editing 인재상 after scoring does not re-score `other` criteria | — | Open |
 | 15 | Design | Newest CV must be confirmed to apply, even if an older version was confirmed | `cv_service.latest_confirmed` | Open |
-| 16 | Data | `talent_offers` allows duplicate `pending` offers from the same company to the same seeker; planned: check in the service, no DB constraint | `models/matching.py` | Planned |
+| 16 | Data | `talent_offers` allows duplicate `pending` offers from the same company to the same seeker; planned: check in the service, no DB constraint. **Fixed (D20):** checked in `offer_service.create` under a lock on `companies` | `models/matching.py` | Fixed |
 | 17 | Data | Desired role is free-text keywords (`seeker_job_keywords`) and job titles are free text — Pref matching must handle this — see [Q1](#12-open-questions) | `models/matching.py` | Open |
 | 18 | Tests | Tests build tables with `create_all`, not migrations; model/migration drift is not tested | `backend/tests/conftest.py` | Open |
 | 19 | Frontend | 추천 공고 shows demo %; 인재 추천 and 취업 준비 are placeholders | `frontend/src/pages/` | Open |
 | 20 | Breaking-change risk | Changing `cv_profile.v1`, `to_profile_data`, the Fit formula or `load_for_scoring` affects stored scores and applicant screens | see [`CLAUDE.md`](CLAUDE.md) | Open |
 | 21 | Legal | Blocklist `law_ref` values are an unverified reading of the law; re-check their legal validity before the demo | `data/blocklist.yaml` | Open |
 | 22 | Cost / abuse | No rate limit on endpoints that can call the LLM: `POST /api/cv`, `/analyze`, apply, `/evaluation/retry`, and the planned `GET /api/recommendations/jobs` and `GET /api/jobs/{job_id}/talent`. A user can loop requests and spend API credit. The per-call and daily evaluation caps in [§6.1](#61-recommendation) limit recommendation only; a general rate limit is still needed | `api/v1/` | Open |
-| 23 | Data / UX | After a seeker rejects an offer, nothing stops the same company from sending a new offer right away (issue 16 only covers duplicate `pending`). Needs a rule, e.g. no re-offer for the same job, or a cool-down. When decided, also update the talent candidate filter in [§6.1](#61-recommendation) | `talent_offers`, planned offer service | Open |
+| 23 | Data / UX | After a seeker rejects an offer, nothing stops the same company from sending a new offer right away (issue 16 only covers duplicate `pending`). Needs a rule, e.g. no re-offer for the same job, or a cool-down. When decided, also update the talent candidate filter in [§6.1](#61-recommendation). **Fixed (D20):** no re-offer for the same job after `rejected`; another job is allowed | `services/offer_service.py`, `services/talent_service.py` | Fixed |
 | 24 | Privacy | Anonymous profiles can still identify a person when combined: rare skills/certificates, exact experience months, project descriptions, a small applicant pool. Consider rounding experience to years, hiding free-text project descriptions, and a minimum pool size before showing results. **Done (D19):** experience in whole years, no free text or dates; no minimum pool size (decided) | `services/talent_service.py` | Open |
 | 25 | Concurrency | Apply calls `evaluation_service.ensure()` (reuse is correct) but queues scoring whenever the evaluation is not `done`. If it is a fresh `pending` (e.g. queued by recommendation, or by another request), the same evaluation is scored twice; `evaluate()` clears and rewrites scores, so the two runs can collide. Also, two concurrent `ensure()` calls for the same job × CV version hit `uq_evaluations_job_profile` and one request fails with 500. Fix: `ensure()` catches `IntegrityError` and re-reads; apply follows the get-or-create rule in [§6.1](#61-recommendation); every queue sets `queued_at`/`attempts`. Related: issue 2. **Fixed:** `ensure()` savepoint, `claim()`, fencing | `application_service.apply`, `api/v1/applications.py`, `evaluation_service.ensure` | Fixed |
 | 26 | Cost | Talent recommendation has no cost limit yet. It evaluates one job against every public seeker, and a per-company daily limit cannot be counted because `evaluations` does not store who triggered it. Options: a `triggered_by` / company column, a separate counter table, or using only existing evaluations for talent. **Must be resolved before enabling talent recommendation**, together with issues 3 and 6. **Fixed (D19):** 10 per call, 30 per company per day in `AI_MODE=llm`, counted generously without a new column | `services/talent_service.py` | Fixed |
@@ -516,7 +523,6 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | Q6 | Issue 15: allow applying with an older confirmed CV version? | Apply, recommendation |
 | Q7 | Blocklist legal references: re-check their legal validity before the demo | Demo |
 | Q8 | The design doc's Figma mockups show features with no backend design: saved jobs (공고 저장), job search filters (location, employment type, experience, tech stack, work mode), AI CV feedback (strengths / improvements), 취업 준비 roadmap, headcount (모집 인원) on the job form, 기업 탐색 page. Build, defer, or remove from the mockups? The job form mockup also lacks the criteria + weights input. | Frontend scope, DB, API |
-| Q10 | A seeker turns `profile_public` off while offers are `pending`: auto-cancel them, keep them answerable, or hide them from the company? What happens to `accepted` offers (contact already shown)? | Offer API, preferences API |
 
 ---
 

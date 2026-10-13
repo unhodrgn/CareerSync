@@ -268,7 +268,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 15 | ~~Issue 3: bằng chứng `experience`/chứng chỉ/“uses” lấy từ `masked_text`, không từ `source` seeker sửa được~~ ✅ xong (test `test_scoring.py`, `test_cv_edits_scoring.py`; kèm sửa che ngày sinh nuốt dòng mới trong `pii.py`) | Vừa | — |
-| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) — ✅ danh sách `GET /api/jobs/{id}/talent` (D19; test `test_talent_api.py`). Còn: offer + migration 0009 (lượt c) | Lớn | #15–#17, Q10, issue 23, 24; Frontend: trang 인재 추천 |
+| 18 | Talent recommendation + offer (ẩn danh, `profile_public` kiểm mỗi lần đọc, liên hệ chỉ sau `accepted`, chặn offer `pending` trùng) — ✅ danh sách `GET /api/jobs/{id}/talent` (D19) + offer `/api/talent-offers*` + migration 0009 (D20); test `test_talent_api.py`, `test_offer_api.py`. Còn: frontend trang 인재 추천 và hộp offer của seeker | Lớn | — |
 
 #### P1-B — Roadmap kỹ năng + câu hỏi phỏng vấn
 

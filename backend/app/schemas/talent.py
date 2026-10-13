@@ -23,13 +23,10 @@ class TalentDesired(BaseModel):
     job_keywords: list[str]
 
 
-class TalentCandidate(BaseModel):
-    """Anonymous profile (PROJECT_DOCUMENTATION.md §6.1). Never: name, email, school, organization names,
-    project names or descriptions, dates, CV text, summary, reasons or evidence."""
+class AnonymousProfile(BaseModel):
+    """Anonymous profile (PROJECT_DOCUMENTATION.md §6.1), read from the masked CV text. Never: name, email,
+    school, organization names, project names or descriptions, dates, CV text, summary, reasons or evidence."""
 
-    anonymous_id: str = Field(description="Stable within one company, different across companies")
-    fit: float
-    criteria: list[TalentCriterionScore]
     skills: list[str]
     experience_years: int = Field(description="Verified against the CV text, rounded down")
     roles: list[str]
@@ -37,7 +34,13 @@ class TalentCandidate(BaseModel):
     education: list[TalentEducation]
     certificates: list[str]
     desired: TalentDesired
-    # Latest offer from this company to this seeker, if any (offers are added in a later step)
+
+
+class TalentCandidate(AnonymousProfile):
+    anonymous_id: str = Field(description="Stable within one company, different across companies")
+    fit: float
+    criteria: list[TalentCriterionScore]
+    # Latest offer from this company to this seeker: pending, accepted, rejected, cancelled or expired
     offer_status: str | None = None
 
 
