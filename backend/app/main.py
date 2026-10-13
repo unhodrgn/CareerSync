@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ai.llm.client import check_llm_config
-from app.api.v1 import applications, auth, companies, criteria, cv, jobs, preferences, recommendations, talent, users
+from app.api.v1 import applications, auth, career, companies, criteria, cv, jobs, preferences, recommendations, talent, users
 from app.core.errors import AppError
 
 
@@ -28,6 +28,7 @@ app.include_router(applications.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
 app.include_router(talent.router, prefix="/api")
+app.include_router(career.router, prefix="/api")
 
 
 @app.exception_handler(AppError)

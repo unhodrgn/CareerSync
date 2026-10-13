@@ -38,7 +38,9 @@ def match_level(final: float) -> str:
     return "참고"
 
 
-def _check_seeker(db: Session, user: User) -> CvProfile:
+def check_seeker(db: Session, user: User) -> CvProfile:
+    """Seeker, AI consent at RECO_MIN_CONSENT_VERSION or later, newest CV confirmed; returns that CV.
+    Also used by career content (D21), which reads the CV for jobs the seeker has not applied to."""
     if user.role != "seeker":
         raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
     if user.consent_ai_at is None or (user.consent_version or "") < settings.RECO_MIN_CONSENT_VERSION:
@@ -78,7 +80,7 @@ def queued_today(db: Session, seeker_id: int) -> int:
 
 
 def recommend(db: Session, user: User, limit: int) -> Recommendation:
-    profile = _check_seeker(db, user)
+    profile = check_seeker(db, user)
     # One recommendation call per seeker at a time, so parallel calls cannot overrun the caps
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
 

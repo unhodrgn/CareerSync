@@ -46,6 +46,7 @@
 | Recruiter changes application status | [Current] | |
 | Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
+| Skill roadmap for a job (skills/certificates the job names that the CV lacks) | [Current] | `POST /api/jobs/{job_id}/roadmap` (D21); interview questions [Planned] (next step) |
 | Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | Stub files |
@@ -101,7 +102,7 @@ flowchart LR
 
 ## 3. Database
 
-PostgreSQL 16, Alembic migrations `0001` → `0009`. List the current tables with:
+PostgreSQL 16, Alembic migrations `0001` → `0010`. List the current tables with:
 `python -c "import app.models; from app.db.session import Base; print(sorted(Base.metadata.tables))"` (from `backend/`).
 JSON columns are `JSONB` on PostgreSQL and `JSON` on SQLite. All `created_at`/`updated_at` columns are `timestamptz` with `now()` defaults.
 
@@ -158,6 +159,7 @@ Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`;
 | `talent_offers` | `company_id` FK (CASCADE) · `seeker_id` FK → users (CASCADE) · `job_id` FK (SET NULL, optional) · `status` `pending`\|`accepted`\|`rejected`\|`cancelled` · `message` varchar(1000), nullable (`0009`) · `created_at`, `responded_at` | Offers from a company to a seeker. `expired` is not stored: a `pending` offer older than `OFFER_EXPIRY_DAYS` is shown as expired. Contact details stay in `users` and are returned only after `accepted` |
 | `company_projects` | `company_id` FK (CASCADE) · `name` varchar(200) · `description` text · `created_at`, `updated_at` | Company's running projects |
 | `company_project_techs` | `company_project_id` FK (CASCADE) · `tech_name` varchar(100); unique per project | Technologies of a project |
+| `career_contents` (`0010`) | `seeker_id` FK → users, `job_id` FK, `cv_profile_id` FK (all CASCADE) · `kind` `roadmap`\|`interview` · `prompt_version` · `method` (`rules` or `llm:<model>`) · `content` JSON · `created_at`; unique (seeker, job, CV version, kind, prompt version, method) | Cached career content (D21). Template fallbacks after an LLM failure or over the daily limit are not stored |
 
 ### 3.6 ERD
 ```mermaid
@@ -241,6 +243,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/talent-offers/{offer_id}/cancel` | Cancel a pending offer | Company (own) | 404 `OFFER_NOT_FOUND`; 409 `OFFER_NOT_PENDING`, `OFFER_EXPIRED` | `offer_service.cancel` | — |
 | GET | `/api/talent-offers/mine` | Offers the seeker received: company, job, message, status, `expires_at` | Seeker | 403 `SEEKER_ONLY` | `offer_service.mine` | — |
 | POST | `/api/talent-offers/{offer_id}/accept` · `/reject` | Answer a pending offer (also after leaving the talent pool) | Seeker (own) | 404 `OFFER_NOT_FOUND`; 409 `OFFER_NOT_PENDING` (+ `status`), `OFFER_EXPIRED` | `offer_service.respond` | — |
+| POST | `/api/jobs/{job_id}/roadmap` | Skills and certificates the job (criteria + JD) names that the CV text lacks, with one learning step each (≤ 6): `gaps`, `steps` (`goal`, `activities`, `resources` from `data/learning_resources.yaml`), `method`, `message` (when nothing is missing), `limited`, `notice`. Cached per CV version | Seeker | 404 `JOB_NOT_FOUND` (not published or expired); 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.roadmap` | **LLM** / template |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
 Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`) and `POST /api/jobs/{job_id}/analyze`.
@@ -303,6 +306,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `embedding/model.py` | Text vectors | `multilingual-e5-base`; falls back to `hashing-ngram-v1` | scoring |
 | `scoring/` | One scorer per category, then Fit | see below | `evaluation_service.evaluate` |
 | `llm/client.py` | Only gateway to the LLM; `get_llm_client()` is `None` unless `AI_MODE=llm`, even with a key. `check_llm_config()` runs at startup (`main.py` lifespan) | Anthropic SDK, default `claude-sonnet-5-5`, effort `low` | `ai_runtime.llm()` |
+| `career/gaps.py`, `career/roadmap.py` | Skills/certificates the job names that the masked CV text lacks (code, `data/skills.yaml`); roadmap steps: LLM writes only goal/activities for computed gaps, other skills dropped, URLs stripped; resources only from `data/learning_resources.yaml` | Claude (`prompts/v1/roadmap.md`) or template | `career_service.roadmap` |
 | `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
@@ -343,7 +347,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - **Sync vs background**: new evaluations run in the **background** (same `evaluation_service.run_in_background` as applying); the call never waits for scoring. The response lists only jobs whose evaluation is `done`, plus `"pending_count"` so the page can show "분석 중 N건". **Retry of `pending`:** nobody clicks 다시 분석 on the seeker side, so the next recommendation call re-queues its own `pending` evaluations older than `EVALUATION_STALE_MINUTES` (10, same rule as issue 2) and `failed` ones, still within the cap. Evaluations shared with an application keep the company's 다시 분석 path too.
 - **Final** = 0.5·Fit + 0.5·Pref; recommend only when Fit ≥ 40 **and** Pref ≥ 40.
 - Order: ① filter candidates → ② Pref, drop < 40 → ③ load `done` evaluations; queue missing/stale ones up to the cap → ④ Fit with current weights, drop < 40 → ⑤ Final → ⑥ sort by Final ↓, then Fit ↓, then newest `published_at`, top `limit`.
-- Seekers see **bands only** (D16): 매우 적합 Final ≥ 80 · 적합 60–79 · 참고 40–59. No Fit, Pref or Final numbers, no per-criterion scores, no weights, and no matched/missing criterion names until Q3 is decided.
+- Seekers see **bands only** (D16): 매우 적합 Final ≥ 80 · 적합 60–79 · 참고 40–59. No Fit, Pref or Final numbers, no per-criterion scores, no weights, and no matched/missing criterion names by score (D21: only skills/certificates the CV text lacks, via the roadmap).
 
 **Talent recommendation (company → seekers)**
 - **Prerequisites (D18):** [issue 3](#11-known-issues-and-risks) fixed (rule scores and what companies see come from the masked text); [issue 6](#11-known-issues-and-risks) mitigated for the demo by re-queuing stale `pending` evaluations (a separate worker comes after the demo); [issue 26](#11-known-issues-and-risks) handled by the caps below; [issue 24](#11-known-issues-and-risks) reduced (see the anonymous profile).
@@ -429,7 +433,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `LLM_API_KEY` | — | Required when `AI_MODE=llm`; ignored in `rules`. `ANTHROPIC_API_KEY` is not read |
 | `LLM_MODEL` / `LLM_EFFORT` | `claude-sonnet-5-5` / `low` | |
 | `EMBEDDING_MODEL` | `intfloat/multilingual-e5-base` | `hashing-ngram-v1` skips the ~1 GB download; Compose defaults to it when unset |
-| `BLOCKLIST_PATH`, `SKILLS_PATH` | `data/blocklist.yaml`, `data/skills.yaml` | |
+| `BLOCKLIST_PATH`, `SKILLS_PATH`, `LEARNING_RESOURCES_PATH` | `data/blocklist.yaml`, `data/skills.yaml`, `data/learning_resources.yaml` | |
 | `CAREERSYNC_DOTENV` | `1` | `0` skips `.env` (tests) |
 | `TEST_DATABASE_URL` | `sqlite://` | Point at a separate PostgreSQL DB to run tests on PostgreSQL |
 | `VITE_API_TARGET` | `http://127.0.0.1:8000` | Vite proxy target |
@@ -448,6 +452,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `TALENT_DAILY_NEW_EVALUATIONS` | `30` per company per day (KST), only in `AI_MODE=llm`, counted generously | Current |
 | `OFFER_DAILY_LIMIT` | `20` offers per company per day (KST) | Current |
 | `OFFER_EXPIRY_DAYS` | `14` days after `created_at` for a `pending` offer | Current |
+| `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |
 

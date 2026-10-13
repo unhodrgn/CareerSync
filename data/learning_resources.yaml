@@ -1,0 +1,68 @@
+# Learning resources for the skill roadmap (docs/DECISIONS.md D21). Official documentation only.
+# Keys are the canonical names in data/skills.yaml. Every URL below returned HTTP 200 on 2026-10-13,
+# except entries marked `verified: false`, whose URL is never shown to users until someone checks it.
+# The LLM never adds URLs: resources come only from this file.
+version: "2026-10-13"
+skills:
+  Java: {title: "Java 공식 학습 자료 (dev.java)", url: "https://dev.java/learn/"}
+  Kotlin: {title: "Kotlin 공식 문서", url: "https://kotlinlang.org/docs/home.html"}
+  Python: {title: "Python 공식 튜토리얼", url: "https://docs.python.org/3/tutorial/"}
+  JavaScript: {title: "MDN JavaScript 가이드", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide"}
+  TypeScript: {title: "TypeScript 공식 문서", url: "https://www.typescriptlang.org/docs/"}
+  Go: {title: "Go 공식 문서", url: "https://go.dev/doc/"}
+  Rust: {title: "The Rust Programming Language", url: "https://doc.rust-lang.org/book/"}
+  SQL: {title: "PostgreSQL SQL 튜토리얼", url: "https://www.postgresql.org/docs/current/tutorial-sql.html"}
+  Spring: {title: "Spring 공식 가이드", url: "https://spring.io/guides"}
+  JPA: {title: "Spring Data JPA 가이드", url: "https://spring.io/guides/gs/accessing-data-jpa"}
+  Django: {title: "Django 공식 튜토리얼", url: "https://docs.djangoproject.com/en/stable/intro/"}
+  Flask: {title: "Flask 공식 튜토리얼", url: "https://flask.palletsprojects.com/en/stable/tutorial/"}
+  FastAPI: {title: "FastAPI 공식 튜토리얼", url: "https://fastapi.tiangolo.com/tutorial/"}
+  Node.js: {title: "Node.js 공식 학습 자료", url: "https://nodejs.org/en/learn"}
+  NestJS: {title: "NestJS 공식 문서", url: "https://docs.nestjs.com/"}
+  React: {title: "React 공식 학습 자료", url: "https://react.dev/learn"}
+  Vue.js: {title: "Vue.js 공식 가이드", url: "https://vuejs.org/guide/introduction.html"}
+  Next.js: {title: "Next.js 공식 학습 과정", url: "https://nextjs.org/learn"}
+  HTML/CSS: {title: "MDN 웹 개발 학습", url: "https://developer.mozilla.org/en-US/docs/Learn_web_development"}
+  Android: {title: "Android 공식 교육 과정", url: "https://developer.android.com/courses"}
+  Flutter: {title: "Flutter 공식 코드랩", url: "https://docs.flutter.dev/get-started/codelab"}
+  MySQL: {title: "MySQL 공식 튜토리얼", url: "https://dev.mysql.com/doc/refman/8.4/en/tutorial.html", verified: false}  # 403 to automated checks
+  PostgreSQL: {title: "PostgreSQL 공식 튜토리얼", url: "https://www.postgresql.org/docs/current/tutorial.html"}
+  MongoDB: {title: "MongoDB 시작하기", url: "https://www.mongodb.com/docs/manual/tutorial/getting-started/"}
+  Redis: {title: "Redis 시작하기", url: "https://redis.io/docs/latest/get-started/"}
+  Elasticsearch: {title: "Elasticsearch 시작하기", url: "https://www.elastic.co/guide/en/elasticsearch/reference/current/getting-started.html"}
+  Kafka: {title: "Apache Kafka 퀵스타트", url: "https://kafka.apache.org/quickstart"}
+  RabbitMQ: {title: "RabbitMQ 튜토리얼", url: "https://www.rabbitmq.com/tutorials"}
+  AWS: {title: "AWS 공식 문서", url: "https://docs.aws.amazon.com/"}
+  GCP: {title: "Google Cloud 시작하기", url: "https://cloud.google.com/docs/get-started"}
+  Azure: {title: "Microsoft Azure 문서", url: "https://learn.microsoft.com/en-us/azure/"}
+  Docker: {title: "Docker 시작하기", url: "https://docs.docker.com/get-started/"}
+  Kubernetes: {title: "Kubernetes 기초 튜토리얼", url: "https://kubernetes.io/docs/tutorials/kubernetes-basics/"}
+  Linux: {title: "Ubuntu 명령줄 입문", url: "https://ubuntu.com/tutorials/command-line-for-beginners"}
+  Git: {title: "Pro Git (공식)", url: "https://git-scm.com/book/en/v2"}
+  CI/CD: {title: "GitHub Actions 퀵스타트", url: "https://docs.github.com/en/actions/get-started/quickstart"}
+  Terraform: {title: "Terraform 공식 튜토리얼", url: "https://developer.hashicorp.com/terraform/tutorials"}
+  GraphQL: {title: "GraphQL 공식 학습 자료", url: "https://graphql.org/learn/"}
+  gRPC: {title: "gRPC 소개", url: "https://grpc.io/docs/what-is-grpc/introduction/"}
+  TensorFlow: {title: "TensorFlow 튜토리얼", url: "https://www.tensorflow.org/tutorials"}
+  PyTorch: {title: "PyTorch 튜토리얼", url: "https://docs.pytorch.org/tutorials/"}
+  Pandas: {title: "pandas 시작하기", url: "https://pandas.pydata.org/docs/getting_started/index.html"}
+  Spark: {title: "Apache Spark 퀵스타트", url: "https://spark.apache.org/docs/latest/quick-start.html"}
+  Airflow: {title: "Apache Airflow 튜토리얼", url: "https://airflow.apache.org/docs/apache-airflow/stable/tutorial/index.html"}
+  Figma: {title: "Figma 도움말 센터", url: "https://help.figma.com/hc/en-us"}
+  Unity: {title: "Unity Learn", url: "https://learn.unity.com/"}
+  JUnit: {title: "JUnit 사용자 가이드", url: "https://docs.junit.org/current/user-guide/"}
+certificates:
+  정보처리기사: {title: "Q-Net (한국산업인력공단)", url: "https://www.q-net.or.kr/"}
+  정보처리산업기사: {title: "Q-Net (한국산업인력공단)", url: "https://www.q-net.or.kr/"}
+  정보보안기사: {title: "정보보호 자격검정 (KISA)", url: "https://www.kisq.or.kr/", verified: false}  # no connection from the check
+  SQLD: {title: "데이터자격검정 (한국데이터산업진흥원)", url: "https://www.dataq.or.kr/"}
+  SQLP: {title: "데이터자격검정 (한국데이터산업진흥원)", url: "https://www.dataq.or.kr/"}
+  ADsP: {title: "데이터자격검정 (한국데이터산업진흥원)", url: "https://www.dataq.or.kr/"}
+  ADP: {title: "데이터자격검정 (한국데이터산업진흥원)", url: "https://www.dataq.or.kr/"}
+  빅데이터분석기사: {title: "데이터자격검정 (한국데이터산업진흥원)", url: "https://www.dataq.or.kr/"}
+  리눅스마스터: {title: "KAIT 자격검정", url: "https://www.ihd.or.kr/"}
+  네트워크관리사: {title: "ICQA 자격검정", url: "https://www.icqa.or.kr/"}
+  AWS 자격증: {title: "AWS Certification", url: "https://aws.amazon.com/certification/"}
+  CKA: {title: "CKA (Linux Foundation)", url: "https://training.linuxfoundation.org/certification/certified-kubernetes-administrator-cka/"}
+  TOEIC: {title: "TOEIC 공식 사이트", url: "https://exam.toeic.co.kr/"}
+  OPIc: {title: "OPIc 공식 사이트", url: "https://www.opic.or.kr/"}

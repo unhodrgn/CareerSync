@@ -198,7 +198,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0008 -> 0009 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0009 -> 0010 ...` and then:
 
 ```
 added hr@nextcode.test
@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `318 passed, 10 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 143 backend tests.
+Expected: `337 passed, 11 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 152 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -419,6 +419,7 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | POST | `/api/talent-offers/{offer_id}/cancel` | Company cancels a pending offer |
 | GET | `/api/talent-offers/mine` | Seeker's received offers |
 | POST | `/api/talent-offers/{offer_id}/accept` · `/reject` | Seeker answers an offer |
+| POST | `/api/jobs/{job_id}/roadmap` | Seeker: skills the job asks for that the CV lacks, with a learning plan |
 
 Recommendations (`/api/recommendations`) are not built yet.
 
@@ -432,7 +433,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
-│   ├── migrations/versions/     # 0001 … 0009
+│   ├── migrations/versions/     # 0001 … 0010
 │   ├── requirements.txt         # Backend + AI + test dependencies
 │   ├── app/
 │   │   ├── main.py              # FastAPI app (run uvicorn from backend/)

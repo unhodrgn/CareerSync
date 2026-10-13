@@ -275,7 +275,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 9 | Câu hỏi phỏng vấn theo JD (+ tiêu chí): prompt mới `ai/prompts/v1/…`, fallback rule (mẫu theo category/skill), `AI_NOTICE` | Vừa | Chưa có trong doc → cần chốt; Frontend: trang 취업 준비 |
-| 10 | Skill roadmap cho gap: từ tên tiêu chí `gaps` (của #7 hoặc job đã apply) + `data/skills.yaml` → bước học; không lộ điểm từng tiêu chí | Vừa | #7; cần dữ liệu tài nguyên học (`data/`); Q8; frontend |
+| 10 | ~~Skill roadmap cho gap~~ ✅ xong: `POST /api/jobs/{id}/roadmap`, gap theo phương án C (D21), cache `career_contents` (migration 0010), `data/learning_resources.yaml`; test `test_roadmap.py`, `test_career_api.py`. Còn: frontend trang 취업 준비 | Vừa | — |
 
 #### P1-C — Lặt vặt: AI tự kiểm tra CV, AI hỗ trợ viết JD, filter nhanh ứng viên, CRUD project công ty
 

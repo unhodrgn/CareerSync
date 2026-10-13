@@ -75,5 +75,10 @@ class Settings:
     OFFER_DAILY_LIMIT: int = 20  # per company per day (KST)
     OFFER_EXPIRY_DAYS: int = 14  # a pending offer older than this is expired
 
+    # Career content (roadmap, interview questions; docs/DECISIONS.md D21): new LLM generations per seeker per day
+    # (KST), only in AI_MODE=llm; cached content does not count. Over the limit the template is returned
+    CAREER_DAILY_LLM_GENERATIONS: int = 10
+    LEARNING_RESOURCES_PATH: Path = Path(os.getenv("LEARNING_RESOURCES_PATH", REPO_ROOT / "data" / "learning_resources.yaml"))
+
 
 settings = Settings()

@@ -39,7 +39,7 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 | 3 | The LLM sees only PII-masked text (`cv_documents.masked_text`), never the PDF, `display_name`, email or raw text. | By design in `cv_service.upload` and `evaluation_service.evaluate`; tested by `test_no_personal_data_reaches_the_llm` (`backend/tests/test_applications_api.py`). Keep it. |
 | 4 | LLM quotes are verified against the masked CV (`ai/guardrails/evidence.py`); failure → one retry → retrieval. | Guaranteed for `project`/`other` scoring. New LLM features must verify quotes too. |
 | 5 | The AI never accepts or rejects anyone; `applications.status` changes only by a recruiter action. | Guaranteed — only `application_service.set_status` writes it. Never let AI code call it. |
-| 6 | Responses that carry AI results include `AI_NOTICE`. | By design in today's schemas (applicant, evaluation, `CvOut`, `JdAnalysisOut` have a `notice` field). New AI responses must include it. |
+| 6 | Responses that carry AI results include `AI_NOTICE`. | By design in today's schemas (applicant, evaluation, `CvOut`, `JdAnalysisOut`, recommendation, talent and career responses have a `notice` field). New AI responses must include it. |
 | 7 | Scoring reads criteria only through `criteria_service.load_for_scoring()`. | By convention. |
 | 8 | `ai/` never imports `app.*`; services reach AI only through `services/ai_runtime.py`. | By convention — currently true. Keep `ai/` DB-free, pass plain objects (`Candidate`, `Criterion`, `JobContext`). |
 | 9 | Weights are never stored in `criterion_scores` and never shown to seekers (seekers see importance / match bands only). | By design; keep it in any new seeker-facing response. |
@@ -63,4 +63,4 @@ cd frontend && npm run build             # type-check + build
 ## Current focus (update when it changes)
 
 - Queue/retry rules are in place (`evaluation_service.claim()`, fencing on `queued_at`).
-- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Re-consent and AI-consent withdrawal are in place (D17). Next: frontend for recommendation, preferences and the consent screen. Talent list `GET /api/jobs/{job_id}/talent` and offers `/api/talent-offers*` are in place (D18–D20, migration `0009`).
+- Preferences API and job recommendation are in place (`recommendation_service`, D15, D16). Re-consent and AI-consent withdrawal are in place (D17). Next: frontend for recommendation, preferences and the consent screen. Talent list `GET /api/jobs/{job_id}/talent` and offers `/api/talent-offers*` are in place (D18–D20, migration `0009`). Skill roadmap `POST /api/jobs/{job_id}/roadmap` is in place (D21, migration `0010`); interview questions come next.

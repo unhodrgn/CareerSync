@@ -1,4 +1,5 @@
 from app.models.application import Application, CriterionScore, Evaluation
+from app.models.career import CareerContent
 from app.models.criteria import CriteriaGuardrailLog, JobCriterion
 from app.models.cv import (
     CvCertificate,
@@ -24,6 +25,7 @@ from app.models.user import Company, User
 
 __all__ = [
     "Application",
+    "CareerContent",
     "Company",
     "CompanyProject",
     "CompanyProjectTech",
