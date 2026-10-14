@@ -1,6 +1,6 @@
 """Skill and certificate dictionary (data/skills.yaml): canonical names, aliases, lookup in text."""
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,6 +23,11 @@ class SkillDictionary:
     skills: dict[str, tuple[re.Pattern, ...]]
     certificates: dict[str, tuple[re.Pattern, ...]]
     alias_to_skill: dict[str, str]
+    # skill -> other skills sharing a `related` group (D27), in file order
+    related: dict[str, tuple[str, ...]] = field(default_factory=dict)
+
+    def related_to(self, skill: str) -> tuple[str, ...]:
+        return self.related.get(skill, ())
 
     def canonical(self, name: str) -> str | None:
         return self.alias_to_skill.get(normalize(name))
@@ -75,7 +80,21 @@ def parse_dictionary(data: dict) -> SkillDictionary:
     for name, aliases in (data.get("certificates") or {}).items():
         names = {normalize(str(name)), *(normalize(str(a)) for a in aliases or [])}
         certs[name] = tuple(_alias_pattern(a) for a in sorted(names, key=len, reverse=True))
-    return SkillDictionary(version=str(data.get("version", "")), skills=skills, certificates=certs, alias_to_skill=alias_to_skill)
+    related: dict[str, list[str]] = {}
+    for group, members in (data.get("related") or {}).items():
+        unknown = [m for m in members or [] if m not in skills]
+        if unknown or len(members or []) < 2:
+            raise ValueError(f"skills.yaml related group {group!r}: needs 2+ canonical skills, unknown {unknown}")
+        for m in members:
+            related.setdefault(m, [])
+            related[m] += [o for o in members if o != m and o not in related[m]]
+    return SkillDictionary(
+        version=str(data.get("version", "")),
+        skills=skills,
+        certificates=certs,
+        alias_to_skill=alias_to_skill,
+        related={k: tuple(v) for k, v in related.items()},
+    )
 
 
 @lru_cache(maxsize=4)

@@ -94,6 +94,48 @@ def test_jd_rules_do_not_read_a_year_as_experience():
     assert both.profile.min_years == 3
 
 
+
+# The smoke-test JD (from the jd-draft template): skills in 주요 업무 and 우대 must not crowd out 자격 요건
+HEADED_JD = """스모크테크에서 백엔드 개발자(정규직)을(를) 찾습니다. 결제팀 백엔드
+
+주요 업무
+- 결제 시스템 MSA 전환 프로젝트 개발 및 운영 (Java, Kafka, Redis)
+- 코드 리뷰와 문서화를 통한 팀 협업
+
+자격 요건
+- 관련 경력 2년 이상
+- Java 실무 또는 프로젝트 경험
+- Spring 실무 또는 프로젝트 경험
+- PostgreSQL 실무 또는 프로젝트 경험
+
+우대 사항
+- Kafka 사용 경험
+- Redis 사용 경험
+"""
+
+
+def test_headed_jd_takes_required_and_preferred_from_their_sections():
+    analysis, _ = analyze_jd("Python 백엔드 개발자", HEADED_JD, None, SKILLS, None)
+    assert analysis.profile.required_skills == ["Java", "Spring", "PostgreSQL"]  # not MSA from 주요 업무, not the title
+    assert analysis.profile.preferred_skills == ["Kafka", "Redis"]
+    assert analysis.profile.min_years == 2
+    names = [c.name for c in analysis.criteria]
+    assert names[:3] == ["Java 활용 능력", "Spring 활용 능력", "PostgreSQL 활용 능력"] and "MSA 활용 능력" not in names
+
+
+@pytest.mark.parametrize("required, preferred", [("[필수]", "[우대]"), ("■ 지원 자격 :", "◆ 우대조건"), ("Requirements", "Preferred")])
+def test_heading_variants(required, preferred):
+    jd = f"주요 업무\n- Kafka 운영\n{required}\n- Java 경험\n{preferred}\n- Docker 경험\n"
+    profile = analyze_jd("개발자", jd, None, SKILLS, None)[0].profile
+    assert (profile.required_skills, profile.preferred_skills) == (["Java"], ["Docker"])
+
+
+def test_jd_sections_ignore_sentences_that_mention_a_heading_word():
+    from ai.parsing.extract import jd_sections
+
+    assert jd_sections("- Kafka 경험 우대\n- 필수 아님") == {}
+
+
 def test_jd_llm_weights_are_rescaled_to_100():
     llm = FakeLLM(
         {

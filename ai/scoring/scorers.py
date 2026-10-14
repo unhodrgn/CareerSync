@@ -1,8 +1,11 @@
 """One scorer per criterion category. Each returns a CriterionResult with evidence from the CV.
 
 Rule scorers (skill, experience, certificate, education) are deterministic: the same CV and
-criterion always give the same score. Only project and other criteria use the LLM rubric, and
-they fall back to keyword + similarity retrieval when no LLM is configured.
+criterion always give the same score. Only project and other criteria use the LLM rubric. Without an
+LLM (AI_MODE=rules, D28): project criteria are scored from the entries of the 프로젝트 section, other
+criteria by keyword + similarity retrieval, with a neutral score when retrieval finds nothing to judge.
+In AI_MODE=llm an LLM failure still falls back to retrieval. Skill criteria naming no skill of the
+dictionary are looked up in the CV text by name (0 when absent), in both modes.
 
 Seekers can edit the structured profile, but not the masked CV text. Rule scorers therefore give
 points only for what is found in `candidate.text`; the profile only says what to look for, and
@@ -15,13 +18,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ai.embedding.model import Embedder, cosine
+from ai.embedding.model import Embedder
 from ai.embedding.skills import SkillDictionary
 from ai.guardrails.evidence import verify_quotes
 from ai.llm.client import LLMClient, LLMError
 from ai.parsing.extract import _RANGE, PROMPT_DIR, line_in_text, verified_experience
 from ai.parsing.sections import Chunk, split_sections
-from ai.scoring.retrieval import best_lines, cv_chunks, retrieve
+from ai.scoring.retrieval import best_lines, cv_chunks, keywords, retrieve
 from ai.scoring.types import Candidate, Criterion, CriterionResult, JobContext, nearest_level
 
 log = logging.getLogger(__name__)
@@ -31,8 +34,8 @@ NO_EVIDENCE = "근거를 찾지 못함"
 # Skill scoring
 SKILL_LISTED = 70  # the skill is on the CV
 SKILL_USE_BONUS = 10  # per experience or project that uses it
-SIMILAR_STRONG, SIMILAR_WEAK = 0.85, 0.80  # embedding similarity to a related skill
-PARTIAL_STRONG, PARTIAL_WEAK = 50, 30
+# A missing skill whose `related` group in data/skills.yaml has a skill on the CV (D27); no embedding similarity
+RELATED_SCORE = 50
 # Certificates that say nothing about job skills
 _LANGUAGE_CERTS = {"TOEIC", "OPIc"}
 # Education: only majors the criterion names count as related; 이공계/STEM criteria use this list
@@ -43,6 +46,13 @@ _STEM_MAJOR = (
 _STEM_WORDS = ("이공계", "이공", "stem")
 # Education criteria saved before a major was required ("관련 전공"): same score for everyone
 EDUCATION_NEUTRAL_SCORE = 50
+# AI_MODE=rules (D27): project entries of the CV text; same neutral score when a free-text criterion cannot be judged
+PROJECT_LISTED, PROJECT_RELEVANT, PROJECT_RELEVANT_MANY = 25, 50, 75
+RULES_NEUTRAL_SCORE = 50
+RULES_NEUTRAL_REASON = "규칙 기반으로 평가 불가"
+# Skill criteria naming no skill of the dictionary (D28): found on the CV → at least this; not found → 0
+UNLISTED_SKILL_FOUND = 50
+UNLISTED_SKILL_MISSING = "이력서에서 확인되지 않음"
 _MAJOR_SUFFIXES = ("공학", "학과", "학부", "전공", "학")
 _NOT_MAJORS = {"관련", "유관", "해당", "동등", "전공", "학과", "학부", "대학", "입학", "재학", "휴학", "이공계", "이공"}
 
@@ -75,12 +85,12 @@ def _result(
 # ── skill ──
 
 
-def _entries(text: str) -> list[list[str]]:
-    """Entries of the 경력 and 프로젝트 sections of the CV text: a line with a period
+def _entries(text: str, keys: tuple[str, ...] = ("experience", "project")) -> list[list[str]]:
+    """Entries of the 경력 and 프로젝트 sections of the CV text (or of `keys`): a line with a period
     (YYYY.MM ~ …) starts a new entry; a section without periods is one entry."""
     entries = []
     for s in split_sections(text):
-        if s.key not in ("experience", "project"):
+        if s.key not in keys:
             continue
         cur: list[str] = []
         for line in (raw.strip() for raw in s.text.splitlines()):
@@ -103,8 +113,8 @@ def _uses(skill: str, candidate: Candidate, ctx: ScoringContext) -> list[str]:
 def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
     wanted = ctx.skills.find_in_text(f"{c.name}\n{c.description}")
     if not wanted:
-        # No known technology named: judge it like a free-text criterion
-        return score_retrieval(c, candidate, ctx)
+        # No known technology named (e.g. Excel, Photoshop): look for it in the CV text (D28)
+        return score_unlisted_skill(c, candidate, ctx)
     # Skills the CV text mentions; the seeker-edited `profile.skills` is not trusted
     have = set(ctx.skills.find_in_text(candidate.text))
     scores, reasons, evidence = [], [], []
@@ -116,25 +126,17 @@ def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Crit
             reasons.append(f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""))
             evidence.extend(lines[:2])
             continue
-        related = _most_similar(skill, sorted(have), ctx.embedder)
-        if related and related[1] >= SIMILAR_WEAK:
-            name, sim = related
-            scores.append(PARTIAL_STRONG if sim >= SIMILAR_STRONG else PARTIAL_WEAK)
-            reasons.append(f"{skill} 직접 경험은 없으나 유사 기술 {name} 보유")
+        related = [r for r in ctx.skills.related_to(skill) if r in have]
+        if related:
+            name = related[0]
+            scores.append(RELATED_SCORE)
+            reasons.append(f"{skill} 직접 경험은 없으나 같은 계열 기술 {name} 보유")
             evidence.extend(ctx.skills.lines_mentioning(name, candidate.text)[:1])
         else:
             scores.append(0)
             reasons.append(f"{skill} 경험 확인 안 됨")
     evidence = list(dict.fromkeys(evidence))
     return _result(c, sum(scores) / len(scores), "; ".join(reasons), evidence, "rule:skill")
-
-
-def _most_similar(skill: str, have: list[str], embedder: Embedder) -> tuple[str, float] | None:
-    if not have:
-        return None
-    vecs = embedder.embed([skill, *have])
-    sims = [(name, cosine(vecs[0], v)) for name, v in zip(have, vecs[1:], strict=True)]
-    return max(sims, key=lambda x: x[1])
 
 
 # ── experience ──
@@ -324,6 +326,72 @@ def score_retrieval(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> 
     return _result(c, score, f"관련 내용 확인 (키워드·유사도 기반 추정): {lines[0][:60]}", lines, "retrieval")
 
 
+def _retrieval_or_neutral(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
+    """Retrieval for vague `other` criteria; in AI_MODE=rules one it cannot judge gets the same neutral score for
+    everyone (D28)."""
+    result = score_retrieval(c, candidate, ctx)
+    if result.score == 0 and ctx.llm is None:
+        return _result(c, RULES_NEUTRAL_SCORE, RULES_NEUTRAL_REASON, [], "rule:neutral", evidence_required=False)
+    return result
+
+
+def _term_lines(term: str, text: str) -> list[str]:
+    """CV lines containing `term`; a term starting or ending with a Latin letter or digit must sit on a word
+    boundary ("Excel" does not match "Excellent")."""
+    pattern = re.compile(
+        (r"(?<![0-9a-z])" if re.match(r"[0-9a-z]", term) else "")
+        + re.escape(term)
+        + (r"(?![0-9a-z])" if re.search(r"[0-9a-z]$", term) else ""),
+        re.IGNORECASE,
+    )
+    return [line.strip() for line in text.splitlines() if line.strip() and pattern.search(line)]
+
+
+def score_unlisted_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
+    """Skill criterion naming no skill of data/skills.yaml (D28), in both AI modes.
+
+    The name's keywords (and the description's) are looked up in the CV text. None found → 0. Found → the retrieval
+    score, at least UNLISTED_SKILL_FOUND when a keyword of the name itself is on a CV line (that line is evidence).
+    Never the neutral score: that is only for vague `other` criteria.
+    """
+    name_terms = keywords(c.name)
+    terms = list(dict.fromkeys([*name_terms, *keywords(c.description)]))
+    if not any(_term_lines(t, candidate.text) for t in terms):
+        return _result(c, 0, UNLISTED_SKILL_MISSING, [], "retrieval")
+    result = score_retrieval(c, candidate, ctx)
+    name_lines = [line for t in name_terms for line in _term_lines(t, candidate.text)]
+    if not name_lines or result.score >= UNLISTED_SKILL_FOUND:
+        return result
+    evidence = list(dict.fromkeys([*name_lines[:2], *result.evidence]))
+    return _result(c, UNLISTED_SKILL_FOUND, f"이력서에서 '{c.name}' 관련 내용 확인: {name_lines[0][:60]}", evidence, "retrieval")
+
+
+def score_project_rules(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
+    """Project criterion without an LLM (D27), from the entries of the 프로젝트 section of the CV text.
+
+    An entry is relevant when it mentions a skill the criterion or the job (title, JD) names, or a keyword of the
+    criterion. Any entry: PROJECT_LISTED; one relevant entry: PROJECT_RELEVANT; two or more: PROJECT_RELEVANT_MANY.
+    """
+    entries = _entries(candidate.text, ("project",))
+    if not entries:
+        return _result(c, 0, "이력서에서 '프로젝트' 항목을 찾지 못함", [], "rule:project")
+    named = ctx.skills.find_in_text(f"{c.name}\n{c.description}\n{ctx.job.title}\n{ctx.job.description}")
+    terms = [w for w in keywords(f"{c.name} {c.description}") if w != "프로젝트"]
+
+    def relevant(entry: list[str]) -> bool:
+        body = "\n".join(entry)
+        low = body.lower()
+        return any(ctx.skills.lines_mentioning(s, body) for s in named) or any(t in low for t in terms)
+
+    hits = [e for e in entries if relevant(e)]
+    if not hits:
+        reason = f"프로젝트 {len(entries)}건 확인 (직무 관련 기술·키워드는 확인 안 됨)"
+        return _result(c, PROJECT_LISTED, reason, [e[0] for e in entries[:2]], "rule:project")
+    score = PROJECT_RELEVANT_MANY if len(hits) >= 2 else PROJECT_RELEVANT
+    reason = f"직무 관련 프로젝트 {len(hits)}건 확인 (전체 {len(entries)}건)"
+    return _result(c, score, reason, [e[0] for e in hits[:3]], "rule:project")
+
+
 def score_one(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
     match c.category:
         case "skill":
@@ -334,5 +402,7 @@ def score_one(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Criter
             return score_certificate(c, candidate, ctx)
         case "education":
             return score_education(c, candidate, ctx)
+        case "project":
+            return score_llm(c, candidate, ctx) if ctx.llm is not None else score_project_rules(c, candidate, ctx)
         case _:
-            return score_llm(c, candidate, ctx) if ctx.llm is not None else score_retrieval(c, candidate, ctx)
+            return score_llm(c, candidate, ctx) if ctx.llm is not None else _retrieval_or_neutral(c, candidate, ctx)

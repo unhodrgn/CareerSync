@@ -2,11 +2,13 @@ from datetime import date
 
 import pytest
 
+from ai.embedding.skills import parse_dictionary
 from ai.guardrails.evidence import quote_in_text, verify_quotes
 from ai.parsing.extract import structure_cv
 from ai.parsing.pii import mask_pii
 from ai.parsing.profile import Certificate, CvProfile, Education, Experience
 from ai.scoring.fit import RankItem, aggregate_fit, rank, score_candidate, summary_comment
+from ai.scoring.retrieval import keywords
 from ai.scoring.scorers import education_target, required_years, wanted_majors
 from ai.scoring.types import Candidate, Criterion, JobContext
 from ai.tests.helpers import EMBEDDER, SAMPLE_CV, SKILLS, FakeLLM
@@ -42,7 +44,8 @@ def test_rule_scores_on_the_sample_cv():
     assert r[2].score == 90  # listed + used in 2 experiences
     assert r[3].score == 100 and "5년 8개월" in r[3].reason
     assert r[5].score == 100 and "정보처리기사" in r[5].reason
-    assert r[4].method == "retrieval" and r[4].score > 0
+    # Rules mode scores project criteria from the 프로젝트 entries (D27): 1 entry mentions 추천/API/설계
+    assert (r[4].method, r[4].score) == ("rule:project", 50)
 
 
 def test_every_nonzero_score_has_evidence_from_the_masked_cv():
@@ -267,6 +270,46 @@ def test_skill_uses_are_counted_from_the_cv_text():
     assert all(quote_in_text(q, candidate().text) for q in r.evidence)
 
 
+
+# ── Related skills (D27): groups in data/skills.yaml, never embedding similarity ──
+
+
+class SameVectorEmbedder:
+    """Every text gets the same vector (cosine 1.0): stands in for an embedder whose similarities are all high."""
+
+    name = "same-vector"
+
+    def embed(self, texts, kind="passage"):
+        return [[1.0, 0.0] for _ in texts]
+
+
+def test_a_missing_skill_of_a_related_group_gets_partial_credit():
+    # The sample CV has MySQL (관계형 DB) and AWS (클라우드)
+    r = run([Criterion(1, "PostgreSQL 활용", "", "skill", 50), Criterion(2, "GCP 운영", "", "skill", 50)])
+    assert (r[0].score, r[0].reason) == (50, "PostgreSQL 직접 경험은 없으나 같은 계열 기술 MySQL 보유")
+    assert r[1].score == 50 and "같은 계열 기술 AWS" in r[1].reason
+    assert all(r[0].evidence) and "MySQL" in r[0].evidence[0]
+
+
+@pytest.mark.parametrize("skill", ["Figma", "Unity", "Rust", "Flutter", "Terraform"])
+def test_unrelated_missing_skills_score_zero_whatever_the_embedder(skill):
+    c = [Criterion(1, f"{skill} 활용", "", "skill", 100)]
+    cand = candidate()
+    for embedder in (EMBEDDER, SameVectorEmbedder()):
+        r = score_candidate(c, cand, JOB, skills=SKILLS, embedder=embedder, llm=None, today=TODAY)[0]
+        assert (r.score, r.reason) == (0, f"{skill} 경험 확인 안 됨"), embedder.name
+
+
+def test_related_groups_are_symmetric_and_validated():
+    assert "PostgreSQL" in SKILLS.related_to("MySQL") and "MySQL" in SKILLS.related_to("PostgreSQL")
+    assert SKILLS.related_to("Figma") == ()
+    assert "Next.js" in SKILLS.related_to("React") and "Vue.js" in SKILLS.related_to("React")
+    with pytest.raises(ValueError):
+        parse_dictionary({"skills": {"Java": ["java"]}, "related": {"x": ["Java", "Cobol"]}})
+    with pytest.raises(ValueError):
+        parse_dictionary({"skills": {"Java": ["java"]}, "related": {"x": ["Java"]}})
+
+
 def test_edited_experience_dates_do_not_change_the_months():
     exp = Criterion(1, "경력 10년 이상", "", "experience", 100)
     original = run([exp])[0]
@@ -306,3 +349,101 @@ def test_an_edited_major_does_not_match():
         r = run([business], cand=_edited(education=[e]))[0]
         assert r.score == 0 and r.evidence == ()
     assert run([business])[0].score == 30  # the original 컴퓨터공학과, a different major
+
+
+# ── Rules mode: project entries, neutral score, keywords (D27) ──
+
+DEFAULT_PROJECT = Criterion(1, "프로젝트 경험", "직무와 관련된 프로젝트 경험과 본인의 역할", "project", 100)  # suggest_criteria()
+TWO_PROJECTS = SAMPLE_CV.replace(
+    "학력", "사내 배치 플랫폼 2023.01 ~ 2023.06\n- FastAPI로 배치 API 개발\n\n학력", 1
+)
+
+
+def _job(description: str) -> JobContext:
+    return JobContext(title="백엔드 개발자", description=description, company_name="Acme")
+
+
+def _score(c, cand=None, job=JOB, llm=None):
+    return score_candidate([c], cand or candidate(), job, skills=SKILLS, embedder=EMBEDDER, llm=llm, today=TODAY)[0]
+
+
+def test_keywords_drop_sentence_periods_and_generic_words():
+    assert keywords("프로젝트 경험. 직무와 관련된 프로젝트 경험과 본인의 역할") == ["프로젝트"]
+    assert keywords("Node.js 경험.") == ["node.js"]
+
+
+def test_default_project_criterion_uses_the_jobs_skills():
+    # The sample CV's project uses Python, FastAPI, Docker, AWS
+    related = _score(DEFAULT_PROJECT, job=_job("Python, FastAPI 기반 API 개발"))
+    assert (related.score, related.method) == (50, "rule:project")
+    assert related.evidence == ("쇼핑몰 추천 시스템 2022.05 ~ 2022.09",)
+    unrelated = _score(DEFAULT_PROJECT, job=_job("Rust 기반 임베디드 개발"))
+    assert unrelated.score == 25 and "직무 관련 기술·키워드는 확인 안 됨" in unrelated.reason
+    two = _score(DEFAULT_PROJECT, cand=candidate(TWO_PROJECTS), job=_job("FastAPI 개발"))
+    assert two.score == 75 and len(two.evidence) == 2
+
+
+def test_project_criterion_keywords_count_too():
+    c = Criterion(1, "추천 시스템 프로젝트", "추천 알고리즘 설계 경험", "project", 100)
+    assert _score(c, job=_job("")).score == 50
+
+
+def test_no_project_section_scores_zero():
+    no_projects = SAMPLE_CV.split("프로젝트")[0] + "학력\n한국대학교 컴퓨터공학과 학사 2015.03 ~ 2021.02\n"
+    r = _score(DEFAULT_PROJECT, cand=candidate(no_projects), job=_job("Python"))
+    assert (r.score, r.method) == (0, "rule:project") and "'프로젝트' 항목" in r.reason
+
+
+def test_vague_other_criteria_get_a_neutral_score_in_rules_mode():
+    r = _score(Criterion(1, "협업 능력", "팀 단위로 동료와 협업한 경험", "other", 100))
+    assert (r.score, r.reason, r.evidence, r.method) == (50, "규칙 기반으로 평가 불가", (), "rule:neutral")
+
+
+# Skill criteria naming no skill of data/skills.yaml (D28): looked up by name, never neutral
+PHOTOSHOP_CV = SAMPLE_CV.replace("학력", "디자인 도구\nPhotoshop으로 서비스 배너 제작\n\n학력", 1)
+
+
+@pytest.mark.parametrize("name", ["Photoshop 활용", "커뮤니케이션"])
+def test_unlisted_skill_missing_from_the_cv_scores_zero(name):
+    for llm in (None, FakeLLM()):  # skill scoring is the same in both modes
+        r = _score(Criterion(1, name, "", "skill", 100), llm=llm)
+        assert (r.score, r.reason, r.evidence) == (0, "이력서에서 확인되지 않음", ()), name
+
+
+def test_unlisted_skill_found_by_name_scores_at_least_50():
+    c = Criterion(1, "Photoshop 활용", "", "skill", 100)
+    r = _score(c, cand=candidate(PHOTOSHOP_CV))
+    assert r.score >= 50 and r.evidence[0] == "Photoshop으로 서비스 배너 제작"
+    assert r.score > _score(c).score
+
+
+def test_unlisted_skill_name_matches_whole_words_only():
+    excellent = SAMPLE_CV.replace("학력", "수상\nExcellent 개발자상 수상\n\n학력", 1)
+    assert _score(Criterion(1, "Excel 활용", "", "skill", 100), cand=candidate(excellent)).score == 0
+
+
+def test_contact_and_heading_chunks_are_not_retrieval_candidates():
+    from ai.scoring.retrieval import cv_chunks, has_content
+
+    cand = candidate()
+    assert "[이메일]" in cand.text
+    assert all("[이메일]" not in ch.text and "[전화번호]" not in ch.text for ch in cv_chunks(cand.text))
+    assert not has_content("[이름]\n연락처: [전화번호] / [이메일]")
+    assert not has_content("이메일: [이메일]  GitHub: [링크]")
+    assert not has_content("경력\n프로젝트")
+    assert has_content("[이름] 백엔드 개발자")
+
+
+def test_judgeable_free_text_criteria_keep_the_retrieval_score():
+    r = _score(Criterion(1, "추천 시스템", "추천 API 설계 경험", "other", 100))
+    assert r.method == "retrieval" and r.score > 0 and r.evidence
+
+
+def test_llm_mode_is_unchanged_on_llm_failure():
+    from ai.llm.client import LLMError
+
+    other = Criterion(1, "협업 능력", "팀 단위로 동료와 협업한 경험", "other", 100)
+    r = _score(other, llm=FakeLLM(LLMError("down")))
+    assert (r.score, r.method) == (0, "retrieval")  # no neutral score when an LLM is configured
+    project = _score(DEFAULT_PROJECT, job=_job("Python"), llm=FakeLLM(LLMError("down")))
+    assert project.method == "retrieval"

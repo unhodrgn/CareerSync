@@ -1,6 +1,9 @@
 # Canonical IT skills and certificates with aliases (Korean and English).
 # Matching is case-insensitive on word boundaries. Keep names short: they appear in reasons.
-version: "2026-10-01"
+# `related`: groups of closely related skills (docs/DECISIONS.md D27). A skill the CV lacks earns partial
+# credit only when the CV has another skill of one of its groups; embedding similarity is not used for this.
+# Members must be canonical names from `skills`. Changing the groups changes new scores: bump `version`.
+version: "2026-10-14"
 skills:
   Java: [java, 자바]
   Kotlin: [kotlin, 코틀린]
@@ -68,6 +71,22 @@ skills:
   Figma: [figma, 피그마]
   Unity: [unity, 유니티]
   JUnit: [junit, 테스트 코드, tdd]
+
+related:
+  관계형 DB: [MySQL, PostgreSQL, Oracle]
+  JVM 언어: [Java, Kotlin]
+  JavaScript/TypeScript: [JavaScript, TypeScript]
+  C/C++: [C, C++]
+  클라우드: [AWS, GCP, Azure]
+  메시지 큐: [Kafka, RabbitMQ]
+  Java ORM·SQL 매퍼: [JPA, MyBatis]
+  Python 웹 프레임워크: [Django, Flask, FastAPI]
+  Node.js 서버: [Node.js, Express, NestJS]
+  프론트엔드 프레임워크: [React, Vue.js, Angular]
+  React 계열: [React, Next.js]
+  컨테이너: [Docker, Kubernetes]
+  딥러닝 프레임워크: [TensorFlow, PyTorch]
+  머신러닝·딥러닝: [Machine Learning, Deep Learning]
 
 certificates:
   정보처리기사: [정보처리기사, 정보 처리 기사]

@@ -5,7 +5,8 @@ Install and start Docker Desktop (Linux containers). From the repository root:
 ```powershell
 # Create .env only if it does not exist:
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
-# For a fast no-key demo, set EMBEDDING_MODEL=hashing-ngram-v1 in .env.
+# The demo embedding is intfloat/multilingual-e5-base (default; ~1 GB on the first run).
+# For a quick try without the download, set EMBEDDING_MODEL=hashing-ngram-v1 in .env.
 docker compose up --build -d
 docker compose ps -a
 ```
@@ -36,7 +37,8 @@ Optional .env variables: COMPOSE_DB_PORT (5434), COMPOSE_BACKEND_PORT (8000),
 COMPOSE_FRONTEND_PORT (3000). Access the corresponding port if changed.
 AI_MODE defaults to rules. AI_MODE=llm needs LLM_API_KEY, otherwise the backend
 does not start; in rules mode the key is ignored.
-The model cache persists if you choose the e5 embedder.
+EMBEDDING_MODEL defaults to intfloat/multilingual-e5-base (docs/DECISIONS.md D26); the
+model is downloaded once into the model-cache volume and kept across restarts.
 
 ```powershell
 docker compose logs --tail=100 init backend frontend

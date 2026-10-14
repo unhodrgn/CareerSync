@@ -44,7 +44,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 | Step | Approach |
 | --- | --- |
 | CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (default `AI_MODE=rules`); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
-| Skill, experience, education, certificate criteria | Rule-based scoring, skill matching with multilingual embeddings (`intfloat/multilingual-e5-base`) |
+| Skill, experience, education, certificate criteria | Rule-based scoring; skills matched with a dictionary and declared groups of related skills (`data/skills.yaml`); `intfloat/multilingual-e5-base` embeddings for retrieval |
 | Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; in `AI_MODE=rules`, keyword retrieval is used instead |
 | Fit score | Weighted sum of stored per-criterion scores, recomputed from the current weights |
 | Criteria guardrail | `data/blocklist.yaml`: 채용절차법 제4조의3 items plus gender, age, religion, disability, each tagged with its law |
@@ -71,7 +71,7 @@ Browser ──► Vite dev server :3000 ──(/api proxy)──► FastAPI :800
 
 ## 🐳 Run with Docker Compose
 
-With Docker Desktop running, create `.env` from `.env.example` if needed, set `EMBEDDING_MODEL=hashing-ngram-v1` for a fast demo, then run `docker compose up --build -d`. Open http://localhost:3000. See [the full guide](docs/docker-compose.md) for ports, logs and stopping the app. This uses a separate database from the manual setup below.
+With Docker Desktop running, create `.env` from `.env.example` if needed, then run `docker compose up --build -d`. The demo embedding `intfloat/multilingual-e5-base` is the default and downloads about 1 GB on the first run (kept in the `model-cache` volume); set `EMBEDDING_MODEL=hashing-ngram-v1` only for a quick try. Open http://localhost:3000. See [the full guide](docs/docker-compose.md) for ports, logs and stopping the app. This uses a separate database from the manual setup below.
 
 ## ⚙️ Run It Locally
 
@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `491 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 198 backend tests.
+Expected: `523 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `515 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 198 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 

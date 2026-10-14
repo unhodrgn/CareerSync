@@ -278,11 +278,42 @@ def structure_cv(masked_text: str, skills: SkillDictionary, llm: LLMClient | Non
 _YEARS = re.compile(r"(?<!\d)(\d{1,2})\s*(?:[~\-–]\s*\d{1,2}\s*)?\+?\s*(?:년|years?)", re.IGNORECASE)
 
 
+# JD section headings (a whole line, bullets/brackets/colons ignored), for analyze_jd_rules (D27)
+_JD_HEADINGS = {
+    "required": ("자격 요건", "자격요건", "필수 요건", "필수요건", "필수 자격", "필수 사항", "필수사항", "지원 자격", "지원자격",
+                 "필수", "requirements", "qualifications", "required qualifications"),
+    "preferred": ("우대 사항", "우대사항", "우대 조건", "우대조건", "우대", "preferred", "preferred qualifications", "nice to have"),
+    "other": ("주요 업무", "주요업무", "담당 업무", "담당업무", "업무 내용", "업무내용", "근무 조건", "근무조건", "복리후생", "혜택",
+              "전형 절차", "채용 절차", "회사 소개", "팀 소개", "responsibilities", "benefits"),
+}
+_JD_HEADING_LOOKUP = {h: key for key, words in _JD_HEADINGS.items() for h in words}
+_JD_HEADING_STRIP = re.compile(r"^[\s#*■□●○◆◇▶▷•\-\[\]【】<>()]+|[\s:：\[\]【】<>()]+$")
+
+
+def jd_sections(text: str) -> dict[str, str]:
+    """Text under the 자격 요건/필수 ("required") and 우대 ("preferred") headings of a JD; missing headings are absent."""
+    out: dict[str, list[str]] = {}
+    key = None
+    for line in text.splitlines():
+        heading = _JD_HEADING_LOOKUP.get(_JD_HEADING_STRIP.sub("", line).strip().lower())
+        if heading is not None:
+            key = heading
+            out.setdefault(key, [])
+        elif key is not None:
+            out[key].append(line)
+    return {k: "\n".join(v) for k, v in out.items() if k != "other"}
+
+
 def analyze_jd_rules(title: str, text: str, min_years: int | None, skills: SkillDictionary) -> JdAnalysis:
-    preferred_part = ""
-    m = re.search(r"(우대\s*사항|우대|preferred)", text, re.IGNORECASE)
-    required_part, preferred_part = (text[: m.start()], text[m.start():]) if m else (text, "")
-    required = skills.find_in_text(f"{title}\n{required_part}")
+    sections = jd_sections(text)
+    if "required" in sections:
+        # Headed JD (D27): required skills only from 자격 요건/필수, preferred from 우대 — not from 주요 업무 or the intro
+        required_part, preferred_part = sections["required"], sections.get("preferred", "")
+        required = skills.find_in_text(required_part)
+    else:
+        m = re.search(r"(우대\s*사항|우대|preferred)", text, re.IGNORECASE)
+        required_part, preferred_part = (text[: m.start()], text[m.start():]) if m else (text, "")
+        required = skills.find_in_text(f"{title}\n{required_part}")
     preferred = [s for s in skills.find_in_text(preferred_part) if s not in required]
     if min_years is None and (y := _YEARS.search(required_part)):
         min_years = int(y.group(1))

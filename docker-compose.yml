@@ -15,7 +15,8 @@ x-backend: &backend
     AI_MODE: ${AI_MODE:-rules}
     LLM_API_KEY: ${LLM_API_KEY:-}
     LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
-    EMBEDDING_MODEL: ${EMBEDDING_MODEL:-hashing-ngram-v1}
+    # docs/DECISIONS.md D26: the demo uses e5 (about 1 GB, downloaded once into the model-cache volume)
+    EMBEDDING_MODEL: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-base}
   volumes:
     - model-cache:/root/.cache/huggingface
 
