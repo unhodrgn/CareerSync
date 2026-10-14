@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `404 passed, 12 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 158 backend tests.
+Expected: `418 passed, 13 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 173 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -371,7 +371,9 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET / PUT | `/api/companies/me` | Own company profile |
-| GET | `/api/companies/{company_id}` | Public company profile |
+| GET | `/api/companies/{company_id}` | Public company profile with its running projects |
+| GET / POST | `/api/companies/me/projects` | Company: list / add running projects |
+| PUT / DELETE | `/api/companies/me/projects/{project_id}` | Company: replace / delete a running project |
 
 ### Jobs
 
@@ -407,7 +409,7 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | --- | --- | --- |
 | POST | `/api/jobs/{job_id}/applications` | Apply with the confirmed CV; scoring starts in the background |
 | GET | `/api/applications/mine` | Seeker's own applications |
-| GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit (recruiter only) |
+| GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit (recruiter only); filters `status`, `min_fit`, `evaluation_status` |
 | GET | `/api/applications/{application_id}/evaluation` | Per-criterion score, evidence, comment |
 | POST | `/api/applications/{application_id}/evaluation/retry` | Retry a failed evaluation |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes the status |

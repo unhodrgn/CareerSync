@@ -37,7 +37,7 @@
 |---|---|---|
 | Register / log in with privacy + AI-analysis consent; re-consent and AI-consent withdrawal | [Current] | D17 |
 | Company profile (name, intro, 인재상) | [Current] | |
-| Company running projects | [DB only] | Use in scoring `TBD` (Q3) |
+| Company running projects | [Current] | `/api/companies/me/projects`, shown on the public company profile; context for AI JD drafts; never used in scoring (D23) |
 | Jobs: draft → published → closed | [Current] | |
 | AI suggests criteria from the JD (`/analyze`) | [Current] | Backend only; the frontend does not call it |
 | Criteria + weights with a legal guardrail | [Current] | |
@@ -148,7 +148,7 @@ Child tables of `cv_profiles` (all `cv_profile_id` FK → cv_profiles, CASCADE, 
 **`criterion_scores`** — `evaluation_id` FK (CASCADE) · `job_criteria_id` FK (CASCADE) · `score` 0–100 · `level` · `reason` · `evidence` JSON (quotes) · `method` (`rule:skill`, `llm:<model>`, `retrieval`, …). Unique (`evaluation_id`, `job_criteria_id`). Weights are **not** stored.
 
 ### 3.5 Matching groundwork
-Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` is used by talent offers (D20); `company_projects*` have no API or logic yet [DB only].
+Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` is used by talent offers (D20); `company_projects*` are used by `/api/companies/me/projects` (D23).
 
 | Table | Columns | Purpose |
 |---|---|---|
@@ -212,7 +212,9 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/users/me/consent` | Consent (again) to the current text: body `version` (must equal `CONSENT_VERSION`), `consent_privacy`, `consent_ai` (both true). Sets `consent_privacy_at`, `consent_ai_at`, `consent_version`; no history | Logged in | 409 `CONSENT_VERSION_OUTDATED` (+ `current_version`); 422 | `consent_service.consent` | — |
 | DELETE | `/api/users/me/consent/ai` | Withdraw AI consent: `consent_ai_at = null` (keeps `consent_version`), `profile_public` off. Stored CVs, evaluations and applications stay; a run already queued finishes | Seeker | 403 `SEEKER_ONLY` | `consent_service.withdraw_ai` | — |
 | GET / PUT | `/api/companies/me` | Own company profile | Company | 422 | route | — |
-| GET | `/api/companies/{company_id}` | Public company profile | Logged in | 404 `COMPANY_NOT_FOUND` | route | — |
+| GET | `/api/companies/{company_id}` | Public company profile, with its running `projects` (oldest first) | Logged in | 404 `COMPANY_NOT_FOUND` | route | — |
+| GET | `/api/companies/me/projects` | Own running projects (oldest first): `id`, `name`, `description`, `techs`, `created_at`, `updated_at` | Company | — | `company_project_service` | — |
+| POST / PUT / DELETE | `/api/companies/me/projects`, `/api/companies/me/projects/{project_id}` | Create (201) / replace / delete (204) a running project: `name` 1–200 (whitespace collapsed), `description` ≤ 2000, `techs` ≤ 20 items of 1–100 characters (normalized with `data/skills.yaml`, duplicates merged ignoring case). Not used in scoring (D23) | Company | 404 `PROJECT_NOT_FOUND` (another company's); 409 `PROJECT_LIMIT` (over `MAX_PROJECTS`); 422 | `company_project_service` | normalize |
 | POST | `/api/jobs` | Create draft | Company | 422 `DEADLINE_IN_PAST` | `job_service.create` | — |
 | GET | `/api/jobs` | Published, unexpired jobs (`q`, `limit`, `offset`) | Anyone (token optional) | — | `job_service.list_public` | — |
 | GET | `/api/jobs/mine` | Own jobs, all statuses | Company | — | `job_service.list_mine` | — |
@@ -231,7 +233,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET / PUT | `/api/cv/{profile_id}` | Read a version / save edits as a new version (`confirm`) | Seeker (own) | 404 | `cv_service.get_own`, `update` | normalize |
 | POST | `/api/jobs/{job_id}/applications` | Apply with the newest confirmed CV; scoring runs in background | Seeker | 409 `JOB_EXPIRED`, `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`, `ALREADY_APPLIED` | `application_service.apply` | **scoring** |
 | GET | `/api/applications/mine` | Own applications | Logged in. Filters by `seeker_id = current user`, no role check — a company account gets `200 []` (companies cannot apply) | — | `application_service.list_mine` | — |
-| GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit | Company | 404 | `application_service.ranked` | Fit |
+| GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit. Optional quick filters (D22): `status` (repeatable), `min_fit` (0–100; leaves out applicants without a Fit), `evaluation_status`; applied after ranking, so ranks stay those of the full list. `total_count` = applicants before filtering | Company | 404; 422 (bad filter value) | `application_service.ranked` | Fit |
 | GET | `/api/applications/{application_id}/evaluation` | Per-criterion score, reason, evidence | Company | 404 `APPLICATION_NOT_FOUND` | `application_service.evaluation` | — |
 | POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running), `AI_CONSENT_WITHDRAWN` (the applicant withdrew AI consent) | `application_service.retry` | **scoring** |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes status | Company | 404, 422 | `application_service.set_status` | — |
@@ -254,7 +256,6 @@ Paths are working names (design doc 상세 §3.1); field-level request/response 
 
 | Purpose | Path (working) | Who | Tables | Blocked by |
 |---|---|---|---|---|
-| Company projects CRUD | `GET` · `POST` · `PUT` · `DELETE /api/companies/me/projects` | Company | `company_projects`, `company_project_techs` | [Q3](#12-open-questions) |
 | Delete CV / account | — | — | — | [Q5](#12-open-questions) |
 
 Response sketches (field names not final). `pending_count` = candidates that passed the Pref filter (talent: the candidate filter) but whose evaluation is not `done` yet — queued in this call, still `pending`, `failed` and waiting for re-queue, or left for a later call by the per-call/daily caps. They are not in `items`.
@@ -287,7 +288,7 @@ Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`.
 | `/company/talent` | `company/Talent` (인재 추천) | company | — | Coming soon |
 | `/company/profile` | `company/CompanyProfile` | company | `myCompany`, `updateCompany` | Real |
 
-Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`.
+Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
 
 ---
 
@@ -458,6 +459,8 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |
 
+Service constant: `company_project_service.MAX_PROJECTS` = `20` running projects per company (D23).
+
 **Databases.** Manual: `postgres:16` container on host port 5433. Compose: service `db` on host port 5434 with its own volume (separate data). Migrate: `cd backend && alembic upgrade head`. Demo data: `python scripts/seed.py` (accounts and password in the README).
 
 **Runtime.** Python 3.11+ (Docker image 3.12, CPU torch); Node 20.19+ or 22.12+; dependencies in `backend/requirements.txt` and `frontend/package.json`. Secrets: `.env` is git-ignored; no real secret is committed.
@@ -527,7 +530,6 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | # | Question | Blocks |
 |---|---|---|
 | Q1 | Pref beyond normalization and containment: synonyms for locations and role keywords (e.g. "강남" vs "서울 강남구", "백엔드" vs "Backend")? Should a role mismatch alone exclude a job? (Formula: docs/DECISIONS.md D2; field rules: D15) | Recommendation quality |
-| Q3 | How do company projects affect evaluation: only context for suggesting criteria, or also part of the scoring prompt? One job ↔ one or many projects? (The 과제계획서 promises they are "reflected in the criteria".) | Projects API, scoring |
 | Q5 | Deleting a CV attached to an application: block (409), withdraw the application, or keep the application without CV text? Deleting a company account? | Delete APIs, FK `RESTRICT` |
 | Q6 | Issue 15: allow applying with an older confirmed CV version? | Apply, recommendation |
 | Q7 | Blocklist legal references: re-check their legal validity before the demo | Demo |

@@ -56,6 +56,8 @@ class ApplicantList(BaseModel):
     job_title: str
     criteria: list[CriterionBrief]
     excluded_criteria: list[ExcludedBrief]
+    # Applicants before the quick filters; `items` holds the filtered ones (ranks are over all applicants)
+    total_count: int
     items: list[ApplicantRow]
     notice: str = AI_NOTICE
 

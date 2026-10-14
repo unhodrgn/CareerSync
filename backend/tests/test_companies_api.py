@@ -8,7 +8,8 @@ def test_owner_edits_profile(client, world):
 def test_public_profile(client, world):
     r = client.get(f"/api/companies/{world['acme'].id}", headers=world["seeker"])
     assert r.status_code == 200 and r.json()["name"] == "Acme"
-    assert set(r.json()) == {"id", "name", "intro", "talent_profile"}
+    assert set(r.json()) == {"id", "name", "intro", "talent_profile", "projects"}
+    assert r.json()["projects"] == []
     assert client.get("/api/companies/9999", headers=world["seeker"]).status_code == 404
 
 

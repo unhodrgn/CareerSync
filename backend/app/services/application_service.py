@@ -112,7 +112,16 @@ def get_owned(db: Session, user: User, application_id: int) -> Application:
     return app
 
 
-def ranked(db: Session, user: User, job_id: int) -> ApplicantList:
+def ranked(
+    db: Session,
+    user: User,
+    job_id: int,
+    statuses: list[str] | None = None,
+    min_fit: float | None = None,
+    evaluation_status: str | None = None,
+) -> ApplicantList:
+    """Applicants ranked by Fit. Quick filters (D22) apply after ranking, so a rank is the same with or
+    without them; `min_fit` leaves out applicants without a Fit (pending or failed evaluation)."""
     job = job_service.get_owned_job(db, job_id, user)
     loaded = criteria_service.load_for_scoring(db, job.id)
     weights = {c.id: c.effective_weight for c in loaded.items}
@@ -153,11 +162,19 @@ def ranked(db: Session, user: User, job_id: int) -> ApplicantList:
         ordered.append(rows[item.key])
     # Pending and failed evaluations after the ranked ones, oldest application first
     ordered += sorted((r for r in rows.values() if r.rank is None), key=lambda r: r.applied_at)
+    total = len(ordered)
+    if statuses:
+        ordered = [r for r in ordered if r.status in statuses]
+    if evaluation_status:
+        ordered = [r for r in ordered if r.evaluation_status == evaluation_status]
+    if min_fit is not None:
+        ordered = [r for r in ordered if r.fit is not None and r.fit >= min_fit]
     return ApplicantList(
         job_id=job.id,
         job_title=job.title,
         criteria=[CriterionBrief(id=c.id, name=c.name, category=c.category, weight=round(c.effective_weight, 1)) for c in loaded.items],
         excluded_criteria=[ExcludedBrief(id=x.id, name=x.name) for x in loaded.excluded],
+        total_count=total,
         items=ordered,
     )
 

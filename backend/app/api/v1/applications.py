@@ -3,10 +3,19 @@
 Applying queues the evaluation as a background task; the recruiter's list shows it as pending
 until it is done. Status changes are recruiter actions only.
 """
-from fastapi import APIRouter, BackgroundTasks, status
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Query, status
 
 from app.core.deps import CompanyUser, CurrentUser, DbSession
-from app.schemas.application import ApplicantList, ApplicationOut, EvaluationOut, StatusUpdate
+from app.schemas.application import (
+    ApplicantList,
+    ApplicationOut,
+    ApplicationStatusT,
+    EvaluationOut,
+    EvaluationStatusT,
+    StatusUpdate,
+)
 from app.services import application_service as svc
 from app.services import evaluation_service
 
@@ -34,10 +43,17 @@ def my_applications(db: DbSession, user: CurrentUser):
 @router.get(
     "/jobs/{job_id}/applications",
     response_model=ApplicantList,
-    summary="Applicants ranked by Fit (recruiter only; Fit uses the current weights)",
+    summary="Applicants ranked by Fit (recruiter only; Fit uses the current weights), with optional quick filters",
 )
-def list_applicants(job_id: int, db: DbSession, user: CompanyUser):
-    return svc.ranked(db, user, job_id)
+def list_applicants(
+    job_id: int,
+    db: DbSession,
+    user: CompanyUser,
+    status_: Annotated[list[ApplicationStatusT] | None, Query(alias="status", description="Repeatable")] = None,
+    min_fit: Annotated[float | None, Query(ge=0, le=100, description="Leaves out applicants without a Fit")] = None,
+    evaluation_status: Annotated[EvaluationStatusT | None, Query()] = None,
+):
+    return svc.ranked(db, user, job_id, status_, min_fit, evaluation_status)
 
 
 @router.get(

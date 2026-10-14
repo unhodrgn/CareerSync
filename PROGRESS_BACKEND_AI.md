@@ -11,7 +11,7 @@
 
 - **Luồng lõi “công ty tự định nghĩa tiêu chí → chấm ứng viên → xếp hạng”: ✅ chạy thật end-to-end** (CV PDF → che PII → cấu trúc hoá → seeker xác nhận → apply → chấm điểm nền → rank theo Fit + bằng chứng → recruiter đổi trạng thái).
 - **Nửa “gợi ý”**: ✅ API preferences + Pref (D15), ✅ gợi ý job `GET /api/recommendations/jobs` (D16). Chưa có code: gợi ý ứng viên (talent), offer.
-- **Thiếu hẳn**: roadmap kỹ năng, câu hỏi phỏng vấn, AI tự kiểm tra CV, AI viết JD (chỉ có phân tích JD có sẵn), filter nhanh ứng viên, CRUD project công ty.
+- **Thiếu hẳn**: AI tự kiểm tra CV, AI viết JD (chỉ có phân tích JD có sẵn). Đã xong sau bản rà soát này: roadmap kỹ năng, câu hỏi phỏng vấn (D21), filter nhanh ứng viên (D22), CRUD project công ty (D23).
 - **Switch rule/LLM**: ✅ cờ `AI_MODE` (`rules` mặc định / `llm`), key không tự bật LLM, không đọc `ANTHROPIC_API_KEY` (D12).
 - **Public (D4)**: ✅ `GET /api/jobs` và `GET /api/jobs/{id}` không cần login. Còn `/criteria` cho guest (Q19) và frontend cho guest (#26).
 - **Queue/retry (issue 2, 25)**: ✅ `claim()` (UPDATE có điều kiện) + fencing theo `queued_at`; retry 409 khi đang chạy.
@@ -139,8 +139,8 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET /api/jobs/{job_id}/talent`, `/
 | Nhận đơn | ✅ | `GET /api/jobs/{id}/applications` |
 | Set tiêu chí riêng | ✅ | `PUT /api/jobs/{id}/criteria` + check realtime + copy |
 | Dashboard ứng viên đã rank + điểm mạnh/yếu | ✅ | Rank theo Fit ↓, số tiêu chí ≥75 ↓, apply sớm (`fit.py:64-66`); chi tiết từng tiêu chí với lý do + bằng chứng + `summary` mạnh/yếu (`application_service.py:147-192`, `fit.py:69-81`); có `AI_NOTICE` |
-| Filter nhanh | ❌ | `ranked()` không nhận tham số filter (status, Fit tối thiểu, trạng thái đánh giá…) (`applications.py:46`); frontend `Applicants.tsx` cũng không có filter |
-| Project đang chạy của công ty | ❌ | Chỉ có bảng `company_projects`, `company_project_techs` (`models/matching.py:124-154`); không API; cách dùng trong scoring chưa quyết (Q3) |
+| Filter nhanh | ✅ backend | `status`, `min_fit`, `evaluation_status` trên `GET /api/jobs/{id}/applications`, lọc sau khi xếp hạng, `total_count` (D22). Frontend `Applicants.tsx` chưa có UI filter |
+| Project đang chạy của công ty | ✅ backend | CRUD `/api/companies/me/projects`, hiện trong `GET /api/companies/{id}`; không vào chấm điểm (D23). Chưa có trang frontend |
 | Đổi trạng thái đơn | ✅ | `set_status` (`application_service.py:195`); AI không bao giờ gọi (đúng quy tắc 5) |
 | Gợi ý ứng viên (talent) + offer | ❌ | Xem 3.1 |
 
@@ -281,11 +281,10 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
-| 8 | Filter nhanh ứng viên: query param `status`, `min_fit`, `evaluation_status` trên `GET /api/jobs/{id}/applications` | Nhỏ | Frontend: UI filter |
+| 8 | ~~Filter nhanh ứng viên~~ ✅ xong: `status`, `min_fit`, `evaluation_status`, `total_count` (D22); test `test_applications_api.py`. Còn: UI filter ở frontend | Nhỏ | — |
 | 11 | AI self-check CV (điểm mạnh / cần bổ sung), có fallback rule, quote phải verify (quy tắc 4) | Vừa | Q8; frontend |
 | 12 | AI hỗ trợ **viết** JD (sinh nháp từ tiêu đề/từ khoá) + chạy guardrail cho tiêu chí gợi ý (issue 7) | Vừa (guardrail riêng: Nhỏ) | Frontend chưa gọi `/analyze` |
-| 13 | CRUD project công ty `/api/companies/me/projects` | Nhỏ–Vừa | Q3 quyết cách dùng trong scoring (CRUD làm được trước). Frontend |
-| 14 | ~~Regex năm, `education` không hardcode ngành IT~~ ✅ xong. Còn: `experience` xét liên quan (Vừa) | Vừa | Làm thay đổi điểm của evaluation mới; không đổi công thức Fit |
+| 13 | ~~CRUD project công ty~~ ✅ xong: `/api/companies/me/projects`, `projects` trong hồ sơ công khai, không vào chấm điểm (D23); test `test_company_projects_api.py`. Còn: trang frontend | Nhỏ–Vừa | — |
 
 ### P2 — sau demo / đang bị chặn
 
@@ -305,6 +304,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | 28 | ~~Luồng đồng ý lại + rút lại đồng ý AI; upload CV kiểm tra consent~~ ✅ xong (D17; test `test_consent_api.py`). Còn: màn hình đồng ý lại ở frontend (đọc `consent_required`), nằm trong #27 | Nhỏ | — |
 | 29 | Frontend 이력서: nhắc seeker rằng sửa CV (kỹ năng, ngày, ngành…) **không đổi điểm** — điểm theo file PDF gốc; muốn đổi thì upload lại PDF đã sửa | Nhỏ | #15 xong; chạy `npm run build` |
 | 30 | Issue 29 (sau demo): `career_service` giữ khoá `users` trong lúc gọi LLM (~60 s) → giữ chỗ lượt trong transaction ngắn, nhả khoá rồi mới gọi LLM | Nhỏ–Vừa | Có thể cần cột trạng thái hoặc dòng tạm trong `career_contents` (migration) |
+| 14 | **Để sau demo** (Long chốt 2026-10-14). `experience` chỉ tính kinh nghiệm liên quan; câu hỏi mở 14a–d trong Q20 (DECISIONS). Rủi ro: entry chỉ có chức danh (vd “백엔드 개발자”) không nêu công nghệ bị coi là không liên quan. (Regex năm, `education` không hardcode ngành IT: ✅ xong trước đó) | Vừa | Q20; đổi điểm evaluation mới, không đổi công thức Fit |
 | 31 | ~~Issue 30: chặn câu hỏi phỏng vấn dạng hội thoại (“결혼하셨나요”, “자녀 계획”…)~~ ✅ xong bằng danh sách riêng `data/interview_blocklist.yaml`, không đụng `data/blocklist.yaml`; test `test_interview.py`. Còn: xác nhận pháp lý cả hai danh sách (Q14) | Nhỏ | Q14 |
 
 ---

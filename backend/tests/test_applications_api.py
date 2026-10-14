@@ -179,6 +179,48 @@ def test_status_is_changed_only_by_recruiter(client, db, world, job):
     assert client.put(f"/api/applications/{app_id}/status", json={"status": "auto"}, headers=world["recruiter"]).status_code == 422
 
 
+
+def test_quick_filters_keep_ranks(client, db, world, job, monkeypatch):
+    kim = ready_seeker(client, db, "kim@seeker.test", "김지원")
+    park = ready_seeker(client, db, "park@seeker.test", "박하은", JUNIOR_CV)
+    lee = ready_seeker(client, db, "lee@seeker.test", "이서준")
+    for h in (kim, park):
+        assert client.post(f"/api/jobs/{job}/applications", headers=h).status_code == 201
+
+    def broken(*a, **k):
+        raise RuntimeError("model down")
+
+    monkeypatch.setattr("app.services.evaluation_service.score_candidate", broken)
+    assert client.post(f"/api/jobs/{job}/applications", headers=lee).status_code == 201
+    monkeypatch.undo()
+
+    h, url = world["recruiter"], f"/api/jobs/{job}/applications"
+    full = client.get(url, headers=h).json()
+    assert full["total_count"] == 3 and [i["name"] for i in full["items"]] == ["김지원", "박하은", "이서준"]
+    by_name = {i["name"]: i for i in full["items"]}
+    park_app = by_name["박하은"]["application_id"]
+    assert client.put(f"/api/applications/{park_app}/status", json={"status": "interview"}, headers=h).status_code == 200
+
+    def names(query):
+        body = client.get(f"{url}?{query}", headers=h).json()
+        assert body["total_count"] == 3
+        return [(i["name"], i["rank"]) for i in body["items"]]
+
+    # A filtered applicant keeps the rank it has in the full list
+    assert names("status=interview") == [("박하은", 2)]
+    assert names("status=interview&status=submitted") == [("김지원", 1), ("박하은", 2), ("이서준", None)]
+    assert names("evaluation_status=failed") == [("이서준", None)]
+    assert names("evaluation_status=done") == [("김지원", 1), ("박하은", 2)]
+    # min_fit leaves out applicants without a Fit
+    assert names("min_fit=0") == [("김지원", 1), ("박하은", 2)]
+    assert names(f"min_fit={by_name['김지원']['fit']}") == [("김지원", 1)]
+    assert names("status=submitted&evaluation_status=done") == [("김지원", 1)]
+
+    for bad in ("status=auto", "min_fit=101", "min_fit=-1", "evaluation_status=running"):
+        assert client.get(f"{url}?{bad}", headers=h).status_code == 422, bad
+    assert client.get(f"{url}?status=interview", headers=world["rival"]).status_code == 404
+
+
 def test_failed_evaluation_can_be_retried(client, db, world, job, monkeypatch):
     kim = ready_seeker(client, db, "kim@seeker.test", "김지원")
 
