@@ -23,7 +23,7 @@ from ai.guardrails.blocklist import Blocklist, load_blocklist
 from ai.parsing.extract import PROMPT_VERSION
 from app.core.config import settings
 from app.core.errors import AppError
-from app.models import CareerContent, CvProfile, JobPosting, User
+from app.models import CareerContent, CvProfile, CvReview, JobPosting, User
 from app.models.career import CareerContentKind
 from app.models.job import JobStatus
 from app.schemas.career import InterviewOut, RoadmapOut
@@ -53,12 +53,20 @@ def _cached(db: Session, seeker_id: int, job_id: int, cv_id: int, kind: str, llm
 
 
 def llm_generations_today(db: Session, seeker_id: int) -> int:
+    """New LLM generations today (KST) counted against CAREER_DAILY_LLM_GENERATIONS: roadmaps, interview
+    questions and CV reviews (D25) share the limit."""
     start = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
-    return db.scalar(
+    career = db.scalar(
         select(func.count())
         .select_from(CareerContent)
         .where(CareerContent.seeker_id == seeker_id, CareerContent.method.like("llm:%"), CareerContent.created_at >= start)
     )
+    reviews = db.scalar(
+        select(func.count())
+        .select_from(CvReview)
+        .where(CvReview.seeker_id == seeker_id, CvReview.method.like("llm:%"), CvReview.created_at >= start)
+    )
+    return career + reviews
 
 
 def _store(db: Session, seeker_id: int, job_id: int, cv_id: int, kind: str, method: str, content: dict) -> None:

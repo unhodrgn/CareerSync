@@ -1,5 +1,5 @@
 from app.models.application import Application, CriterionScore, Evaluation
-from app.models.career import CareerContent
+from app.models.career import CareerContent, CvReview
 from app.models.criteria import CriteriaGuardrailLog, JobCriterion
 from app.models.cv import (
     CvCertificate,
@@ -38,6 +38,7 @@ __all__ = [
     "CvProfile",
     "CvProject",
     "CvProjectTech",
+    "CvReview",
     "CvSkill",
     "Evaluation",
     "JobCriterion",

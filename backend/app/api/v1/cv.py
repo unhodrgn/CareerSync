@@ -6,8 +6,8 @@ from fastapi import APIRouter, File, UploadFile, status
 from ai.parsing.pdf import MAX_BYTES
 from app.core.deps import CurrentUser, DbSession
 from app.core.errors import AppError
-from app.schemas.cv import CvOut, CvUpdate
-from app.services import cv_service
+from app.schemas.cv import CvOut, CvReviewOut, CvUpdate
+from app.services import cv_review_service, cv_service
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 
@@ -33,3 +33,12 @@ def get_cv(profile_id: int, db: DbSession, user: CurrentUser):
 @router.put("/{profile_id}", response_model=CvOut, summary="Save edits as a new version; confirm=true makes it usable to apply")
 def update_cv(profile_id: int, body: CvUpdate, db: DbSession, user: CurrentUser):
     return cv_service.to_out(cv_service.update(db, user, profile_id, body.profile, body.confirm))
+
+
+@router.post(
+    "/{profile_id}/review",
+    response_model=CvReviewOut,
+    summary="AI self-check of an own CV version (confirmed or not): strengths and improvements, no score",
+)
+def review_cv(profile_id: int, db: DbSession, user: CurrentUser):
+    return cv_review_service.review(db, user, profile_id)

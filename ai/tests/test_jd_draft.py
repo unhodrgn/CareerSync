@@ -162,3 +162,22 @@ def test_no_requirements_left_falls_back_to_the_template():
     d, method = make_draft(INPUT, SKILLS, BLOCKLIST, FakeLLM(bad))
     assert method == "rules" and d.requirements
     assert not any("남성" in r for r in d.requirements)
+
+
+def test_bad_notes_drop_only_the_notes_sentence():
+    inp = DraftInput(title="백엔드 개발자", company_name="Acme", notes="연봉 6천만원 이상, 남성 우대")
+    d, _ = make_draft(inp, SKILLS, BLOCKLIST, None)
+    assert d.intro == "Acme에서 백엔드 개발자(정규직)을(를) 찾습니다."
+    assert [x.text for x in d.dropped] == ["연봉 6천만원 이상, 남성 우대"]
+
+
+def test_good_notes_stay_after_the_intro_sentence():
+    d, _ = make_draft(DraftInput(title="백엔드 개발자", company_name="Acme", notes="결제팀 백엔드"), SKILLS, BLOCKLIST, None)
+    assert d.intro == "Acme에서 백엔드 개발자(정규직)을(를) 찾습니다. 결제팀 백엔드" and not d.dropped
+
+
+def test_llm_intro_is_screened_per_sentence():
+    llm = FakeLLM({**LLM_DRAFT, "intro": "Acme 결제팀이 함께할 동료를 찾습니다. 30세 이하 지원자를 환영합니다."})
+    d, method = make_draft(INPUT, SKILLS, BLOCKLIST, llm)
+    assert method == "llm:fake-llm" and d.intro == "Acme 결제팀이 함께할 동료를 찾습니다."
+    assert "30세 이하 지원자를 환영합니다." in {x.text for x in d.dropped}

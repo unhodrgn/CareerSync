@@ -11,7 +11,7 @@
 
 - **Luồng lõi “công ty tự định nghĩa tiêu chí → chấm ứng viên → xếp hạng”: ✅ chạy thật end-to-end** (CV PDF → che PII → cấu trúc hoá → seeker xác nhận → apply → chấm điểm nền → rank theo Fit + bằng chứng → recruiter đổi trạng thái).
 - **Nửa “gợi ý”**: ✅ API preferences + Pref (D15), ✅ gợi ý job `GET /api/recommendations/jobs` (D16). Chưa có code: gợi ý ứng viên (talent), offer.
-- **Thiếu hẳn**: AI tự kiểm tra CV. Đã xong sau bản rà soát này: roadmap kỹ năng, câu hỏi phỏng vấn (D21), filter nhanh ứng viên (D22), CRUD project công ty (D23), AI viết nháp JD (D24).
+- **Thiếu hẳn** (backend): không còn mục nào của P1. Đã xong sau bản rà soát này: roadmap kỹ năng, câu hỏi phỏng vấn (D21), filter nhanh ứng viên (D22), CRUD project công ty (D23), AI viết nháp JD (D24), AI tự kiểm tra CV (D25). Để sau demo: `experience` xét liên quan (#14, Q20).
 - **Switch rule/LLM**: ✅ cờ `AI_MODE` (`rules` mặc định / `llm`), key không tự bật LLM, không đọc `ANTHROPIC_API_KEY` (D12).
 - **Public (D4)**: ✅ `GET /api/jobs` và `GET /api/jobs/{id}` không cần login. Còn `/criteria` cho guest (Q19) và frontend cho guest (#26).
 - **Queue/retry (issue 2, 25)**: ✅ `claim()` (UPDATE có điều kiện) + fencing theo `queued_at`; retry 409 khi đang chạy.
@@ -120,7 +120,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET /api/jobs/{job_id}/talent`, `/
 | Feature | Trạng thái | Căn cứ / ghi chú |
 |---|---|---|
 | Upload CV / profile | ✅ | `POST /api/cv` → `cv_service.upload` (`cv_service.py:158-187`): PDF ≤5 MB/≤5 trang, che PII, cấu trúc hoá, lưu quan hệ; sửa = version mới (`:217-236`), `confirm` |
-| AI self-check profile (feedback điểm mạnh/cần cải thiện) | ❌ | Chỉ có cấu trúc hoá + `summary` 2 câu trung lập (chỉ ở mode LLM; mode rule `summary=""`, `extract.py:210`). Không có endpoint feedback. Doc Q8 ghi “AI CV feedback” chưa quyết |
+| AI self-check profile (feedback điểm mạnh/cần cải thiện) | ✅ backend | `POST /api/cv/{profile_id}/review` (D25): rule + LLM, cache `cv_reviews` (migration 0011), chung giới hạn với roadmap/câu hỏi phỏng vấn. Frontend chưa gọi |
 | Xem job | 🟡 | Có list/detail (`jobs.py:69`, `:87`) nhưng bắt login (xem 3.1) |
 | Xem match band (D1) | 🟡 | Có trong `GET /api/recommendations/jobs`; frontend chưa dùng |
 | Apply | ✅ | `application_service.apply` (`application_service.py:55-77`): check seeker, job published + chưa hết hạn, consent AI, CV confirm, chưa apply |
@@ -282,7 +282,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | # | Việc | Cỡ | Phụ thuộc |
 |---|---|---|---|
 | 8 | ~~Filter nhanh ứng viên~~ ✅ xong: `status`, `min_fit`, `evaluation_status`, `total_count` (D22); test `test_applications_api.py`. Còn: UI filter ở frontend | Nhỏ | — |
-| 11 | AI self-check CV (điểm mạnh / cần bổ sung), có fallback rule, quote phải verify (quy tắc 4) | Vừa | Q8; frontend |
+| 11 | ~~AI self-check CV~~ ✅ xong: `POST /api/cv/{profile_id}/review` (D25), migration 0011 `cv_reviews`; test `test_cv_review.py`, `test_cv_review_api.py`. Còn: frontend (trang 내 이력서) | Vừa | — |
 | 12 | ~~AI hỗ trợ viết JD + guardrail cho tiêu chí gợi ý (issue 7)~~ ✅ xong: `POST /api/jobs/{id}/jd-draft`, `/analyze` có `blocked` (D24); test `test_jd_draft.py`, `test_jd_api.py`. Còn: frontend gọi `/jd-draft` và `/analyze` | Vừa | — |
 | 13 | ~~CRUD project công ty~~ ✅ xong: `/api/companies/me/projects`, `projects` trong hồ sơ công khai, không vào chấm điểm (D23); test `test_company_projects_api.py`. Còn: trang frontend | Nhỏ–Vừa | — |
 

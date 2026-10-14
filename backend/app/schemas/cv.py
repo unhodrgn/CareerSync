@@ -38,6 +38,27 @@ class BlockedSuggestion(BaseModel):
     reason: str
 
 
+class CvReviewItem(BaseModel):
+    title: str
+    detail: str
+    # A line of the masked CV text (verified), or null
+    cv_quote: str | None
+    # True for rule findings that change what scoring can read; always shown
+    affects_scoring: bool
+
+
+class CvReviewOut(BaseModel):
+    """AI self-check of one CV version: strengths and improvements, no score (D25)."""
+
+    profile_id: int
+    strengths: list[CvReviewItem]
+    improvements: list[CvReviewItem]
+    method: str
+    # True when the daily LLM limit was reached and the rules review was returned
+    limited: bool
+    notice: str = AI_NOTICE
+
+
 class JdAnalysisOut(BaseModel):
     job_id: int
     # Only suggestions that pass the guardrail and D13; weights rescaled to 100 after removing the others

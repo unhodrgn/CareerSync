@@ -47,6 +47,7 @@
 | Recruiter changes application status | [Current] | |
 | Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
+| AI self-check of a CV version (strengths / improvements, no score) | [Current] | `POST /api/cv/{profile_id}/review` (D25) |
 | Skill roadmap and interview practice questions for a job | [Current] | `POST /api/jobs/{job_id}/roadmap`, `POST /api/jobs/{job_id}/interview-questions` (D21) |
 | Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
@@ -103,7 +104,7 @@ flowchart LR
 
 ## 3. Database
 
-PostgreSQL 16, Alembic migrations `0001` → `0010`. List the current tables with:
+PostgreSQL 16, Alembic migrations `0001` → `0011`. List the current tables with:
 `python -c "import app.models; from app.db.session import Base; print(sorted(Base.metadata.tables))"` (from `backend/`).
 JSON columns are `JSONB` on PostgreSQL and `JSON` on SQLite. All `created_at`/`updated_at` columns are `timestamptz` with `now()` defaults.
 
@@ -161,6 +162,7 @@ Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`;
 | `company_projects` | `company_id` FK (CASCADE) · `name` varchar(200) · `description` text · `created_at`, `updated_at` | Company's running projects |
 | `company_project_techs` | `company_project_id` FK (CASCADE) · `tech_name` varchar(100); unique per project | Technologies of a project |
 | `career_contents` (`0010`) | `seeker_id` FK → users, `job_id` FK, `cv_profile_id` FK (all CASCADE) · `kind` `roadmap`\|`interview` · `prompt_version` · `method` (`rules` or `llm:<model>`) · `content` JSON · `created_at`; unique (seeker, job, CV version, kind, prompt version, method) | Cached career content (D21): roadmaps and interview questions. Template fallbacks after an LLM failure or over the daily limit are not stored |
+| `cv_reviews` (`0011`) | `cv_document_id` FK → cv_documents, `seeker_id` FK → users (both CASCADE, indexed) · `prompt_version` · `method` (`llm:<model>`) · `content` JSON (`strengths`, `improvements`) · `created_at`; unique (document, prompt version, method) | The LLM part of a CV self-check (D25), per CV document: every version shares the masked text. Rule findings are computed per request; rules results and fallbacks are not stored |
 
 ### 3.6 ERD
 ```mermaid
@@ -233,6 +235,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/cv` | Upload + analyze a PDF (multipart `file`) | Seeker | 409 `AI_CONSENT_REQUIRED` (no AI consent; the version is not checked); 422 `CV_TOO_LARGE`, `CV_NOT_PDF`, `CV_UNREADABLE`, `CV_ENCRYPTED`, `CV_TOO_MANY_PAGES`, `CV_NO_TEXT` | `cv_service.upload` | PDF, PII, **LLM** / rules |
 | GET | `/api/cv/me` | Newest version of the newest CV | Seeker | 404 `CV_NOT_FOUND` | `cv_service.latest` | — |
 | GET / PUT | `/api/cv/{profile_id}` | Read a version / save edits as a new version (`confirm`) | Seeker (own) | 404 | `cv_service.get_own`, `update` | normalize |
+| POST | `/api/cv/{profile_id}/review` | AI self-check of an own CV version, confirmed or not: `strengths`, `improvements` (`title`, `detail`, `cv_quote` — a verified line of the masked CV or null, `affects_scoring` — rule findings that change what scoring can read, always listed first), `method`, `limited`, `notice`. No score. The LLM part is cached per CV document; shares the daily LLM limit with the roadmap and interview questions (D25) | Seeker (own) | 404 `CV_NOT_FOUND`; 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no `consent_ai_at`; the version is not checked) | `cv_review_service.review` | **LLM** / rules, guardrail |
 | POST | `/api/jobs/{job_id}/applications` | Apply with the newest confirmed CV; scoring runs in background | Seeker | 409 `JOB_EXPIRED`, `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`, `ALREADY_APPLIED` | `application_service.apply` | **scoring** |
 | GET | `/api/applications/mine` | Own applications | Logged in. Filters by `seeker_id = current user`, no role check — a company account gets `200 []` (companies cannot apply) | — | `application_service.list_mine` | — |
 | GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit. Optional quick filters (D22): `status` (repeatable), `min_fit` (0–100; leaves out applicants without a Fit), `evaluation_status`; applied after ranking, so ranks stay those of the full list. `total_count` = applicants before filtering | Company | 404; 422 (bad filter value) | `application_service.ranked` | Fit |
@@ -251,7 +254,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/jobs/{job_id}/interview-questions` | 3–10 practice questions from the posting, its criteria and up to 4 masked CV excerpts: `question`, `criterion_id`/`criterion_name` (a real criterion or null), `kind` (`technical`\|`experience`\|`behavioral`), `intent`, `answer_tips`, `cv_quote` (verified against the masked CV, or null); `method`, `limited`, `notice`. Cached per CV version; shares the daily LLM limit with the roadmap | Seeker | 404 `JOB_NOT_FOUND`; 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.interview_questions` | **LLM** / template |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
-Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`), `POST /api/jobs/{job_id}/analyze` and `POST /api/jobs/{job_id}/jd-draft`.
+Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`), `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft` and `POST /api/cv/{profile_id}/review`.
 
 ### 4.2 Planned endpoints — do NOT exist
 Paths are working names (design doc 상세 §3.1); field-level request/response shapes are `TBD`, added here when designed.
@@ -290,7 +293,7 @@ Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`.
 | `/company/talent` | `company/Talent` (인재 추천) | company | — | Coming soon |
 | `/company/profile` | `company/CompanyProfile` | company | `myCompany`, `updateCompany` | Real |
 
-Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
+Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft`, `POST /api/cv/{profile_id}/review`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
 
 ---
 
@@ -304,7 +307,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date, address, and the user's `display_name`; line breaks are kept so section headings stay on their own line | Regex | `cv_service.upload` |
 | `parsing/extract.py` `structure_cv` | Masked text → `CvProfile`; skills normalized; experience months computed in code | Claude (`prompts/v1/cv_structure.md`) or rules | `cv_service.upload` |
 | `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100; `jd_service` then drops those saving would reject (guardrail, D13) and rescales | Claude (`jd_analyze.md`) or rules | `jd_service.analyze` |
-| `jd/draft.py` | JD draft from the title, keywords, notes, company profile and chosen projects: fixed parts assembled in code; every sentence dropped on pay/money amounts, URL/email/phone or a `data/blocklist.yaml` hit; LLM error or no requirement left → template | Claude (`prompts/v1/jd_draft.md`) or template | `jd_service.draft` |
+| `jd/draft.py` | JD draft from the title, keywords, notes, company profile and chosen projects: fixed parts assembled in code; every sentence dropped on pay/money amounts, URL/email/phone or a `data/blocklist.yaml` hit (the intro sentence by sentence; the template's notes are their own sentence); LLM error or no requirement left → template | Claude (`prompts/v1/jd_draft.md`) or template | `jd_service.draft` |
 | `parsing/profile.py` | Pydantic schemas `cv_profile.v1`, `jd_profile.v1` (LLM output = API body) | — | everywhere |
 | `guardrails/` | Blocks discriminatory criteria; verifies LLM quotes exist in the CV | Rules + `data/blocklist.yaml` | `criteria_service`, scorers |
 | `embedding/skills.py` | Skill/certificate dictionary, aliases → canonical names | `data/skills.yaml` | parsing, scoring |
@@ -313,6 +316,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `llm/client.py` | Only gateway to the LLM; `get_llm_client()` is `None` unless `AI_MODE=llm`, even with a key. `check_llm_config()` runs at startup (`main.py` lifespan) | Anthropic SDK, default `claude-sonnet-5-5`, effort `low` | `ai_runtime.llm()` |
 | `career/gaps.py`, `career/roadmap.py` | Skills/certificates the job names that the masked CV text lacks (code, `data/skills.yaml`); roadmap steps: LLM writes only goal/activities for computed gaps, other skills dropped, URLs stripped; resources only from `data/learning_resources.yaml` | Claude (`prompts/v1/roadmap.md`) or template | `career_service.roadmap` |
 | `career/interview.py` | Interview questions from the JD, criteria and up to 4 masked CV excerpts (retrieval). Checks: criterion ids must exist, `cv_quote` verified (`verify_quotes`), URLs stripped; every question (LLM and template) with its intent and tips through the criteria guardrail and then `data/interview_blocklist.yaml` (marriage, children, dating, religion, age, appearance, origin, family, politics, health; written for questions, blocks generously); < 3 left → template | Claude (`prompts/v1/interview_questions.md`) or template | `career_service.interview_questions` |
+| `career/cv_review.py` | CV self-check. Rules on the masked text and the version's profile (quotes are CV lines); findings that change scoring (`affects_scoring`) are always included. LLM sees the masked text only: a strength needs a `cv_quote` that passes `verify_quotes`, an improvement's unverified quote becomes null; every item through `data/blocklist.yaml` and `data/interview_blocklist.yaml`; URLs stripped; ≤ 5 each; LLM error or no strength left → rules | Claude (`prompts/v1/cv_review.md`) or rules | `cv_review_service.review` |
 | `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
@@ -330,7 +334,7 @@ Rule scorers give points only for what is found in the masked CV text (`cv_docum
 
 **Backend ↔ AI.** Services get AI components only through `services/ai_runtime.py` (`skills()`, `embedder()`, `llm()`), so tests swap them. `ai/` receives plain objects (`Candidate`, `Criterion`, `JobContext`) and never touches the DB. The only criteria read path for scoring is `criteria_service.load_for_scoring()` (drops criteria blocked by a newer blocklist and rescales weights).
 
-**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), JD drafts (1 per click, at most `JD_DAILY_LLM_DRAFTS` per company per day), `project`/`other` criteria (1–2 per criterion per application). Planned recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; limited by the per-call and daily caps and attempt limit in [§6.1](#61-recommendation) (talent limit still open, issue 26). No cache yet.
+**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), JD drafts (1 per click, at most `JD_DAILY_LLM_DRAFTS` per company per day), roadmaps, interview questions and CV reviews (1 per new result, cached, together at most `CAREER_DAILY_LLM_GENERATIONS` per seeker per day), `project`/`other` criteria (1–2 per criterion per application). Planned recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; limited by the per-call and daily caps and attempt limit in [§6.1](#61-recommendation) (talent limit still open, issue 26). No cache yet.
 
 **Config locations.** Mode: `AI_MODE`. Model: `LLM_MODEL` (default in `ai/llm/client.py`). Embedding: `EMBEDDING_MODEL`. Prompts: `ai/prompts/v1/`, `PROMPT_VERSION` in `ai/parsing/extract.py`. Data: `data/blocklist.yaml` (`grep -c "^  - id:" data/blocklist.yaml` = number of rules), `data/skills.yaml`.
 
@@ -458,7 +462,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `TALENT_DAILY_NEW_EVALUATIONS` | `30` per company per day (KST), only in `AI_MODE=llm`, counted generously | Current |
 | `OFFER_DAILY_LIMIT` | `20` offers per company per day (KST) | Current |
 | `OFFER_EXPIRY_DAYS` | `14` days after `created_at` for a `pending` offer | Current |
-| `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
+| `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview questions + CV review, D25) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
 | `JD_DAILY_LLM_DRAFTS` | `20` LLM JD drafts per company per day (KST), only in `AI_MODE=llm`; every LLM call counts, failed ones too; over it the template is returned with `limited: true`. Counted in process memory (`jd_service`): reset on restart, correct only with one backend process | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |

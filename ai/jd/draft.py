@@ -39,6 +39,9 @@ _URL = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|io|
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _PHONE = re.compile(r"(?<!\d)0\d{1,2}[-.\s)]?\d{3,4}[-.\s]?\d{4}(?!\d)")
 
+# Sentence ends followed by space, or line breaks
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?。])\s+|\n+")
+
 REASON_MONEY = "급여·금액 정보는 AI가 쓰지 않습니다. 필요하면 직접 입력하세요."
 REASON_CONTACT = "링크·이메일·전화번호는 넣지 않습니다."
 REASON_LENGTH = f"{MAX_ITEM_CHARS}자를 넘는 문장입니다."
@@ -126,8 +129,9 @@ def screen(draft: JdDraft, blocklist: Blocklist) -> JdDraft:
             return False
         return True
 
-    intro = _norm(draft.intro)
-    intro = intro if intro and keep(intro, MAX_INTRO_CHARS) else ""
+    # The intro is screened per sentence (and per line), so one bad sentence does not drop the whole intro
+    sentences = [s for s in (_norm(x) for x in _SENTENCE_BREAK.split(draft.intro)) if s]
+    intro = " ".join(s for s in sentences if keep(s, MAX_INTRO_CHARS))
     lists = {}
     for key, _ in SECTION_TITLES:
         items = []
@@ -159,7 +163,8 @@ def draft_rules(inp: DraftInput, skills: SkillDictionary) -> JdDraft:
     who = f"{inp.company_name}에서" if inp.company_name else "함께"
     intro = f"{who} {inp.title}" + (f"({employment})" if employment else "") + "을(를) 찾습니다."
     if inp.notes.strip():
-        intro += " " + _norm(inp.notes)
+        # The company's memo is its own sentence: if it is dropped, the intro sentence stays
+        intro += "\n" + _norm(inp.notes)
 
     responsibilities = []
     for p in inp.projects[:3]:

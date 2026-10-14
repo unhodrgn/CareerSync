@@ -198,7 +198,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0009 -> 0010 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0010 -> 0011 ...` and then:
 
 ```
 added hr@nextcode.test
@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `466 passed, 13 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 188 backend tests.
+Expected: `491 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 198 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -403,6 +403,7 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | POST | `/api/cv` | Upload a PDF and analyze it |
 | GET | `/api/cv/me` | Latest version of the seeker's CV |
 | GET / PUT | `/api/cv/{profile_id}` | Read a version, or save edits as a new version (`confirm=true` to make it usable) |
+| POST | `/api/cv/{profile_id}/review` | Seeker: AI self-check of a CV version (strengths, improvements) |
 
 ### Applications & evaluation
 
@@ -437,7 +438,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
-│   ├── migrations/versions/     # 0001 … 0010
+│   ├── migrations/versions/     # 0001 … 0011
 │   ├── requirements.txt         # Backend + AI + test dependencies
 │   ├── app/
 │   │   ├── main.py              # FastAPI app (run uvicorn from backend/)
@@ -450,7 +451,7 @@ CareerSync/
 │   └── tests/                   # API tests (SQLite in memory)
 ├── ai/
 │   ├── llm/client.py            # LLMClient (Anthropic); None unless AI_MODE=llm
-│   ├── prompts/v1/              # cv_structure, jd_analyze, jd_draft, rubric_score, roadmap, interview_questions
+│   ├── prompts/v1/              # cv_structure, jd_analyze, jd_draft, rubric_score, roadmap, interview_questions, cv_review
 │   ├── jd/                      # JD drafts for companies
 │   ├── parsing/                 # PDF → text, PII masking, CV/JD structuring
 │   ├── embedding/               # e5 / hashing embedders, skill dictionary
