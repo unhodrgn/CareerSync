@@ -11,7 +11,7 @@
 
 - **Luồng lõi “công ty tự định nghĩa tiêu chí → chấm ứng viên → xếp hạng”: ✅ chạy thật end-to-end** (CV PDF → che PII → cấu trúc hoá → seeker xác nhận → apply → chấm điểm nền → rank theo Fit + bằng chứng → recruiter đổi trạng thái).
 - **Nửa “gợi ý”**: ✅ API preferences + Pref (D15), ✅ gợi ý job `GET /api/recommendations/jobs` (D16). Chưa có code: gợi ý ứng viên (talent), offer.
-- **Thiếu hẳn**: AI tự kiểm tra CV, AI viết JD (chỉ có phân tích JD có sẵn). Đã xong sau bản rà soát này: roadmap kỹ năng, câu hỏi phỏng vấn (D21), filter nhanh ứng viên (D22), CRUD project công ty (D23).
+- **Thiếu hẳn**: AI tự kiểm tra CV. Đã xong sau bản rà soát này: roadmap kỹ năng, câu hỏi phỏng vấn (D21), filter nhanh ứng viên (D22), CRUD project công ty (D23), AI viết nháp JD (D24).
 - **Switch rule/LLM**: ✅ cờ `AI_MODE` (`rules` mặc định / `llm`), key không tự bật LLM, không đọc `ANTHROPIC_API_KEY` (D12).
 - **Public (D4)**: ✅ `GET /api/jobs` và `GET /api/jobs/{id}` không cần login. Còn `/criteria` cho guest (Q19) và frontend cho guest (#26).
 - **Queue/retry (issue 2, 25)**: ✅ `claim()` (UPDATE có điều kiện) + fencing theo `queued_at`; retry 409 khi đang chạy.
@@ -135,7 +135,7 @@ Endpoint `[Planned]`, **chưa tồn tại**: `GET /api/jobs/{job_id}/talent`, `/
 | Đăng ký business | 🟡 | `register` role `company` + `company_name` (`schemas/auth.py:44`, `auth_service.py:20-23`). Chưa có 사업자등록번호 và validate định dạng (D6, Q6) |
 | Hồ sơ công ty (giới thiệu, 인재상) | ✅ | `companies.py:17-25`; 인재상 được đưa vào chấm tiêu chí `other` (`scorers.py:197-201`) |
 | Đăng job | ✅ | draft → published → closed (`job_service.py`) |
-| AI hỗ trợ viết JD | 🟡 | Chỉ có `POST /jobs/{id}/analyze`: đọc JD **đã viết** → gợi ý tiêu chí + weight (`extract.py:290-304`). Không sinh/viết lại JD. Tiêu chí gợi ý chưa qua guardrail (issue 7). Frontend chưa gọi |
+| AI hỗ trợ viết JD | ✅ backend | `POST /jobs/{id}/jd-draft` sinh nháp JD (không lưu, D24); `/analyze` bỏ tiêu chí gợi ý vi phạm guardrail/D13 (issue 7). Frontend chưa gọi cả hai |
 | Nhận đơn | ✅ | `GET /api/jobs/{id}/applications` |
 | Set tiêu chí riêng | ✅ | `PUT /api/jobs/{id}/criteria` + check realtime + copy |
 | Dashboard ứng viên đã rank + điểm mạnh/yếu | ✅ | Rank theo Fit ↓, số tiêu chí ≥75 ↓, apply sớm (`fit.py:64-66`); chi tiết từng tiêu chí với lý do + bằng chứng + `summary` mạnh/yếu (`application_service.py:147-192`, `fit.py:69-81`); có `AI_NOTICE` |
@@ -283,7 +283,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 |---|---|---|---|
 | 8 | ~~Filter nhanh ứng viên~~ ✅ xong: `status`, `min_fit`, `evaluation_status`, `total_count` (D22); test `test_applications_api.py`. Còn: UI filter ở frontend | Nhỏ | — |
 | 11 | AI self-check CV (điểm mạnh / cần bổ sung), có fallback rule, quote phải verify (quy tắc 4) | Vừa | Q8; frontend |
-| 12 | AI hỗ trợ **viết** JD (sinh nháp từ tiêu đề/từ khoá) + chạy guardrail cho tiêu chí gợi ý (issue 7) | Vừa (guardrail riêng: Nhỏ) | Frontend chưa gọi `/analyze` |
+| 12 | ~~AI hỗ trợ viết JD + guardrail cho tiêu chí gợi ý (issue 7)~~ ✅ xong: `POST /api/jobs/{id}/jd-draft`, `/analyze` có `blocked` (D24); test `test_jd_draft.py`, `test_jd_api.py`. Còn: frontend gọi `/jd-draft` và `/analyze` | Vừa | — |
 | 13 | ~~CRUD project công ty~~ ✅ xong: `/api/companies/me/projects`, `projects` trong hồ sơ công khai, không vào chấm điểm (D23); test `test_company_projects_api.py`. Còn: trang frontend | Nhỏ–Vừa | — |
 
 ### P2 — sau demo / đang bị chặn

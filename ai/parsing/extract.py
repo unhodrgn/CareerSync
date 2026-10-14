@@ -315,7 +315,7 @@ def suggest_criteria(profile: JdProfile) -> list[SuggestedCriterion]:
 _CATEGORIES = {"skill", "experience", "project", "certificate", "education", "other"}
 
 
-def _fix_weights(items: list[SuggestedCriterion]) -> list[SuggestedCriterion]:
+def fix_weights(items: list[SuggestedCriterion]) -> list[SuggestedCriterion]:
     """Keep at most 10 valid items and rescale weights to integers summing to 100."""
     items = [i for i in items if i.category in _CATEGORIES and i.name.strip()][:10]
     if not items:
@@ -336,7 +336,7 @@ def analyze_jd(title: str, text: str, min_years: int | None, skills: SkillDictio
             result.profile.preferred_skills = skills.normalize_list(result.profile.preferred_skills)
             if min_years is not None:
                 result.profile.min_years = min_years
-            result.criteria = _fix_weights(result.criteria) or suggest_criteria(result.profile)
+            result.criteria = fix_weights(result.criteria) or suggest_criteria(result.profile)
             return result, f"llm:{llm.model}"
         except LLMError as e:
             log.warning("JD analysis by LLM failed, using rules: %s", e)

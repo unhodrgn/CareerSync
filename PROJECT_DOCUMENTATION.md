@@ -39,7 +39,8 @@
 | Company profile (name, intro, 인재상) | [Current] | |
 | Company running projects | [Current] | `/api/companies/me/projects`, shown on the public company profile; context for AI JD drafts; never used in scoring (D23) |
 | Jobs: draft → published → closed | [Current] | |
-| AI suggests criteria from the JD (`/analyze`) | [Current] | Backend only; the frontend does not call it |
+| AI suggests criteria from the JD (`/analyze`) | [Current] | Backend only; the frontend does not call it. Suggestions that saving would reject are left out (D24, issue 7) |
+| AI drafts a JD for a draft job (`/jd-draft`) | [Current] | Backend only; not saved (D24) |
 | Criteria + weights with a legal guardrail | [Current] | |
 | CV PDF upload → PII masking → structuring → seeker edits and confirms | [Current] | |
 | Apply → background scoring → applicants ranked by Fit with evidence | [Current] | |
@@ -223,7 +224,8 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | DELETE | `/api/jobs/{job_id}` | Delete a draft | Company | 409 `JOB_NOT_DRAFT` | `job_service.delete` | — |
 | POST | `/api/jobs/{job_id}/publish` | Publish (needs JD + valid criteria) | Company | 409 `JOB_NOT_DRAFT`; 422 `JOB_INCOMPLETE` + criteria errors | `job_service.publish` | guardrail |
 | POST | `/api/jobs/{job_id}/close` | Close (final) | Company | 409 `JOB_NOT_PUBLISHED` | `job_service.close` | — |
-| POST | `/api/jobs/{job_id}/analyze` | Suggest criteria from the JD (not saved) | Company | 404 | `ai.parsing.extract.analyze_jd` | **LLM** / rules |
+| POST | `/api/jobs/{job_id}/analyze` | Suggest criteria from the JD (not saved). Suggestions that saving would reject — a criteria guardrail hit, or `education` without a major (D13) — are left out and listed in `blocked` (`name`, `code` `CRITERIA_BLOCKED`\|`CRITERIA_MAJOR_REQUIRED`, `reason`); the rest are rescaled to 100. Nothing is written to `criteria_guardrail_logs` | Company | 404 | `jd_service.analyze` | **LLM** / rules, guardrail |
+| POST | `/api/jobs/{job_id}/jd-draft` | AI JD draft for an own **draft** job, not saved. Body: `keywords` (≤ 10, 1–50 characters), `notes` (≤ 1000), `project_ids` (own running projects as context). Response: `description` (assembled JD), `sections` (`intro`, `responsibilities`, `requirements`, `preferred`), `dropped` (`text`, `reason`: pay or money amounts, URL/email/phone, criteria blocklist hits, too long), `method`, `limited`, `notice`. Over `JD_DAILY_LLM_DRAFTS` in `AI_MODE=llm` → template with `limited: true` (D24) | Company | 404 `JOB_NOT_FOUND`, `PROJECT_NOT_FOUND`; 409 `JOB_NOT_DRAFT`; 422 | `jd_service.draft` | **LLM** / template, guardrail |
 | GET | `/api/jobs/{job_id}/criteria` | Company: full rows. Seeker: name + category + importance, no weights | Logged in | 404 | `criteria_service` | — |
 | PUT | `/api/jobs/{job_id}/criteria` | Replace the criteria set | Company | 422 `CRITERIA_COUNT_INVALID`, `CRITERIA_DUPLICATE_NAME`, `WEIGHT_SUM_INVALID`, `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED`; 409 `CRITERIA_LOCKED` | `criteria_service.replace_set` | guardrail |
 | POST | `/api/jobs/{job_id}/criteria/copy-from/{source_job_id}` | Copy criteria into a draft | Company | 409 `CRITERIA_LOCKED`; 422 `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED` | `criteria_service.copy_set` | guardrail |
@@ -249,7 +251,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/jobs/{job_id}/interview-questions` | 3–10 practice questions from the posting, its criteria and up to 4 masked CV excerpts: `question`, `criterion_id`/`criterion_name` (a real criterion or null), `kind` (`technical`\|`experience`\|`behavioral`), `intent`, `answer_tips`, `cv_quote` (verified against the masked CV, or null); `method`, `limited`, `notice`. Cached per CV version; shares the daily LLM limit with the roadmap | Seeker | 404 `JOB_NOT_FOUND`; 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.interview_questions` | **LLM** / template |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
-Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`) and `POST /api/jobs/{job_id}/analyze`.
+Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`), `POST /api/jobs/{job_id}/analyze` and `POST /api/jobs/{job_id}/jd-draft`.
 
 ### 4.2 Planned endpoints — do NOT exist
 Paths are working names (design doc 상세 §3.1); field-level request/response shapes are `TBD`, added here when designed.
@@ -288,7 +290,7 @@ Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`.
 | `/company/talent` | `company/Talent` (인재 추천) | company | — | Coming soon |
 | `/company/profile` | `company/CompanyProfile` | company | `myCompany`, `updateCompany` | Real |
 
-Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
+Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
 
 ---
 
@@ -301,7 +303,8 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `parsing/pdf.py` | PDF → text; checks size, pages, encryption, text present | PyMuPDF | `cv_service.upload` |
 | `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date, address, and the user's `display_name`; line breaks are kept so section headings stay on their own line | Regex | `cv_service.upload` |
 | `parsing/extract.py` `structure_cv` | Masked text → `CvProfile`; skills normalized; experience months computed in code | Claude (`prompts/v1/cv_structure.md`) or rules | `cv_service.upload` |
-| `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100 | Claude (`jd_analyze.md`) or rules | `POST /jobs/{id}/analyze` |
+| `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100; `jd_service` then drops those saving would reject (guardrail, D13) and rescales | Claude (`jd_analyze.md`) or rules | `jd_service.analyze` |
+| `jd/draft.py` | JD draft from the title, keywords, notes, company profile and chosen projects: fixed parts assembled in code; every sentence dropped on pay/money amounts, URL/email/phone or a `data/blocklist.yaml` hit; LLM error or no requirement left → template | Claude (`prompts/v1/jd_draft.md`) or template | `jd_service.draft` |
 | `parsing/profile.py` | Pydantic schemas `cv_profile.v1`, `jd_profile.v1` (LLM output = API body) | — | everywhere |
 | `guardrails/` | Blocks discriminatory criteria; verifies LLM quotes exist in the CV | Rules + `data/blocklist.yaml` | `criteria_service`, scorers |
 | `embedding/skills.py` | Skill/certificate dictionary, aliases → canonical names | `data/skills.yaml` | parsing, scoring |
@@ -327,7 +330,7 @@ Rule scorers give points only for what is found in the masked CV text (`cv_docum
 
 **Backend ↔ AI.** Services get AI components only through `services/ai_runtime.py` (`skills()`, `embedder()`, `llm()`), so tests swap them. `ai/` receives plain objects (`Candidate`, `Criterion`, `JobContext`) and never touches the DB. The only criteria read path for scoring is `criteria_service.load_for_scoring()` (drops criteria blocked by a newer blocklist and rescales weights).
 
-**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), `project`/`other` criteria (1–2 per criterion per application). Planned recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; limited by the per-call and daily caps and attempt limit in [§6.1](#61-recommendation) (talent limit still open, issue 26). No cache yet.
+**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), JD drafts (1 per click, at most `JD_DAILY_LLM_DRAFTS` per company per day), `project`/`other` criteria (1–2 per criterion per application). Planned recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; limited by the per-call and daily caps and attempt limit in [§6.1](#61-recommendation) (talent limit still open, issue 26). No cache yet.
 
 **Config locations.** Mode: `AI_MODE`. Model: `LLM_MODEL` (default in `ai/llm/client.py`). Embedding: `EMBEDDING_MODEL`. Prompts: `ai/prompts/v1/`, `PROMPT_VERSION` in `ai/parsing/extract.py`. Data: `data/blocklist.yaml` (`grep -c "^  - id:" data/blocklist.yaml` = number of rules), `data/skills.yaml`.
 
@@ -456,6 +459,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `OFFER_DAILY_LIMIT` | `20` offers per company per day (KST) | Current |
 | `OFFER_EXPIRY_DAYS` | `14` days after `created_at` for a `pending` offer | Current |
 | `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
+| `JD_DAILY_LLM_DRAFTS` | `20` LLM JD drafts per company per day (KST), only in `AI_MODE=llm`; every LLM call counts, failed ones too; over it the template is returned with `limited: true`. Counted in process memory (`jd_service`): reset on restart, correct only with one backend process | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |
 
@@ -463,7 +467,7 @@ Service constant: `company_project_service.MAX_PROJECTS` = `20` running projects
 
 **Databases.** Manual: `postgres:16` container on host port 5433. Compose: service `db` on host port 5434 with its own volume (separate data). Migrate: `cd backend && alembic upgrade head`. Demo data: `python scripts/seed.py` (accounts and password in the README).
 
-**Runtime.** Python 3.11+ (Docker image 3.12, CPU torch); Node 20.19+ or 22.12+; dependencies in `backend/requirements.txt` and `frontend/package.json`. Secrets: `.env` is git-ignored; no real secret is committed.
+**Runtime.** Python 3.11+ (Docker image 3.12, CPU torch); Node 20.19+ or 22.12+; dependencies in `backend/requirements.txt` and `frontend/package.json`. Secrets: `.env` is git-ignored; no real secret is committed. The backend runs as **one** uvicorn process (Compose and `backend/Dockerfile` start `uvicorn` without `--workers`; do not set `WEB_CONCURRENCY`): the JD draft counter (`JD_DAILY_LLM_DRAFTS`, D24) lives in process memory and would be per process otherwise.
 
 ---
 
@@ -498,7 +502,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`) | `core/config.py` | Open |
 | 5 | Tests | SQLite tests do not enable `PRAGMA foreign_keys`; FK errors (e.g. RESTRICT) go unnoticed unless tests run on PostgreSQL | `backend/tests/conftest.py` | Open |
 | 6 | Architecture | Scoring runs in-process (`BackgroundTasks`); a restart leaves evaluations `pending` until 다시 분석. **Must be fixed before enabling talent recommendation** — recommendation multiplies the number of background evaluations. **Mitigated for the demo (D18):** recommendation and talent calls re-queue `pending` evaluations older than `EVALUATION_STALE_MINUTES`; a separate worker is still open | `api/v1/applications.py` | Open |
-| 7 | AI / UX | JD-suggested criteria skip the guardrail (it only blocks on save) | `analyze_jd`, `/analyze` | Open |
+| 7 | AI / UX | JD-suggested criteria skip the guardrail (it only blocks on save). **Fixed (D24):** `/analyze` leaves out suggestions with a guardrail hit or an education criterion without a major and lists them in `blocked` | `analyze_jd`, `/analyze`, `services/jd_service.py` | Fixed |
 | 8 | Performance | Retrieval re-embeds all CV passages for every criterion | `ai/scoring/retrieval.py` | Open |
 | 9 | Cost | No LLM cache; `cv_documents.sha256` unused | `ai/cache/store.py` (stub) | Open |
 | 10 | Observability | Token usage is not logged | `ai/llm/client.py` | Open |

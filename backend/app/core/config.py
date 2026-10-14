@@ -82,5 +82,9 @@ class Settings:
     CAREER_DAILY_LLM_GENERATIONS: int = 10
     LEARNING_RESOURCES_PATH: Path = Path(os.getenv("LEARNING_RESOURCES_PATH", REPO_ROOT / "data" / "learning_resources.yaml"))
 
+    # JD drafts (docs/DECISIONS.md D24): LLM drafts per company per day (KST), only in AI_MODE=llm. Counted in
+    # process memory: reset on restart, correct only with one backend process (uvicorn without --workers)
+    JD_DAILY_LLM_DRAFTS: int = 20
+
 
 settings = Settings()
