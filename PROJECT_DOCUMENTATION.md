@@ -276,6 +276,8 @@ GET /api/talent-offers/sent (implemented) → [{"offer_id", "job_id", "job_title
 
 ## 5. Frontend
 
+> Mục này mô tả frontend cũ đã bị xoá; `frontend/` đang được dựng lại từ đầu và mục này sẽ được cập nhật sau.
+
 Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`. Role is enforced by `Guard`. Token is kept in `localStorage`.
 
 | Route | Page | Role | Calls (`api.*`) | Data |
@@ -390,6 +392,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - Imports: stdlib → third-party → `ai.*` → `app.*`.
 - Prompts: versioned Markdown under `ai/prompts/vN/`.
 - Frontend: `PascalCase.tsx` components, pages under `pages/seeker/*` and `pages/company/*`, all HTTP through `src/api/client.ts`.
+- Frontend UI text: never hardcoded in components; every string goes through `t(key)` from `src/i18n/` (source locale `src/i18n/ko.ts`, keys type-checked). A new language is one new file `src/i18n/<locale>.ts` (`export default { ... } satisfies Messages`); no other file changes.
 - Commits: imperative, capitalized English sentence.
 - Tests: pytest from the repo root; no DB, network or key needed (in-memory SQLite, hashing embedder, `FakeLLM`).
 

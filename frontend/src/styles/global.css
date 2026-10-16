@@ -1,0 +1,13 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  /* Desktop web only */
+  min-width: 1280px;
+}
