@@ -232,7 +232,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 
 | Kiểm tra | Kết quả |
 |---|---|
-| Lộ điểm từng tiêu chí hoặc weight cho seeker | **Không thấy**. Seeker chỉ nhận `evaluation_status` (`schemas/application.py:12-19`); `/evaluation` và `/applications` của job là `CompanyUser`; criteria cho seeker không có weight (`criteria.py:48-55`). Importance (높음/보통/낮음) suy từ weight là lộ thô có chủ đích |
+| Lộ điểm từng tiêu chí hoặc weight cho seeker | **Không thấy**. Seeker chỉ nhận `evaluation_status` (`schemas/application.py:12-19`); `/evaluation` và `/applications` của job là `CompanyUser`; criteria cho seeker không có weight (`criteria.py:49-62`). Importance (핵심/중요/일반, D30) suy từ weight là lộ thô có chủ đích; guest chỉ thấy tên (D35) |
 | Lộ danh tính ứng viên chưa accept | **Không áp dụng** — talent/offer chưa có. Danh sách ứng viên trả `name` + `email` (`application_service.py:118-119`) nhưng chỉ cho người **đã apply** vào job của chính công ty (đúng doc). Khi làm talent phải theo doc §6.1 (ẩn `reason`/`evidence`, kiểm `profile_public` mỗi lần đọc) |
 | Công ty xem đơn của công ty khác | Không — `get_owned` trả 404 (`application_service.py:87-95`) |
 | PII tới LLM | Đã che theo regex + `display_name`; tên viết khác (vd. tên tiếng Anh) trong CV **không** bị che — **chưa chắc** mức rủi ro |
@@ -259,7 +259,7 @@ Có 171 test (gồm test tham số hoá guardrail). Chưa có test cho:
 | 6 | ~~API preferences `GET/PUT /api/preferences/me`~~ ✅ xong (D15; test `test_preferences_api.py`, `test_pref.py`). Còn: frontend form | Vừa | Q10 khi làm offer |
 | 7 | ~~Gợi ý job `GET /api/recommendations/jobs`~~ ✅ xong (D16; test `test_recommendations_api.py`). Còn: frontend thay `demoMatch` bằng band | Lớn | — |
 
-### P1 — feature trong spec nhưng chưa có (cần chốt phạm vi, doc Q8)
+### P1 — feature trong spec nhưng chưa có (phạm vi: docs/DECISIONS.md; còn mở Q11, Q21)
 
 #### P1-A — Talent recommendation + offer
 
@@ -296,7 +296,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | 20 | JWT: fail-fast khi `JWT_SECRET_KEY` rỗng/mặc định ngoài môi trường dev (issue 4) | Nhỏ | **Cần xác nhận** (auth/security); sửa cả compose |
 | 21 | Nợ test: `PRAGMA foreign_keys` cho SQLite (issue 5, Nhỏ), test drift migration (issue 18, Vừa), test ánh xạ lỗi `AnthropicClient` (Nhỏ) | Nhỏ–Vừa | Sửa `conftest.py` ở root |
 | 22 | Hiệu năng/chi phí: cache embedding chunk (issue 8), cache LLM theo hash (issue 9), log token (issue 10) | Vừa | — |
-| 23 | Xoá CV / tài khoản (issue 11) | Vừa | Q5; FK `RESTRICT` (cần migration) |
+| 23 | Xoá CV / tài khoản (issue 11) | Vừa | Để sau (D34); xoá tài khoản công ty còn mở (Q22); FK `RESTRICT` (cần migration) |
 | 24 | Bias audit (`ai/bias/audit.py`) | Vừa | Không chặn demo |
 | 25 | Issue 4: `JWT_SECRET_KEY` rỗng phải được coi như thiếu biến (dùng dev default, như README mô tả); hiện rỗng → login 500 | Nhỏ | `core/config.py`; liên quan #20 |
 | 26 | Frontend cho guest: vào danh sách và chi tiết job không cần login (`App.tsx` đang bắt login mọi trang); ẩn nút apply/khối tiêu chí khi chưa login | Nhỏ | Backend D4 xong; khối tiêu chí theo Q19; chạy `npm run build` |

@@ -73,7 +73,7 @@ def test_other_endpoints_still_need_login(client, world):
         ("POST", f"/api/jobs/{job_id}/publish"),
         ("POST", f"/api/jobs/{job_id}/close"),
         ("POST", f"/api/jobs/{job_id}/analyze"),
-        ("GET", f"/api/jobs/{job_id}/criteria"),
+        # GET /criteria is open to guests (D35); see test_criteria_api.py
         ("PUT", f"/api/jobs/{job_id}/criteria"),
         ("GET", f"/api/jobs/{job_id}/applications"),
         ("POST", f"/api/jobs/{job_id}/applications"),

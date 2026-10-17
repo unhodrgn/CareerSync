@@ -47,7 +47,7 @@ class Settings:
     # Evaluation criteria
     CRITERIA_MAX_ITEMS: int = 10
     CRITERIA_WEIGHT_TOTAL: int = 100
-    # Seeker-facing importance level, derived from weight: >= HIGH → 높음, >= MID → 보통, else 낮음
+    # Seeker-facing importance level, derived from weight: >= HIGH → 핵심, >= MID → 중요, else 일반 (D30)
     IMPORTANCE_HIGH: int = 25
     IMPORTANCE_MID: int = 10
 

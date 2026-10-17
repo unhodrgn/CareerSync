@@ -1,3 +1,75 @@
-/* Design tokens (colors, spacing, type) as CSS variables. TODO: fill in with the design system. */
+/* Design tokens (colors, type, radii, shadows, motion) as CSS variables. Values follow the landing reference
+   `EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels).html`. */
+@font-face {
+  font-family: 'Pretendard Variable';
+  src: url('../assets/fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Neutral ground */
+  --color-ink: #1d1d1f;
+  --color-ink-soft: #333333;
+  /* Secondary text; darker than the reference's #7a7a7a so 12-13px text passes 4.5:1 */
+  --color-ink-muted: #6e6e73;
+  --color-paper: #ffffff;
+  --color-canvas: #f5f5f7;
+  --color-sunken: #fafafc;
+  --color-line: #e0e0e0;
+  --color-line-soft: #f0f0f0;
+  --color-axis: #d2d2d7;
+  --color-hub: #1d1d1f;
+  --color-hub-text: #cccccc;
+
+  /* Seeker side: deep navy */
+  --color-seeker: #102c54;
+  --color-seeker-badge: #1e467a;
+  --color-seeker-accent: #93c5fd;
+  --color-seeker-dot: #60a5fa;
+  --color-seeker-soft: #e8f0ff;
+  --color-seeker-lit: #eff6ff;
+  --color-seeker-lit-line: #2563eb;
+
+  /* Employer side: deep green */
+  --color-employer: #0d4a3e;
+  --color-employer-badge: #146353;
+  --color-employer-accent: #6ee7b7;
+  --color-employer-dot: #34d399;
+  --color-employer-soft: #e4f6ee;
+  --color-employer-tag-line: #b7e4d4;
+
+  /* A skill the CV lacks */
+  --color-gap: #b45309;
+  --color-gap-strong: #92400e;
+  --color-gap-line: #d97706;
+  --color-gap-soft: #fffbeb;
+  --color-gap-badge: #fef3c7;
+
+  /* Errors in forms; red, never amber (amber means a skill missing from the CV) */
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-danger-line: #f04438;
+
+  /* Logo mark */
+  --color-logo-blue: #3b82f6;
+  --color-logo-green: #10b981;
+
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Malgun Gothic', system-ui, sans-serif;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-chip: 11px;
+  --radius-hub: 12px;
+  --radius-lg: 16px;
+  --radius-card: 18px;
+  --radius-pill: 999px;
+
+  --shadow-card: 3px 5px 30px 0 rgb(0 0 0 / 0.22);
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --focus-color: var(--color-seeker);
 }

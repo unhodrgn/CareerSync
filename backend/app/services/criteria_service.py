@@ -38,10 +38,10 @@ def check(name: str, description: str) -> GuardrailResult:
 
 def importance_level(weight: int) -> str:
     if weight >= settings.IMPORTANCE_HIGH:
-        return "높음"
+        return "핵심"
     if weight >= settings.IMPORTANCE_MID:
-        return "보통"
-    return "낮음"
+        return "중요"
+    return "일반"
 
 
 def hit_dict(hit: GuardrailHit, index: int | None = None) -> dict:

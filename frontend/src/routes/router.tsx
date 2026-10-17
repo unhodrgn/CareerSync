@@ -79,5 +79,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  // Throwaway design-review prototype (fake data, no API); loaded only when visited
+  { path: '/preview/*', lazy: async () => ({ Component: (await import('@/prototype/PrototypeApp')).default }) },
   { path: '*', element: <NotFound /> },
 ]);

@@ -14,12 +14,13 @@
 | Hạng mục | Quyết định |
 |---|---|
 | Xem job khi chưa login | `GET /api/jobs`, `GET /api/jobs/{job_id}` public — D4 |
-| Match band cho seeker | Seeker chỉ thấy band (높음/보통/낮음) — D1 |
+| Match band cho seeker | Seeker chỉ thấy band (매우 적합/적합/참고), chỉ ở job được gợi ý — D1, D16, D31 |
 | Gợi ý job cho seeker | Final = 0.5·Fit + 0.5·Pref, ngưỡng 40/40, tính Pref trước — D2 |
 | Chế độ AI | Mặc định rule-based; LLM bật bằng `AI_MODE` — D5, D12 |
-| Đăng ký business | Validate định dạng 사업자등록번호 — D6 |
+| Đăng ký business | Không thu 사업자등록번호 — D32 (thay D6) |
 | Project đang chạy của công ty | Trong phạm vi — D8 |
 | Cách chạy demo | Local bằng Docker Compose — D7 |
+| Talent recommendation (opt-in, ẩn danh, offer) | Bắt buộc cho demo — D29 |
 
 ### 1.2 Trong phạm vi sản phẩm, chưa chốt có bắt buộc cho demo hay không
 
@@ -27,14 +28,18 @@ Có trong brief 2026-10-13; chưa chốt bắt buộc cho demo hay làm sau (Q10
 
 - Seeker: upload CV / profile, AI tự kiểm tra profile, xem job + match band, apply, theo dõi trạng thái, skill roadmap cho phần thiếu, câu hỏi phỏng vấn theo JD.
 - Employer: đăng ký business, đăng job (AI hỗ trợ viết JD), nhận đơn, tự đặt tiêu chí đánh giá, dashboard ứng viên đã xếp hạng + điểm mạnh/yếu, filter nhanh, project đang chạy.
-- Talent recommendation (opt-in, ẩn danh): quy tắc đã chốt (D3), phạm vi demo chưa chốt (Q8).
 
 ### 1.3 Ngoài phạm vi demo
 
 | Hạng mục | Quyết định |
 |---|---|
-| Xác minh 사업자등록번호 thật (gọi API 국세청 v.v.) | Không làm trong demo — D6 |
+| Xác minh công ty bằng 사업자등록번호 | Để giai đoạn sau, không phải bỏ — D32 |
 | Deploy lên server/cloud | Không làm trong demo; demo chạy local — D7 |
+| Filter tìm job, lưu job (공고 저장), số liệu dashboard công ty | Không làm — D33 |
+| Xoá CV / tài khoản | Để giai đoạn sau, không phải bỏ — D34 |
+| Quên mật khẩu, xác minh email (cần mail server) | Để giai đoạn sau, không phải bỏ — D36 |
+| Đăng nhập Kakao / Naver / Google | Để giai đoạn sau, không phải bỏ — D36 |
+| Nhiều recruiter cho một công ty | Để giai đoạn sau, không phải bỏ — D36 |
 
 ---
 
@@ -70,6 +75,14 @@ Có trong brief 2026-10-13; chưa chốt bắt buộc cho demo hay làm sau (Q10
 | D26 | 2026-10-14 | **Embedding (chốt phần embedding của Q12).** Demo dùng `intfloat/multilingual-e5-base`; test (`pytest`) dùng `hashing-ngram-v1` (không tải model, không mạng). | e5 hiểu ngữ nghĩa tiếng Hàn tốt hơn cho demo; test cần nhanh và deterministic |
 | D27 | 2026-10-14 | **Chấm kỹ năng và gợi ý tiêu chí không phụ thuộc embedding.** (1) Kỹ năng job yêu cầu mà CV gốc không có chỉ được điểm một phần (**50**, reason “… 직접 경험은 없으나 같은 계열 기술 X 보유”) khi CV có kỹ năng **cùng nhóm** khai báo ở mục `related` của `data/skills.yaml` (thành viên phải là tên chuẩn của `skills`, nhóm ≥ 2); **bỏ** điểm “유사 기술” theo cosine embedding (với e5 mọi cặp tên kỹ năng ≥ 0.85, vd Figma↔JPA; với hashing gần như không cặp nào đạt). Nhóm ban đầu: 관계형 DB, JVM 언어, JavaScript/TypeScript, C/C++, 클라우드, 메시지 큐, Java ORM·SQL 매퍼, Python 웹 프레임워크, Node.js 서버, 프론트엔드 프레임워크, React 계열, 컨테이너, 딥러닝 프레임워크, 머신러닝·딥러닝; `skills.yaml` version `2026-10-14`. Spring Boot là alias của Spring (đã có). (2) `/analyze` ở mode rules: JD có tiêu đề 자격 요건/필수 (một dòng riêng) → kỹ năng required **chỉ** lấy từ mục đó, preferred từ mục 우대; không có tiêu đề → giữ cách cũ (phần trước “우대” là required). | Điểm và gợi ý giống nhau với mọi embedding (D26: demo e5, test hashing); kỹ năng ở 주요 업무/giới thiệu (vd MSA của project) không được đẩy lên trên 자격 요건 công ty ghi |
 | D28 | 2026-10-14 | **Chấm tiêu chí tự do ở `AI_MODE=rules`.** Tiêu chí `project`: chấm theo các mục (entry) trong phần 프로젝트 của `masked_text` — có mục **25**; một mục nhắc tới kỹ năng mà tiêu chí hoặc job (tiêu đề, JD) nêu, hoặc từ khoá của tiêu chí → **50**; từ 2 mục như vậy → **75**; không có phần 프로젝트 → 0. Tiêu chí `other` (mơ hồ): retrieval như cũ, nhưng nếu retrieval không chấm được (0) thì cho **50 trung tính**, reason “규칙 기반으로 평가 불가”, không evidence (giống D13), method `rule:neutral` — điểm trung tính **chỉ** dành cho `other`. Tiêu chí `skill` mà tên kỹ năng **không có trong từ điển** (vd Excel, Photoshop), ở cả hai mode: tìm từ khoá của tên (và của mô tả) trong `masked_text` (chữ Latin khớp nguyên từ: “Excel” không khớp “Excellent”); không thấy → **0**, reason “이력서에서 확인되지 않음”; thấy → điểm retrieval, **tối thiểu 50** nếu thấy từ khoá của chính tên (dòng đó là evidence). Ứng viên retrieval (chấm điểm, LLM rubric, đoạn CV cho câu hỏi phỏng vấn) **bỏ** các chunk chỉ gồm tiêu đề mục hoặc thông tin liên hệ/PII đã che ([이름], [이메일], [전화번호]…) — giảm nhẹ issue 32; ngưỡng retrieval cho e5 để sau demo. Tách từ khoá: bỏ dấu `.` cuối token, thêm 직무/본인/역할 vào stoplist. `AI_MODE=llm` **không đổi** (kể cả khi LLM lỗi vẫn rơi về retrieval). Đổi điểm evaluation **mới**; evaluation cũ giữ điểm đã lưu; không đổi công thức Fit, `load_for_scoring`. | Tiêu chí project mặc định của `/analyze` ra 0 cho mọi CV ở mode rules, kéo Fit của tất cả xuống; điểm trung tính giữ nguyên thứ hạng khi không có căn cứ |
+| D29 | 2026-10-16 | **Talent recommendation bắt buộc cho demo** (chốt Q8): danh sách talent ẩn danh (`GET /api/jobs/{job_id}/talent`) và offer (`/api/talent-offers*`) có trong demo; quy tắc giữ nguyên D3, D18–D20. Landing được giới thiệu tính năng này. | Long chốt khi duyệt landing; backend đã có đủ (D19, D20) |
+| D30 | 2026-10-17 | **Mức quan trọng của tiêu chí cho seeker** (chốt Q2). Seeker đã đăng nhập thấy mỗi tiêu chí kèm một nhãn **3 mức: 핵심 / 중요 / 일반** (suy từ weight); **không** thấy số, weight hay điểm. D1 giữ nguyên. Không dùng “참고” vì trùng band gợi ý (D16). | Seeker biết công ty coi trọng gì mà không lộ trọng số (D1) |
+| D31 | 2026-10-17 | **Band chỉ có ở job được gợi ý** (chốt Q4). Seeker chỉ thấy band trong danh sách gợi ý (`GET /api/recommendations/jobs`, D16); trang chi tiết job và job đã apply **không** có band; **không** có “AI 적합도 분석” theo yêu cầu cho job bất kỳ. Không sinh evaluation cho job chưa apply ngoài luồng gợi ý, nên không cần giới hạn chi phí riêng. | Không thêm đường sinh evaluation nào ngoài các giới hạn đã có ở D16 |
+| D32 | 2026-10-17 | **Không thu 사업자등록번호** (chốt Q6, thay D6). Đăng ký company không có field 사업자등록번호: không lưu, không validate, không hiện; contract `POST /api/auth/register` giữ nguyên. Xác minh công ty bằng 사업자등록번호 **để giai đoạn sau, không phải bỏ**. | Demo không cần xác minh công ty; không cần migration hay đổi contract |
+| D33 | 2026-10-17 | **Không có filter tìm kiếm, lưu job, số liệu dashboard** (chốt một phần Q11). Không có filter job (địa điểm, loại hình, kinh nghiệm) hay tìm theo tên công ty / tech stack — chỉ tìm theo tiêu đề như hiện tại; không có lưu job (공고 저장); không có số liệu dashboard công ty (ứng viên mới, chờ xét, lịch phỏng vấn). | Không có trong brief 2026-10-13 |
+| D34 | 2026-10-17 | **Xoá CV / tài khoản: để giai đoạn sau, không phải bỏ** (chốt Q13). Hiện không có xoá CV hay xoá tài khoản. Hướng dự kiến khi làm: seeker chọn **chỉ xoá CV**, hoặc **xoá cả tài khoản** kèm toàn bộ dữ liệu liên quan. | Cần thiết kế cách xử lý dữ liệu liên quan (đơn ứng tuyển, evaluation, offer) trước khi làm |
+| D35 | 2026-10-17 | **Guest thấy tên tiêu chí** (chốt Q19). Trang chi tiết job của guest hiện **chỉ tên** tiêu chí — không nhóm, không mức quan trọng (D30), không weight. Seeker đã đăng nhập thấy tên, nhóm và mức quan trọng. | Khách biết job được đánh giá theo gì trước khi đăng ký (D4) |
+| D36 | 2026-10-17 | **Để giai đoạn sau, không phải bỏ:** quên mật khẩu và xác minh email; đăng nhập Kakao / Naver / Google; nhiều recruiter cho một công ty. (Xác minh công ty bằng 사업자등록번호: D32.) | Ngoài phạm vi hiện tại; quên mật khẩu và xác minh email cần mail server |
 
 Quy tắc khi thêm dòng: ghi ngày chốt thật (không phải ngày ghi), lý do ≤ 1 câu. Đổi một quyết định thì thêm dòng mới ghi “thay D#”, không xoá dòng cũ.
 
@@ -84,27 +97,23 @@ Chỉ gồm những gì chưa chốt. Chốt xong thì chuyển thành một dò
 | # | Câu hỏi | Lệch ở đâu |
 |---|---|---|
 | Q1 | 설계서 ghi seeker xem **“적합도 점수”**, còn Figma và frontend đang hiện **%**. Xác nhận là các chỗ này bị D1 thay thế? | 설계서 기본 §3.1(4) (tr. 12–13: “추천 채용공고 목록과 적합도 정보”, “적합도 점수와 추천 근거”); Figma ghi chú “예시 데이터” (tr. 17); `frontend/src/pages/seeker/Recommended.tsx` + `mock/data.ts` `demoMatch` (%) |
-| Q2 | Seeker đang thấy **mức quan trọng** của tiêu chí (높음/보통/낮음), suy từ weight (≥25 / ≥10). Như vậy có tính là “thấy weight” theo D1 không? Giữ hay bỏ? | `criteria_service.importance_level`, `GET /api/jobs/{id}/criteria` (seeker view); `PROJECT_DOCUMENTATION.md` §4.1 coi là được phép |
-| Q4 | Ngoài danh sách gợi ý, seeker có xem được band **cho một job bất kỳ** (trang chi tiết, “AI 적합도 분석” theo yêu cầu) và cho job **đã apply** không? Nếu có thì sẽ sinh evaluation cho job chưa apply. Có tính vào giới hạn chi phí không? (Roadmap/câu hỏi phỏng vấn không cần band hay evaluation — D21.) | 설계서 기본 §3.2(4) (tr. 21–23): seeker tự yêu cầu phân tích độ phù hợp cho một job |
-| Q6 | 사업자등록번호: lưu ở đâu (cột mới ở `companies`? cần migration), bắt buộc lúc đăng ký company không, có unique không, “định dạng” chỉ là 10 chữ số `XXX-XX-XXXXX` hay kiểm cả checksum, có hiện công khai không? Thêm field bắt buộc sẽ đổi contract `POST /api/auth/register` (frontend `Register`, `scripts/seed.py`). | Không có trong 설계서 (tr. 7–8 chỉ có form seeker), DB, code (`schemas/auth.py` `RegisterIn`) |
-| Q8 | Talent recommendation có **bắt buộc cho demo** không? (Điều kiện bật: D18; Pref làm bộ lọc: D19; sau accept chỉ lộ `display_name` + email: D20.) | 설계서 기본 §8 (tr. 32), 상세 §1.3 (tr. 37); `PROJECT_DOCUMENTATION.md` §6.1, issue 3/6/23/24/26, Q10 |
-| Q9 | Các luật `[Planned]` trong `PROJECT_DOCUMENTATION.md` §6.1, §9 — chuyển vào §2 không? Gồm: luật queue/retry (`ensure()` + `IntegrityError`, chỉ queue khi mới / `failed` / `pending` ≥ 10 phút, fencing theo `queued_at`); giới hạn 10 evaluation mới/lần, 30/seeker/ngày (KST), tối đa 3 lần thử; trả về `done` + `pending_count`; cách khớp Pref (location bằng nhau hoặc chứa nhau, employment type bằng nhau, keyword là substring của title/JD); preference trống = khớp + nhắc nhập; tie-break Final ↓, Fit ↓, `published_at` mới nhất; bump `CONSENT_VERSION` + đồng ý lại; `GET /api/jobs/{id}/criteria` public (seeker view). | `PROJECT_DOCUMENTATION.md` §6.1, §9 |
-| Q19 | `GET /api/jobs/{job_id}/criteria` (seeker view: tên + nhóm + mức quan trọng, không weight) có mở cho guest như D4 không? `PROJECT_DOCUMENTATION.md` §4.2 ghi `[Planned]` mở cùng trang chi tiết job; D4 chỉ nêu 2 endpoint. Nếu không mở, trang chi tiết job của guest phải ẩn khối tiêu chí. Liên quan Q2. | D4; `PROJECT_DOCUMENTATION.md` §4.2; `criteria.py` |
+| Q9 | Các luật `[Planned]` trong `PROJECT_DOCUMENTATION.md` §6.1, §9 — chuyển vào §2 không? Gồm: luật queue/retry (`ensure()` + `IntegrityError`, chỉ queue khi mới / `failed` / `pending` ≥ 10 phút, fencing theo `queued_at`); giới hạn 10 evaluation mới/lần, 30/seeker/ngày (KST), tối đa 3 lần thử; trả về `done` + `pending_count`; cách khớp Pref (location bằng nhau hoặc chứa nhau, employment type bằng nhau, keyword là substring của title/JD); preference trống = khớp + nhắc nhập; tie-break Final ↓, Fit ↓, `published_at` mới nhất; bump `CONSENT_VERSION` + đồng ý lại. | `PROJECT_DOCUMENTATION.md` §6.1, §9 |
 
 ### 3.2 Phạm vi chưa chốt
 
 | # | Câu hỏi | Nguồn |
 |---|---|---|
 | Q10 | Tính năng nào trong brief là **bắt buộc cho demo**: AI tự kiểm tra CV (điểm mạnh / cải thiện), skill roadmap, câu hỏi phỏng vấn theo JD, AI hỗ trợ **viết** JD (hiện chỉ có phân tích JD đã viết), filter nhanh ứng viên? | Brief 2026-10-13. 설계서: có “강점 및 개선 제안” (tr. 11), “부족한 역량 … 개선 방향” (tr. 2); **không** có câu hỏi phỏng vấn, viết JD, filter ứng viên. Code: chưa có cái nào (`PROGRESS_BACKEND_AI.md` §3) |
-| Q11 | Các mục có trong 설계서 / Figma nhưng không có trong brief: lưu job (공고 저장); tìm job theo tên công ty / tech stack + filter location / employment type / kinh nghiệm; field “경력 수준”, “보유 기술 스택” trong profile seeker; số liệu dashboard công ty (ứng viên mới, chờ xét, lịch phỏng vấn); trang 기업 탐색. Trong hay ngoài phạm vi? | 설계서 tr. 9, 10, 12, 15, 18; `PROJECT_DOCUMENTATION.md` Q8. Code: chỉ tìm theo title (`job_service.list_public`) |
+| Q11 | Các mục có trong 설계서 / Figma nhưng không có trong brief: field “경력 수준”, “보유 기술 스택” trong profile seeker; trang 기업 탐색. Trong hay ngoài phạm vi? (Lưu job, filter tìm kiếm, số liệu dashboard đã chốt ở D33.) | 설계서 tr. 9, 10, 12, 15, 18; `PROJECT_DOCUMENTATION.md` Q8 cũ (đã xoá, chuyển về đây và Q21). Code: chỉ tìm theo title (`job_service.list_public`) |
 | Q12 | Demo chạy `AI_MODE` nào (rules hay llm)? (Phần embedding đã chốt ở D26.) | D5, D7; `docker-compose.yml:16` |
-| Q13 | Xoá CV / tài khoản: trong hay ngoài phạm vi demo? | `PROJECT_DOCUMENTATION.md` Q5, issue 11 |
 | Q14 | `law_ref` trong blocklist cần xác nhận lại tính pháp lý trước demo: xác nhận dựa trên nguồn nào, và có đưa vào §1.1 thành hạng mục bắt buộc không? | `PROJECT_DOCUMENTATION.md` Q7, issue 21; `data/blocklist.yaml` |
 | Q20 | **#14 — tiêu chí `experience` chỉ tính kinh nghiệm liên quan** (để sau demo; hiện tính tổng số tháng). Cần chốt: (a) kinh nghiệm không liên quan tính 0 hay 50%? (b) áp cho mọi tiêu chí `experience`, hay chỉ khi tiêu chí có “관련” hoặc nêu kỹ năng? (c) có chấm lại evaluation cũ không — không chấm lại thì trong cùng một job, người apply trước và sau bị chấm theo hai luật khác nhau (gợi ý job và talent cũng dùng lại evaluation cũ); chấm lại thì đổi điểm công ty đã xem? (d) entry chỉ có chức danh (vd “ABC 백엔드 개발자”) mà không nêu công nghệ sẽ bị coi là **không liên quan** nếu chỉ khớp theo kỹ năng trong `data/skills.yaml` — chấp nhận, hay thêm danh sách từ chỉ vai trò (백엔드, 프론트엔드, 데이터…)? Đề xuất lúc lập plan: (a) 0; (b) mọi tiêu chí, tính tổng khi job và tiêu chí không nêu kỹ năng nào; (c) không chấm lại; (d) chấp nhận và ghi issue. Ảnh hưởng: đổi điểm evaluation mới; không đổi công thức Fit, `load_for_scoring`, `cv_profile.v1`; vẫn chỉ đọc `masked_text` (AI rule 14) | `PROGRESS_BACKEND_AI.md` #14; `ai/scoring/scorers.py` `score_experience`; `PROJECT_DOCUMENTATION.md` §6 |
+| Q21 | Field **số người tuyển (모집 인원)** trong form job: có làm không? Nếu có thì cần cột mới ở `job_postings` (migration) và đổi contract tạo/sửa job. | Figma form job trong 설계서; `PROJECT_DOCUMENTATION.md` Q8 cũ (đã xoá) |
+| Q22 | **Xoá tài khoản công ty**: chưa chốt (D34 chỉ nói về seeker). Xoá thì job, đơn ứng tuyển, evaluation, offer của công ty xử lý thế nào? | D34; `PROJECT_DOCUMENTATION.md` Q5 cũ (đã xoá) |
 
 ### 3.3 Tài liệu và quy tắc cần đồng bộ
 
 | # | Câu hỏi | Nguồn |
 |---|---|---|
 | Q16 | Phiên bản 설계서: PDF trong repo ghi **버전 1.0, 2026-10-11**, còn `PROJECT_DOCUMENTATION.md` dẫn **v1.1, 2026-10-12**. File nào là bản hiện hành? | `CareerSync_설계서.pdf` tr. 1; `PROJECT_DOCUMENTATION.md` dòng 7 |
-| Q17 | Có cập nhật các tài liệu sau theo file này không, và khi nào: (a) 설계서 (tr. 5, 12–13, 21, 26–27 — key bật LLM, điểm phù hợp cho seeker); (b) `PROJECT_DOCUMENTATION.md` §1 (chưa có 사업자등록번호; project công ty đang là `[DB only]`); (c) `PROGRESS_BACKEND_AI.md` (project công ty xếp P1 và phụ thuộc Q3)? | Các file nêu trên |
+| Q17 | Có cập nhật các tài liệu sau theo file này không, và khi nào: (a) 설계서 (tr. 5, 12–13, 21, 26–27 — key bật LLM, điểm phù hợp cho seeker); (b) `PROJECT_DOCUMENTATION.md` §1 (project công ty đang là `[DB only]`); (c) `PROGRESS_BACKEND_AI.md` (project công ty xếp P1 và phụ thuộc Q3)? | Các file nêu trên |

@@ -1,6 +1,8 @@
+from datetime import date, timedelta
+
 from sqlalchemy import select
 
-from app.models import CriteriaGuardrailLog
+from app.models import CriteriaGuardrailLog, JobPosting
 from app.services.criteria_service import load_for_scoring
 
 PLAN_EXAMPLE = [
@@ -26,7 +28,7 @@ def test_save_and_read_plan_example(client, world):
     body = r.json()
     assert body["total_weight"] == 100
     assert [i["name"] for i in body["items"]] == [i["name"] for i in PLAN_EXAMPLE]
-    assert [i["importance"] for i in body["items"]] == ["높음", "높음", "보통", "보통", "보통"]
+    assert [i["importance"] for i in body["items"]] == ["핵심", "핵심", "중요", "중요", "중요"]
     assert client.get(f"/api/jobs/{world['job'].id}/criteria", headers=world["recruiter"]).json() == body
 
 
@@ -127,9 +129,101 @@ def test_seeker_sees_importance_not_weights(client, world):
     assert client.get(url, headers=world["seeker"]).status_code == 404  # draft is not visible
     publish(client, world["job"].id, world["recruiter"])
     body = client.get(url, headers=world["seeker"]).json()
-    assert body["items"][0] == {"name": "Java 활용 능력", "category": "skill", "importance": "높음"}
+    assert body["items"][0] == {"name": "Java 활용 능력", "category": "skill", "importance": "핵심"}
     assert all("weight" not in i and "description" not in i for i in body["items"])
     assert put(client, world["job"].id, PLAN_EXAMPLE, world["seeker"]).status_code == 403
+
+
+# Weights 50 / 20 / 20 / 5 / 5 give every importance level (D30)
+LABEL_SET = [
+    {"name": "Java 활용 능력", "category": "skill", "weight": 50},
+    {"name": "Spring 경험", "category": "skill", "weight": 20},
+    {"name": "프로젝트 경험", "category": "project", "weight": 20},
+    {"name": "관련 자격증", "category": "certificate", "weight": 5},
+    {"name": "AWS 경험", "category": "skill", "weight": 5},
+]
+
+
+def published_with_labels(client, world):
+    assert put(client, world["job"].id, LABEL_SET, world["recruiter"]).status_code == 200
+    assert publish(client, world["job"].id, world["recruiter"]).status_code == 200
+    return f"/api/jobs/{world['job'].id}/criteria"
+
+
+def numbers_and_keys(value, path=""):
+    """Every (path, key) and every number below `value`, except the top-level job_id."""
+    keys, numbers = set(), []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            keys.add(k)
+            if not (path == "" and k == "job_id"):
+                sub_keys, sub_numbers = numbers_and_keys(v, f"{path}.{k}")
+                keys |= sub_keys
+                numbers += sub_numbers
+    elif isinstance(value, list):
+        for v in value:
+            sub_keys, sub_numbers = numbers_and_keys(v, path + "[]")
+            keys |= sub_keys
+            numbers += sub_numbers
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        numbers.append((path, value))
+    return keys, numbers
+
+
+def test_guest_gets_names_only(client, world):
+    url = published_with_labels(client, world)
+    r = client.get(url)
+    assert r.status_code == 200
+    assert r.json() == {"job_id": world["job"].id, "items": [{"name": c["name"]} for c in LABEL_SET]}
+
+
+def test_guest_cannot_read_draft_closed_or_expired_jobs(client, db, world):
+    draft_url = f"/api/jobs/{world['job2'].id}/criteria"
+    assert put(client, world["job2"].id, LABEL_SET, world["recruiter"]).status_code == 200
+    assert client.get(draft_url).status_code == 404
+
+    url = published_with_labels(client, world)
+    db.get(JobPosting, world["job"].id).deadline = date.today() - timedelta(days=1)
+    db.commit()
+    assert client.get(url).status_code == 404  # expired: hidden from guests like GET /api/jobs/{id}
+    assert client.get(url, headers=world["seeker"]).status_code == 200  # signed-in seekers still see it
+
+    assert client.post(f"/api/jobs/{world['job'].id}/close", headers=world["recruiter"]).status_code == 200
+    assert client.get(url).status_code == 404
+    assert client.get(url, headers=world["seeker"]).status_code == 404
+
+
+def test_seeker_gets_labels_without_numbers(client, world):
+    url = published_with_labels(client, world)
+    body = client.get(url, headers=world["seeker"]).json()
+    assert body["items"] == [
+        {"name": "Java 활용 능력", "category": "skill", "importance": "핵심"},
+        {"name": "Spring 경험", "category": "skill", "importance": "중요"},
+        {"name": "프로젝트 경험", "category": "project", "importance": "중요"},
+        {"name": "관련 자격증", "category": "certificate", "importance": "일반"},
+        {"name": "AWS 경험", "category": "skill", "importance": "일반"},
+    ]
+
+
+def test_no_weight_in_seeker_or_guest_response(client, world):
+    url = published_with_labels(client, world)
+    for headers in (None, world["seeker"]):
+        keys, numbers = numbers_and_keys(client.get(url, headers=headers).json())
+        assert not keys & {"weight", "total_weight", "position", "id", "description", "blocklist_version"}
+        assert numbers == []
+
+
+def test_owner_view_keeps_its_fields(client, world):
+    url = published_with_labels(client, world)
+    body = client.get(url, headers=world["recruiter"]).json()
+    assert set(body) == {"job_id", "items", "total_weight", "blocklist_version"}
+    assert body["total_weight"] == 100
+    assert [set(i) for i in body["items"]] == [
+        {"id", "name", "description", "category", "weight", "position", "importance"}
+    ] * len(LABEL_SET)
+    assert [(i["weight"], i["importance"]) for i in body["items"]] == [
+        (50, "핵심"), (20, "중요"), (20, "중요"), (5, "일반"), (5, "일반")
+    ]
 
 
 def test_other_company_gets_404(client, world):
@@ -143,9 +237,13 @@ def test_other_company_gets_404(client, world):
 
 
 def test_requires_auth(client, world):
-    assert client.get(f"/api/jobs/{world['job'].id}/criteria").status_code == 401
+    url = f"/api/jobs/{world['job'].id}/criteria"
+    # Reading is open to guests (D35), but only for jobs they can see; this one is a draft
+    assert client.get(url).status_code == 404
     bad = {"Authorization": "Bearer not-a-token"}
-    assert client.get(f"/api/jobs/{world['job'].id}/criteria", headers=bad).status_code == 401
+    assert client.get(url, headers=bad).status_code == 401
+    assert client.put(url, json={"items": PLAN_EXAMPLE}).status_code == 401
+    assert client.post("/api/criteria/check", json={"name": "Java"}).status_code == 401
 
 
 def test_copy_from_another_job(client, world):

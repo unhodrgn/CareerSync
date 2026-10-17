@@ -1,0 +1,173 @@
+/* Login / register / consent shell: audience field left, form card on the off-white ground right. */
+
+.page {
+  --tone: var(--color-seeker);
+  --tone-accent: var(--color-seeker-accent);
+  --tone-dot: var(--color-seeker-dot);
+  --tone-soft: var(--color-seeker-soft);
+  --tone-badge: var(--color-seeker-badge);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+.page[data-tone='company'] {
+  --tone: var(--color-employer);
+  --tone-accent: var(--color-employer-accent);
+  --tone-dot: var(--color-employer-dot);
+  --tone-soft: var(--color-employer-soft);
+  --tone-badge: var(--color-employer-badge);
+}
+
+.page[data-tone='hub'] {
+  --tone: var(--color-hub);
+  --tone-accent: var(--color-paper);
+  --tone-dot: var(--color-axis);
+  --tone-soft: var(--color-line-soft);
+  --tone-badge: var(--color-ink-soft);
+}
+
+.header {
+  height: 64px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.headerEnd {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 13px;
+}
+
+.tagline {
+  color: var(--color-ink-muted);
+}
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+/* The audience field: its colour moves with the role switch */
+.field {
+  --focus-color: var(--color-paper);
+  position: relative;
+  padding: 56px 48px;
+  background: var(--tone);
+  color: var(--color-paper);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .field {
+    transition: background-color 400ms var(--ease-out);
+  }
+}
+
+.fieldInner {
+  position: sticky;
+  top: 56px;
+  max-width: 440px;
+}
+
+.fieldTitle {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  white-space: pre-line;
+}
+
+.points,
+.hubRows {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.point {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: var(--radius-chip);
+  background: rgb(255 255 255 / 0.08);
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.pointIndex {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--tone-badge);
+  color: var(--tone-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hubRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-chip);
+  background: rgb(255 255 255 / 0.06);
+  font-size: 15px;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.dotSeeker,
+.dotCompany {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-seeker-dot);
+}
+
+.dotCompany {
+  background: var(--color-employer-dot);
+}
+
+.hubNote {
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.main {
+  padding: 56px 48px 64px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}

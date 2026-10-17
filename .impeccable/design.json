@@ -1,0 +1,863 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T12:00:00+00:00",
+  "title": "Design System: CareerSync",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(23.2% 0.004 286)",
+        "tonalRamp": [
+          "oklch(15% 0.004 286)",
+          "oklch(25% 0.004 286)",
+          "oklch(35% 0.004 286)",
+          "oklch(45% 0.004 286)",
+          "oklch(55% 0.004 286)",
+          "oklch(68% 0.004 286)",
+          "oklch(82% 0.004 286)",
+          "oklch(95% 0.004 286)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "oklch(32.1% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(25% 0.000 0)",
+          "oklch(35% 0.000 0)",
+          "oklch(45% 0.000 0)",
+          "oklch(55% 0.000 0)",
+          "oklch(68% 0.000 0)",
+          "oklch(82% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Gray",
+        "canonical": "oklch(54.0% 0.008 286)",
+        "tonalRamp": [
+          "oklch(15% 0.008 286)",
+          "oklch(25% 0.008 286)",
+          "oklch(35% 0.008 286)",
+          "oklch(45% 0.008 286)",
+          "oklch(55% 0.008 286)",
+          "oklch(68% 0.008 286)",
+          "oklch(82% 0.008 286)",
+          "oklch(95% 0.008 286)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(100.0% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(25% 0.000 0)",
+          "oklch(35% 0.000 0)",
+          "oklch(45% 0.000 0)",
+          "oklch(55% 0.000 0)",
+          "oklch(68% 0.000 0)",
+          "oklch(82% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "oklch(97.1% 0.003 286)",
+        "tonalRamp": [
+          "oklch(15% 0.003 286)",
+          "oklch(25% 0.003 286)",
+          "oklch(35% 0.003 286)",
+          "oklch(45% 0.003 286)",
+          "oklch(55% 0.003 286)",
+          "oklch(68% 0.003 286)",
+          "oklch(82% 0.003 286)",
+          "oklch(95% 0.003 286)"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken",
+        "canonical": "oklch(98.6% 0.003 286)",
+        "tonalRamp": [
+          "oklch(15% 0.003 286)",
+          "oklch(25% 0.003 286)",
+          "oklch(35% 0.003 286)",
+          "oklch(45% 0.003 286)",
+          "oklch(55% 0.003 286)",
+          "oklch(68% 0.003 286)",
+          "oklch(82% 0.003 286)",
+          "oklch(95% 0.003 286)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "canonical": "oklch(90.7% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(25% 0.000 0)",
+          "oklch(35% 0.000 0)",
+          "oklch(45% 0.000 0)",
+          "oklch(55% 0.000 0)",
+          "oklch(68% 0.000 0)",
+          "oklch(82% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Soft Line",
+        "canonical": "oklch(95.5% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(25% 0.000 0)",
+          "oklch(35% 0.000 0)",
+          "oklch(45% 0.000 0)",
+          "oklch(55% 0.000 0)",
+          "oklch(68% 0.000 0)",
+          "oklch(82% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "axis": {
+        "role": "neutral",
+        "displayName": "Axis Gray",
+        "canonical": "oklch(86.5% 0.007 286)",
+        "tonalRamp": [
+          "oklch(15% 0.007 286)",
+          "oklch(25% 0.007 286)",
+          "oklch(35% 0.007 286)",
+          "oklch(45% 0.007 286)",
+          "oklch(55% 0.007 286)",
+          "oklch(68% 0.007 286)",
+          "oklch(82% 0.007 286)",
+          "oklch(95% 0.007 286)"
+        ]
+      },
+      "hub": {
+        "role": "neutral",
+        "displayName": "Hub Ink",
+        "canonical": "oklch(23.2% 0.004 286)",
+        "tonalRamp": [
+          "oklch(15% 0.004 286)",
+          "oklch(25% 0.004 286)",
+          "oklch(35% 0.004 286)",
+          "oklch(45% 0.004 286)",
+          "oklch(55% 0.004 286)",
+          "oklch(68% 0.004 286)",
+          "oklch(82% 0.004 286)",
+          "oklch(95% 0.004 286)"
+        ]
+      },
+      "hub-text": {
+        "role": "neutral",
+        "displayName": "Hub Caption Gray",
+        "canonical": "oklch(84.5% 0.000 0)",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(25% 0.000 0)",
+          "oklch(35% 0.000 0)",
+          "oklch(45% 0.000 0)",
+          "oklch(55% 0.000 0)",
+          "oklch(68% 0.000 0)",
+          "oklch(82% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "seeker": {
+        "role": "primary",
+        "displayName": "Deep Seeker Navy",
+        "canonical": "oklch(29.6% 0.080 258)",
+        "tonalRamp": [
+          "oklch(15% 0.080 258)",
+          "oklch(25% 0.080 258)",
+          "oklch(35% 0.080 258)",
+          "oklch(45% 0.080 258)",
+          "oklch(55% 0.080 258)",
+          "oklch(68% 0.080 258)",
+          "oklch(82% 0.080 258)",
+          "oklch(95% 0.080 258)"
+        ]
+      },
+      "seeker-badge": {
+        "role": "primary",
+        "displayName": "Seeker Badge Navy",
+        "canonical": "oklch(39.4% 0.099 256)",
+        "tonalRamp": [
+          "oklch(15% 0.099 256)",
+          "oklch(25% 0.099 256)",
+          "oklch(35% 0.099 256)",
+          "oklch(45% 0.099 256)",
+          "oklch(55% 0.099 256)",
+          "oklch(68% 0.099 256)",
+          "oklch(82% 0.099 256)",
+          "oklch(95% 0.099 256)"
+        ]
+      },
+      "seeker-accent": {
+        "role": "primary",
+        "displayName": "Sky Accent",
+        "canonical": "oklch(80.9% 0.096 252)",
+        "tonalRamp": [
+          "oklch(15% 0.096 252)",
+          "oklch(25% 0.096 252)",
+          "oklch(35% 0.096 252)",
+          "oklch(45% 0.096 252)",
+          "oklch(55% 0.096 252)",
+          "oklch(68% 0.096 252)",
+          "oklch(82% 0.096 252)",
+          "oklch(95% 0.096 252)"
+        ]
+      },
+      "seeker-dot": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "oklch(71.4% 0.143 255)",
+        "tonalRamp": [
+          "oklch(15% 0.120 255)",
+          "oklch(25% 0.120 255)",
+          "oklch(35% 0.120 255)",
+          "oklch(45% 0.120 255)",
+          "oklch(55% 0.120 255)",
+          "oklch(68% 0.120 255)",
+          "oklch(82% 0.120 255)",
+          "oklch(95% 0.120 255)"
+        ]
+      },
+      "seeker-soft": {
+        "role": "primary",
+        "displayName": "Pale Seeker Wash",
+        "canonical": "oklch(95.4% 0.022 263)",
+        "tonalRamp": [
+          "oklch(15% 0.022 263)",
+          "oklch(25% 0.022 263)",
+          "oklch(35% 0.022 263)",
+          "oklch(45% 0.022 263)",
+          "oklch(55% 0.022 263)",
+          "oklch(68% 0.022 263)",
+          "oklch(82% 0.022 263)",
+          "oklch(95% 0.022 263)"
+        ]
+      },
+      "seeker-lit": {
+        "role": "primary",
+        "displayName": "Seeker Lit Wash",
+        "canonical": "oklch(97.0% 0.014 255)",
+        "tonalRamp": [
+          "oklch(15% 0.014 255)",
+          "oklch(25% 0.014 255)",
+          "oklch(35% 0.014 255)",
+          "oklch(45% 0.014 255)",
+          "oklch(55% 0.014 255)",
+          "oklch(68% 0.014 255)",
+          "oklch(82% 0.014 255)",
+          "oklch(95% 0.014 255)"
+        ]
+      },
+      "seeker-lit-line": {
+        "role": "primary",
+        "displayName": "Lit Blue Line",
+        "canonical": "oklch(54.6% 0.215 263)",
+        "tonalRamp": [
+          "oklch(15% 0.120 263)",
+          "oklch(25% 0.120 263)",
+          "oklch(35% 0.120 263)",
+          "oklch(45% 0.120 263)",
+          "oklch(55% 0.120 263)",
+          "oklch(68% 0.120 263)",
+          "oklch(82% 0.120 263)",
+          "oklch(95% 0.120 263)"
+        ]
+      },
+      "employer": {
+        "role": "secondary",
+        "displayName": "Deep Employer Green",
+        "canonical": "oklch(36.8% 0.063 176)",
+        "tonalRamp": [
+          "oklch(15% 0.063 176)",
+          "oklch(25% 0.063 176)",
+          "oklch(35% 0.063 176)",
+          "oklch(45% 0.063 176)",
+          "oklch(55% 0.063 176)",
+          "oklch(68% 0.063 176)",
+          "oklch(82% 0.063 176)",
+          "oklch(95% 0.063 176)"
+        ]
+      },
+      "employer-badge": {
+        "role": "secondary",
+        "displayName": "Employer Badge Green",
+        "canonical": "oklch(45.0% 0.078 175)",
+        "tonalRamp": [
+          "oklch(15% 0.078 175)",
+          "oklch(25% 0.078 175)",
+          "oklch(35% 0.078 175)",
+          "oklch(45% 0.078 175)",
+          "oklch(55% 0.078 175)",
+          "oklch(68% 0.078 175)",
+          "oklch(82% 0.078 175)",
+          "oklch(95% 0.078 175)"
+        ]
+      },
+      "employer-accent": {
+        "role": "secondary",
+        "displayName": "Mint Accent",
+        "canonical": "oklch(84.5% 0.130 165)",
+        "tonalRamp": [
+          "oklch(15% 0.120 165)",
+          "oklch(25% 0.120 165)",
+          "oklch(35% 0.120 165)",
+          "oklch(45% 0.120 165)",
+          "oklch(55% 0.120 165)",
+          "oklch(68% 0.120 165)",
+          "oklch(82% 0.120 165)",
+          "oklch(95% 0.120 165)"
+        ]
+      },
+      "employer-dot": {
+        "role": "secondary",
+        "displayName": "Signal Mint",
+        "canonical": "oklch(77.3% 0.153 163)",
+        "tonalRamp": [
+          "oklch(15% 0.120 163)",
+          "oklch(25% 0.120 163)",
+          "oklch(35% 0.120 163)",
+          "oklch(45% 0.120 163)",
+          "oklch(55% 0.120 163)",
+          "oklch(68% 0.120 163)",
+          "oklch(82% 0.120 163)",
+          "oklch(95% 0.120 163)"
+        ]
+      },
+      "employer-soft": {
+        "role": "secondary",
+        "displayName": "Pale Employer Wash",
+        "canonical": "oklch(95.8% 0.022 167)",
+        "tonalRamp": [
+          "oklch(15% 0.022 167)",
+          "oklch(25% 0.022 167)",
+          "oklch(35% 0.022 167)",
+          "oklch(45% 0.022 167)",
+          "oklch(55% 0.022 167)",
+          "oklch(68% 0.022 167)",
+          "oklch(82% 0.022 167)",
+          "oklch(95% 0.022 167)"
+        ]
+      },
+      "employer-tag-line": {
+        "role": "secondary",
+        "displayName": "Mint Tag Line",
+        "canonical": "oklch(88.3% 0.052 171)",
+        "tonalRamp": [
+          "oklch(15% 0.052 171)",
+          "oklch(25% 0.052 171)",
+          "oklch(35% 0.052 171)",
+          "oklch(45% 0.052 171)",
+          "oklch(55% 0.052 171)",
+          "oklch(68% 0.052 171)",
+          "oklch(82% 0.052 171)",
+          "oklch(95% 0.052 171)"
+        ]
+      },
+      "gap": {
+        "role": "tertiary",
+        "displayName": "Missing-Skill Amber",
+        "canonical": "oklch(55.5% 0.146 49)",
+        "tonalRamp": [
+          "oklch(15% 0.120 49)",
+          "oklch(25% 0.120 49)",
+          "oklch(35% 0.120 49)",
+          "oklch(45% 0.120 49)",
+          "oklch(55% 0.120 49)",
+          "oklch(68% 0.120 49)",
+          "oklch(82% 0.120 49)",
+          "oklch(95% 0.120 49)"
+        ]
+      },
+      "gap-strong": {
+        "role": "tertiary",
+        "displayName": "Burnt Amber",
+        "canonical": "oklch(47.3% 0.125 46)",
+        "tonalRamp": [
+          "oklch(15% 0.120 46)",
+          "oklch(25% 0.120 46)",
+          "oklch(35% 0.120 46)",
+          "oklch(45% 0.120 46)",
+          "oklch(55% 0.120 46)",
+          "oklch(68% 0.120 46)",
+          "oklch(82% 0.120 46)",
+          "oklch(95% 0.120 46)"
+        ]
+      },
+      "gap-line": {
+        "role": "tertiary",
+        "displayName": "Amber Line",
+        "canonical": "oklch(66.6% 0.157 58)",
+        "tonalRamp": [
+          "oklch(15% 0.120 58)",
+          "oklch(25% 0.120 58)",
+          "oklch(35% 0.120 58)",
+          "oklch(45% 0.120 58)",
+          "oklch(55% 0.120 58)",
+          "oklch(68% 0.120 58)",
+          "oklch(82% 0.120 58)",
+          "oklch(95% 0.120 58)"
+        ]
+      },
+      "gap-soft": {
+        "role": "tertiary",
+        "displayName": "Amber Wash",
+        "canonical": "oklch(98.7% 0.021 95)",
+        "tonalRamp": [
+          "oklch(15% 0.021 95)",
+          "oklch(25% 0.021 95)",
+          "oklch(35% 0.021 95)",
+          "oklch(45% 0.021 95)",
+          "oklch(55% 0.021 95)",
+          "oklch(68% 0.021 95)",
+          "oklch(82% 0.021 95)",
+          "oklch(95% 0.021 95)"
+        ]
+      },
+      "gap-badge": {
+        "role": "tertiary",
+        "displayName": "Amber Badge",
+        "canonical": "oklch(96.2% 0.058 96)",
+        "tonalRamp": [
+          "oklch(15% 0.058 96)",
+          "oklch(25% 0.058 96)",
+          "oklch(35% 0.058 96)",
+          "oklch(45% 0.058 96)",
+          "oklch(55% 0.058 96)",
+          "oklch(68% 0.058 96)",
+          "oklch(82% 0.058 96)",
+          "oklch(95% 0.058 96)"
+        ]
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Form Error Red",
+        "canonical": "oklch(50.0% 0.182 30)",
+        "tonalRamp": [
+          "oklch(15% 0.120 30)",
+          "oklch(25% 0.120 30)",
+          "oklch(35% 0.120 30)",
+          "oklch(45% 0.120 30)",
+          "oklch(55% 0.120 30)",
+          "oklch(68% 0.120 30)",
+          "oklch(82% 0.120 30)",
+          "oklch(95% 0.120 30)"
+        ]
+      },
+      "danger-soft": {
+        "role": "error",
+        "displayName": "Error Wash",
+        "canonical": "oklch(97.2% 0.012 24)",
+        "tonalRamp": [
+          "oklch(15% 0.012 24)",
+          "oklch(25% 0.012 24)",
+          "oklch(35% 0.012 24)",
+          "oklch(45% 0.012 24)",
+          "oklch(55% 0.012 24)",
+          "oklch(68% 0.012 24)",
+          "oklch(82% 0.012 24)",
+          "oklch(95% 0.012 24)"
+        ]
+      },
+      "danger-line": {
+        "role": "error",
+        "displayName": "Error Line",
+        "canonical": "oklch(63.7% 0.210 29)",
+        "tonalRamp": [
+          "oklch(15% 0.120 29)",
+          "oklch(25% 0.120 29)",
+          "oklch(35% 0.120 29)",
+          "oklch(45% 0.120 29)",
+          "oklch(55% 0.120 29)",
+          "oklch(68% 0.120 29)",
+          "oklch(82% 0.120 29)",
+          "oklch(95% 0.120 29)"
+        ]
+      },
+      "logo-blue": {
+        "role": "brand",
+        "displayName": "Logo Blue",
+        "canonical": "oklch(62.3% 0.188 260)",
+        "tonalRamp": [
+          "oklch(15% 0.120 260)",
+          "oklch(25% 0.120 260)",
+          "oklch(35% 0.120 260)",
+          "oklch(45% 0.120 260)",
+          "oklch(55% 0.120 260)",
+          "oklch(68% 0.120 260)",
+          "oklch(82% 0.120 260)",
+          "oklch(95% 0.120 260)"
+        ]
+      },
+      "logo-green": {
+        "role": "brand",
+        "displayName": "Logo Green",
+        "canonical": "oklch(69.6% 0.149 162)",
+        "tonalRamp": [
+          "oklch(15% 0.120 162)",
+          "oklch(25% 0.120 162)",
+          "oklch(35% 0.120 162)",
+          "oklch(45% 0.120 162)",
+          "oklch(55% 0.120 162)",
+          "oklch(68% 0.120 162)",
+          "oklch(82% 0.120 162)",
+          "oklch(95% 0.120 162)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Field headlines; two lines, max 490px, at most 8 syllables per line."
+      },
+      "field-title": {
+        "displayName": "Field Title",
+        "purpose": "Two-line title on the auth field (pre-line)."
+      },
+      "form-title": {
+        "displayName": "Form Title",
+        "purpose": "Heading inside a form card."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and the spine identity title."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Sentence under a headline, capped at 19.5em."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Page default."
+      },
+      "input": {
+        "displayName": "Input",
+        "purpose": "Text typed into a field."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Primary actions, the form submit and text links on fields."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Role labels, input titles, criterion rows."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Meta, notes, hints, footers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-on-field",
+        "value": "3px 5px 30px 0 rgb(0 0 0 / 0.22)",
+        "purpose": "White outcome cards on the navy and green fields only."
+      },
+      {
+        "name": "pinned-ring",
+        "value": "0 0 0 2px #ffffff, 0 0 0 4px #1d1d1f",
+        "purpose": "A pinned criterion row (aria-pressed)."
+      },
+      {
+        "name": "lit-square-ring",
+        "value": "0 0 0 2px #ffffff, 0 0 0 3.5px #0d4a3e",
+        "purpose": "The lit criterion's applicant square; the ring is #d97706 when the skill is missing."
+      },
+      {
+        "name": "gap-glow",
+        "value": "0 0 0 3px rgb(217 119 6 / 0.2)",
+        "purpose": "A lit gap row."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px var(--tone-soft)",
+        "purpose": "A focused text field; Error Wash (#fef3f2) instead when the field is invalid."
+      },
+      {
+        "name": "chosen-role-ring",
+        "value": "inset 0 0 0 1px var(--role)",
+        "purpose": "The checked role card, doubling its 1px border in the role color."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "The single easing for every state transition."
+      },
+      {
+        "name": "field-expand",
+        "value": "grid-template-columns 400ms ease-out after 80ms; collapse immediate",
+        "purpose": "Active field 1.12fr / 324px / 0.88fr on hover or :focus-visible inside; off under prefers-reduced-motion."
+      },
+      {
+        "name": "field-dim",
+        "value": "opacity .72, saturate(.75) brightness(.94); 320ms ease-out after 80ms",
+        "purpose": "The inactive field while the other is active; still applies under reduced motion."
+      },
+      {
+        "name": "chip-light",
+        "value": "220ms ease-out; accent border, white 14% fill",
+        "purpose": "The active field's input chip."
+      },
+      {
+        "name": "criterion-trail",
+        "value": "220ms ease-out; non-lit trail items at opacity .38",
+        "purpose": "Lit criterion across seeker row, spine row, employer tag and applicant squares. Hover/focus previews, click pins, Escape unpins."
+      },
+      {
+        "name": "press",
+        "value": "scale(.95), 150ms ease-out",
+        "purpose": "Active state of solid buttons."
+      },
+      {
+        "name": "field-recolor",
+        "value": "background-color 400ms ease-out",
+        "purpose": "The auth field changes tone when the role switch changes; off under prefers-reduced-motion."
+      },
+      {
+        "name": "control-focus",
+        "value": "border-color, box-shadow, background-color 160ms ease-out",
+        "purpose": "Text field focus and invalid states."
+      },
+      {
+        "name": "role-select",
+        "value": "200ms ease-out",
+        "purpose": "Role card border, wash and radio ring; also the disclosure chevron turning 180deg."
+      },
+      {
+        "name": "submit-press",
+        "value": "scale(.98), 150ms ease-out; hover brightness(1.12)",
+        "purpose": "The full-width form submit."
+      },
+      {
+        "name": "spinner",
+        "value": "rotate 800ms linear infinite; 2400ms under prefers-reduced-motion",
+        "purpose": "Busy submit."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "desktop-min",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "On-Field Primary Button",
+      "kind": "button",
+      "refersTo": "button-on-field",
+      "description": "The main action on a navy or green field; text takes the field color.",
+      "html": "<div class=\"ds-field\"><a class=\"ds-btn-field\" href=\"#\">구직자로 시작하기 <svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></a></div>",
+      "css": ".ds-field{background:var(--color-seeker,#102c54);padding:24px} .ds-btn-field{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:8px;background:var(--color-paper,#fff);color:var(--color-seeker,#102c54);font-size:15px;font-weight:600;text-decoration:none;transition:transform 150ms cubic-bezier(0.2, 0, 0, 1),background-color 150ms cubic-bezier(0.2, 0, 0, 1)} .ds-btn-field:hover{background:var(--color-canvas,#f5f5f7)} .ds-btn-field:active{transform:scale(.95)} .ds-btn-field:focus-visible{outline:2px solid #fff;outline-offset:3px}"
+    },
+    {
+      "name": "Ink Button",
+      "kind": "button",
+      "refersTo": "button-ink",
+      "description": "Compact near-black button on the canvas (header 로그인).",
+      "html": "<a class=\"ds-btn-ink\" href=\"#\">로그인</a>",
+      "css": ".ds-btn-ink{display:inline-block;padding:8px 16px;border-radius:8px;background:var(--color-ink,#1d1d1f);color:var(--color-paper,#fff);font-size:14px;font-weight:600;text-decoration:none;transition:transform 150ms cubic-bezier(0.2, 0, 0, 1),background-color 150ms cubic-bezier(0.2, 0, 0, 1)} .ds-btn-ink:hover{background:var(--color-ink-soft,#333)} .ds-btn-ink:active{transform:scale(.95)} .ds-btn-ink:focus-visible{outline:2px solid var(--color-seeker,#102c54);outline-offset:3px}"
+    },
+    {
+      "name": "Input Chip",
+      "kind": "chip",
+      "refersTo": "input-chip",
+      "description": "Translucent chip on a field naming that side's input; lights when the field is active.",
+      "html": "<div class=\"ds-field\"><div class=\"ds-chip\"><span class=\"ds-chip-icon\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5M9 13h6M9 17h4\"/></svg></span><span><b>내 이력서</b> <span class=\"ds-chip-meta\">· 기업 기준과 비교</span><br><span class=\"ds-chip-detail\">개인정보를 가린 원문에서 확인</span></span></div></div>",
+      "css": ".ds-field{background:var(--color-seeker,#102c54);padding:24px;color:#fff} .ds-chip{display:flex;align-items:center;gap:12px;padding:8px 14px;border:1px solid rgb(255 255 255 / .2);border-radius:11px;background:rgb(255 255 255 / .08);font-size:12px;transition:border-color 220ms cubic-bezier(0.2, 0, 0, 1),background-color 220ms cubic-bezier(0.2, 0, 0, 1)} .ds-chip b{font-size:13px;font-weight:600} .ds-chip:hover{border-color:var(--color-seeker-accent,#93c5fd);background:rgb(255 255 255 / .14)} .ds-chip-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--color-seeker-badge,#1e467a);color:var(--color-seeker-accent,#93c5fd)} .ds-chip-meta{color:var(--color-seeker-accent,#93c5fd)} .ds-chip-detail{color:rgb(255 255 255 / .68)}"
+    },
+    {
+      "name": "Band Pill",
+      "kind": "chip",
+      "refersTo": "band-pill",
+      "description": "The seeker's match band; the only fit signal a seeker sees.",
+      "html": "<span class=\"ds-band\"><span class=\"ds-band-dot\"></span>매우 적합</span>",
+      "css": ".ds-band{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:var(--color-seeker,#102c54);color:#fff;font-size:12.5px;font-weight:600} .ds-band-dot{width:8px;height:8px;border-radius:50%;background:var(--color-seeker-dot,#60a5fa)}"
+    },
+    {
+      "name": "Outcome Card",
+      "kind": "card",
+      "refersTo": "outcome-card",
+      "description": "White 18px card on a dark field with the single ambient shadow; head, 44px rows, foot. Shows a neutral row and the amber gap row.",
+      "html": "<div class=\"ds-field\"><figure class=\"ds-card\"><div class=\"ds-card-head\"><span class=\"ds-card-meta\">클라우드랩 · 정규직</span><span class=\"ds-card-title\">데이터 엔지니어</span></div><div class=\"ds-row\"><span><i class=\"ds-mark\"></i>Python 활용 능력</span><span class=\"ds-badge\">구간 반영</span></div><div class=\"ds-row ds-row-gap\"><span><svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7.5v5M12 16.2v.3\"/></svg> AWS 클라우드 운영 경험</span><span class=\"ds-badge\">이력서에 없음</span></div><figcaption class=\"ds-card-foot\">이력서에 없는 공고 기술: Airflow</figcaption></figure></div>",
+      "css": ".ds-field{background:var(--color-seeker,#102c54);padding:24px} .ds-card{margin:0;padding:20px;border:1px solid var(--color-line,#e0e0e0);border-radius:18px;background:#fff;color:var(--color-ink,#1d1d1f);box-shadow:3px 5px 30px 0 rgb(0 0 0 / .22);display:flex;flex-direction:column;gap:8px} .ds-card-head{padding-bottom:12px;border-bottom:1px solid var(--color-line-soft,#f0f0f0)} .ds-card-meta{display:block;font-size:12.5px;color:var(--color-ink-muted,#6e6e73)} .ds-card-title{font-size:18px;font-weight:600;letter-spacing:-.02em} .ds-row{height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--color-line,#e0e0e0);border-radius:8px;background:var(--color-sunken,#fafafc);font-size:13.5px;font-weight:600} .ds-row span{display:inline-flex;align-items:center;gap:8px} .ds-mark{width:6px;height:6px;margin:0 4px;border-radius:50%;background:var(--color-axis,#d2d2d7)} .ds-badge{padding:2px 10px;border-radius:999px;background:var(--color-seeker-soft,#e8f0ff);color:var(--color-seeker,#102c54);font-size:12px} .ds-row-gap{border:1px dashed var(--color-gap-line,#d97706);background:var(--color-gap-soft,#fffbeb);color:var(--color-gap-strong,#92400e)} .ds-row-gap svg{color:var(--color-gap,#b45309)} .ds-row-gap .ds-badge{background:var(--color-gap-badge,#fef3c7);color:var(--color-gap,#b45309)} .ds-card-foot{padding-top:10px;border-top:1px solid var(--color-line-soft,#f0f0f0);font-size:12px;color:var(--color-ink-muted,#6e6e73)}"
+    },
+    {
+      "name": "Criterion Row",
+      "kind": "custom",
+      "refersTo": "criterion-row",
+      "description": "Spine criterion with a category tag; hover/focus previews (ink fill), click pins (ring).",
+      "html": "<div class=\"ds-spine\"><button class=\"ds-crit\" aria-pressed=\"false\">1. Python 활용 능력<span class=\"ds-cat\">기술</span></button><button class=\"ds-crit ds-lit\" aria-pressed=\"true\">3. AWS 클라우드 운영 경험<span class=\"ds-cat\">기술</span></button></div>",
+      "css": ".ds-spine{background:var(--color-canvas,#f5f5f7);padding:16px;display:flex;flex-direction:column;gap:8px;width:290px} .ds-crit{width:100%;height:44px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--color-line,#e0e0e0);border-radius:8px;background:var(--color-sunken,#fafafc);color:var(--color-ink,#1d1d1f);font:inherit;font-size:13px;font-weight:600;letter-spacing:-.01em;text-align:left;cursor:pointer;transition:background-color 220ms cubic-bezier(0.2, 0, 0, 1),border-color 220ms cubic-bezier(0.2, 0, 0, 1),color 220ms cubic-bezier(0.2, 0, 0, 1)} .ds-crit:hover,.ds-crit:focus-visible,.ds-lit{border-color:var(--color-ink,#1d1d1f);background:var(--color-ink,#1d1d1f);color:#fff} .ds-crit:focus-visible{outline:2px solid var(--color-seeker,#102c54);outline-offset:3px} .ds-crit[aria-pressed=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--color-ink,#1d1d1f)} .ds-cat{padding:2px 8px;border-radius:4px;background:var(--color-line-soft,#f0f0f0);color:var(--color-ink-soft,#333);font-size:11px} .ds-crit:hover .ds-cat,.ds-crit:focus-visible .ds-cat,.ds-lit .ds-cat{background:rgb(255 255 255 / .2);color:#fff}"
+    },
+    {
+      "name": "Employer Tag",
+      "kind": "chip",
+      "refersTo": "employer-tag",
+      "description": "Criterion tag on the employer card; fills green and lifts 1px when its criterion is lit.",
+      "html": "<div class=\"ds-tags\"><span class=\"ds-tag\">Python</span><span class=\"ds-tag ds-tag-lit\">AWS</span><span class=\"ds-tag\">전공</span></div>",
+      "css": ".ds-tags{display:flex;gap:6px} .ds-tag{padding:4px 10px;border:1px solid var(--color-employer-tag-line,#b7e4d4);border-radius:6px;background:var(--color-employer-soft,#e4f6ee);color:var(--color-employer,#0d4a3e);font-size:12px;font-weight:600;cursor:pointer;transition:transform 220ms cubic-bezier(0.2, 0, 0, 1),background-color 220ms cubic-bezier(0.2, 0, 0, 1),color 220ms cubic-bezier(0.2, 0, 0, 1)} .ds-tag:hover,.ds-tag-lit{border-color:var(--color-employer,#0d4a3e);background:var(--color-employer,#0d4a3e);color:#fff;transform:translateY(-1px)}"
+    },
+    {
+      "name": "Hub",
+      "kind": "custom",
+      "refersTo": "hub",
+      "description": "Near-black 68px bar in the spine where both input trails meet.",
+      "html": "<div class=\"ds-hub\"><p class=\"ds-hub-row\"><span class=\"ds-hs\">이력서 →</span><span class=\"ds-shared\">공유 기준</span><span class=\"ds-he\">← 기준</span></p><p class=\"ds-hub-cap\">두 흐름이 하나의 평가 모델에서 만납니다</p></div>",
+      "css": ".ds-hub{height:68px;padding:0 14px;width:290px;display:flex;flex-direction:column;justify-content:center;border-radius:12px;background:var(--color-hub,#1d1d1f);color:#fff} .ds-hub p{margin:0} .ds-hub-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600} .ds-hs{color:var(--color-seeker-accent,#93c5fd)} .ds-he{color:var(--color-employer-accent,#6ee7b7)} .ds-shared{padding:2px 8px;border-radius:4px;background:rgb(255 255 255 / .15);font-size:11.5px} .ds-hub-cap{margin-top:4px;text-align:center;font-size:11px;color:var(--color-hub-text,#ccc)}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "44px control on the sunken fill; focus border, halo and caret take the page tone; invalid state is red with an icon line.",
+      "html": "<div class=\"ds-tone\" style=\"display:grid;gap:18px\"><div class=\"ds-fld\"><label for=\"ds-a\">이메일</label><div class=\"ds-ctl\"><input id=\"ds-a\" type=\"email\" value=\"name@example.com\"></div></div><div class=\"ds-fld\"><label for=\"ds-b\">회사명</label><div class=\"ds-ctl ds-bad\"><input id=\"ds-b\" aria-invalid=\"true\"></div><p class=\"ds-err\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7.5v5M12 16.2v.3\"/></svg><span>회사명을 입력하세요.</span></p><p class=\"ds-hint\">계정 하나에 기업 하나가 등록됩니다.</p></div></div>",
+      "css": ".ds-tone{--tone:var(--color-seeker,#102c54);--tone-soft:var(--color-seeker-soft,#e8f0ff)} .ds-fld{display:grid;gap:6px;width:360px} .ds-fld label{font-size:13px;font-weight:600;color:var(--color-ink,#1d1d1f)} .ds-ctl{display:flex;align-items:center;height:44px;border:1px solid var(--color-line,#e0e0e0);border-radius:8px;background:var(--color-sunken,#fafafc);transition:border-color 160ms cubic-bezier(0.2, 0, 0, 1),box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),background-color 160ms cubic-bezier(0.2, 0, 0, 1)} .ds-ctl:hover{border-color:var(--color-axis,#d2d2d7)} .ds-ctl:focus-within{border-color:var(--tone);background:#fff;box-shadow:0 0 0 3px var(--tone-soft)} .ds-ctl input{flex:1;min-width:0;height:100%;padding:0 14px;border:0;background:transparent;font:inherit;font-size:15px;color:var(--color-ink,#1d1d1f);caret-color:var(--tone)} .ds-ctl input:focus{outline:none} .ds-ctl.ds-bad{border-color:var(--color-danger-line,#f04438);background:#fff} .ds-ctl.ds-bad:focus-within{box-shadow:0 0 0 3px var(--color-danger-soft,#fef3f2)} .ds-err{margin:0;display:flex;align-items:flex-start;gap:6px;font-size:12.5px;line-height:1.4;color:var(--color-danger,#b42318)} .ds-err svg{flex:none;margin-top:1px} .ds-hint{margin:0;font-size:12px;color:var(--color-ink-muted,#6e6e73)} .ds-reveal{flex:none;width:40px;height:36px;margin-right:4px;display:grid;place-items:center;border:0;border-radius:6px;background:transparent;color:var(--color-ink-muted,#6e6e73);cursor:pointer} .ds-reveal:hover{color:var(--color-ink,#1d1d1f);background:var(--color-line-soft,#f0f0f0)}"
+    },
+    {
+      "name": "Password Field",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "The text field with a quiet reveal toggle inside the control.",
+      "html": "<div class=\"ds-tone\"><div class=\"ds-fld\"><label for=\"ds-c\">비밀번호</label><div class=\"ds-ctl\"><input id=\"ds-c\" type=\"password\" value=\"secret12\"><button type=\"button\" class=\"ds-reveal\" aria-pressed=\"false\" aria-label=\"비밀번호 보기\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg></button></div><p class=\"ds-hint\">8자 이상, 영문과 숫자를 모두 포함</p></div></div>",
+      "css": ".ds-tone{--tone:var(--color-seeker,#102c54);--tone-soft:var(--color-seeker-soft,#e8f0ff)} .ds-fld{display:grid;gap:6px;width:360px} .ds-fld label{font-size:13px;font-weight:600;color:var(--color-ink,#1d1d1f)} .ds-ctl{display:flex;align-items:center;height:44px;border:1px solid var(--color-line,#e0e0e0);border-radius:8px;background:var(--color-sunken,#fafafc);transition:border-color 160ms cubic-bezier(0.2, 0, 0, 1),box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),background-color 160ms cubic-bezier(0.2, 0, 0, 1)} .ds-ctl:hover{border-color:var(--color-axis,#d2d2d7)} .ds-ctl:focus-within{border-color:var(--tone);background:#fff;box-shadow:0 0 0 3px var(--tone-soft)} .ds-ctl input{flex:1;min-width:0;height:100%;padding:0 14px;border:0;background:transparent;font:inherit;font-size:15px;color:var(--color-ink,#1d1d1f);caret-color:var(--tone)} .ds-ctl input:focus{outline:none} .ds-ctl.ds-bad{border-color:var(--color-danger-line,#f04438);background:#fff} .ds-ctl.ds-bad:focus-within{box-shadow:0 0 0 3px var(--color-danger-soft,#fef3f2)} .ds-err{margin:0;display:flex;align-items:flex-start;gap:6px;font-size:12.5px;line-height:1.4;color:var(--color-danger,#b42318)} .ds-err svg{flex:none;margin-top:1px} .ds-hint{margin:0;font-size:12px;color:var(--color-ink-muted,#6e6e73)} .ds-reveal{flex:none;width:40px;height:36px;margin-right:4px;display:grid;place-items:center;border:0;border-radius:6px;background:transparent;color:var(--color-ink-muted,#6e6e73);cursor:pointer} .ds-reveal:hover{color:var(--color-ink,#1d1d1f);background:var(--color-line-soft,#f0f0f0)}"
+    },
+    {
+      "name": "Submit Button",
+      "kind": "button",
+      "refersTo": "button-submit",
+      "description": "Full-width 48px form submit in the page tone (navy, green or Hub Ink); spinner while busy.",
+      "html": "<div class=\"ds-tone\" style=\"display:grid;gap:12px;width:400px\"><button class=\"ds-submit\" type=\"button\">구직자로 가입하기</button><button class=\"ds-submit ds-emp\" type=\"button\">기업으로 가입하기</button><button class=\"ds-submit ds-hubt\" type=\"button\" disabled aria-busy=\"true\"><span class=\"ds-spin\"></span>확인하는 중</button></div>",
+      "css": ".ds-tone{--tone:var(--color-seeker,#102c54);--tone-soft:var(--color-seeker-soft,#e8f0ff)} .ds-submit{height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:8px;background:var(--tone);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:transform 150ms cubic-bezier(0.2, 0, 0, 1),filter 150ms cubic-bezier(0.2, 0, 0, 1)} .ds-emp{--tone:var(--color-employer,#0d4a3e)} .ds-hubt{--tone:var(--color-hub,#1d1d1f)} .ds-submit:hover{filter:brightness(1.12)} .ds-submit:active{transform:scale(.98)} .ds-submit:focus-visible{outline:2px solid var(--tone);outline-offset:3px} .ds-submit:disabled{cursor:progress;filter:saturate(.6) brightness(1.1)} .ds-spin{width:16px;height:16px;border:2px solid rgb(255 255 255 / .35);border-top-color:#fff;border-radius:50%;animation:ds-spin 800ms linear infinite} @keyframes ds-spin{to{transform:rotate(360deg)}} @media (prefers-reduced-motion: reduce){.ds-spin{animation-duration:2400ms}}"
+    },
+    {
+      "name": "Role Switch",
+      "kind": "custom",
+      "refersTo": "role-card",
+      "description": "Two radio cards, each in its own audience color regardless of page tone.",
+      "html": "<fieldset class=\"ds-roles\"><legend>가입 유형</legend><div class=\"ds-opts\"><label class=\"ds-role\"><input type=\"radio\" name=\"ds-r\" checked><span class=\"ds-rn\">구직자</span><span class=\"ds-rd\">이력서로 공고별 적합도 확인</span></label><label class=\"ds-role ds-co\"><input type=\"radio\" name=\"ds-r\"><span class=\"ds-rn\">기업</span><span class=\"ds-rd\">우리 기준으로 지원자 평가</span></label></div></fieldset>",
+      "css": ".ds-roles{margin:0;padding:0;border:0;width:400px} .ds-roles legend{margin-bottom:8px;padding:0;font-size:13px;font-weight:600} .ds-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px} .ds-role{--role:var(--color-seeker,#102c54);--role-soft:var(--color-seeker-lit,#eff6ff);position:relative;display:grid;gap:2px;padding:12px 14px 12px 38px;border:1px solid var(--color-line,#e0e0e0);border-radius:11px;background:var(--color-sunken,#fafafc);cursor:pointer;transition:border-color 200ms cubic-bezier(0.2, 0, 0, 1),background-color 200ms cubic-bezier(0.2, 0, 0, 1),box-shadow 200ms cubic-bezier(0.2, 0, 0, 1)} .ds-co{--role:var(--color-employer,#0d4a3e);--role-soft:var(--color-employer-soft,#e4f6ee)} .ds-role input{position:absolute;opacity:0;pointer-events:none} .ds-role::before{content:'';position:absolute;top:15px;left:14px;width:14px;height:14px;border:1.5px solid var(--color-axis,#d2d2d7);border-radius:50%;background:#fff;transition:border-color 200ms cubic-bezier(0.2, 0, 0, 1),box-shadow 200ms cubic-bezier(0.2, 0, 0, 1)} .ds-role:hover{border-color:var(--color-axis,#d2d2d7)} .ds-role:has(input:checked){border-color:var(--role);background:var(--role-soft);box-shadow:inset 0 0 0 1px var(--role)} .ds-role:has(input:checked)::before{border-color:var(--role);box-shadow:inset 0 0 0 3px #fff;background:var(--role)} .ds-role:has(input:focus-visible){outline:2px solid var(--role);outline-offset:2px} .ds-rn{font-size:15px;font-weight:600;color:var(--color-ink,#1d1d1f)} .ds-role:has(input:checked) .ds-rn{color:var(--role)} .ds-rd{font-size:12.5px;color:var(--color-ink-muted,#6e6e73)}"
+    },
+    {
+      "name": "Consent Group",
+      "kind": "custom",
+      "refersTo": "consent-group",
+      "description": "모두 동의 plus required items, each with a 필수 tag and an inline disclosure led by a 초안 badge.",
+      "html": "<fieldset class=\"ds-tone ds-cons\"><label class=\"ds-chk ds-all\"><input type=\"checkbox\">필수 항목에 모두 동의</label><ul><li><div class=\"ds-crow\"><label class=\"ds-chk\"><input type=\"checkbox\" checked><span>개인정보 수집·이용 동의 <b class=\"ds-req\">필수</b></span></label><button type=\"button\" class=\"ds-disc\" aria-expanded=\"true\">내용 접기 <svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></button></div><div class=\"ds-cbody\"><p class=\"ds-draft\"><span class=\"ds-dtag\">초안</span>확정 전 초안 문구입니다.</p><p class=\"ds-ctext\">수집 항목: 이메일, 이름, 기업 회원의 회사명.\n보관 기간: 확정 예정.</p></div></li><li><div class=\"ds-crow\"><label class=\"ds-chk\"><input type=\"checkbox\"><span>AI 분석 안내 동의 <b class=\"ds-req\">필수</b></span></label><button type=\"button\" class=\"ds-disc\" aria-expanded=\"false\">내용 보기 <svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></button></div></li></ul></fieldset>",
+      "css": ".ds-tone{--tone:var(--color-seeker,#102c54);--tone-soft:var(--color-seeker-soft,#e8f0ff)} .ds-cons{margin:0;padding:0;width:400px;border:1px solid var(--color-line,#e0e0e0);border-radius:11px;background:#fff} .ds-cons ul{margin:0;padding:6px 0;list-style:none} .ds-cons li{padding:8px 16px} .ds-chk{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer} .ds-chk input{width:18px;height:18px;margin:0;accent-color:var(--tone)} .ds-all{padding:14px 16px;border-bottom:1px solid var(--color-line-soft,#f0f0f0);font-weight:600} .ds-crow{display:flex;align-items:center;justify-content:space-between;gap:12px} .ds-req{margin-left:4px;font-size:12px;font-weight:600;color:var(--tone)} .ds-disc{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border:0;border-radius:6px;background:transparent;color:var(--color-ink-muted,#6e6e73);font:inherit;font-size:12.5px;cursor:pointer} .ds-disc:hover{color:var(--color-ink,#1d1d1f);background:var(--color-line-soft,#f0f0f0)} .ds-disc svg{transition:transform 200ms cubic-bezier(0.2, 0, 0, 1)} .ds-disc[aria-expanded=true] svg{transform:rotate(180deg)} .ds-cbody{margin:10px 0 4px 28px;padding:12px 14px;border:1px solid var(--color-line-soft,#f0f0f0);border-radius:8px;background:var(--color-sunken,#fafafc)} .ds-draft{margin:0 0 8px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-ink-muted,#6e6e73)} .ds-dtag{padding:1px 7px;border:1px solid var(--color-line,#e0e0e0);border-radius:999px;background:#fff;font-size:11px;font-weight:600;color:var(--color-ink-soft,#333)} .ds-ctext{margin:0;font-size:13px;line-height:1.65;color:var(--color-ink-soft,#333);white-space:pre-line}"
+    },
+    {
+      "name": "Form Alert",
+      "kind": "custom",
+      "refersTo": "form-alert-error",
+      "description": "Whole-form message: red error (role=alert) or neutral notice (role=status).",
+      "html": "<div style=\"display:grid;gap:12px;width:400px\"><div class=\"ds-alert ds-ae\" role=\"alert\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7.5v5M12 16.2v.3\"/></svg><div>이메일 또는 비밀번호가 올바르지 않습니다.</div></div><div class=\"ds-alert ds-an\" role=\"status\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v5M12 7.8v.3\"/></svg><div>가입이 완료되었습니다. 로그인해 주세요.</div></div></div>",
+      "css": ".ds-alert{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;font-size:13.5px;line-height:1.5} .ds-alert svg{flex:none;margin-top:2px} .ds-ae{border:1px solid var(--color-danger-line,#f04438);background:var(--color-danger-soft,#fef3f2);color:var(--color-danger,#b42318)} .ds-an{border:1px solid var(--color-line,#e0e0e0);background:var(--color-sunken,#fafafc);color:var(--color-ink-soft,#333)}"
+    },
+    {
+      "name": "Auth Field",
+      "kind": "custom",
+      "refersTo": "point-chip",
+      "description": "The audience field of the auth pages: tone background, two-line 34px title, numbered point chips; recolors over 400ms.",
+      "html": "<div class=\"ds-af\"><p class=\"ds-aft\">이력서 한 번으로\n공고마다 적합도를</p><ol><li><span class=\"ds-pi\">1</span>기업이 정한 기준으로 공고별 적합 구간을 봅니다.</li><li><span class=\"ds-pi\">2</span>이력서에 없는 기술을 바로 확인합니다.</li></ol></div>",
+      "css": ".ds-af{--tone:var(--color-seeker,#102c54);--tone-accent:var(--color-seeker-accent,#93c5fd);--tone-badge:var(--color-seeker-badge,#1e467a);width:440px;padding:40px 32px;background:var(--tone);color:#fff;transition:background-color 400ms cubic-bezier(0.2, 0, 0, 1)} .ds-af:hover{--tone:var(--color-employer,#0d4a3e);--tone-accent:var(--color-employer-accent,#6ee7b7);--tone-badge:var(--color-employer-badge,#146353)} .ds-aft{margin:0;font-size:34px;font-weight:600;line-height:1.25;letter-spacing:-.025em;white-space:pre-line} .ds-af ol{margin:32px 0 0;padding:0;list-style:none;display:grid;gap:12px} .ds-af li{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid rgb(255 255 255 / .2);border-radius:11px;background:rgb(255 255 255 / .08);font-size:15px;line-height:1.5;color:rgb(255 255 255 / .88)} .ds-pi{flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:8px;background:var(--tone-badge);color:var(--tone-accent);font-size:12px;font-weight:600} @media (prefers-reduced-motion: reduce){.ds-af{transition:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "One Spine, Two Fields",
+    "overview": "CareerSync is drawn as three vertical fields: a deep navy field for job seekers, a deep green field for employers, and an off-white spine between them that carries the company's criteria on a 2px axis. Both outcomes hang off the spine at the same row heights, so the eye can follow one criterion straight across from a seeker's card, through the spine, to an employer's applicant list. The system's job is to make the product's mechanism (one criteria set read in two directions) visible as geometry.\n\nThe mood is calm, dense and exact, closer to an instrument panel than a marketing page. White cards sit on the dark fields with one soft shadow; on the light spine the same cards are flat, with only a 1px line around them. Pretendard does all the type work at two weights, regular (400) and semibold (600). Color is functional: navy marks seekers, green marks employers, and amber appears only when a skill is missing from a CV. The interactions keep that same geometry. Hovering a field widens it and dims the other, and a criterion lights its own row on every column at once.\n\nThe system is desktop-only and Korean-first. Body text breaks at word boundaries (`word-break: keep-all`), and every block is sized so its line breaks never change between states. The landing page and the auth pages (login, register, consent) exist in this system so far. The auth pages keep the world at a smaller scale: one audience field on the left and a white form card on the canvas on the right. App screens, app navigation and tables have no established patterns yet.",
+    "keyCharacteristics": [
+      "Three aligned columns (`1fr / 324px / 1fr`) with fixed vertical zones 256 / 68 / (20 + 360).",
+      "The audience's color sets each field: navy for seekers, green for employers. Amber is used only for absence.",
+      "White 18px-radius cards; one ambient shadow, used only on the dark fields.",
+      "Pretendard at 400 and 600 only; 40px headlines with tight negative tracking.",
+      "Thin linework: 1px lines, 2px axis and wires, 8px end dots.",
+      "Motion is state feedback: 400ms field expansion, 220ms criterion trail, .95 press.",
+      "Forms take their accent from the page's `--tone` (navy, green or Hub Ink); errors are red, never amber."
+    ],
+    "rules": [
+      {
+        "name": "The Two Fields Rule",
+        "body": "Navy always means seekers and green always means employers, on fields, dots, wires, badges and focus rings. Never swap them and never use either as a neutral accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Amber Is Absence Rule",
+        "body": "Amber marks one thing only: a skill the CV lacks. It is not a warning, error or highlight color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Bands Not Numbers Rule",
+        "body": "Seeker-facing surfaces never show numeric scores or \"met\" verdicts; seeker rows stay neutral and only the band pill and the amber gap carry meaning. Employer surfaces may show criteria met (기준 4개 중 N개 충족) and indicator squares.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Is For Errors Rule",
+        "body": "Form Error Red and its line and wash mark one thing only: input that cannot be submitted, or a request that failed. Never use amber for an error, and never use red for a missing skill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tone Rule",
+        "body": "A page sets `--tone` (with `--tone-soft`, `--tone-accent`, `--tone-dot`, `--tone-badge`) once, from its audience: seeker navy, employer green, or Hub Ink for a page that serves both sides. AuthFrame sets it per audience; the form controls read it for the focus border and halo, the caret, checkboxes, the 필수 tag, the submit fill and links. Controls never name navy or green themselves.",
+        "section": "colors"
+      },
+      {
+        "name": "The Logo Colors Stay In The Logo Rule",
+        "body": "Logo Blue and Logo Green (logo-blue, logo-green) appear only in the LogoMark: two 14px squares overlapping with `mix-blend-mode: screen` on an 8px-radius Ink tile. They are not UI colors.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Weights Rule",
+        "body": "Only 400 and 600. Hierarchy comes from size and tracking; never add a bold or light step.",
+        "section": "typography"
+      },
+      {
+        "name": "The Still Text Rule",
+        "body": "No text may change its line breaks between interaction states: cap measures (19.5em leads) and set one-line notes to nowrap with an ellipsis.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared Rows Rule",
+        "body": "Anything that must be compared across columns sits in the same fixed zone at the same height. Wires are sized to span exactly card padding + spine padding + 1px border.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Shadow Rule",
+        "body": "One soft shadow, only for white on dark. Surfaces on the canvas stay flat and use a line. This includes the form card.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** route every UI string through `t()` (Korean source `ko.ts`) and keep `word-break: keep-all` for body text.",
+      "**Do** use navy for anything seeker-facing and green for anything employer-facing, including focus rings inside their cards.",
+      "**Do** keep comparable content in fixed zones of the same height so rows align across columns (256 / 68 / 20 + 360, 44px rows).",
+      "**Do** keep 12–13px secondary text at Muted Gray (#6E6E73) or darker on light ground, and at no less than 62% white on dark fields.",
+      "**Do** use the system ease `cubic-bezier(0.2, 0, 0, 1)` for every state transition, and keep expansion off under reduced motion.",
+      "**Do** set `--tone` once per page from its audience (Hub Ink when it serves both sides) and let form controls read it.",
+      "**Do** show field errors under the field in Form Error Red with the alert icon, and whole-form failures (401, network, 5xx) as a form alert."
+    ],
+    "donts": [
+      "**Don't** show numeric scores, weights or \"met\" verdicts on seeker-facing surfaces; use the band and the amber gap.",
+      "**Don't** use amber for anything except a skill missing from the CV.",
+      "**Don't** use red outside forms, or for anything but an error.",
+      "**Don't** hard-code navy or green inside a form control; take the color from `--tone` (the role switch is the one control that shows both audiences).",
+      "**Don't** put a shadow on a card that sits on the canvas; use the 1px line.",
+      "**Don't** add a third type weight or a second typeface.",
+      "**Don't** let a hover, focus or pin state change any text's line breaks.",
+      "**Don't** repeat the landing's ghost 01/02 numerals, the 공유 기준 pill, the \"패널을 클릭해 가입\" hints, the ● audience labels or the small heads above cards on other screens. They are landing-only exceptions, not patterns.",
+      "**Don't** use the logo blue or green outside the LogoMark."
+    ]
+  }
+}

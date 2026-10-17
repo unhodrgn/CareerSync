@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Category = Literal["skill", "experience", "project", "certificate", "education", "other"]
-Importance = Literal["높음", "보통", "낮음"]
+Importance = Literal["핵심", "중요", "일반"]
 
 
 class CriterionIn(BaseModel):
@@ -55,6 +55,22 @@ class SeekerCriterionOut(BaseModel):
 class SeekerCriteriaSetOut(BaseModel):
     job_id: int
     items: list[SeekerCriterionOut]
+
+
+class GuestCriterionOut(BaseModel):
+    """What a guest may see: the name only (docs/DECISIONS.md D35). `extra="forbid"` keeps a seeker or
+    owner response from being serialized through this model of the response union."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+
+
+class GuestCriteriaSetOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: int
+    items: list[GuestCriterionOut]
 
 
 class CheckRequest(BaseModel):
