@@ -1,7 +1,7 @@
 """Evaluation criteria routes: one set per job posting, saved whole."""
 from fastapi import APIRouter
 
-from app.core.deps import CompanyUser, CurrentUser, DbSession
+from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
 from app.schemas.criteria import (
     CheckRequest,
@@ -9,10 +9,13 @@ from app.schemas.criteria import (
     CriteriaSetIn,
     CriteriaSetOut,
     CriterionOut,
+    GuestCriteriaSetOut,
+    GuestCriterionOut,
     SeekerCriteriaSetOut,
     SeekerCriterionOut,
 )
 from app.services import criteria_service as svc
+from app.services import job_service
 
 router = APIRouter(tags=["criteria"])
 
@@ -39,13 +42,17 @@ def _company_view(job: JobPosting) -> CriteriaSetOut:
 
 @router.get(
     "/jobs/{job_id}/criteria",
-    response_model=CriteriaSetOut | SeekerCriteriaSetOut,
-    summary="Read a job's criteria (owner: full rows; seeker: name + importance only)",
+    response_model=CriteriaSetOut | SeekerCriteriaSetOut | GuestCriteriaSetOut,
+    summary="Read a job's criteria; no login needed (owner: full rows; seeker: name + category + importance; "
+    "guest: names only, published unexpired jobs)",
 )
-def get_criteria(job_id: int, db: DbSession, user: CurrentUser):
-    if user.role == "company":
+def get_criteria(job_id: int, db: DbSession, user: OptionalUser):
+    if user is not None and user.role == "company":
         return _company_view(svc.get_owned_job(db, job_id, user))
-    job = svc.get_published_job(db, job_id)
+    # Same visibility as GET /api/jobs/{job_id}: guests see published, unexpired jobs; seekers published ones
+    job = job_service.get_visible_job(db, job_id, user)
+    if user is None:
+        return GuestCriteriaSetOut(job_id=job.id, items=[GuestCriterionOut(name=c.name) for c in job.criteria])
     return SeekerCriteriaSetOut(
         job_id=job.id,
         items=[

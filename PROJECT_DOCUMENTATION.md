@@ -52,7 +52,7 @@
 | Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | Stub files |
-| Delete CV / account | `TBD` | Q5 |
+| Delete CV / account | Deferred | Later phase, not rejected (docs/DECISIONS.md D34) |
 
 **End-to-end flow**
 ```
@@ -228,7 +228,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/jobs/{job_id}/close` | Close (final) | Company | 409 `JOB_NOT_PUBLISHED` | `job_service.close` | — |
 | POST | `/api/jobs/{job_id}/analyze` | Suggest criteria from the JD (not saved). Suggestions that saving would reject — a criteria guardrail hit, or `education` without a major (D13) — are left out and listed in `blocked` (`name`, `code` `CRITERIA_BLOCKED`\|`CRITERIA_MAJOR_REQUIRED`, `reason`); the rest are rescaled to 100. Nothing is written to `criteria_guardrail_logs` | Company | 404 | `jd_service.analyze` | **LLM** / rules, guardrail |
 | POST | `/api/jobs/{job_id}/jd-draft` | AI JD draft for an own **draft** job, not saved. Body: `keywords` (≤ 10, 1–50 characters), `notes` (≤ 1000), `project_ids` (own running projects as context). Response: `description` (assembled JD), `sections` (`intro`, `responsibilities`, `requirements`, `preferred`), `dropped` (`text`, `reason`: pay or money amounts, URL/email/phone, criteria blocklist hits, too long), `method`, `limited`, `notice`. Over `JD_DAILY_LLM_DRAFTS` in `AI_MODE=llm` → template with `limited: true` (D24) | Company | 404 `JOB_NOT_FOUND`, `PROJECT_NOT_FOUND`; 409 `JOB_NOT_DRAFT`; 422 | `jd_service.draft` | **LLM** / template, guardrail |
-| GET | `/api/jobs/{job_id}/criteria` | Company: full rows. Seeker: name + category + importance, no weights | Logged in | 404 | `criteria_service` | — |
+| GET | `/api/jobs/{job_id}/criteria` | Owner company: full rows (`importance` included). Seeker: `name`, `category`, `importance` (`핵심`\|`중요`\|`일반`, D30), no weights or numbers. Guest: `name` only (D35). Guests and seekers see the same jobs as `GET /api/jobs/{job_id}` (guests: published, unexpired; seekers: published) | Anyone (company token → own jobs only) | 404; 401 for an invalid token | `criteria_service` | — |
 | PUT | `/api/jobs/{job_id}/criteria` | Replace the criteria set | Company | 422 `CRITERIA_COUNT_INVALID`, `CRITERIA_DUPLICATE_NAME`, `WEIGHT_SUM_INVALID`, `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED`; 409 `CRITERIA_LOCKED` | `criteria_service.replace_set` | guardrail |
 | POST | `/api/jobs/{job_id}/criteria/copy-from/{source_job_id}` | Copy criteria into a draft | Company | 409 `CRITERIA_LOCKED`; 422 `CRITERIA_MAJOR_REQUIRED`, `CRITERIA_BLOCKED` | `criteria_service.copy_set` | guardrail |
 | POST | `/api/criteria/check` | Live guardrail check (saves nothing) | Company | — | `criteria_service.check` | guardrail |
@@ -261,7 +261,7 @@ Paths are working names (design doc 상세 §3.1); field-level request/response 
 
 | Purpose | Path (working) | Who | Tables | Blocked by |
 |---|---|---|---|---|
-| Delete CV / account | — | — | — | [Q5](#12-open-questions) |
+| Delete CV / account | — | — | — | Deferred (docs/DECISIONS.md D34) |
 
 Response sketches (field names not final). `pending_count` = candidates that passed the Pref filter (talent: the candidate filter) but whose evaluation is not `done` yet — queued in this call, still `pending`, `failed` and waiting for re-queue, or left for a later call by the per-call/daily caps. They are not in `items`.
 ```
@@ -270,11 +270,11 @@ GET /api/jobs/{job_id}/talent (implemented) → {"job_id", "items": [{"anonymous
 GET /api/talent-offers/sent (implemented) → [{"offer_id", "job_id", "job_title", "anonymous_id", "message", "status": "pending|accepted|rejected|cancelled|expired", "created_at", "expires_at", "responded_at", "candidate": {anonymous profile} | null, "contact": {"display_name", "email"} | null}]
 ```
 
-**`GET /api/jobs/{job_id}/criteria` without login** — planned: make it public together with job detail, returning the **seeker view** (name + category + importance, no weights) for published, unexpired jobs only; the company view (full rows) still needs the owner's token. Reason: the detail page already shows them, and they are what the company evaluates on publicly. If it stays behind login, the frontend must hide the criteria block for guests.
-
 ---
 
 ## 5. Frontend
+
+> Mục này mô tả frontend cũ đã bị xoá; `frontend/` đang được dựng lại từ đầu và mục này sẽ được cập nhật sau.
 
 Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`. Role is enforced by `Guard`. Token is kept in `localStorage`.
 
@@ -390,6 +390,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - Imports: stdlib → third-party → `ai.*` → `app.*`.
 - Prompts: versioned Markdown under `ai/prompts/vN/`.
 - Frontend: `PascalCase.tsx` components, pages under `pages/seeker/*` and `pages/company/*`, all HTTP through `src/api/client.ts`.
+- Frontend UI text: never hardcoded in components; every string goes through `t(key)` from `src/i18n/` (source locale `src/i18n/ko.ts`, keys type-checked). A new language is one new file `src/i18n/<locale>.ts` (`export default { ... } satisfies Messages`); no other file changes.
 - Commits: imperative, capitalized English sentence.
 - Tests: pytest from the repo root; no DB, network or key needed (in-memory SQLite, hashing embedder, `FakeLLM`).
 
@@ -540,10 +541,8 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | # | Question | Blocks |
 |---|---|---|
 | Q1 | Pref beyond normalization and containment: synonyms for locations and role keywords (e.g. "강남" vs "서울 강남구", "백엔드" vs "Backend")? Should a role mismatch alone exclude a job? (Formula: docs/DECISIONS.md D2; field rules: D15) | Recommendation quality |
-| Q5 | Deleting a CV attached to an application: block (409), withdraw the application, or keep the application without CV text? Deleting a company account? | Delete APIs, FK `RESTRICT` |
 | Q6 | Issue 15: allow applying with an older confirmed CV version? | Apply, recommendation |
 | Q7 | Blocklist legal references: re-check their legal validity before the demo | Demo |
-| Q8 | The design doc's Figma mockups show features with no backend design: saved jobs (공고 저장), job search filters (location, employment type, experience, tech stack, work mode), AI CV feedback (strengths / improvements), 취업 준비 roadmap, headcount (모집 인원) on the job form, 기업 탐색 page. Build, defer, or remove from the mockups? The job form mockup also lacks the criteria + weights input. | Frontend scope, DB, API |
 
 ---
 
@@ -565,8 +564,8 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 취업 준비 | Job preparation | Placeholder page `/seeker/prep` |
 | 다시 분석 | Re-analyze | Button that calls `/evaluation/retry` |
 | 검토 전 / 서류 검토 / 면접 예정 / 보류 / 합격 / 불합격 | submitted / reviewing / interview / on_hold / passed / rejected | `applications.status` |
-| 중요도 높음 / 보통 / 낮음 | Importance high / medium / low | What seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`) |
-| 적합도 구간 높음 / 보통 / 낮음 | Match band high / medium / low | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 [Planned] |
+| 중요도 핵심 / 중요 / 일반 | Importance core / important / normal | What signed-in seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`; docs/DECISIONS.md D30) |
+| 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16) |
 | 인재풀 공개 | Talent-pool opt-in | `seeker_preferences.profile_public` |
 | 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.1 dated 2026-10-12 |
 | 채용절차법 제4조의3 | Fair Hiring Procedure Act, Art. 4-3 | Basis of the criteria blocklist |

@@ -1,51 +1,113 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, setUnauthorizedHandler, tokenStore } from "../api/client";
-import type { User } from "../api/types";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { api, SESSION_EXPIRED_EVENT } from '@/api/client';
+import { paths } from '@/routes/paths';
+import type { UserOut } from '@/types/auth';
+import type { Role } from '@/types/common';
+import { clearToken, getToken, setToken } from './tokenStorage';
 
-interface AuthState {
-  user: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+type AuthStatus = 'loading' | 'guest' | 'signed-in';
+
+interface AuthValue {
+  status: AuthStatus;
+  user: UserOut | null;
+  /** True after a request came back 401 with a token: the login page says the session expired. */
+  sessionExpired: boolean;
+  login: (email: string, password: string) => Promise<UserOut>;
   logout: () => void;
+  /** Replace the current user, e.g. with the response of POST /api/users/me/consent. */
+  setUser: (user: UserOut) => void;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+const AuthContext = createContext<AuthValue | null>(null);
 
+/** Holds the token and the current user (GET /api/users/me); exposes login/logout. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(() => tokenStore.get() !== null);
+  const [user, setUserState] = useState<UserOut | null>(null);
+  const [status, setStatus] = useState<AuthStatus>(() => (getToken() ? 'loading' : 'guest'));
+  const [sessionExpired, setSessionExpired] = useState(false);
 
-  const logout = useCallback(() => {
-    tokenStore.set(null);
-    setUser(null);
+  // A stored token from an earlier visit in this tab: load its user, or drop it if the server refuses it
+  useEffect(() => {
+    if (!getToken()) return;
+    let cancelled = false;
+    api
+      .me()
+      .then((me) => {
+        if (cancelled) return;
+        setUserState(me);
+        setStatus('signed-in');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearToken();
+        setStatus('guest');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    setUnauthorizedHandler(logout);
-    if (!tokenStore.get()) return;
-    api
-      .me()
-      .then(setUser)
-      .catch(() => tokenStore.set(null))
-      .finally(() => setLoading(false));
-  }, [logout]);
-
-  const login = useCallback(async (email: string, password: string) => {
-    const { access_token } = await api.login(email, password);
-    tokenStore.set(access_token);
-    const me = await api.me();
-    setUser(me);
-    return me;
+    const onExpired = () => {
+      setUserState(null);
+      setStatus('guest');
+      setSessionExpired(true);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
+  const login = useCallback(async (email: string, password: string) => {
+    clearToken();
+    const token = await api.login({ email, password });
+    setToken(token.access_token);
+    try {
+      const me = await api.me();
+      setUserState(me);
+      setStatus('signed-in');
+      setSessionExpired(false);
+      return me;
+    } catch (error) {
+      clearToken();
+      throw error;
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    clearToken();
+    setUserState(null);
+    setStatus('guest');
+    setSessionExpired(false);
+  }, []);
+
+  const setUser = useCallback((next: UserOut) => setUserState(next), []);
+
+  const value = useMemo(
+    () => ({ status, user, sessionExpired, login, logout, setUser }),
+    [status, user, sessionExpired, login, logout, setUser],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
+export function useAuth(): AuthValue {
+  const value = useContext(AuthContext);
+  if (!value) throw new Error('useAuth must be used inside AuthProvider');
+  return value;
 }
 
-export const homeFor = (user: User) => (user.role === "company" ? "/company/jobs" : "/seeker");
+/** Where a signed-in user of this role lands. */
+export function homeFor(role: Role): string {
+  return role === 'seeker' ? paths.seeker.recommended : paths.company.jobs;
+}
+
+/** A `?next=` value is followed only when it is a path on this site (no scheme, no `//host`). */
+export function safeNext(next: string | null): string | null {
+  return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : null;
+}
+
+/** Where to send a user right after signing in: consent first when the server asks for it (D17). */
+export function afterSignIn(user: UserOut, next: string | null): string {
+  const target = safeNext(next) ?? homeFor(user.role);
+  if (user.consent_required) return `${paths.consent}?next=${encodeURIComponent(target)}`;
+  return target;
+}

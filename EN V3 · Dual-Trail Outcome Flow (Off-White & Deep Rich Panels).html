@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8">
+  <meta name="kombai-design-canvas" content="true">
+  
+  
+  
+  <script src="https://unpkg.com/@tailwindcss/browser@4.3.3/dist/index.global.js" integrity="sha384-2ql948lIdLcGEE0/qxNiudyTjgauA3RDJERu5xW75kFCvSl5a9odyQYCb6tEjnmB" crossorigin="anonymous"></script>
+  
+  <style>html, body { margin: 0; padding: 0; } #root { display: contents; }</style>
+</head><body>
+  <div id="root"><style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+  @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.48.0/dist/tabler-icons.min.css');
+
+  .cs-v3-root {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, sans-serif;
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    overflow-x: clip;
+  }
+
+  /* Split screen grid with smooth hover expansion */
+  .cs-v3-split {
+    display: grid;
+    grid-template-columns: 1fr 324px 1fr;
+    transition: grid-template-columns 400ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .cs-v3-panel {
+    transition: opacity 320ms cubic-bezier(0.2, 0, 0, 1), filter 320ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* Hovering Seeker panel expands it slightly and dims Employer panel */
+  .cs-v3-split[data-panel-hover="seeker"] {
+    grid-template-columns: 1.12fr 324px 0.88fr;
+  }
+  .cs-v3-split[data-panel-hover="seeker"] .cs-v3-employer {
+    opacity: 0.72;
+    filter: saturate(0.75) brightness(0.94);
+  }
+
+  /* Hovering Employer panel expands it slightly and dims Seeker panel */
+  .cs-v3-split[data-panel-hover="employer"] {
+    grid-template-columns: 0.88fr 324px 1.12fr;
+  }
+  .cs-v3-split[data-panel-hover="employer"] .cs-v3-seeker {
+    opacity: 0.72;
+    filter: saturate(0.75) brightness(0.94);
+  }
+
+  /* Smooth transitions for interactive trail elements */
+  .cs-v3-in-seeker,
+  .cs-v3-in-employer,
+  .cs-v3-crit-item,
+  .cs-v3-seeker-row,
+  .cs-v3-emp-tag,
+  .cs-v3-wire-row {
+    transition: opacity 220ms cubic-bezier(0.2, 0, 0, 1),
+                transform 220ms cubic-bezier(0.2, 0, 0, 1),
+                background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                border-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                color 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* Panel hover highlights that panel's input trail into the spine */
+  .cs-v3-split[data-panel-hover="seeker"] .cs-v3-in-seeker {
+    border-color: #93C5FD;
+    background-color: rgba(255, 255, 255, 0.14);
+  }
+  .cs-v3-split[data-panel-hover="employer"] .cs-v3-in-employer {
+    border-color: #6EE7B7;
+    background-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Criterion Focus Illumination across Seeker Card <-> Spine <-> Employer List */
+  .cs-v3-split[data-active-crit] .cs-v3-crit-item,
+  .cs-v3-split[data-active-crit] .cs-v3-seeker-row,
+  .cs-v3-split[data-active-crit] .cs-v3-emp-tag,
+  .cs-v3-split[data-active-crit] .cs-v3-wire-row {
+    opacity: 0.38;
+  }
+
+  .cs-v3-split[data-active-crit="sql"] [data-crit="sql"],
+  .cs-v3-split[data-active-crit="reporting"] [data-crit="reporting"],
+  .cs-v3-split[data-active-crit="stakeholder"] [data-crit="stakeholder"],
+  .cs-v3-split[data-active-crit="dbt"] [data-crit="dbt"] {
+    opacity: 1 !important;
+  }
+
+  .cs-v3-split[data-active-crit="sql"] .cs-v3-crit-item[data-crit="sql"],
+  .cs-v3-split[data-active-crit="reporting"] .cs-v3-crit-item[data-crit="reporting"],
+  .cs-v3-split[data-active-crit="stakeholder"] .cs-v3-crit-item[data-crit="stakeholder"],
+  .cs-v3-split[data-active-crit="dbt"] .cs-v3-crit-item[data-crit="dbt"] {
+    background-color: #1D1D1F;
+    color: #FFFFFF;
+    border-color: #1D1D1F;
+  }
+
+  .cs-v3-split[data-active-crit="sql"] .cs-v3-seeker-row[data-crit="sql"],
+  .cs-v3-split[data-active-crit="reporting"] .cs-v3-seeker-row[data-crit="reporting"],
+  .cs-v3-split[data-active-crit="stakeholder"] .cs-v3-seeker-row[data-crit="stakeholder"] {
+    background-color: #EFF6FF;
+    border-color: #2563EB;
+  }
+  .cs-v3-split[data-active-crit="dbt"] .cs-v3-seeker-row[data-crit="dbt"] {
+    background-color: #FFFBEB;
+    border-color: #D97706;
+  }
+
+  .cs-v3-split[data-active-crit="sql"] .cs-v3-emp-tag[data-crit="sql"],
+  .cs-v3-split[data-active-crit="reporting"] .cs-v3-emp-tag[data-crit="reporting"],
+  .cs-v3-split[data-active-crit="stakeholder"] .cs-v3-emp-tag[data-crit="stakeholder"],
+  .cs-v3-split[data-active-crit="dbt"] .cs-v3-emp-tag[data-crit="dbt"] {
+    background-color: #0D4A3E;
+    color: #FFFFFF;
+    border-color: #0D4A3E;
+    transform: translateY(-1px);
+  }
+
+  /* Apple system active press state */
+  .cs-v3-btn {
+    transition: transform 150ms cubic-bezier(0.2, 0, 0, 1), background-color 150ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .cs-v3-btn:active {
+    transform: scale(0.95);
+  }
+</style>
+<div class="cs-v3-root min-h-screen flex flex-col justify-between select-none" data-kid="1" data-name="page root container">
+    <!-- TOP BAR ACROSS BOTH PANELS -->
+    <header class="w-full h-[64px] bg-[#F5F5F7] border-b border-[#E0E0E0] px-10 flex items-center justify-between z-30" data-kid="1-1" data-name="page top navigation bar">
+        <a class="flex items-center gap-3 text-[#1D1D1F] no-underline" data-kid="1-1-1" data-name="brand logo link" href="/">
+            <div class="w-8 h-8 rounded-[8px] bg-[#1D1D1F] flex items-center justify-center overflow-hidden" data-kid="1-1-1-1" data-name="logo mark container">
+                <div class="w-3.5 h-3.5 rounded-xs bg-[#3B82F6] -mr-1" data-kid="1-1-1-1-1" data-name="logo blue square">
+                </div>
+                <div class="w-3.5 h-3.5 rounded-xs bg-[#10B981] -ml-1 mix-blend-screen" data-kid="1-1-1-1-2" data-name="logo green blended square">
+                </div>
+            </div>
+            <span class="text-[19px] font-semibold tracking-[-0.02em] text-[#1D1D1F]" data-kid="1-1-1-2" data-name="brand name text">
+                CareerSync
+            </span>
+        </a>
+        <div class="flex items-center gap-6" data-kid="1-1-2" data-name="header right actions container">
+            <span class="text-[13px] text-[#7A7A7A]" data-kid="1-1-2-1" data-name="platform tagline text">
+                Shared-Criteria AI Recruiting Platform
+            </span>
+            <a class="cs-v3-btn inline-flex items-center justify-center rounded-[8px] bg-[#1D1D1F] px-4 py-2 text-[14px] font-semibold text-white no-underline hover:bg-[#333333]" data-kid="1-1-2-2" data-name="login button" href="/login">
+                Log in
+            </a>
+        </div>
+    </header>
+    <!-- FULL-VIEWPORT SPLIT SCREEN WITH CENTRAL CRITERIA SPINE -->
+    <main class="cs-v3-split relative flex-1 w-full" data-kid="1-2" data-name="split-screen split stage" id="cs-v3-stage">
+        <!-- ============================================================ -->
+        <!-- LEFT PANEL: JOB SEEKERS (DEEP BLUE)                          -->
+        <!-- ============================================================ -->
+        <section aria-label="Job Seeker Panel" class="cs-v3-panel cs-v3-seeker relative bg-[#102C54] text-white pl-10 xl:pl-12 pr-8 pt-10 pb-10 flex flex-col justify-between cursor-pointer overflow-hidden" data-kid="1-2-1" data-name="job seeker panel" data-role-url="/register?role=seeker" id="seeker-panel">
+            <!-- Subtle decorative numeral (role sequence only, never a fit score) -->
+            <span aria-hidden="true" class="pointer-events-none absolute right-8 top-3 text-[116px] font-semibold leading-none tracking-[-0.04em] text-white/[0.045]" data-kid="1-2-1-1" data-name="decorative seeker role numeral">
+                01
+            </span>
+            <!-- ZONE 1: Role Headline & Actions (Fixed height for cross-panel alignment) -->
+            <div class="relative z-10 h-[256px] flex flex-col justify-between" data-kid="1-2-1-2" data-name="seeker panel fixed-top zone">
+                <div data-kid="1-2-1-2-1" data-name="seeker panel copy block">
+                    <div class="flex items-center justify-between mb-3.5" data-kid="1-2-1-2-1-1" data-name="seeker panel role header row">
+                        <span class="inline-flex items-center gap-2 text-[13px] font-semibold tracking-[-0.01em] text-[#93C5FD]" data-kid="1-2-1-2-1-1-1" data-name="seeker role label with dot">
+                            <span class="w-2 h-2 rounded-full bg-[#60A5FA]" data-kid="1-2-1-2-1-1-1-1" data-name="seeker role indicator dot">
+                            </span>
+                            For Job Seekers
+                        </span>
+                        <span class="text-[12px] text-white/50" data-kid="1-2-1-2-1-1-2" data-name="seeker panel sign-up hint text">
+                            Click panel to sign up
+                        </span>
+                    </div>
+                    <h1 class="text-[36px] xl:text-[40px] font-semibold leading-[1.09] tracking-[-0.025em] text-white max-w-[490px]" data-kid="1-2-1-2-1-2" data-name="seeker hero headline">
+                        Find companies that fit you, powered by AI
+                    </h1>
+                    <p class="mt-3 text-[17px] font-normal leading-[1.47] tracking-[-0.015em] text-white/80 max-w-[465px]" data-kid="1-2-1-2-1-3" data-name="seeker hero description text">
+                        Upload your resume to see how well you fit each job and which skills you're missing.
+                    </p>
+                </div>
+                <!-- Straight CTA + Secondary Link -->
+                <div class="flex flex-wrap items-center gap-5 pt-2" data-kid="1-2-1-2-2" data-name="seeker primary CTA row">
+                    <a class="cs-v3-btn inline-flex items-center gap-2.5 rounded-[8px] bg-white px-5 py-3 text-[15px] font-semibold text-[#102C54] no-underline hover:bg-[#F5F5F7]" data-kid="1-2-1-2-2-1" data-name="seeker sign-up primary button" data-stop-panel="true" href="/register?role=seeker">
+                        <span data-kid="1-2-1-2-2-1-1" data-name="seeker button label text">
+                            Start as a job seeker
+                        </span>
+                        <span class="text-[16px] flex items-center" data-kid="1-2-1-2-2-1-2" data-name="seeker button arrow container">
+                            <i class="ti ti-arrow-right" data-kid="1-2-1-2-2-1-2-1" data-name="arrow right icon">
+                            </i>
+                        </span>
+                    </a>
+                    <a class="text-[15px] font-normal text-[#93C5FD] underline decoration-[#93C5FD]/50 underline-offset-4 hover:text-white hover:decoration-white" data-kid="1-2-1-2-2-2" data-name="browse jobs secondary link" data-stop-panel="true" href="/jobs">
+                        Browse jobs without signing in
+                    </a>
+                </div>
+            </div>
+            <!-- ZONE 2: Horizontal Input Trail into Spine (Aligned with Center Junction) -->
+            <div class="relative z-10 my-5 h-[68px] flex items-center justify-between gap-3 border-y border-white/12" data-kid="1-2-1-3" data-name="seeker input trail band">
+                <div class="cs-v3-in-seeker flex items-center gap-3 rounded-[11px] border border-white/20 bg-white/[0.08] px-3.5 py-2 flex-1 min-w-0" data-kid="1-2-1-3-1" data-name="résumé input trail card">
+                    <div class="w-8 h-8 rounded-[8px] bg-[#1E467A] flex items-center justify-center text-[#93C5FD] text-[16px] shrink-0" data-kid="1-2-1-3-1-1" data-name="résumé icon badge">
+                        <i class="ti ti-file-text" data-kid="1-2-1-3-1-1-1" data-name="file text icon">
+                        </i>
+                    </div>
+                    <div class="min-w-0" data-kid="1-2-1-3-1-2" data-name="résumé trail text container">
+                        <div class="flex items-center gap-2" data-kid="1-2-1-3-1-2-1" data-name="résumé trail headline row">
+                            <span class="text-[13px] font-semibold text-white whitespace-nowrap" data-kid="1-2-1-3-1-2-1-1" data-name="résumé trail title">
+                                Your résumé
+                            </span>
+                            <span class="text-[12px] text-[#93C5FD] truncate" data-kid="1-2-1-3-1-2-1-2" data-name="résumé trail subtitle">
+                                · Matched against company criteria
+                            </span>
+                        </div>
+                        <p class="text-[12px] text-white/65 truncate" data-kid="1-2-1-3-1-2-2" data-name="résumé trail description">
+                            Verified skills, project evidence & work history
+                        </p>
+                    </div>
+                </div>
+                <!-- Trail line feeding directly into the central spine -->
+                <div class="flex items-center gap-1.5 text-[#93C5FD] shrink-0" data-kid="1-2-1-3-2" data-name="spine feed directional arrow">
+                    <span class="text-[12px] font-semibold whitespace-nowrap" data-kid="1-2-1-3-2-1" data-name="feed spine label">
+                        Into spine
+                    </span>
+                    <span class="w-7 h-[2px] bg-[#60A5FA]" data-kid="1-2-1-3-2-2" data-name="feed spine connector line">
+                    </span>
+                    <span class="text-[16px] flex items-center" data-kid="1-2-1-3-2-3" data-name="feed spine arrow container">
+                        <i class="ti ti-arrow-narrow-right" data-kid="1-2-1-3-2-3-1" data-name="right arrow icon">
+                        </i>
+                    </span>
+                </div>
+            </div>
+            <!-- ZONE 3: Resulting Seeker Preview Card (Aligned with Spine Criteria Rows) -->
+            <div class="relative z-10 flex flex-col" data-kid="1-2-1-4" data-name="seeker result preview container">
+                <div class="flex items-center justify-between mb-2.5 h-[20px]" data-kid="1-2-1-4-1" data-name="seeker result header row">
+                    <span class="text-[12.5px] font-semibold text-[#93C5FD] flex items-center gap-1.5 whitespace-nowrap" data-kid="1-2-1-4-1-1" data-name="seeker result header label">
+                        <i class="ti ti-corner-down-right" data-kid="1-2-1-4-1-1-1" data-name="corner down-right arrow icon">
+                        </i>
+                        Outcome · Recommended job card
+                    </span>
+                    <span class="text-[12px] text-white/55 whitespace-nowrap" data-kid="1-2-1-4-1-2" data-name="match band disclaimer text">
+                        Match band only · No numeric score
+                    </span>
+                </div>
+                <!-- Seeker Job Card -->
+                <div class="h-[360px] rounded-[18px] bg-white text-[#1D1D1F] p-5 border border-[#E0E0E0] shadow-[3px_5px_30px_0_rgba(0,0,0,0.22)] flex flex-col justify-between" data-kid="1-2-1-4-2" data-name="seeker job preview card" data-stop-panel="true">
+                    <!-- Job Card Header -->
+                    <div class="flex items-start justify-between gap-4 pb-3 border-b border-[#F0F0F0]" data-kid="1-2-1-4-2-1" data-name="job card header">
+                        <div data-kid="1-2-1-4-2-1-1" data-name="job card company block">
+                            <div class="flex items-center gap-2 text-[12.5px] text-[#7A7A7A]" data-kid="1-2-1-4-2-1-1-1" data-name="company meta row">
+                                <span class="font-semibold text-[#333333]" data-kid="1-2-1-4-2-1-1-1-1" data-name="company name">
+                                    Meridian Data
+                                </span>
+                                <span data-kid="1-2-1-4-2-1-1-1-2" data-name="meta separator dot">
+                                    ·
+                                </span>
+                                <span data-kid="1-2-1-4-2-1-1-1-3" data-name="job location meta">
+                                    Seoul · Full-time
+                                </span>
+                            </div>
+                            <h2 class="mt-0.5 text-[18px] font-semibold tracking-[-0.02em] text-[#1D1D1F]" data-kid="1-2-1-4-2-1-1-2" data-name="job title">
+                                Senior Analytics Engineer
+                            </h2>
+                        </div>
+                        <!-- Match Band Label ONLY (No numeric score) -->
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-[#102C54] px-3.5 py-1.5 text-[12.5px] font-semibold text-white shrink-0" data-kid="1-2-1-4-2-1-2" data-name="match band badge">
+                            <span class="w-2 h-2 rounded-full bg-[#60A5FA]" data-kid="1-2-1-4-2-1-2-1" data-name="match band indicator dot">
+                            </span>
+                            Strong match
+                        </span>
+                    </div>
+                    <!-- 4 Criteria Rows aligned 1:1 with the Central Spine rows -->
+                    <div aria-label="Matched criteria and skill gap" class="flex flex-col gap-2" data-kid="1-2-1-4-2-2" data-name="seeker matched criteria list" role="list">
+                        <div class="cs-v3-seeker-row h-[44px] flex items-center justify-between rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3.5 text-[13.5px] cursor-pointer" data-crit="sql" data-kid="1-2-1-4-2-2-1" data-name="SQL criterion match row" role="listitem">
+                            <div class="flex items-center gap-2 min-w-0" data-kid="1-2-1-4-2-2-1-1" data-name="SQL criterion label group">
+                                <span class="text-[#102C54] text-[15px] flex items-center shrink-0" data-kid="1-2-1-4-2-2-1-1-1" data-name="SQL check icon container">
+                                    <i class="ti ti-check" data-kid="1-2-1-4-2-2-1-1-1-1" data-name="check icon">
+                                    </i>
+                                </span>
+                                <span class="font-semibold text-[#1D1D1F] truncate" data-kid="1-2-1-4-2-2-1-1-2" data-name="SQL criterion name">
+                                    SQL & Data Modeling
+                                </span>
+                            </div>
+                            <span class="text-[12px] font-semibold text-[#102C54] bg-[#E8F0FF] px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0" data-kid="1-2-1-4-2-2-1-2" data-name="SQL match status badge">
+                                Matched · 4 yrs verified
+                            </span>
+                        </div>
+                        <div class="cs-v3-seeker-row h-[44px] flex items-center justify-between rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3.5 text-[13.5px] cursor-pointer" data-crit="reporting" data-kid="1-2-1-4-2-2-2" data-name="reporting criterion match row" role="listitem">
+                            <div class="flex items-center gap-2 min-w-0" data-kid="1-2-1-4-2-2-2-1" data-name="reporting criterion label group">
+                                <span class="text-[#102C54] text-[15px] flex items-center shrink-0" data-kid="1-2-1-4-2-2-2-1-1" data-name="reporting check icon container">
+                                    <i class="ti ti-check" data-kid="1-2-1-4-2-2-2-1-1-1" data-name="check icon">
+                                    </i>
+                                </span>
+                                <span class="font-semibold text-[#1D1D1F] truncate" data-kid="1-2-1-4-2-2-2-1-2" data-name="reporting criterion name">
+                                    Dashboard Reporting
+                                </span>
+                            </div>
+                            <span class="text-[12px] font-semibold text-[#102C54] bg-[#E8F0FF] px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0" data-kid="1-2-1-4-2-2-2-2" data-name="reporting match status badge">
+                                Matched · BI KPI project
+                            </span>
+                        </div>
+                        <div class="cs-v3-seeker-row h-[44px] flex items-center justify-between rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3.5 text-[13.5px] cursor-pointer" data-crit="stakeholder" data-kid="1-2-1-4-2-2-3" data-name="stakeholder criterion match row" role="listitem">
+                            <div class="flex items-center gap-2 min-w-0" data-kid="1-2-1-4-2-2-3-1" data-name="stakeholder criterion label group">
+                                <span class="text-[#102C54] text-[15px] flex items-center shrink-0" data-kid="1-2-1-4-2-2-3-1-1" data-name="stakeholder check icon container">
+                                    <i class="ti ti-check" data-kid="1-2-1-4-2-2-3-1-1-1" data-name="check icon">
+                                    </i>
+                                </span>
+                                <span class="font-semibold text-[#1D1D1F] truncate" data-kid="1-2-1-4-2-2-3-1-2" data-name="stakeholder criterion name">
+                                    Stakeholder Communication
+                                </span>
+                            </div>
+                            <span class="text-[12px] font-semibold text-[#102C54] bg-[#E8F0FF] px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0" data-kid="1-2-1-4-2-2-3-2" data-name="stakeholder match status badge">
+                                Matched · Exec briefs
+                            </span>
+                        </div>
+                        <!-- Single Skill Gap -->
+                        <div class="cs-v3-seeker-row h-[44px] flex items-center justify-between rounded-[8px] border border-dashed border-[#D97706] bg-[#FFFBEB] px-3.5 text-[13.5px] cursor-pointer" data-crit="dbt" data-kid="1-2-1-4-2-2-4" data-name="dbt skill gap row" role="listitem">
+                            <div class="flex items-center gap-2 min-w-0" data-kid="1-2-1-4-2-2-4-1" data-name="dbt criterion label group">
+                                <span class="text-[#B45309] text-[15px] flex items-center shrink-0" data-kid="1-2-1-4-2-2-4-1-1" data-name="dbt warning icon container">
+                                    <i class="ti ti-alert-circle" data-kid="1-2-1-4-2-2-4-1-1-1" data-name="alert circle icon">
+                                    </i>
+                                </span>
+                                <span class="font-semibold text-[#92400E] truncate" data-kid="1-2-1-4-2-2-4-1-2" data-name="dbt criterion name">
+                                    dbt Core
+                                </span>
+                            </div>
+                            <span class="text-[12px] font-semibold text-[#B45309] bg-[#FEF3C7] px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0" data-kid="1-2-1-4-2-2-4-2" data-name="dbt skill gap badge">
+                                Skill gap · Missing in resume
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Card Footer -->
+                    <div class="pt-2.5 border-t border-[#F0F0F0] flex items-center justify-between text-[12px] text-[#7A7A7A]" data-kid="1-2-1-4-2-3" data-name="seeker job card footer">
+                        <span data-kid="1-2-1-4-2-3-1" data-name="seeker criteria summary note">
+                            3 criteria matched · 1 skill gap identified
+                        </span>
+                        <span class="font-semibold text-[#102C54]" data-kid="1-2-1-4-2-3-2" data-name="seeker learning roadmap callout">
+                            Includes learning roadmap →
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ============================================================ -->
+        <!-- CENTER: SHARED VERTICAL CRITERIA SPINE                       -->
+        <!-- ============================================================ -->
+        <aside aria-label="Shared Evaluation Criteria Spine" class="relative z-20 bg-[#F5F5F7] border-x border-[#E0E0E0] px-4 pt-10 pb-10 flex flex-col justify-between items-center" data-kid="1-2-2" data-name="criteria spine column" id="criteria-spine">
+            <!-- Continuous Vertical Spine Axis Line -->
+            <div aria-hidden="true" class="pointer-events-none absolute inset-y-6 left-1/2 -translate-x-1/2 w-[2px] bg-[#D2D2D7]" data-kid="1-2-2-1" data-name="spine axis vertical line">
+            </div>
+            <!-- ZONE 1: Spine Identity Card (Matches height of upper copy block) -->
+            <div class="relative z-10 w-full h-[256px] rounded-[16px] bg-white border border-[#E0E0E0] p-5 flex flex-col justify-between text-center" data-kid="1-2-2-2" data-name="spine identity card">
+                <div class="flex justify-center" data-kid="1-2-2-2-1" data-name="spine pill wrapper">
+                    <span class="inline-flex items-center gap-2 rounded-full bg-[#F5F5F7] border border-[#E0E0E0] px-3 py-1 text-[11.5px] font-semibold text-[#333333]" data-kid="1-2-2-2-1-1" data-name="spine header pill with dual dots">
+                        <span class="w-2 h-2 rounded-full bg-[#102C54]" data-kid="1-2-2-2-1-1-1" data-name="spine seeker dot">
+                        </span>
+                        <span data-kid="1-2-2-2-1-1-2" data-name="spine label text">
+                            Central Criteria Spine
+                        </span>
+                        <span class="w-2 h-2 rounded-full bg-[#0D4A3E]" data-kid="1-2-2-2-1-1-3" data-name="spine employer dot">
+                        </span>
+                    </span>
+                </div>
+                <div data-kid="1-2-2-2-2" data-name="spine identity copy block">
+                    <p class="text-[18px] font-semibold leading-[1.24] tracking-[-0.02em] text-[#1D1D1F]" data-kid="1-2-2-2-2-1" data-name="spine identity headline">
+                        One set of criteria, matching both ways
+                    </p>
+                    <p class="mt-2 text-[13px] leading-[1.45] text-[#7A7A7A]" data-kid="1-2-2-2-2-2" data-name="spine identity description">
+                        The employer’s evaluation rubric powers candidate job fit on the left and applicant ranking on the right.
+                    </p>
+                </div>
+                <div class="pt-3 border-t border-[#F0F0F0] grid grid-cols-2 gap-2 text-[11.5px] font-semibold" data-kid="1-2-2-2-3" data-name="spine role chips row">
+                    <div class="rounded-[8px] bg-[#E8F0FF] text-[#102C54] py-1.5 px-2" data-kid="1-2-2-2-3-1" data-name="seeker direction chip">
+                        ← Guides Seekers
+                    </div>
+                    <div class="rounded-[8px] bg-[#E4F6EE] text-[#0D4A3E] py-1.5 px-2" data-kid="1-2-2-2-3-2" data-name="employer direction chip">
+                        Ranks Talent →
+                    </div>
+                </div>
+            </div>
+            <!-- ZONE 2: Trail Convergence Hub (Aligned horizontally with Seeker & Employer input trails) -->
+            <div class="relative z-10 w-full my-5 h-[68px] rounded-[12px] bg-[#1D1D1F] text-white px-3.5 flex flex-col justify-center" data-kid="1-2-2-3" data-name="spine convergence hub">
+                <!-- Left & right horizontal bridge ticks connecting the two panels' input trails -->
+                <span aria-hidden="true" class="pointer-events-none absolute -left-4 top-1/2 -translate-y-1/2 w-4 h-[2px] bg-[#60A5FA]" data-kid="1-2-2-3-1" data-name="spine left bridge tick">
+                </span>
+                <span aria-hidden="true" class="pointer-events-none absolute -right-4 top-1/2 -translate-y-1/2 w-4 h-[2px] bg-[#34D399]" data-kid="1-2-2-3-2" data-name="spine right bridge tick">
+                </span>
+                <div class="flex items-center justify-between text-[12px] font-semibold" data-kid="1-2-2-3-3" data-name="convergence hub input-rubric-output row">
+                    <span class="flex items-center gap-1 text-[#93C5FD]" data-kid="1-2-2-3-3-1" data-name="convergence résumé input group">
+                        <span data-kid="1-2-2-3-3-1-1" data-name="résumé label">
+                            Résumé
+                        </span>
+                        <i class="ti ti-arrow-narrow-right" data-kid="1-2-2-3-3-1-2" data-name="right arrow icon">
+                        </i>
+                    </span>
+                    <span class="rounded bg-white/15 px-2 py-0.5 text-[11.5px] text-white font-semibold" data-kid="1-2-2-3-3-2" data-name="convergence rubric chip">
+                        Shared Rubric
+                    </span>
+                    <span class="flex items-center gap-1 text-[#6EE7B7]" data-kid="1-2-2-3-3-3" data-name="convergence criteria output group">
+                        <i class="ti ti-arrow-narrow-left" data-kid="1-2-2-3-3-3-1" data-name="left arrow icon">
+                        </i>
+                        <span data-kid="1-2-2-3-3-3-2" data-name="criteria label">
+                            Criteria
+                        </span>
+                    </span>
+                </div>
+                <p class="mt-1 text-center text-[11px] text-[#CCCCCC]" data-kid="1-2-2-3-4" data-name="convergence hub caption">
+                    Both trails meet in one evaluation model
+                </p>
+            </div>
+            <!-- ZONE 3: The 4 Shared Criteria Rows (Aligned with both lower preview cards) -->
+            <div class="relative z-10 w-full flex flex-col" data-kid="1-2-2-4" data-name="spine lower zone container">
+                <div class="flex items-center justify-between mb-2.5 h-[20px] px-1" data-kid="1-2-2-4-1" data-name="spine list header row">
+                    <span class="text-[12px] font-semibold text-[#1D1D1F]" data-kid="1-2-2-4-1-1" data-name="spine list title">
+                        Shared Company Criteria
+                    </span>
+                    <span class="text-[11.5px] text-[#7A7A7A]" data-kid="1-2-2-4-1-2" data-name="spine list hint text">
+                        Hover or click
+                    </span>
+                </div>
+                <div class="h-[360px] rounded-[18px] bg-white border border-[#E0E0E0] p-5 flex flex-col justify-between" data-kid="1-2-2-4-2" data-name="spine criteria list card">
+                    <div class="pb-3 border-b border-[#F0F0F0] flex items-center justify-between" data-kid="1-2-2-4-2-1" data-name="spine list card header">
+                        <div data-kid="1-2-2-4-2-1-1" data-name="vacancy rubric block">
+                            <span class="text-[11.5px] text-[#7A7A7A] block" data-kid="1-2-2-4-2-1-1-1" data-name="vacancy rubric caption">
+                                Vacancy Rubric
+                            </span>
+                            <span class="text-[14.5px] font-semibold text-[#1D1D1F]" data-kid="1-2-2-4-2-1-1-2" data-name="vacancy rubric title">
+                                Senior Analytics Engineer
+                            </span>
+                        </div>
+                        <span class="rounded-full bg-[#F5F5F7] border border-[#E0E0E0] px-2.5 py-1 text-[11.5px] font-semibold text-[#333333]" data-kid="1-2-2-4-2-1-2" data-name="criteria count badge">
+                            4 Criteria
+                        </span>
+                    </div>
+                    <!-- 4 Interactive Criterion Spine Rows (Exact 44px height + 8px gap matching left card) -->
+                    <div class="flex flex-col gap-2" data-kid="1-2-2-4-2-2" data-name="spine criteria list" role="list">
+                        <!-- Criterion 1: SQL -->
+                        <button class="cs-v3-crit-item group relative h-[44px] w-full text-left rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3 flex items-center justify-between cursor-pointer" data-crit="sql" data-kid="1-2-2-4-2-2-1" data-name="SQL criterion button" type="button">
+                            <!-- Left bridge to Seeker Row 1 -->
+                            <span class="cs-v3-wire-row pointer-events-none absolute -left-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="sql" data-kid="1-2-2-4-2-2-1-1" data-name="SQL left connector stub">
+                                <span class="w-2 h-2 rounded-full bg-[#102C54]" data-kid="1-2-2-4-2-2-1-1-1" data-name="SQL left connector dot">
+                                </span>
+                                <span class="w-[29px] h-[2px] bg-[#102C54]" data-kid="1-2-2-4-2-2-1-1-2" data-name="SQL left connector line">
+                                </span>
+                            </span>
+                            <span class="text-[13px] font-semibold tracking-[-0.01em] truncate" data-kid="1-2-2-4-2-2-1-2" data-name="SQL criterion label">
+                                1. SQL & Data Modeling
+                            </span>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#E8F0FF] text-[#102C54] group-hover:bg-white/20 group-hover:text-white shrink-0" data-kid="1-2-2-4-2-2-1-3" data-name="SQL priority badge">
+                                High
+                            </span>
+                            <!-- Right bridge to Employer Card -->
+                            <span class="cs-v3-wire-row pointer-events-none absolute -right-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="sql" data-kid="1-2-2-4-2-2-1-4" data-name="SQL right connector stub">
+                                <span class="w-[29px] h-[2px] bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-1-4-1" data-name="SQL right connector line">
+                                </span>
+                                <span class="w-2 h-2 rounded-full bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-1-4-2" data-name="SQL right connector dot">
+                                </span>
+                            </span>
+                        </button>
+                        <!-- Criterion 2: Dashboard Reporting -->
+                        <button class="cs-v3-crit-item group relative h-[44px] w-full text-left rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3 flex items-center justify-between cursor-pointer" data-crit="reporting" data-kid="1-2-2-4-2-2-2" data-name="reporting criterion button" type="button">
+                            <span class="cs-v3-wire-row pointer-events-none absolute -left-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="reporting" data-kid="1-2-2-4-2-2-2-1" data-name="reporting left connector stub">
+                                <span class="w-2 h-2 rounded-full bg-[#102C54]" data-kid="1-2-2-4-2-2-2-1-1" data-name="reporting left connector dot">
+                                </span>
+                                <span class="w-[29px] h-[2px] bg-[#102C54]" data-kid="1-2-2-4-2-2-2-1-2" data-name="reporting left connector line">
+                                </span>
+                            </span>
+                            <span class="text-[13px] font-semibold tracking-[-0.01em] truncate" data-kid="1-2-2-4-2-2-2-2" data-name="reporting criterion label">
+                                2. Dashboard Reporting
+                            </span>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#E8F0FF] text-[#102C54] group-hover:bg-white/20 group-hover:text-white shrink-0" data-kid="1-2-2-4-2-2-2-3" data-name="reporting priority badge">
+                                High
+                            </span>
+                            <span class="cs-v3-wire-row pointer-events-none absolute -right-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="reporting" data-kid="1-2-2-4-2-2-2-4" data-name="reporting right connector stub">
+                                <span class="w-[29px] h-[2px] bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-2-4-1" data-name="reporting right connector line">
+                                </span>
+                                <span class="w-2 h-2 rounded-full bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-2-4-2" data-name="reporting right connector dot">
+                                </span>
+                            </span>
+                        </button>
+                        <!-- Criterion 3: Stakeholder Communication -->
+                        <button class="cs-v3-crit-item group relative h-[44px] w-full text-left rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3 flex items-center justify-between cursor-pointer" data-crit="stakeholder" data-kid="1-2-2-4-2-2-3" data-name="stakeholder criterion button" type="button">
+                            <span class="cs-v3-wire-row pointer-events-none absolute -left-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="stakeholder" data-kid="1-2-2-4-2-2-3-1" data-name="stakeholder left connector stub">
+                                <span class="w-2 h-2 rounded-full bg-[#102C54]" data-kid="1-2-2-4-2-2-3-1-1" data-name="stakeholder left connector dot">
+                                </span>
+                                <span class="w-[29px] h-[2px] bg-[#102C54]" data-kid="1-2-2-4-2-2-3-1-2" data-name="stakeholder left connector line">
+                                </span>
+                            </span>
+                            <span class="text-[13px] font-semibold tracking-[-0.01em] truncate" data-kid="1-2-2-4-2-2-3-2" data-name="stakeholder criterion label">
+                                3. Stakeholder Comm.
+                            </span>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#F0F0F0] text-[#333333] group-hover:bg-white/20 group-hover:text-white shrink-0" data-kid="1-2-2-4-2-2-3-3" data-name="stakeholder priority badge">
+                                Core
+                            </span>
+                            <span class="cs-v3-wire-row pointer-events-none absolute -right-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="stakeholder" data-kid="1-2-2-4-2-2-3-4" data-name="stakeholder right connector stub">
+                                <span class="w-[29px] h-[2px] bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-3-4-1" data-name="stakeholder right connector line">
+                                </span>
+                                <span class="w-2 h-2 rounded-full bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-3-4-2" data-name="stakeholder right connector dot">
+                                </span>
+                            </span>
+                        </button>
+                        <!-- Criterion 4: dbt Core -->
+                        <button class="cs-v3-crit-item group relative h-[44px] w-full text-left rounded-[8px] border border-[#E0E0E0] bg-[#FAFAFC] px-3 flex items-center justify-between cursor-pointer" data-crit="dbt" data-kid="1-2-2-4-2-2-4" data-name="dbt criterion button" type="button">
+                            <span class="cs-v3-wire-row pointer-events-none absolute -left-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="dbt" data-kid="1-2-2-4-2-2-4-1" data-name="dbt left connector stub">
+                                <span class="w-2 h-2 rounded-full bg-[#D97706]" data-kid="1-2-2-4-2-2-4-1-1" data-name="dbt left connector dot">
+                                </span>
+                                <span class="w-[29px] h-[2px] bg-[#D97706]" data-kid="1-2-2-4-2-2-4-1-2" data-name="dbt left connector line">
+                                </span>
+                            </span>
+                            <span class="text-[13px] font-semibold tracking-[-0.01em] truncate" data-kid="1-2-2-4-2-2-4-2" data-name="dbt criterion label">
+                                4. dbt Core
+                            </span>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#FEF3C7] text-[#92400E] group-hover:bg-white/20 group-hover:text-white shrink-0" data-kid="1-2-2-4-2-2-4-3" data-name="dbt gap badge">
+                                Gap
+                            </span>
+                            <span class="cs-v3-wire-row pointer-events-none absolute -right-[37px] top-1/2 -translate-y-1/2 flex items-center" data-crit="dbt" data-kid="1-2-2-4-2-2-4-4" data-name="dbt right connector stub">
+                                <span class="w-[29px] h-[2px] bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-4-4-1" data-name="dbt right connector line">
+                                </span>
+                                <span class="w-2 h-2 rounded-full bg-[#0D4A3E]" data-kid="1-2-2-4-2-2-4-4-2" data-name="dbt right connector dot">
+                                </span>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="pt-2.5 border-t border-[#F0F0F0] flex items-center justify-between text-[11.5px] font-semibold" data-kid="1-2-2-4-2-3" data-name="spine list card footer">
+                        <span class="text-[#102C54]" data-kid="1-2-2-4-2-3-1" data-name="seeker direction footer text">
+                            ← Match band & gap
+                        </span>
+                        <span class="text-[#0D4A3E]" data-kid="1-2-2-4-2-3-2" data-name="employer direction footer text">
+                            Applicant rank →
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- ============================================================ -->
+        <!-- RIGHT PANEL: EMPLOYERS (DEEP GREEN / TEAL)                   -->
+        <!-- ============================================================ -->
+        <section aria-label="Employer Panel" class="cs-v3-panel cs-v3-employer relative bg-[#0D4A3E] text-white pl-8 pr-10 xl:pr-12 pt-10 pb-10 flex flex-col justify-between cursor-pointer overflow-hidden" data-kid="1-2-3" data-name="employer panel" data-role-url="/register?role=company" id="employer-panel">
+            <!-- Subtle decorative numeral (role sequence only, never a fit score) -->
+            <span aria-hidden="true" class="pointer-events-none absolute right-8 top-3 text-[116px] font-semibold leading-none tracking-[-0.04em] text-white/[0.045]" data-kid="1-2-3-1" data-name="decorative employer role numeral">
+                02
+            </span>
+            <!-- ZONE 1: Role Headline & Action (Fixed 256px height matching Seeker side) -->
+            <div class="relative z-10 h-[256px] flex flex-col justify-between" data-kid="1-2-3-2" data-name="employer panel fixed-top zone">
+                <div data-kid="1-2-3-2-1" data-name="employer panel copy block">
+                    <div class="flex items-center justify-between mb-3.5" data-kid="1-2-3-2-1-1" data-name="employer panel role header row">
+                        <span class="inline-flex items-center gap-2 text-[13px] font-semibold tracking-[-0.01em] text-[#6EE7B7]" data-kid="1-2-3-2-1-1-1" data-name="employer role label with dot">
+                            <span class="w-2 h-2 rounded-full bg-[#34D399]" data-kid="1-2-3-2-1-1-1-1" data-name="employer role indicator dot">
+                            </span>
+                            For Employers
+                        </span>
+                        <span class="text-[12px] text-white/50" data-kid="1-2-3-2-1-1-2" data-name="employer panel sign-up hint text">
+                            Click panel to sign up
+                        </span>
+                    </div>
+                    <h2 class="text-[36px] xl:text-[40px] font-semibold leading-[1.09] tracking-[-0.025em] text-white max-w-[490px]" data-kid="1-2-3-2-1-2" data-name="employer hero headline">
+                        Screen talent by your own standards
+                    </h2>
+                    <p class="mt-3 text-[17px] font-normal leading-[1.47] tracking-[-0.015em] text-white/80 max-w-[475px]" data-kid="1-2-3-2-1-3" data-name="employer hero description text">
+                        Rank applicants automatically with criteria you define, and get your jobs recommended to the right candidates.
+                    </p>
+                </div>
+                <!-- Straight CTA -->
+                <div class="flex flex-wrap items-center gap-5 pt-2" data-kid="1-2-3-2-2" data-name="employer primary CTA row">
+                    <a class="cs-v3-btn inline-flex items-center gap-2.5 rounded-[8px] bg-white px-5 py-3 text-[15px] font-semibold text-[#0D4A3E] no-underline hover:bg-[#F5F5F7]" data-kid="1-2-3-2-2-1" data-name="employer sign-up primary button" data-stop-panel="true" href="/register?role=company">
+                        <span data-kid="1-2-3-2-2-1-1" data-name="employer button label text">
+                            Start as an employer
+                        </span>
+                        <span class="text-[16px] flex items-center" data-kid="1-2-3-2-2-1-2" data-name="employer button arrow container">
+                            <i class="ti ti-arrow-right" data-kid="1-2-3-2-2-1-2-1" data-name="arrow right icon">
+                            </i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+            <!-- ZONE 2: Horizontal Input Trail into Spine (Aligned with Center Junction) -->
+            <div class="relative z-10 my-5 h-[68px] flex items-center justify-between gap-3 border-y border-white/12" data-kid="1-2-3-3" data-name="employer input trail band">
+                <!-- Trail line feeding directly into the central spine -->
+                <div class="flex items-center gap-1.5 text-[#6EE7B7] shrink-0" data-kid="1-2-3-3-1" data-name="spine set directional arrow">
+                    <span class="text-[16px] flex items-center" data-kid="1-2-3-3-1-1" data-name="set spine arrow container">
+                        <i class="ti ti-arrow-narrow-left" data-kid="1-2-3-3-1-1-1" data-name="left arrow icon">
+                        </i>
+                    </span>
+                    <span class="w-7 h-[2px] bg-[#34D399]" data-kid="1-2-3-3-1-2" data-name="set spine connector line">
+                    </span>
+                    <span class="text-[12px] font-semibold whitespace-nowrap" data-kid="1-2-3-3-1-3" data-name="set spine label">
+                        Sets spine
+                    </span>
+                </div>
+                <div class="cs-v3-in-employer flex items-center gap-3 rounded-[11px] border border-white/20 bg-white/[0.08] px-3.5 py-2 flex-1 min-w-0" data-kid="1-2-3-3-2" data-name="criteria input trail card">
+                    <div class="w-8 h-8 rounded-[8px] bg-[#146353] flex items-center justify-center text-[#6EE7B7] text-[16px] shrink-0" data-kid="1-2-3-3-2-1" data-name="criteria icon badge">
+                        <i class="ti ti-adjustments-horizontal" data-kid="1-2-3-3-2-1-1" data-name="adjustments icon">
+                        </i>
+                    </div>
+                    <div class="min-w-0" data-kid="1-2-3-3-2-2" data-name="criteria trail text container">
+                        <div class="flex items-center gap-2" data-kid="1-2-3-3-2-2-1" data-name="criteria trail headline row">
+                            <span class="text-[13px] font-semibold text-white whitespace-nowrap" data-kid="1-2-3-3-2-2-1-1" data-name="criteria trail title">
+                                Your criteria
+                            </span>
+                            <span class="text-[12px] text-[#6EE7B7] truncate" data-kid="1-2-3-3-2-2-1-2" data-name="criteria trail subtitle">
+                                · Custom weights & legal guardrail
+                            </span>
+                        </div>
+                        <p class="text-[12px] text-white/65 truncate" data-kid="1-2-3-3-2-2-2" data-name="criteria trail description">
+                            Define up to 10 evaluation criteria for your job opening
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- ZONE 3: Resulting Employer Preview Card (Aligned with Spine Criteria Rows) -->
+            <div class="relative z-10 flex flex-col" data-kid="1-2-3-4" data-name="employer result preview container">
+                <div class="flex items-center justify-between mb-2.5 h-[20px]" data-kid="1-2-3-4-1" data-name="employer result header row">
+                    <span class="text-[12.5px] font-semibold text-[#6EE7B7] flex items-center gap-1.5 whitespace-nowrap" data-kid="1-2-3-4-1-1" data-name="employer result header label">
+                        <i class="ti ti-corner-down-left" data-kid="1-2-3-4-1-1-1" data-name="corner down-left arrow icon">
+                        </i>
+                        Outcome · Ranked applicant list
+                    </span>
+                    <span class="text-[12px] text-white/55 whitespace-nowrap" data-kid="1-2-3-4-1-2" data-name="anonymization disclaimer text">
+                        Anonymized until offer accepted
+                    </span>
+                </div>
+                <!-- Employer Ranked Applicant List Card -->
+                <div class="h-[360px] rounded-[18px] bg-white text-[#1D1D1F] p-5 border border-[#E0E0E0] shadow-[3px_5px_30px_0_rgba(0,0,0,0.22)] flex flex-col justify-between" data-kid="1-2-3-4-2" data-name="employer applicant leaderboard card" data-stop-panel="true">
+                    <!-- Header -->
+                    <div class="flex items-start justify-between gap-4 pb-3 border-b border-[#F0F0F0]" data-kid="1-2-3-4-2-1" data-name="leaderboard card header">
+                        <div data-kid="1-2-3-4-2-1-1" data-name="leaderboard job context block">
+                            <div class="flex items-center gap-2 text-[12.5px] text-[#7A7A7A]" data-kid="1-2-3-4-2-1-1-1" data-name="leaderboard job meta row">
+                                <span class="font-semibold text-[#0D4A3E]" data-kid="1-2-3-4-2-1-1-1-1" data-name="leaderboard job title label">
+                                    Senior Analytics Engineer
+                                </span>
+                                <span data-kid="1-2-3-4-2-1-1-1-2" data-name="leaderboard meta separator dot">
+                                    ·
+                                </span>
+                                <span data-kid="1-2-3-4-2-1-1-1-3" data-name="leaderboard ranking meta">
+                                    Ranked by your criteria
+                                </span>
+                            </div>
+                            <h3 class="mt-0.5 text-[18px] font-semibold tracking-[-0.02em] text-[#1D1D1F]" data-kid="1-2-3-4-2-1-1-2" data-name="leaderboard card title">
+                                Anonymized Applicant Ranking
+                            </h3>
+                        </div>
+                        <span class="rounded-full bg-[#E4F6EE] px-3 py-1.5 text-[12px] font-semibold text-[#0D4A3E] shrink-0" data-kid="1-2-3-4-2-1-2" data-name="active criteria count badge">
+                            4 criteria tags
+                        </span>
+                    </div>
+                    <!-- Row of Criteria Tags connected to the Spine -->
+                    <div class="flex flex-wrap items-center gap-1.5 py-1" data-kid="1-2-3-4-2-2" data-name="leaderboard criteria tags row">
+                        <button class="cs-v3-emp-tag rounded-[6px] border border-[#B7E4D4] bg-[#E4F6EE] px-2.5 py-1 text-[12px] font-semibold text-[#0D4A3E] cursor-pointer" data-crit="sql" data-kid="1-2-3-4-2-2-1" data-name="SQL criterion tag button" type="button">
+                            SQL & Data Modeling
+                        </button>
+                        <button class="cs-v3-emp-tag rounded-[6px] border border-[#B7E4D4] bg-[#E4F6EE] px-2.5 py-1 text-[12px] font-semibold text-[#0D4A3E] cursor-pointer" data-crit="reporting" data-kid="1-2-3-4-2-2-2" data-name="reporting criterion tag button" type="button">
+                            Dashboard Reporting
+                        </button>
+                        <button class="cs-v3-emp-tag rounded-[6px] border border-[#B7E4D4] bg-[#E4F6EE] px-2.5 py-1 text-[12px] font-semibold text-[#0D4A3E] cursor-pointer" data-crit="stakeholder" data-kid="1-2-3-4-2-2-3" data-name="stakeholder criterion tag button" type="button">
+                            Stakeholder Comm.
+                        </button>
+                        <button class="cs-v3-emp-tag rounded-[6px] border border-[#B7E4D4] bg-[#E4F6EE] px-2.5 py-1 text-[12px] font-semibold text-[#0D4A3E] cursor-pointer" data-crit="dbt" data-kid="1-2-3-4-2-2-4" data-name="dbt criterion tag button" type="button">
+                            dbt Core
+                        </button>
+                    </div>
+                    <!-- Ranked Applicants (Applicant A, Applicant B) with short strength/weakness note -->
+                    <div class="flex flex-col gap-2" data-kid="1-2-3-4-2-3" data-name="ranked applicants list">
+                        <!-- Applicant A -->
+                        <div class="rounded-[11px] border border-[#E0E0E0] bg-[#FAFAFC] px-3.5 py-2.5" data-kid="1-2-3-4-2-3-1" data-name="applicant A card">
+                            <div class="flex items-center justify-between gap-2" data-kid="1-2-3-4-2-3-1-1" data-name="applicant A header row">
+                                <div class="flex items-center gap-2.5" data-kid="1-2-3-4-2-3-1-1-1" data-name="applicant A identity group">
+                                    <span class="w-5 h-5 rounded-[5px] bg-[#0D4A3E] text-white text-[12px] font-semibold flex items-center justify-center" data-kid="1-2-3-4-2-3-1-1-1-1" data-name="applicant A rank badge">
+                                        1
+                                    </span>
+                                    <span class="text-[14px] font-semibold text-[#1D1D1F]" data-kid="1-2-3-4-2-3-1-1-1-2" data-name="applicant A name">
+                                        Applicant A
+                                    </span>
+                                    <span class="rounded bg-[#E4F6EE] px-2 py-0.5 text-[11.5px] font-semibold text-[#0D4A3E]" data-kid="1-2-3-4-2-3-1-1-1-3" data-name="applicant A criteria status badge">
+                                        4 of 4 criteria met
+                                    </span>
+                                </div>
+                                <div aria-label="4 of 4 criteria met" class="flex items-center gap-1" data-kid="1-2-3-4-2-3-1-1-2" data-name="applicant A criteria indicators">
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="sql" data-kid="1-2-3-4-2-3-1-1-2-1" data-name="applicant A SQL indicator" title="SQL & Data Modeling: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="reporting" data-kid="1-2-3-4-2-3-1-1-2-2" data-name="applicant A reporting indicator" title="Dashboard Reporting: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="stakeholder" data-kid="1-2-3-4-2-3-1-1-2-3" data-name="applicant A stakeholder indicator" title="Stakeholder Comm.: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="dbt" data-kid="1-2-3-4-2-3-1-1-2-4" data-name="applicant A dbt indicator" title="dbt Core: Met">
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="mt-1 text-[12.5px] leading-[1.35] text-[#333333]" data-kid="1-2-3-4-2-3-1-2" data-name="applicant A strength-weakness note">
+                                <span class="font-semibold text-[#0D4A3E]" data-kid="1-2-3-4-2-3-1-2-1" data-name="applicant A strength label">
+                                    Strength:
+                                </span>
+                                Production SQL warehouse & KPI reporting ·
+                                <span class="font-semibold text-[#7A7A7A]" data-kid="1-2-3-4-2-3-1-2-2" data-name="applicant A weakness label">
+                                    Weakness:
+                                </span>
+                                Limited custom dbt macro depth
+                            </p>
+                        </div>
+                        <!-- Applicant B -->
+                        <div class="rounded-[11px] border border-[#E0E0E0] bg-[#FAFAFC] px-3.5 py-2.5" data-kid="1-2-3-4-2-3-2" data-name="applicant B card">
+                            <div class="flex items-center justify-between gap-2" data-kid="1-2-3-4-2-3-2-1" data-name="applicant B header row">
+                                <div class="flex items-center gap-2.5" data-kid="1-2-3-4-2-3-2-1-1" data-name="applicant B identity group">
+                                    <span class="w-5 h-5 rounded-[5px] bg-[#E0E0E0] text-[#1D1D1F] text-[12px] font-semibold flex items-center justify-center" data-kid="1-2-3-4-2-3-2-1-1-1" data-name="applicant B rank badge">
+                                        2
+                                    </span>
+                                    <span class="text-[14px] font-semibold text-[#1D1D1F]" data-kid="1-2-3-4-2-3-2-1-1-2" data-name="applicant B name">
+                                        Applicant B
+                                    </span>
+                                    <span class="rounded bg-[#F0F0F0] px-2 py-0.5 text-[11.5px] font-semibold text-[#333333]" data-kid="1-2-3-4-2-3-2-1-1-3" data-name="applicant B criteria status badge">
+                                        3 of 4 criteria met
+                                    </span>
+                                </div>
+                                <div aria-label="3 of 4 criteria met" class="flex items-center gap-1" data-kid="1-2-3-4-2-3-2-1-2" data-name="applicant B criteria indicators">
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="sql" data-kid="1-2-3-4-2-3-2-1-2-1" data-name="applicant B SQL indicator" title="SQL & Data Modeling: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="reporting" data-kid="1-2-3-4-2-3-2-1-2-2" data-name="applicant B reporting indicator" title="Dashboard Reporting: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-[#0D4A3E]" data-crit="stakeholder" data-kid="1-2-3-4-2-3-2-1-2-3" data-name="applicant B stakeholder indicator" title="Stakeholder Comm.: Met">
+                                    </span>
+                                    <span class="w-2.5 h-2.5 rounded-xs border border-[#D97706] bg-[#FEF3C7]" data-crit="dbt" data-kid="1-2-3-4-2-3-2-1-2-4" data-name="applicant B dbt indicator" title="dbt Core: Missing">
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="mt-1 text-[12.5px] leading-[1.35] text-[#333333]" data-kid="1-2-3-4-2-3-2-2" data-name="applicant B strength-weakness note">
+                                <span class="font-semibold text-[#0D4A3E]" data-kid="1-2-3-4-2-3-2-2-1" data-name="applicant B strength label">
+                                    Strength:
+                                </span>
+                                Clear executive dashboards & SQL ·
+                                <span class="font-semibold text-[#B45309]" data-kid="1-2-3-4-2-3-2-2-2" data-name="applicant B weakness label">
+                                    Weakness:
+                                </span>
+                                Missing dbt Core project evidence
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Card Footer -->
+                    <div class="pt-2.5 border-t border-[#F0F0F0] flex items-center justify-between text-[12px] text-[#7A7A7A]" data-kid="1-2-3-4-2-4" data-name="employer leaderboard card footer">
+                        <span data-kid="1-2-3-4-2-4-1" data-name="leaderboard evidence note">
+                            Evidence-backed notes per applicant
+                        </span>
+                        <span class="font-semibold text-[#0D4A3E]" data-kid="1-2-3-4-2-4-2" data-name="leaderboard recruiter control callout">
+                            Recruiter controls all status changes →
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <!-- BELOW THE SPLIT SCREEN: TRUST NOTE & FOOTER -->
+    <div class="w-full bg-[#F5F5F7] border-t border-[#E0E0E0] z-30" data-kid="1-3" data-name="footer area container">
+        <!-- Short trust note -->
+        <div class="max-w-[1440px] mx-auto px-10 py-4 flex items-center justify-between gap-6 border-b border-[#E0E0E0]" data-kid="1-3-1" data-name="trust note bar">
+            <div class="flex items-center gap-3 text-[13.5px] text-[#333333]" data-kid="1-3-1-1" data-name="privacy guarantee block">
+                <span class="w-6 h-6 rounded-full bg-[#1D1D1F] text-white flex items-center justify-center text-[14px] shrink-0" data-kid="1-3-1-1-1" data-name="shield lock icon badge">
+                    <i class="ti ti-shield-lock" data-kid="1-3-1-1-1-1" data-name="shield lock icon glyph">
+                    </i>
+                </span>
+                <p data-kid="1-3-1-1-2" data-name="privacy guarantee text">
+                    <span class="font-semibold text-[#1D1D1F]" data-kid="1-3-1-1-2-1" data-name="privacy guarantee label">
+                        Privacy & Consent Guarantee:
+                    </span>
+                    Applicant profiles stay anonymous until the job seeker accepts an offer, and AI analysis requires explicit consent.
+                </p>
+            </div>
+            <span class="text-[12.5px] text-[#7A7A7A] shrink-0" data-kid="1-3-1-2" data-name="human recruiter note">
+                Final hiring decisions are always made by human recruiters.
+            </span>
+        </div>
+        <!-- Footer -->
+        <footer class="max-w-[1440px] mx-auto px-10 py-4 flex items-center justify-between text-[13px] text-[#7A7A7A]" data-kid="1-3-2" data-name="page footer">
+            <p data-kid="1-3-2-1" data-name="copyright notice">
+                © 2026 CareerSync. Criteria-based AI recruiting platform.
+            </p>
+            <nav aria-label="Legal" class="flex items-center gap-6" data-kid="1-3-2-2" data-name="legal links navigation">
+                <a class="text-[#333333] hover:text-[#0066CC] no-underline" data-kid="1-3-2-2-1" data-name="terms of service link" href="/terms">
+                    Terms of Service
+                </a>
+                <a class="text-[#333333] hover:text-[#0066CC] no-underline" data-kid="1-3-2-2-2" data-name="privacy policy link" href="/privacy">
+                    Privacy Policy
+                </a>
+            </nav>
+        </footer>
+    </div>
+</div>
+<script>
+    (function () {
+    const stage = document.getElementById('cs-v3-stage');
+    const seekerPanel = document.getElementById('seeker-panel');
+    const employerPanel = document.getElementById('employer-panel');
+    if (!stage || !seekerPanel || !employerPanel) return;
+
+    // Split panel hover expansion & dimming
+    seekerPanel.addEventListener('mouseenter', () => {
+      stage.setAttribute('data-panel-hover', 'seeker');
+    });
+    seekerPanel.addEventListener('mouseleave', () => {
+      stage.removeAttribute('data-panel-hover');
+    });
+
+    employerPanel.addEventListener('mouseenter', () => {
+      stage.setAttribute('data-panel-hover', 'employer');
+    });
+    employerPanel.addEventListener('mouseleave', () => {
+      stage.removeAttribute('data-panel-hover');
+    });
+
+    // Clicking a panel navigates to that role's signup unless clicking an inner interactive element
+    function handlePanelClick(panel) {
+      panel.addEventListener('click', (e) => {
+        if (e.target.closest('[data-stop-panel="true"], a, button')) return;
+        const url = panel.getAttribute('data-role-url');
+        if (url) window.location.href = url;
+      });
+    }
+    handlePanelClick(seekerPanel);
+    handlePanelClick(employerPanel);
+
+    // Interactive criterion trail illumination across Seeker Card <-> Spine <-> Employer List
+    let pinnedCrit = null;
+    const critElements = stage.querySelectorAll('[data-crit]');
+
+    critElements.forEach((el) => {
+      const crit = el.getAttribute('data-crit');
+      el.addEventListener('mouseenter', () => {
+        stage.setAttribute('data-active-crit', crit);
+      });
+      el.addEventListener('mouseleave', () => {
+        if (pinnedCrit) {
+          stage.setAttribute('data-active-crit', pinnedCrit);
+        } else {
+          stage.removeAttribute('data-active-crit');
+        }
+      });
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (pinnedCrit === crit) {
+          pinnedCrit = null;
+          stage.removeAttribute('data-active-crit');
+        } else {
+          pinnedCrit = crit;
+          stage.setAttribute('data-active-crit', crit);
+        }
+      });
+    });
+  })();
+</script>
+</div>
+</body></html>
