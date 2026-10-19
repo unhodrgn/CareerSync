@@ -440,6 +440,27 @@ The landing's fields reduced to one: the audience field fills the left 5fr of th
   - It returns to the trigger on 취소. After the action it goes to the result.
 - **Long edit forms** keep their save and cancel in a bottom bar that stays in view: Paper, 1px line, 12px radius, flat on the canvas.
 
+### Motion (app pages)
+Motion explains state and continuity; it never decorates or makes anyone wait.
+- **Material.** Transform and opacity only, on the system ease (`--ease-out`), with no bounce or overshoot.
+- **Timing.** Feedback 150ms, routine state 160–260ms, entrances under 400ms including any stagger. Exits and collapses are immediate.
+- **Never in the way.** Fill mode is `backwards`, so nothing stays transformed after it arrives, and no animation adds layout shift. Content is never held back beyond a capped stagger of at most 100ms.
+- **The focal moment** is the band reveal on 추천 공고. Each band pill settles in (scale .9 → 1, 260ms), then its jobs rise 6px after it. Groups start 40ms apart, and the page has fully arrived within 380ms.
+- **Continuity:**
+  - A new route's page rises 8px and fades in (260ms, once per path; tab and query changes do not replay it).
+  - Tab panels fade in (200ms).
+  - The account menu and the withdrawn-consent banner drop 4px into place (160–220ms).
+  - Consent texts and answer tips open the same way.
+  - A result that arrives after an action (이력서 점검) rises in.
+- **Lists that appear as lists** (jobs, criteria, gaps, roadmap steps, questions, past offers, applications) stagger their rows 25ms apart, capped at the fifth row (100ms).
+- **Feedback:**
+  - Buttons press to .95.
+  - Row links press to .995.
+  - The nav and tab indicators grow in under the current item (scaleX .4 → 1 with a fade, 220ms).
+  - Notices, errors, done lines and failed-request panels fade in (180ms). Inline confirms rise in (200ms).
+- **Loading skeletons** carry a shimmer, a light band moved with transform, only while something loads.
+- **Reduced motion:** under `prefers-reduced-motion: reduce`, every animation and transition inside the app shell is off. States still change; they just change at once.
+
 ### Icons
 Line icons drawn in-house on a 24px grid with a 1.75 stroke and round caps and joins, using currentColor, rendered at 15–20px. Arrows are icons, not text glyphs.
 

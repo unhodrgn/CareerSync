@@ -136,7 +136,10 @@ export default function AppShell({ role }: { role: Role }) {
         </p>
       )}
       <main className={s.main}>
-        <Outlet context={{ refreshOffers } satisfies ShellContext} />
+        {/* Keyed by path: a new page enters once; tab and query changes inside a page do not replay it */}
+        <div key={location.pathname} className={s.page}>
+          <Outlet context={{ refreshOffers } satisfies ShellContext} />
+        </div>
       </main>
     </div>
   );
@@ -257,7 +260,9 @@ export function GuestShell() {
         </div>
       </header>
       <main className={s.main}>
-        <Outlet />
+        <div key={location.pathname} className={s.page}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );

@@ -13,6 +13,12 @@
   background: var(--color-canvas);
 }
 
+/* App pages reserve the scrollbar's room, so a page growing past the viewport never shifts the layout sideways
+   (scoped to the shell: the landing and auth pages keep the browser default) */
+:global(html):has(.shell) {
+  scrollbar-gutter: stable;
+}
+
 .shell[data-tone='company'] {
   --tone: var(--color-employer);
   --tone-accent: var(--color-employer-accent);
@@ -76,7 +82,6 @@
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-  transition: color 160ms var(--ease-out);
 }
 
 .navLink:hover {
@@ -87,7 +92,7 @@
   color: var(--tone);
 }
 
-.navLink[aria-current='page']::after {
+.navLink::after {
   content: '';
   position: absolute;
   left: 10px;
@@ -96,6 +101,17 @@
   height: 2px;
   border-radius: 2px;
   background: var(--tone);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    transform 220ms var(--ease-out),
+    opacity 220ms var(--ease-out);
+}
+
+/* The active-link indicator grows in under the current page */
+.navLink[aria-current='page']::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .badge {
@@ -313,4 +329,49 @@
 /* Guests: the same header without navigation */
 .guestHeader {
   justify-content: space-between;
+}
+
+/* ── Motion: page enter on route change, the withdrawn banner, the account menu ── */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.page {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Each route arrives once (keyed by path); no delay, so content is never held back */
+  .page {
+    animation: pageEnter 260ms var(--ease-out) backwards;
+  }
+
+  .banner {
+    animation: drop 220ms var(--ease-out) backwards;
+  }
+
+  .menu:not([hidden]) {
+    animation: drop 160ms var(--ease-out) backwards;
+  }
+}
+
+/* Reduced motion: no animation or transition anywhere in the app shell (landing and auth pages keep their own rules) */
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

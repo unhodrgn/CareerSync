@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { generatePath, Link } from 'react-router';
+import { generatePath, Link, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { useAuth } from '@/auth/AuthContext';
@@ -19,14 +19,19 @@ const LIMIT = 100;
 /** Published, unexpired jobs (D4); search by title only (D33). Guests, seekers and companies share this page. */
 export default function JobList() {
   const { user } = useAuth();
-  const [q, setQ] = useState('');
-  const [query, setQuery] = useState('');
+  // The search is kept in the URL: it survives a reload and the switch to the guest shell when a session ends
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') ?? '';
+  const [q, setQ] = useState(query);
 
   // Search after typing pauses
   useEffect(() => {
-    const id = setTimeout(() => setQuery(q.trim()), 300);
+    const id = setTimeout(() => {
+      const next = q.trim();
+      if (next !== query) setParams(next ? { q: next } : {}, { replace: true });
+    }, 300);
     return () => clearTimeout(id);
-  }, [q]);
+  }, [q, query, setParams]);
 
   const { state, reload } = useApi(() => api.jobs({ q: query || undefined, limit: LIMIT }), [query, user?.id]);
 
@@ -63,7 +68,7 @@ export default function JobList() {
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' && (
-        <section className={ui.panel} aria-label={t('jobs.title')}>
+        <section className={s.jobPanel} aria-label={t('jobs.title')}>
           {state.data.items.length === 0 ? (
             query ? (
               <Empty
@@ -97,7 +102,7 @@ export default function JobList() {
 
 function JobRows({ jobs }: { jobs: JobListItem[] }) {
   return (
-    <ul className={s.jobList}>
+    <ul className={cx(s.jobList, ui.stagger)}>
       {jobs.map((job) => (
         <li key={job.id} className={s.jobItem}>
           <Link to={generatePath(paths.jobDetail, { jobId: String(job.id) })} className={s.jobLink}>

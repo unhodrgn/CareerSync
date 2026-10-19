@@ -43,7 +43,7 @@ export default function Applications() {
                   <th>{t('apps.col.status')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={ui.stagger}>
                 {state.data.map((a) => (
                   <tr key={a.id}>
                     <td>

@@ -429,7 +429,7 @@ function ProfileView({
           {profile.skills.length > 0 && (
             <div className={ui.chips}>
               {profile.skills.map((x) => (
-                <span key={x} className={s.skillChip}>
+                <span key={x} className={editing ? s.skillChip : ui.tag}>
                   {x}
                   {editing && (
                     <button type="button" aria-label={t('common.remove', { name: x })} onClick={() => update({ skills: profile.skills.filter((y) => y !== x) })}>

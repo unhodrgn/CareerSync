@@ -263,7 +263,7 @@ export default {
   'prep.tab.interview': '면접 예상 질문',
   'prep.tab.review': '이력서 점검',
   'prep.gaps.title': '이력서에 없는 기술·자격증',
-  'prep.gaps.lead': '공고의 평가 기준과 본문에 나온 기술·자격증 가운데 이력서 원문에서 찾지 못한 것입니다.',
+  'prep.gaps.lead': '공고의 평가 기준과 본문에 나온 기술·자격증 가운데 이력서 원문에서 찾지 못한 것입니다. 기업이 매긴 점수와는 관계없습니다.',
   'prep.gaps.missing': '이력서에 없음',
   'prep.kind.skill': '기술',
   'prep.kind.certificate': '자격증',

@@ -25,7 +25,7 @@ export default function CriteriaPanel({ view }: { view: CriteriaView }) {
       {view.items.length === 0 ? (
         <p className={ui.caption}>{t('job.criteriaNone')}</p>
       ) : (
-        <ul className={ui.list}>
+        <ul className={cx(ui.list, ui.stagger)}>
           {seeker
             ? view.items.map((c) => (
                 <li key={c.name} className={ui.listRow}>

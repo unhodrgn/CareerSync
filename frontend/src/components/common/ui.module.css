@@ -547,7 +547,6 @@
   height: 18px;
   border-radius: 50%;
   background: var(--color-paper);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   transition: transform 200ms var(--ease-out);
 }
 
@@ -677,8 +676,8 @@
   color: var(--color-ink);
 }
 
-.tab[aria-selected='true']::after,
-.tab[aria-current='page']::after {
+/* The indicator is always there and grows in under the selected tab (transform + opacity only) */
+.tab::after {
   content: '';
   position: absolute;
   left: 10px;
@@ -687,6 +686,17 @@
   height: 2px;
   border-radius: 2px;
   background: var(--tone);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    transform 220ms var(--ease-out),
+    opacity 220ms var(--ease-out);
+}
+
+.tab[aria-selected='true']::after,
+.tab[aria-current='page']::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 /* Rows: neutral criterion rows, and the amber row for a skill the CV lacks (the only amber) */
@@ -971,21 +981,28 @@
 }
 
 .skeleton {
+  position: relative;
   height: 14px;
+  overflow: hidden;
   border-radius: 6px;
-  background: linear-gradient(90deg, var(--color-line-soft) 0%, var(--color-sunken) 50%, var(--color-line-soft) 100%);
-  background-size: 200% 100%;
+  background: var(--color-line-soft);
 }
 
+/* Shimmer: a light band moved with transform across the bar; only while something is loading */
 @media (prefers-reduced-motion: no-preference) {
-  .skeleton {
-    animation: shimmer 1.4s linear infinite;
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.75) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: shimmer 1.4s var(--ease-out) infinite;
   }
 }
 
 @keyframes shimmer {
   to {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 
@@ -1008,4 +1025,73 @@
 .status[data-status='interview'],
 .status[data-status='passed'] {
   --status-dot: var(--tone);
+}
+
+/* ── Motion (DESIGN.md, App pages · Motion) ──
+   State feedback and continuity only: transform and opacity, the system ease, 150–300ms, entrances under 400ms.
+   Fill mode is `backwards`, so nothing stays transformed after it arrives, and content is never held back longer
+   than a short capped stagger. All of it is off under prefers-reduced-motion (the shell also stops transitions). */
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A list appearing as a list: siblings rise in turn, capped at the fifth (100ms) */
+  .stagger > * {
+    animation: enter 220ms var(--ease-out) backwards;
+  }
+
+  .stagger > :nth-child(2) {
+    animation-delay: 25ms;
+  }
+
+  .stagger > :nth-child(3) {
+    animation-delay: 50ms;
+  }
+
+  .stagger > :nth-child(4) {
+    animation-delay: 75ms;
+  }
+
+  .stagger > :nth-child(n + 5) {
+    animation-delay: 100ms;
+  }
+
+  /* A result that arrives after an action (점검, a tab's content) */
+  .reveal {
+    animation: enter 240ms var(--ease-out) backwards;
+  }
+
+  .tabPanel:not([hidden]) {
+    animation: fadeIn 200ms var(--ease-out) backwards;
+  }
+
+  /* Messages appear rather than pop: status lines, errors, failed requests, confirms, done lines */
+  .notice,
+  .error,
+  .done,
+  .empty[role='alert'] {
+    animation: fadeIn 180ms var(--ease-out) backwards;
+  }
+
+  .inlineConfirm {
+    animation: enter 200ms var(--ease-out) backwards;
+  }
 }

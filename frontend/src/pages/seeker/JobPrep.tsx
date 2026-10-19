@@ -130,6 +130,7 @@ export default function JobPrep() {
           key={tabId}
           id={`prep-panel-${tabId}`}
           role="tabpanel"
+          className={ui.tabPanel}
           aria-labelledby={`prep-tab-${tabId}`}
           hidden={tab !== tabId || gate != null}
         >
@@ -187,7 +188,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
               <span className={ui.count}>{data.gaps.length}</span>
             </h2>
           </div>
-          <ul className={ui.rows}>
+          <ul className={cx(ui.rows, ui.stagger)}>
             {data.gaps.map((g) => (
               <li key={`${g.kind}-${g.name}`} className={ui.gapRow}>
                 <span className={ui.gapName}>
@@ -211,7 +212,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
           <p className={ui.caption} style={{ margin: '4px 0 14px' }}>
             {t('prep.roadmap.lead')}
           </p>
-          <ol className={s.steps}>
+          <ol className={cx(s.steps, ui.stagger)}>
             {data.steps.map((step) => (
               <li key={step.order} className={s.step}>
                 <span className={s.stepIndex}>{step.order}</span>
@@ -278,7 +279,7 @@ function Questions({ data }: { data: InterviewOut }) {
           {t('prep.q.lead')}
         </p>
         {/* One list: the eye moves question to question; answer tips open on demand */}
-        <ol className={s.questions}>
+        <ol className={cx(s.questions, ui.stagger)}>
           {data.questions.map((q, i) => (
             <li key={i} className={s.question}>
               <p className={s.questionText}>

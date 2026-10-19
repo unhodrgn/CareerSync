@@ -330,3 +330,17 @@
     animation-duration: 2400ms;
   }
 }
+
+/* A consent text opening under its checkbox: it fades and settles in (collapse is immediate) */
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .consentBody:not([hidden]) {
+    animation: open 200ms var(--ease-out) backwards;
+  }
+}

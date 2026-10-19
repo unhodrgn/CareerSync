@@ -32,7 +32,7 @@ function ReviewList({ items }: { items: CvReviewItem[] }) {
 export default function ReviewResult({ review }: { review: CvReviewOut }) {
   const affects = review.improvements.some((x) => x.affects_scoring);
   return (
-    <div className={ui.stack} style={{ gap: 16 }}>
+    <div className={cx(ui.stack, ui.reveal)} style={{ gap: 16 }}>
       <AiNotice notice={review.notice} method={review.method} />
       {review.limited && <p className={ui.caption}>{t('common.limited')}</p>}
       <div className={s.reviewCols}>

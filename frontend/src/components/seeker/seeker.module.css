@@ -34,6 +34,14 @@
   padding-left: 38px;
 }
 
+/* The job list's panel: no head, so it pads like a list (rows carry their own 16px) */
+.jobPanel {
+  padding: 4px 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
 .jobList {
   margin: 0;
   padding: 0;
@@ -54,7 +62,13 @@
   border-radius: var(--radius-md);
   color: inherit;
   text-decoration: none;
-  transition: background-color 160ms var(--ease-out);
+  transition:
+    background-color 160ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.jobLink:active {
+  transform: scale(0.995);
 }
 
 .jobLink:hover {
@@ -98,13 +112,6 @@
 .jobLink:hover .chevron {
   color: var(--color-ink);
   transform: translateX(2px);
-}
-
-.groupLabel {
-  margin: 20px 0 4px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
 }
 
 .guestBanner {
@@ -340,6 +347,15 @@
 
 .recoRow + .recoRow {
   border-top: 1px solid var(--color-line-soft);
+}
+
+.recoRow {
+  transition: transform 150ms var(--ease-out);
+}
+
+/* Pressing the row (its title link covers it), not the 준비하기 link above it */
+.recoRow:has(.stretched:active) {
+  transform: scale(0.995);
 }
 
 .recoRow:hover .jobTitle {
@@ -926,12 +942,6 @@
 
 /* Preferences and account */
 
-.formGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
-}
-
 .twoCol {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
@@ -999,4 +1009,67 @@
 a.jobTitle:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+/* ── Motion (DESIGN.md, App pages · Motion) ── */
+
+/* The focal moment on 추천 공고: each band pill settles in, then its jobs follow. Groups start 40ms apart and
+   everything has arrived within 380ms. */
+@keyframes bandIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.group {
+  --group-delay: 0ms;
+}
+
+.group:nth-of-type(2) {
+  --group-delay: 40ms;
+}
+
+.group:nth-of-type(n + 3) {
+  --group-delay: 80ms;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .groupHead > [data-band] {
+    transform-origin: left center;
+    animation: bandIn 260ms var(--ease-out) backwards;
+    animation-delay: var(--group-delay);
+  }
+
+  .recoRow {
+    animation: rowIn 220ms var(--ease-out) backwards;
+    animation-delay: calc(var(--group-delay) + 40ms);
+  }
+
+  .recoRow:nth-child(2) {
+    animation-delay: calc(var(--group-delay) + 60ms);
+  }
+
+  .recoRow:nth-child(n + 3) {
+    animation-delay: calc(var(--group-delay) + 80ms);
+  }
+
+  /* Answer tips opening under a question (closing is immediate) */
+  .tips[open] > ul {
+    animation: open 200ms var(--ease-out) backwards;
+  }
 }

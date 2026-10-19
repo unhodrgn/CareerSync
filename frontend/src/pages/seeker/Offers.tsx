@@ -145,7 +145,7 @@ function OfferGroups({
             <span className={ui.panelTitle}>{t('offers.past')}</span>
             <span className={ui.count}>{past.length}</span>
           </h2>
-          <div className={s.pastList}>{past.map(card)}</div>
+          <div className={cx(s.pastList, ui.stagger)}>{past.map(card)}</div>
         </section>
       )}
     </>
