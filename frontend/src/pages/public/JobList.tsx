@@ -3,9 +3,8 @@ import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { useAuth } from '@/auth/AuthContext';
-import { deadlineLabel } from '@/components/common/format';
 import { ArrowRightIcon, SearchIcon } from '@/components/common/icons';
-import { JobMeta } from '@/components/common/Labels';
+import { Deadline, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
@@ -115,7 +114,7 @@ function JobRows({ jobs }: { jobs: JobListItem[] }) {
             </span>
             <span className={s.jobSide}>
               <span className={ui.tag}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
-              <span className={s.deadline}>{deadlineLabel(job)}</span>
+              <Deadline job={job} />
               <ArrowRightIcon className={s.chevron} width={16} height={16} />
             </span>
           </Link>

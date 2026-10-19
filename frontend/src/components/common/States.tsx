@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '@/api/client';
 import { errorText } from '@/api/errors';
-import { AlertIcon, RefreshIcon } from '@/components/common/icons';
+import { AlertIcon, InfoIcon, RefreshIcon } from '@/components/common/icons';
 import { t } from '@/i18n';
 import { cx } from './Page';
 import ui from './ui.module.css';
@@ -78,6 +78,16 @@ export function InlineError({ children }: { children: ReactNode }) {
   return (
     <p className={ui.error} role="alert">
       <AlertIcon width={14} height={14} />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/** A status or guidance line that is not AI output; the AI notice has its own style (AiNotice). */
+export function Notice({ children }: { children: ReactNode }) {
+  return (
+    <p className={ui.notice} role="status">
+      <InfoIcon width={16} height={16} />
       <span>{children}</span>
     </p>
   );

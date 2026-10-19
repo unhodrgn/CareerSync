@@ -83,14 +83,6 @@
   color: var(--color-ink-muted);
 }
 
-.deadline {
-  min-width: 64px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .chevron {
   color: var(--color-axis);
   transition: color 160ms var(--ease-out), transform 160ms var(--ease-out);
@@ -331,6 +323,14 @@
 
 .recoRow + .recoRow {
   margin-top: 8px;
+}
+
+/* One line under the 추천 공고 lead while the talent opt-in is off (희망 조건 sits in the account menu) */
+.talentHint {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-soft);
 }
 
 .pendingLine {
@@ -686,7 +686,22 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
-  gap: 20px;
+  gap: 32px;
+}
+
+/* The second column is set off by a 1px rule, not a box */
+.reviewCol + .reviewCol {
+  padding-left: 32px;
+  border-left: 1px solid var(--color-line-soft);
+}
+
+.reviewColTitle {
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .reviewItem {

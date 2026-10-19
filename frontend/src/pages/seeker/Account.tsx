@@ -7,6 +7,7 @@ import { formatDate } from '@/components/common/format';
 import { CheckIcon } from '@/components/common/icons';
 import { cx, PageHead } from '@/components/common/Page';
 import { InlineError } from '@/components/common/States';
+import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
@@ -22,6 +23,7 @@ export default function Account() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [justWithdrew, setJustWithdrew] = useState(false);
+  const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLDivElement>(confirm);
   if (!user) return null;
 
   const withdrawn = aiConsentWithdrawn(user);
@@ -75,7 +77,7 @@ export default function Account() {
 
           <div style={{ marginTop: 20 }}>
             {withdrawn ? (
-              <div className={ui.inlineConfirm}>
+              <div ref={focus.fallbackRef} tabIndex={-1} className={ui.inlineConfirm}>
                 {justWithdrew && (
                   <span className={ui.done} role="status">
                     <CheckIcon width={16} height={16} />
@@ -88,7 +90,7 @@ export default function Account() {
                 </Link>
               </div>
             ) : confirm ? (
-              <div className={ui.inlineConfirm}>
+              <div ref={focus.regionRef} tabIndex={-1} role="group" aria-label={t('account.withdrawTitle')} className={ui.inlineConfirm}>
                 <strong>{t('account.withdrawTitle')}</strong>
                 <ul className={s.plainList}>
                   <li>{t('account.withdraw1')}</li>
@@ -107,7 +109,7 @@ export default function Account() {
                 </div>
               </div>
             ) : (
-              <button type="button" className={cx(ui.btn, ui.secondary)} onClick={() => setConfirm(true)}>
+              <button ref={focus.triggerRef} type="button" className={cx(ui.btn, ui.secondary)} onClick={() => setConfirm(true)}>
                 {t('account.withdraw')}
               </button>
             )}

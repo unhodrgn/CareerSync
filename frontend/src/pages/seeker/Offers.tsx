@@ -8,7 +8,8 @@ import { daysUntil, formatDate } from '@/components/common/format';
 import { CheckIcon } from '@/components/common/icons';
 import { JobMeta, OfferStatusTag } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
-import { Empty, ErrorPanel, InlineError, Loading } from '@/components/common/States';
+import { Empty, ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
+import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import { useShell } from '@/components/layout/AppShell';
 import s from '@/components/seeker/seeker.module.css';
@@ -64,9 +65,9 @@ export default function Offers() {
             </Link>
           </div>
           {notice && (
-            <p className={ui.aiNotice} role="status" style={{ marginBottom: 16 }}>
-              {notice}
-            </p>
+            <div style={{ marginBottom: 16 }}>
+              <Notice>{notice}</Notice>
+            </div>
           )}
           <OfferGroups
             offers={state.data.offers}
@@ -128,6 +129,10 @@ const STALE = ['OFFER_NOT_PENDING', 'OFFER_EXPIRED', 'OFFER_NOT_FOUND'];
 function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswered: (o: SeekerOffer) => void; onStale: (e: unknown) => void }) {
   const { user } = useAuth();
   const [confirm, setConfirm] = useState<'accept' | 'decline' | null>(null);
+  // Which button opened the confirm, so 취소 returns focus to it; after an answer the card itself takes focus
+  const [opener, setOpener] = useState<'accept' | 'decline'>('accept');
+  const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLElement>(confirm !== null);
+  const open = (choice: 'accept' | 'decline') => (setOpener(choice), setConfirm(choice));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const pending = offer.status === 'pending';
@@ -147,7 +152,7 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
   };
 
   return (
-    <article className={s.offer} data-past={!pending || undefined}>
+    <article ref={focus.fallbackRef} tabIndex={-1} className={s.offer} data-past={!pending || undefined}>
       <div className={s.offerMain}>
         <span className={s.offerCompany}>
           <strong>{offer.company_name}</strong>
@@ -187,16 +192,32 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
 
       {pending && !confirm && (
         <div className={s.offerActions}>
-          <button type="button" className={cx(ui.btn, ui.primary)} onClick={() => setConfirm('accept')}>
+          <button
+            ref={opener === 'accept' ? focus.triggerRef : undefined}
+            type="button"
+            className={cx(ui.btn, ui.primary)}
+            onClick={() => open('accept')}
+          >
             {t('offers.accept')}
           </button>
-          <button type="button" className={cx(ui.btn, ui.secondary)} onClick={() => setConfirm('decline')}>
+          <button
+            ref={opener === 'decline' ? focus.triggerRef : undefined}
+            type="button"
+            className={cx(ui.btn, ui.secondary)}
+            onClick={() => open('decline')}
+          >
             {t('offers.decline')}
           </button>
         </div>
       )}
       {pending && confirm && user && (
-        <div className={cx(ui.inlineConfirm, s.offerConfirm)}>
+        <div
+          ref={focus.regionRef}
+          tabIndex={-1}
+          role="group"
+          aria-label={confirm === 'accept' ? t('offers.acceptTitle') : t('offers.declineTitle')}
+          className={cx(ui.inlineConfirm, s.offerConfirm)}
+        >
           <strong>{confirm === 'accept' ? t('offers.acceptTitle') : t('offers.declineTitle')}</strong>
           <span>
             {confirm === 'accept'

@@ -10,9 +10,9 @@ function isSeekerView(view: CriteriaView): view is SeekerCriteriaSetOut {
 }
 
 /**
- * A job's criteria on the public job page. What shows follows what the API returned for this viewer: a guest gets
- * names only (D35), a signed-in seeker name + category + importance (D30). The owner company's full rows carry
- * weights; this page never shows them, so the owner sees names only here.
+ * A job's criteria on the public job page, as a quiet read-only list. What shows follows what the API returned
+ * for this viewer: a guest gets names only (D35), a signed-in seeker name + category + importance (D30). The
+ * owner company's full rows carry weights; this page never shows them, so the owner sees names only here.
  */
 export default function CriteriaPanel({ view }: { view: CriteriaView }) {
   const seeker = isSeekerView(view);
@@ -26,26 +26,20 @@ export default function CriteriaPanel({ view }: { view: CriteriaView }) {
       {view.items.length === 0 ? (
         <p className={ui.caption}>{t('job.criteriaNone')}</p>
       ) : (
-        <ul className={ui.rows}>
+        <ul className={ui.list}>
           {seeker
             ? view.items.map((c) => (
-                <li key={c.name} className={ui.row}>
-                  <span className={ui.rowName}>
-                    <span className={ui.dot} />
-                    <span className={ui.truncate}>{c.name}</span>
-                  </span>
-                  <span className={ui.rowEnd}>
-                    <CategoryTag category={c.category} />
+                <li key={c.name} className={ui.listRow}>
+                  <span className={ui.listName}>{c.name}</span>
+                  <span className={ui.listEnd}>
+                    <CategoryTag category={c.category} quiet />
                     <ImportanceTag level={c.importance} />
                   </span>
                 </li>
               ))
             : view.items.map((c) => (
-                <li key={c.name} className={ui.row}>
-                  <span className={ui.rowName}>
-                    <span className={ui.dot} />
-                    <span className={ui.truncate}>{c.name}</span>
-                  </span>
+                <li key={c.name} className={ui.listRow}>
+                  <span className={ui.listName}>{c.name}</span>
                 </li>
               ))}
         </ul>

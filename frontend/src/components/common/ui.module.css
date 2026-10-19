@@ -31,6 +31,9 @@
 
 .title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 26px;
   font-weight: 600;
   line-height: 1.25;
@@ -335,16 +338,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* AI notice (AI rule 6) */
+/* AI notice (AI rule 6): a caption line placed right by the AI result it belongs to. Quiet, never hidden:
+   12.5px Soft Ink (11.6:1 on the canvas, 12.6:1 on paper); the method in Muted Gray (4.7:1 / 5.1:1). */
 
 .aiNotice {
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
+  gap: 8px;
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--color-ink-soft);
@@ -352,13 +353,13 @@
 
 .aiBadge {
   flex: none;
-  padding: 0 6px;
+  padding: 0 5px;
   border-radius: var(--radius-xs);
   background: var(--color-ink);
   color: var(--color-paper);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 17px;
   letter-spacing: 0.02em;
 }
 
@@ -367,6 +368,23 @@
   flex: none;
   color: var(--color-ink-muted);
   white-space: nowrap;
+}
+
+/* A status or guidance line that is not AI output (kept apart from the AI notice) */
+.notice {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-soft);
+}
+
+.notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--tone);
 }
 
 /* Form controls (the auth pages' look at app density) */
@@ -704,6 +722,65 @@
   gap: 8px;
 }
 
+/* Read-only list: rows split by soft dividers, no box per row (rows that look like buttons should be buttons) */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listRow {
+  min-height: 40px;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+}
+
+.listRow + .listRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.listName {
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listEnd {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* A category named next to another label: text, not a chip */
+.categoryText {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+/* Deadline of a job row: D-n carries weight, 상시 채용 does not */
+.deadline {
+  min-width: 64px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.deadline[data-open] {
+  font-weight: 400;
+  color: var(--color-ink-muted);
+}
+
 /* Criterion importance (D30): plain text, so it never reads as a match band */
 .importance {
   min-width: 2.5em;
@@ -859,15 +936,24 @@
   color: var(--color-ink-muted);
 }
 
+/* A confirm or result that replaces its trigger inside a panel or card: separated by a soft line, never a box
+   inside the box. It takes focus when it opens (useConfirmFocus). */
 .inlineConfirm {
-  padding: 14px 16px;
+  padding-top: 14px;
   display: grid;
   gap: 12px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-sunken);
+  border-top: 1px solid var(--color-line-soft);
   font-size: 13.5px;
   line-height: 1.55;
+}
+
+.inlineConfirm:focus {
+  outline: none;
+}
+
+.inlineConfirm:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 4px;
 }
 
 .done {

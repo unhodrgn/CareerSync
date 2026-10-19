@@ -95,9 +95,6 @@ export default {
   'shell.login': '로그인',
   'shell.register': '회원가입',
   'shell.logout': '로그아웃',
-  'shell.seekerContext': '구직자 계정',
-  'shell.companyContext': '기업 계정 · {name}',
-  'shell.companyContextShort': '기업 계정',
   'shell.offerBadge': '답변을 기다리는 제안 {n}건',
   'shell.withdrawn': 'AI 분석 동의를 철회한 상태입니다. 이력서 분석, 지원, 추천 공고를 쓰려면 다시 동의해 주세요.',
   'shell.withdrawnAction': '다시 동의하기',
@@ -213,6 +210,8 @@ export default {
   'reco.empty.action': '희망 조건 바꾸기',
   'reco.pendingOnly.title': '추천할 공고를 분석하고 있습니다',
   'reco.pendingOnly.body': '분석이 끝난 공고부터 여기에 나타납니다. 잠시 뒤 새로고침해 보세요.',
+  'reco.talentHint': '인재 추천 공개가 꺼져 있어 기업이 먼저 제안을 보낼 수 없습니다.',
+  'reco.talentHintAction': '희망 조건에서 켜기',
 
   // Seeker: CV
   'cv.title': '내 이력서',

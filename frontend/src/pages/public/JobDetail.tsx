@@ -9,6 +9,7 @@ import { ArrowRightIcon, CheckIcon } from '@/components/common/icons';
 import { ApplicationStatusTag, employmentLabel, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
+import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import CompanyBlock from '@/components/seeker/CompanyBlock';
 import CriteriaPanel from '@/components/seeker/CriteriaPanel';
@@ -52,7 +53,8 @@ export default function JobDetail() {
   const data = job.state.data;
   return (
     <div className={ui.page}>
-      <PageHead title={t('jobs.title')} back={back} />
+      {/* The job title below is the page's one H1 */}
+      <PageHead back={back} />
       <div className={s.detail}>
         <article className={ui.panel}>
           <header className={s.jobHead}>
@@ -173,8 +175,14 @@ function ApplyPanel({ job }: { job: JobOut }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  // After applying the button is gone: focus lands on the panel title above the result
+  const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLHeadingElement>(confirming);
 
-  const title = <h2 className={s.asideTitle}>{t('job.applyTitle')}</h2>;
+  const title = (
+    <h2 ref={focus.fallbackRef} tabIndex={-1} className={s.asideTitle}>
+      {t('job.applyTitle')}
+    </h2>
+  );
   if (state.status !== 'ok') {
     return (
       <section className={cx(ui.panel, s.asideBlock)}>
@@ -241,7 +249,7 @@ function ApplyPanel({ job }: { job: JobOut }) {
     );
   } else if (confirming) {
     body = (
-      <div className={ui.inlineConfirm}>
+      <div ref={focus.regionRef} tabIndex={-1} role="group" aria-label={t('job.applyTitle')} className={ui.inlineConfirm}>
         <span>{t('job.applyLead')}</span>
         <span className={ui.tag} style={{ justifySelf: 'start' }}>
           {cv.confirmed ? t('job.applyCv', { v: cv.version }) : t('job.applyCvLatest')}
@@ -259,7 +267,12 @@ function ApplyPanel({ job }: { job: JobOut }) {
     );
   } else {
     body = (
-      <button type="button" className={cx(ui.btn, ui.primary, s.fullWidth)} onClick={() => (setConfirming(true), setError(null))}>
+      <button
+        ref={focus.triggerRef}
+        type="button"
+        className={cx(ui.btn, ui.primary, s.fullWidth)}
+        onClick={() => (setConfirming(true), setError(null))}
+      >
         {t('job.apply')}
       </button>
     );

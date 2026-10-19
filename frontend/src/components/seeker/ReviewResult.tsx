@@ -25,33 +25,35 @@ function ReviewList({ items }: { items: CvReviewItem[] }) {
   );
 }
 
-/** CV self-check result (D25): strengths and improvements, no score. Used on 내 이력서 and on the prep page. */
+/**
+ * CV self-check result (D25): strengths and improvements, no score. Two flat columns (it always sits inside a
+ * panel, so no panels of its own). Used on 내 이력서 and on the prep page.
+ */
 export default function ReviewResult({ review }: { review: CvReviewOut }) {
+  const affects = review.improvements.some((x) => x.affects_scoring);
   return (
-    <div className={ui.stack}>
+    <div className={ui.stack} style={{ gap: 16 }}>
       <AiNotice notice={review.notice} method={review.method} />
       {review.limited && <p className={ui.caption}>{t('common.limited')}</p>}
       <div className={s.reviewCols}>
-        <section className={ui.panel}>
-          <div className={ui.panelHead}>
-            <h3 className={ui.panelTitle}>
-              {t('prep.review.strengths')}
-              <span className={ui.count}>{review.strengths.length}</span>
-            </h3>
-          </div>
+        <section className={s.reviewCol} aria-labelledby="review-strengths">
+          <h3 id="review-strengths" className={s.reviewColTitle}>
+            {t('prep.review.strengths')}
+            <span className={ui.count}>{review.strengths.length}</span>
+          </h3>
           <ReviewList items={review.strengths} />
         </section>
-        <section className={ui.panel}>
-          <div className={ui.panelHead}>
-            <h3 className={ui.panelTitle}>
-              {t('prep.review.improvements')}
-              <span className={ui.count}>{review.improvements.length}</span>
-            </h3>
-          </div>
+        <section className={s.reviewCol} aria-labelledby="review-improvements">
+          <h3 id="review-improvements" className={s.reviewColTitle}>
+            {t('prep.review.improvements')}
+            <span className={ui.count}>{review.improvements.length}</span>
+          </h3>
           <ReviewList items={review.improvements} />
-          <p className={ui.caption} style={{ marginTop: 16 }}>
-            {t('prep.review.affectsNote')}
-          </p>
+          {affects && (
+            <p className={ui.caption} style={{ marginTop: 16 }}>
+              {t('prep.review.affectsNote')}
+            </p>
+          )}
         </section>
       </div>
     </div>

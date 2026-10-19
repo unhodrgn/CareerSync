@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type Ref } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
@@ -8,7 +8,8 @@ import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate, monthsLabel } from '@/components/common/format';
 import { CheckIcon, ClipboardCheckIcon, DocumentIcon, InfoIcon, PlusIcon, UploadIcon, XIcon } from '@/components/common/icons';
 import { cx, PageHead } from '@/components/common/Page';
-import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
+import { ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
+import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import ReviewResult from '@/components/seeker/ReviewResult';
 import s from '@/components/seeker/seeker.module.css';
@@ -172,6 +173,13 @@ function CvView({
   const [draft, setDraft] = useState<CvProfile>(cv.profile);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
+  const focus = useConfirmFocus<HTMLButtonElement, HTMLTextAreaElement>(editing);
+  const savedRef = useRef<HTMLParagraphElement>(null);
+
+  // This version was just saved (CvView remounted for it): say so where focus is
+  useEffect(() => {
+    if (justSaved) savedRef.current?.focus();
+  }, [justSaved]);
 
   // Confirming as it is and saving edits both create the next version (method "seeker")
   const save = async () => {
@@ -213,17 +221,12 @@ function CvView({
         </div>
 
         {justSaved && !editing ? (
-          <p className={ui.done} role="status">
+          <p ref={savedRef} tabIndex={-1} className={ui.done} role="status">
             <CheckIcon width={16} height={16} />
             {t('cv.confirmedDone', { v: cv.version })}
           </p>
         ) : (
-          !cv.confirmed && (
-            <p className={ui.aiNotice}>
-              <InfoIcon width={16} height={16} />
-              {t('cv.reviewBanner')}
-            </p>
-          )
+          !cv.confirmed && <Notice>{t('cv.reviewBanner')}</Notice>
         )}
 
         <section className={ui.panel}>
@@ -241,7 +244,12 @@ function CvView({
                   {t('cv.cancelEdit')}
                 </button>
               ) : (
-                <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} onClick={() => (setEditing(true), onEdit())}>
+                <button
+                  ref={focus.triggerRef}
+                  type="button"
+                  className={cx(ui.btn, ui.secondary, ui.small)}
+                  onClick={() => (setEditing(true), onEdit())}
+                >
                   {t('cv.edit')}
                 </button>
               )}
@@ -259,7 +267,12 @@ function CvView({
           )}
           <AiNotice notice={cv.notice} method={cv.method} />
           <div style={{ marginTop: 20 }}>
-            <ProfileView profile={editing ? draft : cv.profile} editing={editing} update={(patch) => setDraft((p) => ({ ...p, ...patch }))} />
+            <ProfileView
+              profile={editing ? draft : cv.profile}
+              editing={editing}
+              update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
+              firstFieldRef={focus.regionRef}
+            />
           </div>
         </section>
 
@@ -364,7 +377,18 @@ function EmptySection() {
 }
 
 /** The structured CV; in edit mode the fields a seeker may correct (scores still read only the PDF text, AI rule 14). */
-function ProfileView({ profile, editing, update }: { profile: CvProfile; editing: boolean; update: (p: Partial<CvProfile>) => void }) {
+function ProfileView({
+  profile,
+  editing,
+  update,
+  firstFieldRef,
+}: {
+  profile: CvProfile;
+  editing: boolean;
+  update: (p: Partial<CvProfile>) => void;
+  /** The first editable field; it takes focus when editing starts. */
+  firstFieldRef?: Ref<HTMLTextAreaElement>;
+}) {
   const [newSkill, setNewSkill] = useState('');
   const addSkill = () => {
     const v = newSkill.trim().replace(/\s+/g, ' ');
@@ -378,6 +402,7 @@ function ProfileView({ profile, editing, update }: { profile: CvProfile; editing
         <h3 className={s.sectionHead}>{t('cv.summary')}</h3>
         {editing ? (
           <textarea
+            ref={firstFieldRef}
             className={ui.textarea}
             rows={2}
             maxLength={500}

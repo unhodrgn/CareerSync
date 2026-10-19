@@ -5,15 +5,21 @@ import ui from './ui.module.css';
 
 export const cx = (...names: (string | false | null | undefined)[]) => names.filter(Boolean).join(' ');
 
-/** Page title block: optional back link, title, lead, actions on the right. */
+/**
+ * Page title block: optional back link, the page's one H1, a count next to it, lead, actions on the right.
+ * Leave out `title` when the page's own subject is the H1 (e.g. the job title on job detail). Panels below never
+ * repeat this title; a count belongs here, not in a panel head.
+ */
 export function PageHead({
   title,
+  count,
   lead,
   back,
   actions,
   extra,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
+  count?: number;
   lead?: ReactNode;
   back?: { to: string; label: string };
   actions?: ReactNode;
@@ -28,7 +34,12 @@ export function PageHead({
             {back.label}
           </Link>
         )}
-        <h1 className={ui.title}>{title}</h1>
+        {title && (
+          <h1 className={ui.title}>
+            {title}
+            {count !== undefined && <span className={ui.count}>{count}</span>}
+          </h1>
+        )}
         {lead && <p className={ui.lead}>{lead}</p>}
         {extra}
       </div>

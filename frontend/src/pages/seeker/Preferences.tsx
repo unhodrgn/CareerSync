@@ -139,10 +139,7 @@ function Form({ saved, onSaved }: { saved: PreferenceOut; onSaved: (p: Preferenc
 
   return (
     <div className={s.twoCol}>
-      <section className={ui.panel}>
-        <div className={ui.panelHead}>
-          <h2 className={ui.panelTitle}>{t('pref.title')}</h2>
-        </div>
+      <section className={ui.panel} aria-label={t('pref.title')}>
         <div className={ui.stack}>
           <ChipList
             label="pref.locations"

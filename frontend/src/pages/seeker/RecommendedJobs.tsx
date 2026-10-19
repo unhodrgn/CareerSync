@@ -1,10 +1,10 @@
 import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
+import { aiConsentWithdrawn, useAuth } from '@/auth/AuthContext';
 import { AiNotice } from '@/components/common/AiNotice';
-import { deadlineLabel } from '@/components/common/format';
 import { ClockIcon, RefreshIcon } from '@/components/common/icons';
-import { Band, BAND_ORDER, bandLabel, JobMeta } from '@/components/common/Labels';
+import { Band, BAND_ORDER, bandLabel, Deadline, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Blocked, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
@@ -23,7 +23,7 @@ export default function RecommendedJobs() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('reco.title')} lead={t('reco.lead')} />
+      <PageHead title={t('reco.title')} lead={t('reco.lead')} extra={state.status === 'ok' && <TalentHint />} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && (
         <SeekerGate
@@ -34,6 +34,24 @@ export default function RecommendedJobs() {
       )}
       {state.status === 'ok' && <Result data={state.data} onRefresh={reload} />}
     </div>
+  );
+}
+
+/**
+ * 희망 조건 lives in the account menu, so a seeker who can be recommended (confirmed CV, AI consent) learns here
+ * that companies can also come to them: one line while the talent opt-in (profile_public, D19) is off.
+ */
+function TalentHint() {
+  const { user } = useAuth();
+  const { state } = useApi(() => api.myPreferences(), []);
+  if (state.status !== 'ok' || state.data.profile_public || (user && aiConsentWithdrawn(user))) return null;
+  return (
+    <p className={s.talentHint}>
+      {t('reco.talentHint')}{' '}
+      <Link to={paths.seeker.preferences} className={ui.linkTone}>
+        {t('reco.talentHintAction')}
+      </Link>
+    </p>
   );
 }
 
@@ -98,7 +116,7 @@ function Result({ data, onRefresh }: { data: RecommendationList; onRefresh: () =
                           {r.title}
                         </Link>
                       </div>
-                      <span className={s.deadline}>{deadlineLabel(r)}</span>
+                      <Deadline job={r} />
                       <div className={ui.actions}>
                         <Link to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })} className={cx(ui.btn, ui.quiet, ui.small)}>
                           {t('reco.prep')}

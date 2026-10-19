@@ -19,7 +19,7 @@ export default function Applications() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('apps.title')} lead={t('apps.lead')} />
+      <PageHead title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' &&
@@ -34,13 +34,7 @@ export default function Applications() {
             }
           />
         ) : (
-          <section className={ui.panel}>
-            <div className={ui.panelHead}>
-              <h2 className={ui.panelTitle}>
-                {t('apps.title')}
-                <span className={ui.count}>{state.data.length}</span>
-              </h2>
-            </div>
+          <section className={ui.panel} aria-label={t('apps.title')}>
             <table className={ui.table}>
               <thead>
                 <tr>

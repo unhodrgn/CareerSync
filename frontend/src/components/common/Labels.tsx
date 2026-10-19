@@ -4,7 +4,7 @@ import type { Category, Importance } from '@/types/criteria';
 import type { EmploymentType } from '@/types/job';
 import type { MatchLevel } from '@/types/recommendation';
 import type { OfferStatus } from '@/types/talent';
-import { experienceLabel } from './format';
+import { deadlineLabel, experienceLabel } from './format';
 import ui from './ui.module.css';
 
 // Small labels for values the API sends as codes. The server's Korean values (band, importance) are mapped to
@@ -47,8 +47,18 @@ export function ImportanceTag({ level }: { level: Importance }) {
   );
 }
 
-export function CategoryTag({ category }: { category: Category }) {
-  return <span className={ui.tag}>{t(`category.${category}`)}</span>;
+/** `quiet`: plain muted text, for a category named next to another label (e.g. importance). */
+export function CategoryTag({ category, quiet = false }: { category: Category; quiet?: boolean }) {
+  return <span className={quiet ? ui.categoryText : ui.tag}>{t(`category.${category}`)}</span>;
+}
+
+/** Deadline of a job row: D-n and 오늘 마감 carry weight, 상시 채용 and 마감 stay quiet. */
+export function Deadline({ job }: { job: { deadline: string | null; expired?: boolean } }) {
+  return (
+    <span className={ui.deadline} data-open={!job.deadline || job.expired || undefined}>
+      {deadlineLabel(job)}
+    </span>
+  );
 }
 
 export function ApplicationStatusTag({ status }: { status: ApplicationStatus }) {

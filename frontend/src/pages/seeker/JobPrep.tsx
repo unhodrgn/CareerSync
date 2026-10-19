@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { generatePath, useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { errorCode } from '@/api/errors';
@@ -35,10 +35,27 @@ export default function JobPrep() {
   const [params, setParams] = useSearchParams();
   const tab: Tab = isTab(params.get('tab')) ? (params.get('tab') as Tab) : 'gaps';
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
 
   const open = (next: Tab) => {
     setOpened((o) => new Set(o).add(next));
     setParams(next === 'gaps' ? {} : { tab: next }, { replace: true });
+  };
+
+  // Tablist keys: arrows move and select, Home/End jump to the ends
+  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const i = TABS.findIndex((x) => x.id === tab);
+    const keys: Record<string, number> = {
+      ArrowRight: (i + 1) % TABS.length,
+      ArrowLeft: (i - 1 + TABS.length) % TABS.length,
+      Home: 0,
+      End: TABS.length - 1,
+    };
+    const to = keys[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    open(TABS[to].id);
+    tabRefs.current[TABS[to].id]?.focus();
   };
 
   if (job.state.status === 'loading') {
@@ -77,13 +94,18 @@ export default function JobPrep() {
         {TABS.map(({ id: tabId, icon: Icon }) => (
           <button
             key={tabId}
+            ref={(el) => {
+              tabRefs.current[tabId] = el;
+            }}
             id={`prep-tab-${tabId}`}
             type="button"
             role="tab"
             className={ui.tab}
             aria-selected={tab === tabId}
             aria-controls={`prep-panel-${tabId}`}
+            tabIndex={tab === tabId ? 0 : -1}
             onClick={() => open(tabId)}
+            onKeyDown={onTabKey}
           >
             <Icon width={16} height={16} />
             {t(`prep.tab.${tabId}`)}

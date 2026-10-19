@@ -259,7 +259,7 @@ CareerSync is drawn as three vertical fields: a deep navy field for job seekers,
 
 The mood is calm, dense and exact, closer to an instrument panel than a marketing page. White cards sit on the dark fields with one soft shadow; on the light spine the same cards are flat, with only a 1px line around them. Pretendard does all the type work at two weights, regular (400) and semibold (600). Color is functional: navy marks seekers, green marks employers, and amber appears only when a skill is missing from a CV. The interactions keep that same geometry. Hovering a field widens it and dims the other, and a criterion lights its own row on every column at once.
 
-The system is desktop-only and Korean-first. Body text breaks at word boundaries (`word-break: keep-all`), and every block is sized so its line breaks never change between states. The landing page and the auth pages (login, register, consent) exist in this system so far. The auth pages keep the world at a smaller scale: one audience field on the left and a white form card on the canvas on the right. App screens, app navigation and tables have no established patterns yet.
+The system is desktop-only and Korean-first. Body text breaks at word boundaries (`word-break: keep-all`), and every block is sized so its line breaks never change between states. The landing page and the auth pages (login, register, consent) exist in this system so far. The auth pages keep the world at a smaller scale: one audience field on the left and a white form card on the canvas on the right. App navigation is described under Navigation; app screens and tables have no established patterns yet.
 
 **Key Characteristics:**
 - Three aligned columns (`1fr / 324px / 1fr`) with fixed vertical zones 256 / 68 / (20 + 360).
@@ -407,7 +407,15 @@ Two radio cards side by side (10px gap), each in its own audience color: the see
 A Paper fieldset with a 1px line and 11px radius. 모두 동의 (600) sits on top above a soft-line divider; the required items follow, each with a 필수 tag (12px/600, tone) and a quiet 내용 보기 disclosure. The disclosure opens the text inline, indented under its checkbox, on a Sunken 8px panel led by a 초안 pill badge and note while the wording is a draft; the text is 13px/1.65 Soft Ink with `pre-line`. When a required item is missing, the group border turns to Error Line and the error line sits inside the group. A consent version, where shown, is a tabular-numeral pill on the canvas.
 
 ### Navigation
-Not established beyond the landing header (logo, tagline, ink button). The auth pages reuse that header with the Ink button as the link to the other auth page. App navigation has not been designed.
+The landing header (logo, tagline, ink button) is the base. The auth pages reuse it with the Ink button as the link to the other auth page.
+
+**App top bar.** Signed-in pages use the same 64px header on the canvas (40px gutters, sticky, 1px bottom line); the shell sets `--tone` once from the role (navy for seekers, green for companies).
+- **Left:** LogoMark and wordmark (to the role's home), then the role's pages as text links: seekers 추천 공고 · 공고 목록 · 내 이력서 · 지원 현황 · 받은 제안; companies 공고 관리 · 보낸 제안 · 기업 프로필. At most five; settings-like pages do not go in the bar.
+- **Links:** 14px/600 Muted Gray, hover Ink; the current page takes the tone with a 2px tone underline on the header line. A count (pending offers) is a small tone pill after the label, read out as text.
+- **Right: the account menu.** The user's display name as a quiet trigger (28px tone-soft initial tile, 13.5px/600 Soft Ink name, chevron), Line Soft fill on hover and while open, the name in the tone while one of its pages is open. It opens a 240px Paper panel below, flat with a 1px line and 12px radius (it sits on the canvas: no shadow): who is signed in (name, email; a company account also shows its company), then the settings-like pages (seekers: 희망 조건, 내 정보) and 로그아웃 as 36px rows. It is a disclosure, not an ARIA menu: Tab walks its rows, Escape or a click outside closes it and returns focus, tabbing out closes it.
+- **No role label** (● 구직자 계정) and no ink button in the signed-in bar: the darkest element on a page is the page's own primary action.
+- **Guests** keep the landing header: tagline, 회원가입 as a quiet link, 로그인 as the Ink button.
+- **Under the bar,** a page-wide line on Paper carries a state that changes what the user can do everywhere (AI consent withdrawn, with 다시 동의하기).
 
 ### Criterion Trail (signature)
 One criterion lights the same item across all three columns. The seeker row goes to Seeker Lit Wash with a Lit Blue Line border (gap rows keep amber and gain the gap glow), the spine row turns Ink with Paper text, the employer tag fills green and lifts 1px, and each applicant's square gets a ring. Everything else in the trail dims to .38 opacity. Hover or focus previews, a click pins (`aria-pressed`, pinned ring), and a second click or Escape unpins. Transitions run 220ms on the system ease. Each spine row has 2px wires to both cards that end in 8px dots: navy on the left, green on the right, amber on the left for a gap.
