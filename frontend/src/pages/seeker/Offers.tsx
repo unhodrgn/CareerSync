@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
@@ -35,6 +35,13 @@ export default function Offers() {
   const { state, setData, reload } = useApi(loadOffers, []);
   const shell = useShell();
   const [notice, setNotice] = useState<string | null>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
+  // The offer just answered: it moves to 지난 제안 (a new card), which takes focus there
+  const [answeredId, setAnsweredId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (notice) noticeRef.current?.focus();
+  }, [notice]);
 
   const replace = (data: OffersPage, offer: SeekerOffer) =>
     setData({ ...data, offers: data.offers.map((o) => (o.offer_id === offer.offer_id ? offer : o)) });
@@ -52,26 +59,37 @@ export default function Offers() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('offers.title')} lead={t('offers.lead')} />
+      <PageHead
+        title={t('offers.title')}
+        lead={t('offers.lead')}
+        extra={
+          state.status === 'ok' && (
+            <p className={s.publicLine}>
+              {state.data.profilePublic && <span className={s.publicDot} />}
+              {state.data.profilePublic ? t('offers.publicOn') : t('offers.publicOff')}
+              {/* With no offers yet, the empty state below carries the same link as its button */}
+              {state.data.offers.length > 0 && (
+                <Link to={paths.seeker.preferences} className={ui.linkTone}>
+                  {t('offers.publicLink')}
+                </Link>
+              )}
+            </p>
+          )
+        }
+      />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' && (
         <>
-          <div className={s.publicBar}>
-            {state.data.profilePublic && <span className={s.publicDot} />}
-            {state.data.profilePublic ? t('offers.publicOn') : t('offers.publicOff')}
-            <Link to={paths.seeker.preferences} className={ui.linkTone}>
-              {t('offers.publicLink')}
-            </Link>
-          </div>
           {notice && (
-            <div style={{ marginBottom: 16 }}>
+            <div ref={noticeRef} tabIndex={-1} className={s.offersNotice}>
               <Notice>{notice}</Notice>
             </div>
           )}
           <OfferGroups
             offers={state.data.offers}
-            onAnswered={(offer) => (replace(state.data, offer), setNotice(null), shell?.refreshOffers())}
+            focusId={answeredId}
+            onAnswered={(offer) => (replace(state.data, offer), setNotice(null), setAnsweredId(offer.offer_id), shell?.refreshOffers())}
             onStale={onStale}
           />
         </>
@@ -80,12 +98,21 @@ export default function Offers() {
   );
 }
 
-function OfferGroups({ offers, onAnswered, onStale }: { offers: SeekerOffer[]; onAnswered: (o: SeekerOffer) => void; onStale: (e: unknown) => void }) {
+function OfferGroups({
+  offers,
+  focusId,
+  onAnswered,
+  onStale,
+}: {
+  offers: SeekerOffer[];
+  focusId: number | null;
+  onAnswered: (o: SeekerOffer) => void;
+  onStale: (e: unknown) => void;
+}) {
   if (offers.length === 0) {
     return (
       <Empty
         title={t('offers.none.title')}
-        body={t('offers.none.body')}
         action={
           <Link to={paths.seeker.preferences} className={cx(ui.btn, ui.secondary)}>
             {t('offers.none.action')}
@@ -96,28 +123,29 @@ function OfferGroups({ offers, onAnswered, onStale }: { offers: SeekerOffer[]; o
   }
   const open = offers.filter((o) => o.status === 'pending');
   const past = offers.filter((o) => o.status !== 'pending');
+  const card = (o: SeekerOffer) => (
+    <OfferCard key={o.offer_id} offer={o} autoFocus={o.offer_id === focusId} onAnswered={onAnswered} onStale={onStale} />
+  );
   return (
     <>
-      <section aria-labelledby="offers-open">
-        <h2 id="offers-open" className={s.groupHead}>
-          <span className={ui.panelTitle}>{t('offers.open')}</span>
-          <span className={ui.count}>{open.length}</span>
-        </h2>
-        {open.length === 0 ? (
-          <p className={ui.caption}>{t('offers.empty')}</p>
-        ) : (
-          open.map((o) => <OfferCard key={o.offer_id} offer={o} onAnswered={onAnswered} onStale={onStale} />)
-        )}
-      </section>
+      {open.length === 0 ? (
+        <p className={ui.caption}>{t('offers.empty')}</p>
+      ) : (
+        <section aria-labelledby="offers-open">
+          <h2 id="offers-open" className={s.groupHead}>
+            <span className={ui.panelTitle}>{t('offers.open')}</span>
+            <span className={ui.count}>{open.length}</span>
+          </h2>
+          {open.map(card)}
+        </section>
+      )}
       {past.length > 0 && (
-        <section aria-labelledby="offers-past" style={{ marginTop: 32 }}>
+        <section aria-labelledby="offers-past" className={s.pastSection}>
           <h2 id="offers-past" className={s.groupHead}>
             <span className={ui.panelTitle}>{t('offers.past')}</span>
             <span className={ui.count}>{past.length}</span>
           </h2>
-          {past.map((o) => (
-            <OfferCard key={o.offer_id} offer={o} onAnswered={onAnswered} onStale={onStale} />
-          ))}
+          <div className={s.pastList}>{past.map(card)}</div>
         </section>
       )}
     </>
@@ -126,7 +154,18 @@ function OfferGroups({ offers, onAnswered, onStale }: { offers: SeekerOffer[]; o
 
 const STALE = ['OFFER_NOT_PENDING', 'OFFER_EXPIRED', 'OFFER_NOT_FOUND'];
 
-function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswered: (o: SeekerOffer) => void; onStale: (e: unknown) => void }) {
+function OfferCard({
+  offer,
+  autoFocus,
+  onAnswered,
+  onStale,
+}: {
+  offer: SeekerOffer;
+  /** Just answered: this card (now under 지난 제안) takes focus when it appears. */
+  autoFocus: boolean;
+  onAnswered: (o: SeekerOffer) => void;
+  onStale: (e: unknown) => void;
+}) {
   const { user } = useAuth();
   const [confirm, setConfirm] = useState<'accept' | 'decline' | null>(null);
   // Which button opened the confirm, so 취소 returns focus to it; after an answer the card itself takes focus
@@ -136,6 +175,10 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const pending = offer.status === 'pending';
+
+  useEffect(() => {
+    if (autoFocus) focus.fallbackRef.current?.focus();
+  }, [autoFocus, focus.fallbackRef]);
 
   const answer = async () => {
     setBusy(true);
@@ -151,8 +194,44 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
     }
   };
 
+  // Past offers are history: one compact row each (title · company · status · date)
+  if (!pending) {
+    const answeredOn = offer.responded_at && (offer.status === 'accepted' || offer.status === 'rejected') ? offer.responded_at : null;
+    return (
+      <article ref={focus.fallbackRef} tabIndex={-1} className={s.offerPast}>
+        <div className={s.offerMain}>
+          <span className={s.offerPastTitle}>
+            {offer.job ? (
+              <Link to={generatePath(paths.jobDetail, { jobId: String(offer.job.job_id) })} className={s.jobTitle}>
+                {offer.job.title}
+              </Link>
+            ) : (
+              t('offers.noJob')
+            )}
+          </span>
+          <JobMeta company={offer.company_name} location={offer.job?.location} employmentType={offer.job?.employment_type} />
+          {offer.message && <p className={cx(ui.caption, ui.truncate)}>{offer.message}</p>}
+          {offer.status === 'accepted' && (
+            <span className={ui.done}>
+              <CheckIcon width={16} height={16} />
+              {t('offers.revealed')}
+            </span>
+          )}
+        </div>
+        <div className={s.offerSide}>
+          <OfferStatusTag status={offer.status} />
+          <span>
+            {answeredOn
+              ? t('offers.responded', { date: formatDate(answeredOn) })
+              : t('offers.sent', { date: formatDate(offer.created_at) })}
+          </span>
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <article ref={focus.fallbackRef} tabIndex={-1} className={s.offer} data-past={!pending || undefined}>
+    <article ref={focus.fallbackRef} tabIndex={-1} className={s.offer}>
       <div className={s.offerMain}>
         <span className={s.offerCompany}>
           <strong>{offer.company_name}</strong>
@@ -169,28 +248,14 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
         {/* OfferJob has no experience field, so the meta line leaves it out */}
         {offer.job && <JobMeta location={offer.job.location} employmentType={offer.job.employment_type} />}
         <p className={cx(s.offerMessage, !offer.message && ui.muted)}>{offer.message ?? t('offers.noMessage')}</p>
-        {offer.status === 'accepted' && (
-          <span className={ui.done}>
-            <CheckIcon width={16} height={16} />
-            {t('offers.revealed')}
-          </span>
-        )}
       </div>
       <div className={s.offerSide}>
         <OfferStatusTag status={offer.status} />
         <span>{t('offers.sent', { date: formatDate(offer.created_at) })}</span>
-        {pending ? (
-          <span>{t('offers.expires', { date: formatDate(offer.expires_at), n: Math.max(daysUntil(offer.expires_at), 0) })}</span>
-        ) : (
-          // `responded_at` is also set when the company cancels; only the seeker's own answer is "답변한 날"
-          offer.responded_at &&
-          (offer.status === 'accepted' || offer.status === 'rejected') && (
-            <span>{t('offers.responded', { date: formatDate(offer.responded_at) })}</span>
-          )
-        )}
+        <span>{t('offers.expires', { date: formatDate(offer.expires_at), n: Math.max(daysUntil(offer.expires_at), 0) })}</span>
       </div>
 
-      {pending && !confirm && (
+      {!confirm && (
         <div className={s.offerActions}>
           <button
             ref={opener === 'accept' ? focus.triggerRef : undefined}
@@ -210,7 +275,7 @@ function OfferCard({ offer, onAnswered, onStale }: { offer: SeekerOffer; onAnswe
           </button>
         </div>
       )}
-      {pending && confirm && user && (
+      {confirm && user && (
         <div
           ref={focus.regionRef}
           tabIndex={-1}

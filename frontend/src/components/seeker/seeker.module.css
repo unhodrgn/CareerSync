@@ -7,8 +7,15 @@
   margin-bottom: 16px;
   display: grid;
   grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: 16px;
+}
+
+.toolbarCount {
+  margin: 0;
+  justify-self: end;
+  font-size: 13px;
+  color: var(--color-ink-muted);
 }
 
 .search {
@@ -102,7 +109,7 @@
 
 .guestBanner {
   margin-bottom: 20px;
-  padding: 18px 22px;
+  padding: 10px 10px 10px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -115,9 +122,8 @@
 
 .guestBanner p {
   margin: 0;
-  max-width: 44em;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: rgb(255 255 255 / 0.86);
 }
 
@@ -166,30 +172,29 @@
   letter-spacing: -0.025em;
 }
 
-.infoGrid {
+.facts {
   margin: 0;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 32px;
+  font-size: 14px;
 }
 
-.infoGrid div {
-  min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
+.facts div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
-.infoGrid dt {
-  font-size: 12px;
+.facts dt {
+  font-size: 13px;
   color: var(--color-ink-muted);
 }
 
-.infoGrid dd {
-  margin: 2px 0 0;
-  font-size: 14px;
+.facts dd {
+  margin: 0;
   font-weight: 600;
+  color: var(--color-ink-soft);
 }
 
 .jd {
@@ -266,6 +271,23 @@
   gap: 12px;
 }
 
+.prepLink {
+  padding-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--tone);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.prepLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .fullWidth {
   width: 100%;
 }
@@ -281,25 +303,12 @@
 
 /* Recommendations */
 
-.legend {
-  margin-bottom: 24px;
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
-  font-size: 13px;
-  color: var(--color-ink-muted);
+.resultHead {
+  display: grid;
+  gap: 2px;
 }
 
-.legendBands {
-  display: flex;
-  gap: 6px;
-}
-
-.group + .group {
+.group {
   margin-top: 28px;
 }
 
@@ -310,19 +319,49 @@
   gap: 10px;
 }
 
-.recoRow {
-  padding: 16px 20px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 20px;
+/* One bordered list per band, rows split by soft lines; each row opens its job */
+.recoList {
+  margin: 0;
+  padding: 0 20px;
+  list-style: none;
   border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
+  border-radius: var(--radius-lg);
   background: var(--color-paper);
 }
 
+.recoRow {
+  position: relative;
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 16px;
+}
+
 .recoRow + .recoRow {
-  margin-top: 8px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.recoRow:hover .jobTitle {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.recoRow:hover .chevron {
+  color: var(--color-ink);
+  transform: translateX(2px);
+}
+
+/* A link whose hit area is the whole row (position: relative on the row) */
+.stretched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.aboveStretch {
+  position: relative;
+  z-index: 1;
 }
 
 /* One line under the 추천 공고 lead while the talent opt-in is off (희망 조건 sits in the account menu) */
@@ -348,11 +387,47 @@
 
 /* CV */
 
-.cvLayout {
+/* One column at a reading width: the CV is a document, not a dashboard */
+.cvColumn {
+  max-width: 920px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  align-items: start;
-  gap: 24px;
+  gap: 16px;
+  align-content: start;
+}
+
+.cvHead {
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cvHeadText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+/* Bottom bar while editing: the save action stays in reach on a long form (flat, on the canvas) */
+.saveBar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  padding: 10px 12px 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-hub);
+  background: var(--color-paper);
+}
+
+.saveBarText {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-ink-muted);
 }
 
 .dropzone {
@@ -376,16 +451,6 @@
   color: var(--color-seeker);
 }
 
-.fileBar {
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
-}
-
 .fileIcon {
   flex: none;
   width: 40px;
@@ -393,15 +458,8 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-md);
-  background: var(--color-seeker);
-  color: var(--color-paper);
-}
-
-.fileText {
-  min-width: 0;
-  flex: 1;
-  display: grid;
-  gap: 2px;
+  background: var(--color-seeker-soft);
+  color: var(--color-seeker);
 }
 
 .fileName {
@@ -462,15 +520,11 @@
   color: var(--color-ink-muted);
 }
 
+/* The word 원문 leading the evidence line: text, not a chip */
 .sourceLabel {
   flex: none;
-  padding: 0 6px;
-  border-radius: var(--radius-xs);
-  background: var(--color-line-soft);
-  font-size: 11px;
   font-weight: 600;
-  line-height: 17px;
-  color: var(--color-ink-soft);
+  color: var(--color-ink-muted);
 }
 
 .editGrid {
@@ -535,36 +589,6 @@
   color: rgb(255 255 255 / 0.82);
 }
 
-.history {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-
-.historyItem {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-}
-
-.historyVersion {
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-line-soft);
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.historyItem[data-current] .historyVersion {
-  background: var(--color-seeker);
-  color: var(--color-paper);
-}
-
 /* Job prep */
 
 .prepGrid {
@@ -592,15 +616,15 @@
   background: var(--color-paper);
 }
 
+/* Neutral: amber is kept for the missing items themselves (Amber Is Absence) */
 .stepIndex {
   width: 36px;
   height: 36px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-md);
-  background: var(--color-gap-soft);
-  box-shadow: inset 0 0 0 1px var(--color-gap-line);
-  color: var(--color-gap);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
   font-size: 14px;
   font-weight: 600;
 }
@@ -645,24 +669,32 @@
   text-decoration-color: color-mix(in srgb, var(--color-seeker) 30%, transparent);
 }
 
+/* Interview questions: one list in one panel, rows split by soft lines */
+.questions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .question {
-  padding: 20px 22px;
+  padding: 20px 0;
   display: grid;
-  gap: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-paper);
+  gap: 10px;
 }
 
 .question + .question {
-  margin-top: 12px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.question:last-child {
+  padding-bottom: 4px;
 }
 
 .questionText {
   margin: 0;
   display: flex;
   gap: 12px;
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: -0.015em;
@@ -670,16 +702,51 @@
 
 .questionIndex {
   flex: none;
-  width: 26px;
-  color: var(--color-seeker);
+  width: 22px;
+  color: var(--color-ink-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.questionMeta {
-  padding-left: 38px;
+.questionBody {
+  max-width: 52em;
+  padding-left: 34px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
+  gap: 10px;
+}
+
+.inlineLabel {
+  margin-right: 8px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+/* Answer tips on demand */
+.tips summary {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tone);
+  font-size: 13.5px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.tips summary::-webkit-details-marker {
+  display: none;
+}
+
+.tips summary svg {
+  transition: transform 200ms var(--ease-out);
+}
+
+.tips[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.tips ul {
+  margin-top: 8px;
 }
 
 .reviewCols {
@@ -740,8 +807,49 @@
   margin-top: 12px;
 }
 
-.offer[data-past] {
-  background: var(--color-sunken);
+/* Past offers: compact rows in one list */
+.pastSection {
+  margin-top: 32px;
+}
+
+.pastList {
+  padding: 0 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.offerPast {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.offerPast + .offerPast {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.offerPast .offerMain {
+  gap: 4px;
+}
+
+.offerPastTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.offerPastTitle .jobTitle {
+  font-size: inherit;
+}
+
+.offersNotice {
+  margin-bottom: 16px;
+}
+
+.offersNotice:focus {
+  outline: none;
 }
 
 .offerMain {
@@ -800,16 +908,13 @@
   grid-column: 1 / -1;
 }
 
-.publicBar {
-  margin-bottom: 24px;
-  padding: 12px 16px;
+.publicLine {
+  margin: 10px 0 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-paper);
+  gap: 8px;
   font-size: 13.5px;
+  color: var(--color-ink-soft);
 }
 
 .publicDot {
@@ -841,27 +946,23 @@
   gap: 16px;
 }
 
+/* What companies see and do not see: two rows under a soft line, no boxes */
 .visibility {
-  margin-top: 16px;
+  margin: 16px 0 0;
+  padding-top: 16px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  border-top: 1px solid var(--color-line-soft);
 }
 
-.visibilityBox {
-  padding: 12px 14px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
-}
-
-.visibilityBox h3 {
-  margin: 0 0 4px;
+.visibility dt {
+  margin-bottom: 2px;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--color-ink-soft);
+  color: var(--color-ink);
 }
 
-.visibilityBox p {
+.visibility dd {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;

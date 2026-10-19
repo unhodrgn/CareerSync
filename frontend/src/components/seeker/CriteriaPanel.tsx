@@ -16,13 +16,12 @@ function isSeekerView(view: CriteriaView): view is SeekerCriteriaSetOut {
  */
 export default function CriteriaPanel({ view }: { view: CriteriaView }) {
   const seeker = isSeekerView(view);
-  const lead: MessageKey = seeker ? 'job.criteriaLead' : 'job.criteriaGuestLead';
+  // The owner company reads its own names here; the caption speaks to seekers and guests only
+  const owner = view.items.length > 0 && 'weight' in view.items[0];
+  const lead: MessageKey | null = seeker ? 'job.criteriaLead' : owner ? null : 'job.criteriaGuestLead';
   return (
     <section className={cx(ui.panel, s.asideBlock)}>
-      <div>
-        <h2 className={s.asideTitle}>{t('job.criteria')}</h2>
-        <p className={ui.caption}>{t(lead)}</p>
-      </div>
+      <h2 className={s.asideTitle}>{t('job.criteria')}</h2>
       {view.items.length === 0 ? (
         <p className={ui.caption}>{t('job.criteriaNone')}</p>
       ) : (
@@ -44,6 +43,7 @@ export default function CriteriaPanel({ view }: { view: CriteriaView }) {
               ))}
         </ul>
       )}
+      {lead && <p className={ui.caption}>{t(lead)}</p>}
     </section>
   );
 }

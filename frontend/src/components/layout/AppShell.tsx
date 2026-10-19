@@ -248,7 +248,6 @@ export function GuestShell() {
           <span className={s.brandName}>{t('app.name')}</span>
         </Link>
         <div className={s.end}>
-          <span className={s.tagline}>{t('shell.tagline')}</span>
           <Link to={paths.register} className={s.quietLink}>
             {t('shell.register')}
           </Link>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type Ref } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode, type Ref } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
@@ -105,43 +105,40 @@ function UploadError({ error }: { error: unknown }) {
   );
 }
 
+/** No CV yet: one column, the upload is the only thing on the page. */
 function Upload({ onPick, error }: { onPick: () => void; error: unknown }) {
   return (
-    <div className={s.cvLayout}>
-      <section className={s.dropzone}>
-        <span className={s.dropIcon}>
-          <UploadIcon width={22} height={22} />
-        </span>
-        <p className={ui.emptyTitle}>{t('cv.upload.title')}</p>
-        <p className={ui.emptyBody}>{t('cv.upload.body')}</p>
-        <button type="button" className={cx(ui.btn, ui.primary)} onClick={onPick}>
-          {t('cv.upload.pick')}
-        </button>
-        <p className={ui.caption}>{t('cv.upload.limits')}</p>
-        {error != null && <UploadError error={error} />}
-        <p className={ui.caption}>
-          {t('cv.upload.mask')} {t('cv.upload.consent')}
-        </p>
-      </section>
-      <RuleCard />
-    </div>
+    <section className={cx(s.dropzone, s.cvColumn)}>
+      <span className={s.dropIcon}>
+        <UploadIcon width={22} height={22} />
+      </span>
+      <p className={ui.emptyTitle}>{t('cv.upload.title')}</p>
+      <p className={ui.emptyBody}>{t('cv.upload.body')}</p>
+      <button type="button" className={cx(ui.btn, ui.primary)} onClick={onPick}>
+        {t('cv.upload.pick')}
+      </button>
+      {error != null && <UploadError error={error} />}
+      <p className={ui.caption}>
+        {t('cv.upload.limits')}
+        <br />
+        {t('cv.upload.mask')} {t('cv.upload.consent')}
+      </p>
+    </section>
   );
 }
 
 function Processing() {
   return (
-    <div className={s.cvLayout}>
-      <section className={ui.panel} aria-busy="true">
-        <p className={ui.caption}>{t('cv.processing')}</p>
-        <div style={{ marginTop: 16 }}>
-          <Loading rows={5} panel={false} />
-        </div>
-      </section>
-      <RuleCard />
-    </div>
+    <section className={cx(ui.panel, s.cvColumn)} aria-busy="true">
+      <p className={ui.caption}>{t('cv.processing')}</p>
+      <div style={{ marginTop: 16 }}>
+        <Loading rows={5} panel={false} />
+      </div>
+    </section>
   );
 }
 
+/** Only while editing: edits tell scoring what to look for, they never add to what the PDF text proves (AI rule 14). */
 function RuleCard() {
   return (
     <section className={s.ruleCard}>
@@ -193,116 +190,106 @@ function CvView({
       setSaving(false);
     }
   };
+  const cancel = () => (setEditing(false), setDraft(cv.profile), setSaveError(null));
 
   const masked = cv.masked_kinds.map((k) => (MASKED[k] ? t(MASKED[k]) : k)).join(', ');
+  const meta = [
+    t('cv.version', { v: cv.version }),
+    formatDate(cv.created_at),
+    cv.method === 'seeker' ? t('cv.versionSeeker') : t('cv.versionAi'),
+    masked && t('cv.masked', { kinds: masked }),
+    t('cv.totalExperience', { value: monthsLabel(cv.total_experience_months) }),
+  ].filter(Boolean);
 
   return (
-    <div className={s.cvLayout}>
-      <div className={ui.stack}>
-        <div className={s.fileBar}>
-          <span className={s.fileIcon}>
-            <DocumentIcon width={20} height={20} />
+    <div className={s.cvColumn}>
+      {/* One header for the file and its version; the page's actions sit on its right */}
+      <header className={s.cvHead}>
+        <span className={s.fileIcon}>
+          <DocumentIcon width={20} height={20} />
+        </span>
+        <div className={s.cvHeadText}>
+          <span className={s.fileName}>
+            {t('cv.file', { name: cv.file_name, pages: cv.pages })}
+            <span className={cx(ui.tag, cv.confirmed && ui.tagTone)}>{cv.confirmed ? t('cv.confirmed') : t('cv.unconfirmed')}</span>
           </span>
-          <span className={s.fileText}>
-            <span className={s.fileName}>{t('cv.file', { name: cv.file_name, pages: cv.pages })}</span>
-            <span className={ui.meta}>
-              <span>{t('cv.version', { v: cv.version })}</span>
-              {masked && (
-                <>
-                  <span className={ui.sep}>·</span>
-                  <span>{t('cv.masked', { kinds: masked })}</span>
-                </>
-              )}
-              <span className={ui.sep}>·</span>
-              <span>{t('cv.totalExperience', { value: monthsLabel(cv.total_experience_months) })}</span>
-            </span>
+          <span className={ui.meta}>
+            {meta.map((m, i) => (
+              <span key={i} className={ui.withIcon}>
+                {i > 0 && <span className={ui.sep}>·</span>}
+                {m}
+              </span>
+            ))}
           </span>
-          <span className={cx(ui.tag, cv.confirmed && ui.tagTone)}>{cv.confirmed ? t('cv.confirmed') : t('cv.unconfirmed')}</span>
         </div>
-
-        {justSaved && !editing ? (
-          <p ref={savedRef} tabIndex={-1} className={ui.done} role="status">
-            <CheckIcon width={16} height={16} />
-            {t('cv.confirmedDone', { v: cv.version })}
-          </p>
-        ) : (
-          !cv.confirmed && <Notice>{t('cv.reviewBanner')}</Notice>
+        {!editing && (
+          <div className={ui.actions}>
+            <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={onReupload}>
+              <UploadIcon width={15} height={15} />
+              {t('cv.reupload')}
+            </button>
+            <button
+              ref={focus.triggerRef}
+              type="button"
+              className={cx(ui.btn, ui.secondary)}
+              onClick={() => (setEditing(true), onEdit())}
+            >
+              {t('cv.edit')}
+            </button>
+            {!cv.confirmed && (
+              <button type="button" className={cx(ui.btn, ui.primary)} disabled={saving} onClick={save}>
+                {saving ? t('cv.saving') : t('cv.confirm')}
+              </button>
+            )}
+          </div>
         )}
+      </header>
 
-        <section className={ui.panel}>
-          <div className={ui.panelHead}>
-            <h2 className={ui.panelTitle}>{t('cv.title')}</h2>
-            <div className={ui.actions}>
-              {(editing || !cv.confirmed) && <span className={ui.caption}>{t('cv.newVersionHint', { v: cv.version + 1 })}</span>}
-              {editing ? (
-                <button
-                  type="button"
-                  className={cx(ui.btn, ui.quiet, ui.small)}
-                  disabled={saving}
-                  onClick={() => (setEditing(false), setDraft(cv.profile), setSaveError(null))}
-                >
-                  {t('cv.cancelEdit')}
-                </button>
-              ) : (
-                <button
-                  ref={focus.triggerRef}
-                  type="button"
-                  className={cx(ui.btn, ui.secondary, ui.small)}
-                  onClick={() => (setEditing(true), onEdit())}
-                >
-                  {t('cv.edit')}
-                </button>
-              )}
-              {(editing || !cv.confirmed) && (
-                <button type="button" className={cx(ui.btn, ui.primary, ui.small)} disabled={saving} onClick={save}>
-                  {saving ? t('cv.saving') : editing ? t('cv.saveEdit') : t('cv.confirm')}
-                </button>
-              )}
-            </div>
-          </div>
-          {saveError != null && (
-            <div style={{ marginBottom: 12 }}>
-              <InlineError>{errorText(saveError)}</InlineError>
-            </div>
-          )}
-          <AiNotice notice={cv.notice} method={cv.method} />
-          <div style={{ marginTop: 20 }}>
-            <ProfileView
-              profile={editing ? draft : cv.profile}
-              editing={editing}
-              update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
-              firstFieldRef={focus.regionRef}
-            />
-          </div>
-        </section>
+      {uploadError != null && <UploadError error={uploadError} />}
+      {!editing && saveError != null && <InlineError>{errorText(saveError)}</InlineError>}
+      {justSaved && !editing ? (
+        <p ref={savedRef} tabIndex={-1} className={ui.done} role="status">
+          <CheckIcon width={16} height={16} />
+          {t('cv.confirmedDone', { v: cv.version })}
+        </p>
+      ) : (
+        !cv.confirmed &&
+        !editing && (
+          <Notice>
+            {t('cv.reviewBanner')} {t('cv.newVersionHint', { v: cv.version + 1 })}
+          </Notice>
+        )
+      )}
+      {editing && <RuleCard />}
 
-        <CheckPanel cv={cv} />
-      </div>
+      <section className={ui.panel} aria-label={t('cv.title')}>
+        <AiNotice notice={cv.notice} method={cv.method} />
+        <div style={{ marginTop: 20 }}>
+          <ProfileView
+            profile={editing ? draft : cv.profile}
+            editing={editing}
+            update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
+            firstFieldRef={focus.regionRef}
+          />
+        </div>
+      </section>
 
-      <aside className={ui.stack}>
-        <RuleCard />
-        <section className={ui.panel}>
-          <h2 className={ui.sectionTitle}>{t('cv.versionTitle')}</h2>
-          <ul className={s.history}>
-            <li className={s.historyItem} data-current>
-              <span className={s.historyVersion}>{t('cv.version', { v: cv.version })}</span>
-              <span>{cv.method === 'seeker' ? t('cv.versionSeeker') : t('cv.versionAi')}</span>
-              <span className={cx(ui.caption, ui.num)}>{formatDate(cv.created_at)}</span>
-            </li>
-          </ul>
-          <p className={ui.caption} style={{ marginTop: 12 }}>
-            {t('cv.versionNote')}
-          </p>
-        </section>
-        <section className={cx(ui.panel, ui.stack)} style={{ gap: 12 }}>
-          <p className={ui.caption}>{t('cv.reuploadLead')}</p>
-          <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} style={{ justifySelf: 'start' }} onClick={onReupload}>
-            <UploadIcon width={15} height={15} />
-            {t('cv.reupload')}
+      {editing ? (
+        // Stays in view at the bottom while scrolling through a long form
+        <div className={s.saveBar}>
+          <span className={s.saveBarText}>
+            {saveError != null ? <InlineError>{errorText(saveError)}</InlineError> : t('cv.newVersionHint', { v: cv.version + 1 })}
+          </span>
+          <button type="button" className={cx(ui.btn, ui.quiet)} disabled={saving} onClick={cancel}>
+            {t('cv.cancelEdit')}
           </button>
-          {uploadError != null && <UploadError error={uploadError} />}
-        </section>
-      </aside>
+          <button type="button" className={cx(ui.btn, ui.primary)} disabled={saving} onClick={save}>
+            {saving ? t('cv.saving') : t('cv.saveEdit')}
+          </button>
+        </div>
+      ) : (
+        <CheckPanel cv={cv} />
+      )}
     </div>
   );
 }
@@ -362,6 +349,7 @@ function period(start: string | null, end: string | null) {
   return `${start ? f(start) : ''} – ${end ? f(end) : t('cv.present')}`;
 }
 
+/** The CV line an item was read from: the evidence, kept as a quiet caption. */
 function Source({ text }: { text: string }) {
   if (!text) return null;
   return (
@@ -372,11 +360,22 @@ function Source({ text }: { text: string }) {
   );
 }
 
-function EmptySection() {
-  return <p className={ui.caption}>{t('cv.emptySection')}</p>;
+function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+  return (
+    <section className={s.section}>
+      <h3 className={s.sectionHead}>
+        {title}
+        {count !== undefined && <span className={ui.count}>{count}</span>}
+      </h3>
+      {children}
+    </section>
+  );
 }
 
-/** The structured CV; in edit mode the fields a seeker may correct (scores still read only the PDF text, AI rule 14). */
+/**
+ * The structured CV; in edit mode the fields a seeker may correct (scores still read only the PDF text, AI rule 14).
+ * Sections the AI found nothing for are left out in view mode; summary and skills stay editable.
+ */
 function ProfileView({
   profile,
   editing,
@@ -396,185 +395,192 @@ function ProfileView({
     setNewSkill('');
   };
 
+  const nothing =
+    !profile.summary &&
+    !profile.skills.length &&
+    !profile.experiences.length &&
+    !profile.projects.length &&
+    !profile.education.length &&
+    !profile.certificates.length;
+  if (nothing && !editing) return <p className={ui.caption}>{t('cv.emptySection')}</p>;
+
   return (
     <>
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>{t('cv.summary')}</h3>
-        {editing ? (
-          <textarea
-            ref={firstFieldRef}
-            className={ui.textarea}
-            rows={2}
-            maxLength={500}
-            value={profile.summary}
-            aria-label={t('cv.summary')}
-            onChange={(e) => update({ summary: e.target.value })}
-          />
-        ) : (
-          <p className={ui.body}>{profile.summary || t('cv.summaryEmpty')}</p>
-        )}
-      </section>
-
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>
-          {t('cv.skills')} <span className={ui.count}>{profile.skills.length}</span>
-        </h3>
-        {profile.skills.length === 0 && !editing ? (
-          <EmptySection />
-        ) : (
-          <div className={ui.chips}>
-            {profile.skills.map((x) => (
-              <span key={x} className={s.skillChip}>
-                {x}
-                {editing && (
-                  <button type="button" aria-label={t('common.remove', { name: x })} onClick={() => update({ skills: profile.skills.filter((y) => y !== x) })}>
-                    <XIcon width={14} height={14} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-        {editing && (
-          <div className={ui.chipInput} style={{ marginTop: 10, maxWidth: 360 }}>
-            <input
-              className={ui.input}
-              value={newSkill}
-              maxLength={100}
-              placeholder={t('cv.skillAddPlaceholder')}
-              aria-label={t('cv.skillAdd')}
-              onChange={(e) => setNewSkill(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+      {(editing || profile.summary) && (
+        <Section title={t('cv.summary')}>
+          {editing ? (
+            <textarea
+              ref={firstFieldRef}
+              className={ui.textarea}
+              rows={2}
+              maxLength={500}
+              value={profile.summary}
+              aria-label={t('cv.summary')}
+              onChange={(e) => update({ summary: e.target.value })}
             />
-            <button type="button" className={cx(ui.btn, ui.secondary)} onClick={addSkill}>
-              <PlusIcon width={15} height={15} />
-              {t('common.add')}
-            </button>
-          </div>
-        )}
-      </section>
+          ) : (
+            <p className={ui.body}>{profile.summary}</p>
+          )}
+        </Section>
+      )}
 
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>{t('cv.experiences')}</h3>
-        {profile.experiences.length === 0 && <EmptySection />}
-        {profile.experiences.map((x, i) => (
-          <div key={i} className={s.entry}>
-            <span className={s.entryPeriod}>{period(x.start, x.end)}</span>
-            <div className={s.entryBody}>
-              {editing ? (
-                <div className={s.editGrid}>
-                  <label className={ui.field}>
-                    <span className={ui.label}>{t('cv.org')}</span>
-                    <input className={ui.input} value={x.org} readOnly />
-                  </label>
-                  <label className={ui.field}>
-                    <span className={ui.label}>{t('cv.role')}</span>
-                    <input
-                      className={ui.input}
-                      value={x.role}
-                      maxLength={100}
-                      onChange={(e) => update({ experiences: profile.experiences.map((y, j) => (j === i ? { ...y, role: e.target.value } : y)) })}
-                    />
-                  </label>
-                  <label className={ui.field} style={{ gridColumn: '1 / -1' }}>
-                    <span className={ui.label}>{t('cv.descriptionLabel')}</span>
-                    <textarea
-                      className={ui.textarea}
-                      rows={2}
-                      maxLength={2000}
-                      value={x.description}
-                      onChange={(e) => update({ experiences: profile.experiences.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <>
-                  <span className={s.entryTitle}>{[x.org, x.role].filter(Boolean).join(' · ')}</span>
-                  {x.description && <p className={ui.body}>{x.description}</p>}
-                </>
-              )}
-              <Source text={x.source} />
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>{t('cv.projects')}</h3>
-        {profile.projects.length === 0 && <EmptySection />}
-        {profile.projects.map((x, i) => (
-          <div key={i} className={s.entry}>
-            <span className={s.entryPeriod}>{x.role}</span>
-            <div className={s.entryBody}>
-              <span className={s.entryTitle}>{x.name}</span>
-              {editing ? (
-                <textarea
-                  className={ui.textarea}
-                  rows={2}
-                  maxLength={2000}
-                  value={x.description}
-                  aria-label={t('cv.descriptionLabel')}
-                  onChange={(e) => update({ projects: profile.projects.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })}
-                />
-              ) : (
-                x.description && <p className={ui.body}>{x.description}</p>
-              )}
-              {x.tech.length > 0 && (
-                <span className={s.tagRow}>
-                  {x.tech.map((tech) => (
-                    <span key={tech} className={ui.tag}>
-                      {tech}
-                    </span>
-                  ))}
+      {(editing || profile.skills.length > 0) && (
+        <Section title={t('cv.skills')} count={profile.skills.length}>
+          {profile.skills.length > 0 && (
+            <div className={ui.chips}>
+              {profile.skills.map((x) => (
+                <span key={x} className={s.skillChip}>
+                  {x}
+                  {editing && (
+                    <button type="button" aria-label={t('common.remove', { name: x })} onClick={() => update({ skills: profile.skills.filter((y) => y !== x) })}>
+                      <XIcon width={14} height={14} />
+                    </button>
+                  )}
                 </span>
-              )}
-              <Source text={x.source} />
+              ))}
             </div>
-          </div>
-        ))}
-      </section>
+          )}
+          {editing && (
+            <div className={ui.chipInput} style={{ marginTop: 10, maxWidth: 360 }}>
+              <input
+                className={ui.input}
+                value={newSkill}
+                maxLength={100}
+                placeholder={t('cv.skillAddPlaceholder')}
+                aria-label={t('cv.skillAdd')}
+                onChange={(e) => setNewSkill(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+              />
+              <button type="button" className={cx(ui.btn, ui.secondary)} onClick={addSkill}>
+                <PlusIcon width={15} height={15} />
+                {t('common.add')}
+              </button>
+            </div>
+          )}
+        </Section>
+      )}
 
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>{t('cv.education')}</h3>
-        {profile.education.length === 0 && <EmptySection />}
-        {profile.education.map((x, i) => (
-          <div key={i} className={s.entry}>
-            <span className={s.entryPeriod}>{x.degree}</span>
-            <div className={s.entryBody}>
-              {editing ? (
-                <div className={s.editGrid}>
-                  <label className={ui.field}>
-                    <span className={ui.label}>{t('cv.major')}</span>
-                    <input
-                      className={ui.input}
-                      value={x.major}
-                      maxLength={100}
-                      onChange={(e) => update({ education: profile.education.map((y, j) => (j === i ? { ...y, major: e.target.value } : y)) })}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <span className={s.entryTitle}>{[x.school, x.major].filter(Boolean).join(' · ')}</span>
-              )}
-              <Source text={x.source} />
+      {profile.experiences.length > 0 && (
+        <Section title={t('cv.experiences')}>
+          {profile.experiences.map((x, i) => (
+            <div key={i} className={s.entry}>
+              <span className={s.entryPeriod}>{period(x.start, x.end)}</span>
+              <div className={s.entryBody}>
+                {editing ? (
+                  <div className={s.editGrid}>
+                    <label className={ui.field}>
+                      <span className={ui.label}>{t('cv.org')}</span>
+                      <input className={ui.input} value={x.org} readOnly />
+                    </label>
+                    <label className={ui.field}>
+                      <span className={ui.label}>{t('cv.role')}</span>
+                      <input
+                        className={ui.input}
+                        value={x.role}
+                        maxLength={100}
+                        onChange={(e) => update({ experiences: profile.experiences.map((y, j) => (j === i ? { ...y, role: e.target.value } : y)) })}
+                      />
+                    </label>
+                    <label className={ui.field} style={{ gridColumn: '1 / -1' }}>
+                      <span className={ui.label}>{t('cv.descriptionLabel')}</span>
+                      <textarea
+                        className={ui.textarea}
+                        rows={2}
+                        maxLength={2000}
+                        value={x.description}
+                        onChange={(e) => update({ experiences: profile.experiences.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <>
+                    <span className={s.entryTitle}>{[x.org, x.role].filter(Boolean).join(' · ')}</span>
+                    {x.description && <p className={ui.body}>{x.description}</p>}
+                  </>
+                )}
+                <Source text={x.source} />
+              </div>
             </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </Section>
+      )}
 
-      <section className={s.section}>
-        <h3 className={s.sectionHead}>{t('cv.certificates')}</h3>
-        {profile.certificates.length === 0 && <EmptySection />}
-        {profile.certificates.map((x, i) => (
-          <div key={i} className={s.entry}>
-            <span className={s.entryPeriod}>{x.date?.replace('-', '.')}</span>
-            <div className={s.entryBody}>
-              <span className={s.entryTitle}>{x.name}</span>
-              <Source text={x.source} />
+      {profile.projects.length > 0 && (
+        <Section title={t('cv.projects')}>
+          {profile.projects.map((x, i) => (
+            <div key={i} className={s.entry}>
+              <span className={s.entryPeriod}>{x.role}</span>
+              <div className={s.entryBody}>
+                <span className={s.entryTitle}>{x.name}</span>
+                {editing ? (
+                  <textarea
+                    className={ui.textarea}
+                    rows={2}
+                    maxLength={2000}
+                    value={x.description}
+                    aria-label={t('cv.descriptionLabel')}
+                    onChange={(e) => update({ projects: profile.projects.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })}
+                  />
+                ) : (
+                  x.description && <p className={ui.body}>{x.description}</p>
+                )}
+                {x.tech.length > 0 && (
+                  <span className={s.tagRow}>
+                    {x.tech.map((tech) => (
+                      <span key={tech} className={ui.tag}>
+                        {tech}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                <Source text={x.source} />
+              </div>
             </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </Section>
+      )}
+
+      {profile.education.length > 0 && (
+        <Section title={t('cv.education')}>
+          {profile.education.map((x, i) => (
+            <div key={i} className={s.entry}>
+              <span className={s.entryPeriod}>{x.degree}</span>
+              <div className={s.entryBody}>
+                {editing ? (
+                  <div className={s.editGrid}>
+                    <label className={ui.field}>
+                      <span className={ui.label}>{t('cv.major')}</span>
+                      <input
+                        className={ui.input}
+                        value={x.major}
+                        maxLength={100}
+                        onChange={(e) => update({ education: profile.education.map((y, j) => (j === i ? { ...y, major: e.target.value } : y)) })}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <span className={s.entryTitle}>{[x.school, x.major].filter(Boolean).join(' · ')}</span>
+                )}
+                <Source text={x.source} />
+              </div>
+            </div>
+          ))}
+        </Section>
+      )}
+
+      {profile.certificates.length > 0 && (
+        <Section title={t('cv.certificates')}>
+          {profile.certificates.map((x, i) => (
+            <div key={i} className={s.entry}>
+              <span className={s.entryPeriod}>{x.date?.replace('-', '.')}</span>
+              <div className={s.entryBody}>
+                <span className={s.entryTitle}>{x.name}</span>
+                <Source text={x.source} />
+              </div>
+            </div>
+          ))}
+        </Section>
+      )}
     </>
   );
 }

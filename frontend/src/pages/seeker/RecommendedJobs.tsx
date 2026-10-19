@@ -3,7 +3,7 @@ import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, useAuth } from '@/auth/AuthContext';
 import { AiNotice } from '@/components/common/AiNotice';
-import { ClockIcon, RefreshIcon } from '@/components/common/icons';
+import { ArrowRightIcon, ClockIcon, RefreshIcon } from '@/components/common/icons';
 import { Band, BAND_ORDER, bandLabel, Deadline, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Blocked, Loading } from '@/components/common/States';
@@ -76,7 +76,11 @@ function Result({ data, onRefresh }: { data: RecommendationList; onRefresh: () =
 
   return (
     <>
-      <AiNotice notice={data.notice} />
+      {/* The AI notice and the band legend: captions above the result, no box and no pill legend */}
+      <div className={s.resultHead}>
+        <AiNotice notice={data.notice} />
+        {data.items.length > 0 && <p className={ui.caption}>{t('reco.legend')}</p>}
+      </div>
       <PendingLine count={data.pending_count} onRefresh={onRefresh} />
       {data.items.length === 0 ? (
         <section className={ui.panel}>
@@ -86,52 +90,40 @@ function Result({ data, onRefresh }: { data: RecommendationList; onRefresh: () =
           </div>
         </section>
       ) : (
-        <>
-          <div className={s.legend}>
-            <span className={s.legendBands}>
-              {BAND_ORDER.map((level) => (
-                <Band key={level} level={level} />
-              ))}
-            </span>
-            {t('reco.legend')}
-          </div>
-
-          {BAND_ORDER.map((level) => {
-            const items = data.items.filter((r) => r.match_level === level);
-            if (!items.length) return null;
-            return (
-              <section key={level} className={s.group} aria-label={bandLabel(level)}>
-                <h2 className={s.groupHead}>
-                  <Band level={level} />
-                  <span className={ui.count}>{t('reco.groupCount', { n: items.length })}</span>
-                </h2>
-                {items.map((r) => {
-                  const detail = generatePath(paths.jobDetail, { jobId: String(r.job_id) });
-                  return (
-                    <article key={r.job_id} className={s.recoRow}>
-                      <div className={s.jobMain}>
-                        {/* RecommendedJob has no experience field, so the meta line leaves it out */}
-                        <JobMeta company={r.company_name} location={r.location} employmentType={r.employment_type} />
-                        <Link to={detail} className={s.jobTitle}>
-                          {r.title}
-                        </Link>
-                      </div>
-                      <Deadline job={r} />
-                      <div className={ui.actions}>
-                        <Link to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })} className={cx(ui.btn, ui.quiet, ui.small)}>
-                          {t('reco.prep')}
-                        </Link>
-                        <Link to={detail} className={cx(ui.btn, ui.secondary, ui.small)}>
-                          {t('reco.view')}
-                        </Link>
-                      </div>
-                    </article>
-                  );
-                })}
-              </section>
-            );
-          })}
-        </>
+        BAND_ORDER.map((level) => {
+          const items = data.items.filter((r) => r.match_level === level);
+          if (!items.length) return null;
+          return (
+            <section key={level} className={s.group} aria-label={bandLabel(level)}>
+              <h2 className={s.groupHead}>
+                <Band level={level} size="lg" />
+                <span className={ui.caption}>{t('reco.groupCount', { n: items.length })}</span>
+              </h2>
+              <ul className={s.recoList}>
+                {items.map((r) => (
+                  <li key={r.job_id} className={s.recoRow}>
+                    <div className={s.jobMain}>
+                      {/* RecommendedJob has no experience field, so the meta line leaves it out */}
+                      <JobMeta company={r.company_name} location={r.location} employmentType={r.employment_type} />
+                      {/* The title link covers the whole row; 준비하기 sits above it */}
+                      <Link to={generatePath(paths.jobDetail, { jobId: String(r.job_id) })} className={cx(s.jobTitle, s.stretched)}>
+                        {r.title}
+                      </Link>
+                    </div>
+                    <Deadline job={r} />
+                    <Link
+                      to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })}
+                      className={cx(ui.btn, ui.quiet, ui.small, s.aboveStretch)}
+                    >
+                      {t('reco.prep')}
+                    </Link>
+                    <ArrowRightIcon className={s.chevron} width={16} height={16} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })
       )}
     </>
   );

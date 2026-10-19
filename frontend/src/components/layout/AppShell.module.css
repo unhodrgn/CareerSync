@@ -287,10 +287,6 @@
   color: var(--color-ink);
 }
 
-.tagline {
-  color: var(--color-ink-muted);
-}
-
 /* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
 .banner {
   padding: 10px 40px;

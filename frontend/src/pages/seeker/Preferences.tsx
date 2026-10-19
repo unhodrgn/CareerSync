@@ -213,16 +213,16 @@ function Form({ saved, onSaved }: { saved: PreferenceOut; onSaved: (p: Preferenc
         </p>
         {isPublic !== saved.profile_public && <p className={ui.caption} style={{ marginTop: 8 }}>{t('pref.public.unsaved')}</p>}
         {withdrawn && isPublic && <p className={ui.caption} style={{ marginTop: 8 }}>{t('pref.public.withdrawn')}</p>}
-        <div className={s.visibility}>
-          <div className={s.visibilityBox}>
-            <h3>{t('pref.public.shown')}</h3>
-            <p>{t('pref.public.shownBody')}</p>
+        <dl className={s.visibility}>
+          <div>
+            <dt>{t('pref.public.shown')}</dt>
+            <dd>{t('pref.public.shownBody')}</dd>
           </div>
-          <div className={s.visibilityBox}>
-            <h3>{t('pref.public.hidden')}</h3>
-            <p>{t('pref.public.hiddenBody')}</p>
+          <div>
+            <dt>{t('pref.public.hidden')}</dt>
+            <dd>{t('pref.public.hiddenBody')}</dd>
           </div>
-        </div>
+        </dl>
       </section>
     </div>
   );

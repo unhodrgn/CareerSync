@@ -57,15 +57,13 @@ export default function JobList() {
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
+        {state.status === 'ok' && <p className={s.toolbarCount}>{t('jobs.count', { n: state.data.total })}</p>}
       </div>
 
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' && (
         <section className={ui.panel} aria-label={t('jobs.title')}>
-          <div className={ui.panelHead}>
-            <h2 className={ui.panelTitle}>{t('jobs.count', { n: state.data.total })}</h2>
-          </div>
           {state.data.items.length === 0 ? (
             query ? (
               <Empty
@@ -113,7 +111,7 @@ function JobRows({ jobs }: { jobs: JobListItem[] }) {
               <span className={s.jobTitle}>{job.title}</span>
             </span>
             <span className={s.jobSide}>
-              <span className={ui.tag}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
+              <span className={ui.caption}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
               <Deadline job={job} />
               <ArrowRightIcon className={s.chevron} width={16} height={16} />
             </span>

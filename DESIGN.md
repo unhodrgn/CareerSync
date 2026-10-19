@@ -259,7 +259,7 @@ CareerSync is drawn as three vertical fields: a deep navy field for job seekers,
 
 The mood is calm, dense and exact, closer to an instrument panel than a marketing page. White cards sit on the dark fields with one soft shadow; on the light spine the same cards are flat, with only a 1px line around them. Pretendard does all the type work at two weights, regular (400) and semibold (600). Color is functional: navy marks seekers, green marks employers, and amber appears only when a skill is missing from a CV. The interactions keep that same geometry. Hovering a field widens it and dims the other, and a criterion lights its own row on every column at once.
 
-The system is desktop-only and Korean-first. Body text breaks at word boundaries (`word-break: keep-all`), and every block is sized so its line breaks never change between states. The landing page and the auth pages (login, register, consent) exist in this system so far. The auth pages keep the world at a smaller scale: one audience field on the left and a white form card on the canvas on the right. App navigation is described under Navigation; app screens and tables have no established patterns yet.
+The system is desktop-only and Korean-first. Body text breaks at word boundaries (`word-break: keep-all`), and every block is sized so its line breaks never change between states. The landing page and the auth pages (login, register, consent) exist in this system so far. The auth pages keep the world at a smaller scale: one audience field on the left and a white form card on the canvas on the right. App navigation is described under Navigation and the shared app-page patterns under App pages; tables have no established pattern yet.
 
 **Key Characteristics:**
 - Three aligned columns (`1fr / 324px / 1fr`) with fixed vertical zones 256 / 68 / (20 + 360).
@@ -425,6 +425,20 @@ Hovering a field, or `:focus-visible` inside it, widens it to 1.12fr while the s
 
 ### Auth Frame (signature)
 The landing's fields reduced to one: the audience field fills the left 5fr of the page in the tone's color, with a two-line 34px Field Title and three numbered point chips naming what that side gets; the form card sits on the canvas in the right 7fr. Register follows the role switch, so choosing 기업 recolors the field from navy to green over 400ms on the system ease (instant under reduced motion). Login and consent serve both sides, so they use Hub Ink with a seeker-dot row, an employer-dot row and a 13px note at 62% white. Inside the field, focus outlines are Paper.
+
+### App pages (shared patterns)
+- **One H1 per page.** The title, with a count next to it when the page lists things. Panels below never repeat it. When the page's subject is its own title (a job), the page head is only the back link.
+- **One filled button per page:** the page's primary action. Everything else is secondary, quiet or a text link.
+- **No box inside a box.** Inside a panel, sections are split by 1px Line Soft rules or columns, never by nested panels or tiles.
+- **Lists of records** (recommended jobs, past offers, criteria, interview questions) are one bordered Paper list with rows split by Line Soft.
+  - Rows that open something are whole-row links, with a secondary link raised above the row's hit area.
+  - Read-only rows have no box and no dot.
+- **AI notice** (AI rule 6). A caption line right by the AI result: Ink "AI" badge (11px/600), the server's notice text at 12.5px Soft Ink, and the method in Muted Gray on the right. No box. Never collapsed or hidden, one per AI result.
+- **Other notices** (status, guidance) are a caption with an info icon in the tone, so they never read as the AI notice.
+- **Inline confirms** replace their trigger inside the panel or card, set off by a Line Soft rule.
+  - Focus moves into the confirm when it opens.
+  - It returns to the trigger on 취소. After the action it goes to the result.
+- **Long edit forms** keep their save and cancel in a bottom bar that stays in view: Paper, 1px line, 12px radius, flat on the canvas.
 
 ### Icons
 Line icons drawn in-house on a 24px grid with a 1.75 stroke and round caps and joins, using currentColor, rendered at 15–20px. Arrows are icons, not text glyphs.

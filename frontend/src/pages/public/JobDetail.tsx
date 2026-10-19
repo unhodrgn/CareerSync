@@ -4,9 +4,9 @@ import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, consentPath, useAuth } from '@/auth/AuthContext';
-import { deadlineLabel, experienceLabel, formatDate } from '@/components/common/format';
+import { deadlineLabel, formatDate } from '@/components/common/format';
 import { ArrowRightIcon, CheckIcon } from '@/components/common/icons';
-import { ApplicationStatusTag, employmentLabel, JobMeta } from '@/components/common/Labels';
+import { ApplicationStatusTag, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
@@ -64,28 +64,16 @@ export default function JobDetail() {
             <h1 className={s.jobHeadTitle}>{data.title}</h1>
           </header>
 
-          <dl className={s.infoGrid}>
-            <div>
-              <dt>{t('job.location')}</dt>
-              <dd className={ui.truncate}>{data.location || t('job.locationNone')}</dd>
-            </div>
-            <div>
-              <dt>{t('job.employment')}</dt>
-              <dd>{employmentLabel(data.employment_type)}</dd>
-            </div>
-            <div>
-              <dt>{t('job.experience')}</dt>
-              <dd>{experienceLabel(data.min_experience_years)}</dd>
-            </div>
+          {/* Location, employment type and experience are in the meta line above; the rest in one unboxed row */}
+          <dl className={s.facts}>
             <div>
               <dt>{t('job.salary')}</dt>
-              <dd className={ui.truncate}>{data.salary_note || t('job.salaryNone')}</dd>
+              <dd>{data.salary_note || t('job.salaryNone')}</dd>
             </div>
             <div>
               <dt>{t('job.deadline')}</dt>
               <dd className={ui.num}>
-                {data.deadline ? formatDate(data.deadline) : t('common.always')}
-                {data.deadline && <span className={ui.caption}> {deadlineLabel(data)}</span>}
+                {data.deadline ? `${formatDate(data.deadline)} · ${deadlineLabel(data)}` : t('common.always')}
               </dd>
             </div>
           </dl>
@@ -96,22 +84,11 @@ export default function JobDetail() {
           {user && <CompanySection companyId={data.company_id} />}
         </article>
 
+        {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
           {!user && <GuestApply />}
           {user?.role === 'seeker' && <ApplyPanel job={data} />}
           <CriteriaSection jobId={data.id} />
-          {user?.role === 'seeker' && !data.expired && (
-            <section className={cx(ui.panel, s.asideBlock)}>
-              <div>
-                <h2 className={s.asideTitle}>{t('job.prep')}</h2>
-                <p className={ui.caption}>{t('job.prepLead')}</p>
-              </div>
-              <Link to={generatePath(paths.seeker.jobPrep, { jobId: String(data.id) })} className={cx(ui.btn, ui.secondary, s.fullWidth)}>
-                {t('job.prep')}
-                <ArrowRightIcon width={16} height={16} />
-              </Link>
-            </section>
-          )}
         </aside>
       </div>
     </div>
@@ -220,7 +197,6 @@ function ApplyPanel({ job }: { job: JobOut }) {
           {t('job.appliedOn', { date: formatDate(application.created_at) })}
           <ApplicationStatusTag status={application.status} />
         </span>
-        <span className={ui.caption}>{t('job.appliedBody')}</span>
         <Link to={paths.seeker.applications} className={ui.linkTone}>
           {t('job.viewApplications')}
         </Link>
@@ -242,7 +218,7 @@ function ApplyPanel({ job }: { job: JobOut }) {
     body = (
       <>
         <p className={ui.caption}>{t('job.applyNoCv')}</p>
-        <Link to={paths.seeker.cv} className={cx(ui.btn, ui.secondary, s.fullWidth)}>
+        <Link to={paths.seeker.cv} className={cx(ui.btn, ui.primary, s.fullWidth)}>
           {t('job.applyNoCvAction')}
         </Link>
       </>
@@ -283,6 +259,12 @@ function ApplyPanel({ job }: { job: JobOut }) {
       {title}
       {body}
       {error != null && !application && <ApplyError error={error} />}
+      {!job.expired && (
+        <Link to={generatePath(paths.seeker.jobPrep, { jobId: String(job.id) })} className={s.prepLink}>
+          {t('job.prep')}
+          <ArrowRightIcon width={15} height={15} />
+        </Link>
+      )}
     </section>
   );
 }

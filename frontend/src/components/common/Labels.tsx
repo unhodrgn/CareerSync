@@ -21,9 +21,9 @@ export function bandLabel(level: MatchLevel): string {
 }
 
 /** The seeker's match band (D16). Only the recommendation list shows it (D31); never a number. */
-export function Band({ level }: { level: MatchLevel }) {
+export function Band({ level, size }: { level: MatchLevel; size?: 'lg' }) {
   return (
-    <span className={ui.band} data-band={BAND[level].data}>
+    <span className={ui.band} data-band={BAND[level].data} data-size={size}>
       {bandLabel(level)}
     </span>
   );

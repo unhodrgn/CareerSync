@@ -305,6 +305,11 @@
   background: var(--color-seeker-dot);
 }
 
+.band[data-size='lg'] {
+  padding: 7px 16px;
+  font-size: 14px;
+}
+
 .band[data-band='good'] {
   background: var(--color-seeker-soft);
   color: var(--color-seeker);

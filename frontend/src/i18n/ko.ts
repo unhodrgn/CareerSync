@@ -91,7 +91,6 @@ export default {
 
   'shell.nav': '주 메뉴',
   'shell.home': 'CareerSync 홈',
-  'shell.tagline': '기업 맞춤형 AI 채용 매칭 플랫폼',
   'shell.login': '로그인',
   'shell.register': '회원가입',
   'shell.logout': '로그아웃',
@@ -143,7 +142,7 @@ export default {
   // Job list and detail (public, D4)
   'jobs.title': '채용공고',
   'jobs.lead': '게시 중인 공고입니다. 공고마다 기업이 직접 정한 평가 기준이 있습니다.',
-  'jobs.guestLead': '로그인 없이 둘러볼 수 있습니다. 가입하고 이력서를 올리면 맞는 공고를 추천받고, 공고마다 부족한 기술을 확인할 수 있습니다.',
+  'jobs.guestLead': '로그인 없이 둘러볼 수 있습니다. 가입하면 맞는 공고를 추천받을 수 있습니다.',
   'jobs.search': '공고 제목 검색',
   'jobs.searchPlaceholder': '공고 제목으로 검색 · 예: 데이터 엔지니어',
   'jobs.count': '공고 {n}개',
@@ -156,10 +155,6 @@ export default {
 
   'job.notFound': '공고를 찾을 수 없습니다.',
   'job.backToList': '공고 목록',
-  'job.location': '근무지',
-  'job.locationNone': '공고에 적혀 있지 않음',
-  'job.employment': '고용 형태',
-  'job.experience': '경력',
   'job.salary': '급여',
   'job.salaryNone': '공고에 적혀 있지 않음',
   'job.deadline': '마감일',
@@ -168,8 +163,8 @@ export default {
   'job.talentProfile': '인재상',
   'job.projects': '진행 중인 프로젝트',
   'job.criteria': '이 공고의 평가 기준',
-  'job.criteriaLead': '기업이 정한 기준의 이름, 분류, 중요도(핵심·중요·일반)가 공개됩니다. 가중치와 점수는 공개되지 않습니다.',
-  'job.criteriaGuestLead': '기업이 정한 기준의 이름입니다. 구직자로 로그인하면 기준별 분류와 중요도도 볼 수 있습니다.',
+  'job.criteriaLead': '가중치와 점수는 공개되지 않습니다.',
+  'job.criteriaGuestLead': '구직자로 로그인하면 분류와 중요도도 볼 수 있습니다.',
   'job.criteriaNone': '아직 평가 기준이 없습니다.',
   'job.applyTitle': '지원',
   'job.apply': '지원하기',
@@ -181,7 +176,6 @@ export default {
   'job.applying': '지원하는 중…',
   'job.applied': '지원했습니다',
   'job.appliedOn': '{date} 지원',
-  'job.appliedBody': '지원 상태는 기업의 채용 담당자가 바꿉니다. AI는 상태를 바꾸지 않습니다.',
   'job.viewApplications': '지원 현황 보기',
   'job.applyExpired': '마감된 공고라 지원할 수 없습니다.',
   'job.applyNoCv': '지원하려면 이력서를 올리고 AI가 읽은 내용을 확인해야 합니다.',
@@ -192,7 +186,6 @@ export default {
   'job.guestApplyLead': '지원하려면 구직자 계정으로 로그인하고 이력서를 확인해야 합니다.',
   'job.guestRegister': '처음이라면 회원가입',
   'job.prep': '이 공고 준비하기',
-  'job.prepLead': '이력서에 없는 기술, 학습 로드맵, 면접 예상 질문, 이력서 점검을 볼 수 있습니다.',
 
   // Seeker: recommendations (D16, D31)
   'reco.title': '추천 공고',
@@ -200,7 +193,6 @@ export default {
   'reco.legend': '구간은 세 가지입니다. 점수와 기준별 결과는 공개되지 않습니다.',
   'reco.pending': '분석 중인 공고 {n}개는 분석이 끝나면 여기에 나타납니다.',
   'reco.groupCount': '{n}개',
-  'reco.view': '공고 보기',
   'reco.prep': '준비하기',
   'reco.noCv.title': '이력서를 확인하면 추천을 받을 수 있습니다',
   'reco.noCv.body': 'AI가 읽은 내용을 확인하고 저장한 이력서가 있어야 공고를 추천할 수 있습니다.',
@@ -238,9 +230,7 @@ export default {
   'cv.confirmedDone': '버전 {v}로 확인했습니다. 지원과 추천에 이 버전이 쓰입니다.',
   'cv.reviewBanner': 'AI가 읽은 내용입니다. 틀린 곳을 고친 뒤 확인하고 저장해 주세요.',
   'cv.reupload': '새 PDF 올리기',
-  'cv.reuploadLead': '새 PDF를 올리면 AI가 처음부터 다시 읽습니다. 이전 이력서로 한 지원은 그대로 남습니다.',
   'cv.summary': '요약',
-  'cv.summaryEmpty': '요약이 없습니다.',
   'cv.skills': '기술',
   'cv.skillAdd': '기술 추가',
   'cv.skillAddPlaceholder': '예: Kafka',
@@ -258,10 +248,8 @@ export default {
   'cv.rule.title': '평가에는 PDF 원문만 쓰입니다',
   'cv.rule.body':
     '기업 평가와 추천에서 점수는 PDF 원문에 적힌 내용에만 주어집니다. 이 화면에서 고친 내용은 무엇을 찾아볼지 알려 줄 뿐, 원문에 없는 경험을 만들지 않습니다.',
-  'cv.versionTitle': '현재 버전',
   'cv.versionAi': 'AI가 읽은 내용',
   'cv.versionSeeker': '직접 확인·수정',
-  'cv.versionNote': '저장할 때마다 새 버전이 생기고, 이전 버전으로 한 지원은 그대로 남습니다.',
   'cv.check.title': '이력서 점검',
   'cv.check.lead': '화면에 있는 버전의 이력서 원문을 읽고 강점과 보완할 점을 정리합니다. 점수는 매기지 않습니다.',
   'cv.check.run': '점검하기',
@@ -269,7 +257,7 @@ export default {
 
   // Seeker: job prep (D21, D25)
   'prep.title': '취업 준비',
-  'prep.lead': '이 공고를 기준으로 이력서를 점검하고 준비할 것을 정리했습니다. 기업이 매긴 점수와는 관계없습니다.',
+  'prep.lead': '이 공고를 기준으로 이력서를 점검하고 준비할 것을 정리했습니다.',
   'prep.notFound': '이 공고로는 준비할 수 없습니다. 마감되었거나 게시가 끝난 공고일 수 있습니다.',
   'prep.tab.gaps': '부족한 기술·로드맵',
   'prep.tab.interview': '면접 예상 질문',
@@ -294,8 +282,6 @@ export default {
   'prep.q.kind.behavioral': '협업·태도',
   'prep.q.intent': '질문 의도',
   'prep.q.tips': '답변 준비',
-  'prep.q.quote': '관련 이력서 문장',
-  'prep.q.general': '공통 질문',
   'prep.review.title': '이력서 점검',
   'prep.review.lead':
     '가장 최근 버전의 이력서 원문을 읽고 강점과 보완할 점을 정리했습니다. 점수는 매기지 않으며, 공고와 관계없이 같은 결과입니다.',
@@ -341,7 +327,6 @@ export default {
   'offers.revealed': '공개된 정보: 이름, 이메일',
   'offers.empty': '답변을 기다리는 제안이 없습니다.',
   'offers.none.title': '받은 제안이 없습니다',
-  'offers.none.body': '희망 조건에서 인재 추천 공개를 켜면 기업이 익명 프로필을 보고 제안을 보낼 수 있습니다.',
   'offers.none.action': '희망 조건으로 가기',
 
   // Seeker: preferences (D15) and the talent opt-in (D19)
@@ -352,8 +337,7 @@ export default {
   'pref.locationsPlaceholder': '예: 서울',
   'pref.types': '고용 형태',
   'pref.keywords': '희망 직무 키워드',
-  'pref.keywordsHint':
-    '공고 제목이나 본문에 나오면 맞는 것으로 봅니다. 영문은 단어 단위로 찾습니다(Java는 JavaScript와 맞지 않음). 최대 10개.',
+  'pref.keywordsHint': '공고 제목이나 본문에 나오면 맞는 것으로 봅니다. 영문은 단어 단위로 찾습니다. 최대 10개.',
   'pref.keywordsPlaceholder': '예: 백엔드',
   'pref.limit': '최대 10개까지 넣을 수 있습니다.',
   'pref.tooShort': '2자 이상 입력하세요.',
