@@ -107,13 +107,13 @@ function JobRows({ jobs }: { jobs: JobListItem[] }) {
         <li key={job.id} className={s.jobItem}>
           <Link to={generatePath(paths.jobDetail, { jobId: String(job.id) })} className={s.jobLink}>
             <span className={s.jobMain}>
+              <span className={s.jobTitle}>{job.title}</span>
               <JobMeta
                 company={job.company_name}
                 location={job.location}
                 employmentType={job.employment_type}
                 minExperienceYears={job.min_experience_years}
               />
-              <span className={s.jobTitle}>{job.title}</span>
             </span>
             <span className={s.jobSide}>
               <span className={ui.caption}>{t('common.criteriaCount', { n: job.criteria_count })}</span>

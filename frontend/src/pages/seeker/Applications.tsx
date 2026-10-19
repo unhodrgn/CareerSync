@@ -48,12 +48,12 @@ export default function Applications() {
                   <tr key={a.id}>
                     <td>
                       <span className={s.jobMain}>
-                        <span className={ui.meta}>
-                          <strong>{a.company_name}</strong>
-                        </span>
                         <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
                           {a.job_title}
                         </Link>
+                        <span className={ui.meta}>
+                          <strong>{a.company_name}</strong>
+                        </span>
                       </span>
                     </td>
                     <td className={ui.num}>{formatDate(a.created_at)}</td>

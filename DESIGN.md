@@ -318,9 +318,9 @@ The palette is two saturated, dark audience fields on a cool off-white ground, p
 
 ### Hierarchy
 - **Display** (600, 40px, 1.2, -0.025em): field headlines, two lines set with `pre-line`, max 490px, at most 8 syllables per line.
-- **Field Title** (600, 34px, 1.25, -0.025em): the two-line title on the auth field, set with `pre-line`.
+- **Field Title** (600, 34px, 1.25, -0.025em): the two-line title on the auth field, set with `pre-line`, and the job title on the job detail page. Other app page titles are 26px.
 - **Form Title** (600, 24px, -0.02em): the heading inside a form card, followed by a 14px/1.6 Muted Gray lead.
-- **Title** (600, 18px, 1.3, -0.02em): card titles and the spine identity title. The wordmark uses 19px/600.
+- **Title** (600, 18px, 1.3, -0.02em): card titles, the spine identity title and job titles in job rows. The wordmark uses 19px/600 (17px in the rail).
 - **Lead** (400, 17px, 1.47, -0.015em): the sentence under a headline, capped at 19.5em so it breaks the same way at every field width; 80% white on fields.
 - **Body** (400, 16px, 1.5): page default.
 - **Input** (400, 15px): text typed into a field.
@@ -338,6 +338,8 @@ The palette is two saturated, dark audience fields on a cool off-white ground, p
 The page is a header (64px, 40px gutters, bottom line), a full-height split stage, a trust bar and a footer (16px × 40px padding, both full width). The split is a three-column grid `minmax(0,1fr) 324px minmax(0,1fr)`. Every column stacks the same fixed zones: top 256px (role row, headline, lead, actions), trail 68px with 20px above and below (input chip, feed line, hub), and a 20px head plus a 360px card. Because the zones are fixed, rows align across the columns at every width and in every state. Fields pad 40px vertically, 48px on the outer edge and 32px toward the spine; the spine pads 16px and cards pad 20px. Inside cards the rows are 44px tall with an 8px gap.
 
 The auth pages use the same header (64px, 40px gutters), then a two-column split `minmax(0,5fr) minmax(0,7fr)`: the audience field on the left (56px × 48px padding, content sticky at 56px, max 440px) and the canvas on the right (56px top, 48px sides, 64px bottom), with a 480px form card at the top centre. Inside the card the form stacks with an 18px gap; within a field, label, control, error and hint sit 6px apart.
+
+Signed-in app pages are a two-column grid: the 232px rail, then the page on the canvas (max 1240px, 32px × 40px padding).
 
 Desktop web only: body `min-width: 1280px`, verified from 1280 to 1600px, with no breakpoints.
 
@@ -409,13 +411,19 @@ A Paper fieldset with a 1px line and 11px radius. 모두 동의 (600) sits on to
 ### Navigation
 The landing header (logo, tagline, ink button) is the base. The auth pages reuse it with the Ink button as the link to the other auth page.
 
-**App top bar.** Signed-in pages use the same 64px header on the canvas (40px gutters, sticky, 1px bottom line); the shell sets `--tone` once from the role (navy for seekers, green for companies).
-- **Left:** LogoMark and wordmark (to the role's home), then the role's pages as text links: seekers 추천 공고 · 공고 목록 · 내 이력서 · 지원 현황 · 받은 제안; companies 공고 관리 · 보낸 제안 · 기업 프로필. At most five; settings-like pages do not go in the bar.
-- **Links:** 14px/600 Muted Gray, hover Ink; the current page takes the tone with a 2px tone underline on the header line. A count (pending offers) is a small tone pill after the label, read out as text.
-- **Right: the account menu.** The user's display name as a quiet trigger (28px tone-soft initial tile, 13.5px/600 Soft Ink name, chevron), Line Soft fill on hover and while open, the name in the tone while one of its pages is open. It opens a 240px Paper panel below, flat with a 1px line and 12px radius (it sits on the canvas: no shadow): who is signed in (name, email; a company account also shows its company), then the settings-like pages (seekers: 희망 조건, 내 정보) and 로그아웃 as 36px rows. It is a disclosure, not an ARIA menu: Tab walks its rows, Escape or a click outside closes it and returns focus, tabbing out closes it.
-- **No role label** (● 구직자 계정) and no ink button in the signed-in bar: the darkest element on a page is the page's own primary action.
-- **Guests** keep the landing header: tagline, 회원가입 as a quiet link, 로그인 as the Ink button.
-- **Under the bar,** a page-wide line on Paper carries a state that changes what the user can do everywhere (AI consent withdrawn, with 다시 동의하기).
+**App rail.** Signed-in pages put the navigation in a 232px rail on the left: the landing's audience field reduced to a strip, filled with the role's color (navy for seekers, green for companies). The page sits on the canvas to its right. The shell sets `--tone` once from the role.
+- **Rail:** sticky and full height, padded 20px × 14px. From the top: the LogoMark (28px) and the 17px/600 wordmark, linking to the role's home; the navigation; at the bottom, who is signed in and 로그아웃.
+- **Items:** 40px rows with an 18px icon and a 14px/600 label at 78% white (icons at 62%). Hover gives a 7% white fill. The current page has a 13% white fill and its icon in the tone's accent.
+  - Seekers: 추천 공고 · 공고 목록 · 내 이력서 · 지원 현황 · 받은 제안, then after a 14% white rule the settings-like pages 희망 조건 · 내 정보.
+  - Companies: 공고 관리 · 보낸 제안 · 기업 프로필.
+  - A count (pending offers) is a pill in the tone's accent with tone text, at the row's end, and is read out as text.
+- **Who is signed in:** above a 14% white rule, a 32px initial tile (tone badge fill, accent text), the name (13px/600) and one 12px line at 70% white: the company name for a company account, the email for a seeker. Both truncate with an ellipsis; the full text is in the title.
+- **로그아웃** is a labelled 36px row with an icon under the name, never an icon alone.
+- **Focus** is a Paper outline drawn inside the row.
+- **No role label** (● 구직자 계정) and no ink button in the rail: the darkest element on the canvas is the page's own primary action.
+- **Guests** keep the landing header (64px, sticky): tagline, 회원가입 as a quiet link, 로그인 as the Ink button.
+- **At the top of the page area,** a page-wide line on Paper carries a state that changes what the user can do everywhere (AI consent withdrawn, with 다시 동의하기).
+- **Sticky panels** inside pages (the job detail aside, the applicant detail, the editor preview) sit 24px below `--shell-top`, which the shell sets: 0 beside the rail, 64px under the guest header.
 
 ### Criterion Trail (signature)
 One criterion lights the same item across all three columns. The seeker row goes to Seeker Lit Wash with a Lit Blue Line border (gap rows keep amber and gain the gap glow), the spine row turns Ink with Paper text, the employer tag fills green and lifts 1px, and each applicant's square gets a ring. Everything else in the trail dims to .38 opacity. Hover or focus previews, a click pins (`aria-pressed`, pinned ring), and a second click or Escape unpins. Transitions run 220ms on the system ease. Each spine row has 2px wires to both cards that end in 8px dots: navy on the left, green on the right, amber on the left for a gap.
@@ -440,6 +448,14 @@ The landing's fields reduced to one: the audience field fills the left 5fr of th
   - It returns to the trigger on 취소. After the action it goes to the result.
 - **Long edit forms** keep their save and cancel in a bottom bar that stays in view: Paper, 1px line, 12px radius, flat on the canvas.
 
+**Hierarchy: what each page is about reads first.**
+- **Job rows** (공고 목록, 추천 공고, 지원 현황, 공고 관리): the title leads at the Title size (18px/600 Ink). The meta line sits 6px under it at 13px: the company in Soft Ink at 400, the rest in Muted Gray. On the right, the criteria count and the deadline stay quiet; only D-n and 오늘 마감 keep 600.
+- **추천 공고:** one bordered panel. Each band is a group whose band pill (15px, 8px × 16px) sits in a 112px left column, level with its first job's title, with the count under it. Groups are split by a 1px Line, jobs by Line Soft. The band and the title read as one line: how well I fit, then which job.
+- **공고 상세:** the job title is the H1 at the Field Title size (34px), on the canvas above the content panel, with the company and meta line under it. The apply panel starts level with it, so the title and the apply action lead. The facts row (급여, 마감일) is 400.
+- **공고 관리:** the job's status sits right after its title. A closed job's title turns Muted Gray.
+- **지원자 순위:** rank, applicant and Fit read as one, from the left. Fit (20px/600 Ink) comes right after the name (15px/600), and the criterion columns follow as evidence: the indicator square carries met / partial / missing, and the number is 12.5px Muted Gray.
+- **인재 추천:** the anonymous ID (16px/600) and the Fit (26px) lead. The criterion scores under the ID are 12.5px Muted Gray, and the facts list (13px, Muted labels, Soft Ink values) comes third.
+
 ### Motion (app pages)
 Motion explains state and continuity; it never decorates or makes anyone wait.
 - **Material.** Transform and opacity only, on the system ease (`--ease-out`), with no bounce or overshoot.
@@ -449,14 +465,14 @@ Motion explains state and continuity; it never decorates or makes anyone wait.
 - **Continuity:**
   - A new route's page rises 8px and fades in (260ms, once per path; tab and query changes do not replay it).
   - Tab panels fade in (200ms).
-  - The account menu and the withdrawn-consent banner drop 4px into place (160–220ms).
+  - The withdrawn-consent banner drops 4px into place (220ms).
   - Consent texts and answer tips open the same way.
   - A result that arrives after an action (이력서 점검) rises in.
 - **Lists that appear as lists** (jobs, criteria, gaps, roadmap steps, questions, past offers, applications) stagger their rows 25ms apart, capped at the fifth row (100ms).
 - **Feedback:**
   - Buttons press to .95.
   - Row links press to .995.
-  - The nav and tab indicators grow in under the current item (scaleX .4 → 1 with a fade, 220ms).
+  - The tab indicator grows in under the current tab (scaleX .4 → 1 with a fade, 220ms). The rail's current-page fill fades in (220ms).
   - Notices, errors, done lines and failed-request panels fade in (180ms). Inline confirms rise in (200ms).
 - **Loading skeletons** carry a shimmer, a light band moved with transform, only while something loads.
 - **Reduced motion:** under `prefers-reduced-motion: reduce`, every animation and transition inside the app shell is off. States still change; they just change at once.

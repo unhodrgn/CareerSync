@@ -1,7 +1,10 @@
-/* App shell: the landing header (64px, 40px gutters, bottom line on the canvas) carrying the role's navigation.
-   The shell sets the page tone once: navy for seekers, green for companies (DESIGN.md Tone Rule). */
+/* App shell. Signed in: the landing's audience field reduced to a navigation rail (navy for seekers, green for
+   companies), the page on the canvas to its right. Guests: the landing header over the canvas.
+   The shell sets the page tone once (DESIGN.md Tone Rule) and --shell-top, the height of anything sticky at the
+   top of the viewport, so sticky panels inside pages sit below it. */
 
-.shell {
+.shell,
+.guestShell {
   --tone: var(--color-seeker);
   --tone-accent: var(--color-seeker-accent);
   --tone-dot: var(--color-seeker-dot);
@@ -13,9 +16,21 @@
   background: var(--color-canvas);
 }
 
+.shell {
+  --shell-top: 0px;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+}
+
+.guestShell {
+  --shell-top: 64px;
+}
+
 /* App pages reserve the scrollbar's room, so a page growing past the viewport never shifts the layout sideways
    (scoped to the shell: the landing and auth pages keep the browser default) */
-:global(html):has(.shell) {
+:global(html):has(.shell),
+:global(html):has(.guestShell) {
   scrollbar-gutter: stable;
 }
 
@@ -28,6 +43,226 @@
   --tone-lit: var(--color-employer-soft);
 }
 
+/* ── Rail ── */
+
+.rail {
+  --focus-color: var(--color-paper);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  background: var(--tone);
+  color: var(--color-paper);
+}
+
+.rail .brand {
+  padding: 0 8px;
+  gap: 10px;
+  color: var(--color-paper);
+}
+
+.rail .brandName {
+  font-size: 17px;
+}
+
+.nav {
+  margin-top: 28px;
+  flex: 1;
+}
+
+.navList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+/* Settings-like pages after a thin rule */
+.navDivider {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+}
+
+.navLink {
+  position: relative;
+  isolation: isolate;
+  height: 40px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  color: rgb(255 255 255 / 0.78);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+
+.navLink svg {
+  flex: none;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.navLink:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--color-paper);
+}
+
+/* The current page's fill: a layer that fades in (opacity only) */
+.navLink::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.13);
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.navLink[aria-current='page'] {
+  color: var(--color-paper);
+}
+
+.navLink[aria-current='page']::before {
+  opacity: 1;
+}
+
+.navLink[aria-current='page'] svg {
+  color: var(--tone-accent);
+}
+
+/* Outlines stay inside the row so neighbours never cover them */
+.navLink:focus-visible,
+.logout:focus-visible {
+  outline-offset: -2px;
+}
+
+.badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--tone-accent);
+  color: var(--tone);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Who is signed in, then 로그아웃 as a labelled row */
+.user {
+  padding: 14px 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+}
+
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--tone-badge);
+  color: var(--tone-accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.userText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+}
+
+.userName,
+.userDetail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.userDetail {
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.logout {
+  height: 36px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgb(255 255 255 / 0.78);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+
+.logout svg {
+  flex: none;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.logout:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--color-paper);
+}
+
+.main {
+  min-width: 0;
+}
+
+/* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
+.banner {
+  margin: 0;
+  padding: 10px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper);
+  font-size: 13.5px;
+  color: var(--color-ink-soft);
+}
+
+.banner a {
+  color: var(--tone);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+/* ── Guest header: the landing header with 회원가입 and 로그인 ── */
+
 .header {
   position: sticky;
   top: 0;
@@ -36,6 +271,7 @@
   padding: 0 40px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 32px;
   border-bottom: 1px solid var(--color-line);
   background: var(--color-canvas);
@@ -55,216 +291,12 @@
   letter-spacing: -0.02em;
 }
 
-.nav {
-  min-width: 0;
-  flex: 1;
-  align-self: stretch;
-}
-
-.navList {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  gap: 2px;
-}
-
-.navLink {
-  position: relative;
-  height: 100%;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-ink-muted);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.navLink:hover {
-  color: var(--color-ink);
-}
-
-.navLink[aria-current='page'] {
-  color: var(--tone);
-}
-
-.navLink::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--tone);
-  opacity: 0;
-  transform: scaleX(0.4);
-  transition:
-    transform 220ms var(--ease-out),
-    opacity 220ms var(--ease-out);
-}
-
-/* The active-link indicator grows in under the current page */
-.navLink[aria-current='page']::after {
-  opacity: 1;
-  transform: scaleX(1);
-}
-
-.badge {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--tone);
-  color: var(--color-paper);
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .end {
   flex: none;
   display: flex;
   align-items: center;
   gap: 16px;
   font-size: 13px;
-}
-
-/* Account menu: the signed-in user's name as a quiet trigger, a small panel below it */
-.account {
-  position: relative;
-  flex: none;
-}
-
-.accountButton {
-  height: 40px;
-  padding: 0 8px 0 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-ink-soft);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 160ms var(--ease-out);
-}
-
-.accountButton:hover,
-.accountButton[aria-expanded='true'] {
-  background: var(--color-line-soft);
-}
-
-.accountButton[data-current] .userName {
-  color: var(--tone);
-}
-
-.avatar {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--tone-soft);
-  color: var(--tone);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.userName {
-  max-width: 160px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chevron {
-  flex: none;
-  color: var(--color-ink-muted);
-  transition: transform 200ms var(--ease-out);
-}
-
-.accountButton[aria-expanded='true'] .chevron {
-  transform: rotate(180deg);
-}
-
-/* On the canvas, so flat with a 1px line (One Shadow Rule) */
-.menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  width: 240px;
-  padding: 6px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-hub);
-  background: var(--color-paper);
-}
-
-.menuWho {
-  padding: 8px 10px 10px;
-  display: grid;
-  gap: 2px;
-  border-bottom: 1px solid var(--color-line-soft);
-}
-
-.menuName {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-.menuDetail {
-  font-size: 12.5px;
-  color: var(--color-ink-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.menuList {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 2px;
-}
-
-.menuItem {
-  width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-ink-soft);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.menuItem:hover {
-  background: var(--color-line-soft);
-  color: var(--color-ink);
-}
-
-.menuItem[aria-current='page'] {
-  color: var(--tone);
 }
 
 .inkButton {
@@ -303,35 +335,7 @@
   color: var(--color-ink);
 }
 
-/* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
-.banner {
-  padding: 10px 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-paper);
-  font-size: 13.5px;
-  color: var(--color-ink-soft);
-}
-
-.banner a {
-  color: var(--tone);
-  font-weight: 600;
-  text-underline-offset: 3px;
-}
-
-.main {
-  min-width: 0;
-}
-
-/* Guests: the same header without navigation */
-.guestHeader {
-  justify-content: space-between;
-}
-
-/* ── Motion: page enter on route change, the withdrawn banner, the account menu ── */
+/* ── Motion: page enter on route change, the withdrawn banner ── */
 
 @keyframes pageEnter {
   from {
@@ -360,17 +364,16 @@
   .banner {
     animation: drop 220ms var(--ease-out) backwards;
   }
-
-  .menu:not([hidden]) {
-    animation: drop 160ms var(--ease-out) backwards;
-  }
 }
 
 /* Reduced motion: no animation or transition anywhere in the app shell (landing and auth pages keep their own rules) */
 @media (prefers-reduced-motion: reduce) {
   .shell *,
   .shell *::before,
-  .shell *::after {
+  .shell *::after,
+  .guestShell *,
+  .guestShell *::before,
+  .guestShell *::after {
     animation: none !important;
     transition: none !important;
   }

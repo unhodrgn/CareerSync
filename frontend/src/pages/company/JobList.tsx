@@ -46,15 +46,18 @@ export default function CompanyJobList() {
         ) : (
           <ul className={cx(ui.recordList, ui.stagger)}>
             {jobs.map((job) => (
-              <li key={job.id} className={ui.recordRow}>
+              <li key={job.id} className={ui.recordRow} data-closed={job.status === 'closed' || undefined}>
                 <div className={s.jobRowMain}>
-                  <Link to={rowTarget(job)} className={cx(ui.recordTitle, ui.stretched)}>
-                    {job.title}
-                  </Link>
+                  {/* The title leads with its status beside it, as in the job header */}
+                  <span className={s.jobRowHead}>
+                    <Link to={rowTarget(job)} className={cx(ui.recordTitle, s.jobRowTitle, ui.stretched)}>
+                      {job.title}
+                    </Link>
+                    <JobStatusTag status={job.status} />
+                  </span>
                   <JobMeta location={job.location} employmentType={job.employment_type} minExperienceYears={job.min_experience_years} />
                 </div>
                 <div className={s.jobRowSide}>
-                  <JobStatusTag status={job.status} />
                   <span className={ui.caption}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
                   {job.status !== 'closed' && <Deadline job={job} />}
                   <ArrowRightIcon className={ui.rowChevron} width={16} height={16} />

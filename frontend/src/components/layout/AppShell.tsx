@@ -1,8 +1,20 @@
-import { useCallback, useEffect, useId, useRef, useState, type FocusEvent } from 'react';
+import { useCallback, useEffect, useState, type ComponentType, type SVGProps } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from 'react-router';
 import { api } from '@/api/client';
 import { aiConsentWithdrawn, consentPath, homeFor, useAuth } from '@/auth/AuthContext';
-import { ChevronDownIcon, LogoMark } from '@/components/common/icons';
+import {
+  BriefcaseIcon,
+  BuildingIcon,
+  ClipboardCheckIcon,
+  DocumentIcon,
+  InboxIcon,
+  LogoMark,
+  LogOutIcon,
+  SendIcon,
+  SlidersIcon,
+  TargetIcon,
+  UserIcon,
+} from '@/components/common/icons';
 import ui from '@/components/common/ui.module.css';
 import { t, type MessageKey } from '@/i18n';
 import { paths } from '@/routes/paths';
@@ -12,30 +24,31 @@ import s from './AppShell.module.css';
 interface NavItem {
   to: string;
   label: MessageKey;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   end?: boolean;
   badge?: 'offers';
 }
 
-// The bar holds the pages a role works in; settings-like pages sit in the account menu on the user's name
+// The pages a role works in, then (after a divider) its settings-like pages
 const NAV: Record<Role, NavItem[]> = {
   seeker: [
-    { to: paths.seeker.recommended, label: 'nav.seeker.recommended', end: true },
-    { to: paths.jobs, label: 'nav.seeker.jobs' },
-    { to: paths.seeker.cv, label: 'nav.seeker.cv' },
-    { to: paths.seeker.applications, label: 'nav.seeker.applications' },
-    { to: paths.seeker.offers, label: 'nav.seeker.offers', badge: 'offers' },
+    { to: paths.seeker.recommended, label: 'nav.seeker.recommended', icon: TargetIcon, end: true },
+    { to: paths.jobs, label: 'nav.seeker.jobs', icon: BriefcaseIcon },
+    { to: paths.seeker.cv, label: 'nav.seeker.cv', icon: DocumentIcon },
+    { to: paths.seeker.applications, label: 'nav.seeker.applications', icon: ClipboardCheckIcon },
+    { to: paths.seeker.offers, label: 'nav.seeker.offers', icon: InboxIcon, badge: 'offers' },
   ],
   company: [
-    { to: paths.company.jobs, label: 'nav.company.jobs' },
-    { to: paths.company.offers, label: 'nav.company.offers' },
-    { to: paths.company.profile, label: 'nav.company.profile' },
+    { to: paths.company.jobs, label: 'nav.company.jobs', icon: BriefcaseIcon },
+    { to: paths.company.offers, label: 'nav.company.offers', icon: SendIcon },
+    { to: paths.company.profile, label: 'nav.company.profile', icon: BuildingIcon },
   ],
 };
 
-const MENU: Record<Role, NavItem[]> = {
+const SETTINGS: Record<Role, NavItem[]> = {
   seeker: [
-    { to: paths.seeker.preferences, label: 'nav.seeker.preferences' },
-    { to: paths.seeker.account, label: 'nav.seeker.account' },
+    { to: paths.seeker.preferences, label: 'nav.seeker.preferences', icon: SlidersIcon },
+    { to: paths.seeker.account, label: 'nav.seeker.account', icon: UserIcon },
   ],
   company: [],
 };
@@ -51,7 +64,10 @@ export function useShell(): ShellContext | undefined {
   return useOutletContext<ShellContext | undefined>();
 }
 
-/** Signed-in shell: the top bar with the role's navigation and the account menu, the page below on the canvas. */
+/**
+ * Signed-in shell: a rail in the role's colour (navy or green) with the navigation, who is signed in and 로그아웃;
+ * the page on the canvas to its right.
+ */
 export default function AppShell({ role }: { role: Role }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -94,48 +110,67 @@ export default function AppShell({ role }: { role: Role }) {
   };
   const here = `${location.pathname}${location.search}`;
   const withdrawn = role === 'seeker' && aiConsentWithdrawn(user);
+  // Under the name: the company for a company account (once loaded), the email for a seeker
+  const detail = role === 'company' ? companyName : user.email;
+
+  const navList = (items: NavItem[]) => (
+    <ul className={s.navList}>
+      {items.map(({ to, label, icon: Icon, end, badge }) => (
+        <li key={to}>
+          <NavLink to={to} end={end} className={s.navLink}>
+            <Icon width={18} height={18} />
+            {t(label)}
+            {badge === 'offers' && pendingOffers > 0 && (
+              <>
+                <span className={s.badge} aria-hidden="true">
+                  {pendingOffers}
+                </span>
+                <span className={ui.visuallyHidden}>{t('shell.offerBadge', { n: pendingOffers })}</span>
+              </>
+            )}
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className={s.shell} data-tone={role}>
-      <header className={s.header}>
+      <header className={s.rail}>
         <Link to={homeFor(role)} className={s.brand} aria-label={t('shell.home')}>
-          <LogoMark />
+          <LogoMark width={28} height={28} />
           <span className={s.brandName}>{t('app.name')}</span>
         </Link>
         <nav className={s.nav} aria-label={t('shell.nav')}>
-          <ul className={s.navList}>
-            {NAV[role].map(({ to, label, end, badge }) => (
-              <li key={to}>
-                <NavLink to={to} end={end} className={s.navLink}>
-                  {t(label)}
-                  {badge === 'offers' && pendingOffers > 0 && (
-                    <>
-                      <span className={s.badge} aria-hidden="true">
-                        {pendingOffers}
-                      </span>
-                      <span className={ui.visuallyHidden}>{t('shell.offerBadge', { n: pendingOffers })}</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+          {navList(NAV[role])}
+          {SETTINGS[role].length > 0 && <div className={s.navDivider}>{navList(SETTINGS[role])}</div>}
         </nav>
-        <AccountMenu
-          name={user.display_name}
-          detail={role === 'company' && companyName ? companyName : user.email}
-          email={role === 'company' ? user.email : null}
-          items={MENU[role]}
-          onLogout={onLogout}
-        />
+        <div className={s.user}>
+          <span className={s.avatar} aria-hidden="true">
+            {user.display_name.slice(0, 1)}
+          </span>
+          <span className={s.userText}>
+            <span className={s.userName} title={user.display_name}>
+              {user.display_name}
+            </span>
+            {/* The line keeps its height while the company name loads, so the rail does not shift */}
+            <span className={s.userDetail} title={detail ?? undefined}>
+              {detail ?? ' '}
+            </span>
+          </span>
+        </div>
+        <button type="button" className={s.logout} onClick={onLogout}>
+          <LogOutIcon width={18} height={18} />
+          {t('shell.logout')}
+        </button>
       </header>
-      {withdrawn && location.pathname !== paths.consent && (
-        <p className={s.banner} role="status">
-          {t('shell.withdrawn')}
-          <Link to={consentPath(here)}>{t('shell.withdrawnAction')}</Link>
-        </p>
-      )}
       <main className={s.main}>
+        {withdrawn && location.pathname !== paths.consent && (
+          <p className={s.banner} role="status">
+            {t('shell.withdrawn')}
+            <Link to={consentPath(here)}>{t('shell.withdrawnAction')}</Link>
+          </p>
+        )}
         {/* Keyed by path: a new page enters once; tab and query changes inside a page do not replay it */}
         <div key={location.pathname} className={s.page}>
           <Outlet context={{ refreshOffers } satisfies ShellContext} />
@@ -145,107 +180,13 @@ export default function AppShell({ role }: { role: Role }) {
   );
 }
 
-/**
- * The user's name as a quiet trigger for a small disclosure: who is signed in, the settings-like pages and
- * 로그아웃. A disclosure (not an ARIA menu): Tab moves through its links; Escape or a click outside closes it.
- */
-function AccountMenu({
-  name,
-  detail,
-  email,
-  items,
-  onLogout,
-}: {
-  name: string;
-  /** Second line under the name: the email, or the company name for a company account. */
-  detail: string;
-  /** Third line for a company account (its email). */
-  email: string | null;
-  items: NavItem[];
-  onLogout: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const id = useId();
-  const location = useLocation();
-  const inMenu = items.some((i) => location.pathname.startsWith(i.to));
-
-  // Close on navigation
-  useEffect(() => setOpen(false), [location.pathname]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setOpen(false);
-      buttonRef.current?.focus();
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  // Tabbing out of the menu closes it
-  const onBlur = (e: FocusEvent<HTMLDivElement>) => {
-    if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);
-  };
-
-  return (
-    <div ref={rootRef} className={s.account} onBlur={onBlur}>
-      <button
-        ref={buttonRef}
-        type="button"
-        className={s.accountButton}
-        aria-expanded={open}
-        aria-controls={id}
-        data-current={inMenu || undefined}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className={s.avatar} aria-hidden="true">
-          {name.slice(0, 1)}
-        </span>
-        <span className={s.userName}>{name}</span>
-        <ChevronDownIcon width={16} height={16} className={s.chevron} />
-      </button>
-      <div id={id} className={s.menu} hidden={!open}>
-        <div className={s.menuWho}>
-          <span className={s.menuName}>{name}</span>
-          <span className={s.menuDetail}>{detail}</span>
-          {email && <span className={s.menuDetail}>{email}</span>}
-        </div>
-        <ul className={s.menuList}>
-          {items.map(({ to, label }) => (
-            <li key={to}>
-              <NavLink to={to} className={s.menuItem}>
-                {t(label)}
-              </NavLink>
-            </li>
-          ))}
-          <li>
-            <button type="button" className={s.menuItem} onClick={onLogout}>
-              {t('shell.logout')}
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 /** Guest shell: the same header with 회원가입 and 로그인 (jobs are public, D4). */
 export function GuestShell() {
   const location = useLocation();
   const next = encodeURIComponent(`${location.pathname}${location.search}`);
   return (
-    <div className={s.shell} data-tone="seeker">
-      <header className={`${s.header} ${s.guestHeader}`}>
+    <div className={s.guestShell} data-tone="seeker">
+      <header className={s.header}>
         <Link to={paths.home} className={s.brand} aria-label={t('shell.home')}>
           <LogoMark />
           <span className={s.brandName}>{t('app.name')}</span>

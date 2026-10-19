@@ -33,13 +33,33 @@
 .jobRowMain {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 6px;
+}
+
+.jobRowHead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Job rows use the Title size, like the seeker job lists */
+.jobRowTitle {
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+/* A closed job recedes; drafts and published jobs keep an Ink title */
+[data-closed] .jobRowTitle {
+  color: var(--color-ink-muted);
 }
 
 .jobRowSide {
   display: flex;
   align-items: center;
   gap: 20px;
+  color: var(--color-ink-muted);
 }
 
 /* Job editor: the form on the left, the two-way preview on the right */
@@ -221,7 +241,8 @@
 /* Two-way preview: one criteria set, read by seekers (no weights) and by the ranking (weights) */
 .preview {
   position: sticky;
-  top: 88px;
+  /* Below whatever the shell keeps at the top of the viewport (--shell-top) */
+  top: calc(var(--shell-top, 0px) + 24px);
 }
 
 .previewSide + .previewSide {
@@ -314,15 +335,20 @@
   text-align: center;
 }
 
+/* Criterion names take up to two lines, so the columns stay as narrow as their scores (the full name is in the title) */
 .critHead {
-  max-width: 88px;
+  max-width: 80px;
+}
+
+.board th.critHead {
+  white-space: normal;
 }
 
 .critHeadName {
-  display: block;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--color-ink-soft);
 }
 
@@ -336,6 +362,12 @@
   gap: 6px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* In the ranking the criterion scores are evidence: the square carries met / partial / missing, the number stays quiet */
+.scoreCell .score {
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
 }
 
 .applicantRow {
@@ -377,16 +409,40 @@
   gap: 2px;
 }
 
-.fit {
-  font-size: 16px;
+.nameCell strong {
+  font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.nameFacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.nameFacts > * {
+  white-space: nowrap;
+}
+
+.board th.fitHead,
+.board td.fitCell {
+  padding-right: 20px;
+  white-space: nowrap;
+}
+
+.fit {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
 .detail {
   position: sticky;
-  top: 88px;
-  max-height: calc(100vh - 104px);
+  top: calc(var(--shell-top, 0px) + 24px);
+  max-height: calc(100vh - var(--shell-top, 0px) - 40px);
   overflow-y: auto;
 }
 
@@ -498,18 +554,23 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
+/* Evidence under the anonymous ID: quieter than the ID and the Fit, louder than the facts below */
 .critScores {
   margin: 10px 0 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px 16px;
   font-size: 12.5px;
-  color: var(--color-ink-soft);
+  color: var(--color-ink-muted);
+}
+
+.critScores .score {
+  font-size: inherit;
 }
 
 .talentSide {

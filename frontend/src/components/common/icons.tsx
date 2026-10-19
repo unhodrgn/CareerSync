@@ -236,6 +236,71 @@ export function TrashIcon(props: IconProps) {
   );
 }
 
+// Navigation rail icons
+
+export function TargetIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 12h.01" />
+    </Icon>
+  );
+}
+
+export function BriefcaseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 13h18" />
+    </Icon>
+  );
+}
+
+export function InboxIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 13 6.4 5.6A2.3 2.3 0 0 1 8.6 4h6.8a2.3 2.3 0 0 1 2.2 1.6L20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M4 13h4l1.5 2.5h5L16 13h4" />
+    </Icon>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </Icon>
+  );
+}
+
+export function SendIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20.5 3.5 10 14" />
+      <path d="m20.5 3.5-6.5 17-4-6.5-6.5-4z" />
+    </Icon>
+  );
+}
+
+export function BuildingIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M9 7.5h1.5M13.5 7.5H15M9 11.5h1.5M13.5 11.5H15M10 21v-4h4v4" />
+    </Icon>
+  );
+}
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" />
+    </Icon>
+  );
+}
+
 /** CareerSync mark: a blue and a green square overlapping on ink, the two sides sharing one area. */
 export function LogoMark(props: IconProps) {
   return (

@@ -164,13 +164,14 @@ function Board({
               <tr>
                 <th>{t('apl.col.rank')}</th>
                 <th>{t('apl.col.name')}</th>
+                {/* Fit sits by the name: rank, applicant and fit read as one; the criteria after it are the evidence */}
+                <th className={s.fitHead}>{t('apl.col.fit')}</th>
                 {data.criteria.map((c) => (
                   <th key={c.id} className={s.critHead} title={c.name}>
                     <span className={s.critHeadName}>{c.name}</span>
                     <span className={s.critHeadWeight}>{Math.round(c.weight)}%</span>
                   </th>
                 ))}
-                <th style={{ textAlign: 'right' }}>{t('apl.col.fit')}</th>
               </tr>
             </thead>
             <tbody className={ui.stagger}>
@@ -187,14 +188,19 @@ function Board({
                   <td>
                     <span className={s.nameCell}>
                       <strong>{a.name}</strong>
-                      <span className={ui.caption}>
+                      {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
+                      <span className={cx(ui.caption, s.nameFacts)}>
                         <ApplicationStatusTag status={a.status} />
-                        {' · '}
-                        {a.evaluation_status === 'done'
-                          ? t('apl.experience', { value: monthsLabel(a.experience_months) })
-                          : t('apl.applied', { date: formatDate(a.applied_at) })}
+                        <span>
+                          {a.evaluation_status === 'done'
+                            ? t('apl.experience', { value: monthsLabel(a.experience_months) })
+                            : t('apl.applied', { date: formatDate(a.applied_at) })}
+                        </span>
                       </span>
                     </span>
+                  </td>
+                  <td className={s.fitCell}>
+                    {a.fit !== null ? <span className={s.fit}>{a.fit.toFixed(1)}</span> : <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>}
                   </td>
                   {data.criteria.map((c) => {
                     const sc = a.scores.find((x) => x.criterion_id === c.id);
@@ -213,9 +219,6 @@ function Board({
                       </td>
                     );
                   })}
-                  <td style={{ textAlign: 'right' }}>
-                    {a.fit !== null ? <span className={s.fit}>{a.fit.toFixed(1)}</span> : <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>}
-                  </td>
                 </tr>
               ))}
             </tbody>

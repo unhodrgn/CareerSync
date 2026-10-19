@@ -56,33 +56,34 @@ export default function JobDetail() {
       {/* The job title below is the page's one H1 */}
       <PageHead back={back} />
       <div className={s.detail}>
-        <article className={ui.panel}>
+        <div className={s.detailMain}>
+          {/* The title leads on the canvas, level with the apply panel; the company and meta line under it */}
           <header className={s.jobHead}>
-            <div className={s.jobHeadTop}>
-              <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
-            </div>
             <h1 className={s.jobHeadTitle}>{data.title}</h1>
+            <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
           </header>
 
-          {/* Location, employment type and experience are in the meta line above; the rest in one unboxed row */}
-          <dl className={s.facts}>
-            <div>
-              <dt>{t('job.salary')}</dt>
-              <dd>{data.salary_note || t('job.salaryNone')}</dd>
-            </div>
-            <div>
-              <dt>{t('job.deadline')}</dt>
-              <dd className={ui.num}>
-                {data.deadline ? `${formatDate(data.deadline)} · ${deadlineLabel(data)}` : t('common.always')}
-              </dd>
-            </div>
-          </dl>
+          <article className={ui.panel}>
+            {/* Location, employment type and experience are in the meta line above; the rest in one unboxed row */}
+            <dl className={s.facts}>
+              <div>
+                <dt>{t('job.salary')}</dt>
+                <dd>{data.salary_note || t('job.salaryNone')}</dd>
+              </div>
+              <div>
+                <dt>{t('job.deadline')}</dt>
+                <dd className={ui.num}>
+                  {data.deadline ? `${formatDate(data.deadline)} · ${deadlineLabel(data)}` : t('common.always')}
+                </dd>
+              </div>
+            </dl>
 
-          <JdText text={data.description} />
+            <JdText text={data.description} />
 
-          {/* GET /api/companies/{id} needs a login, so guests do not see the company block */}
-          {user && <CompanySection companyId={data.company_id} />}
-        </article>
+            {/* GET /api/companies/{id} needs a login, so guests do not see the company block */}
+            {user && <CompanySection companyId={data.company_id} />}
+          </article>
+        </div>
 
         {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
