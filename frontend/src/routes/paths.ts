@@ -12,6 +12,7 @@ export const paths = {
     applications: '/seeker/applications',
     offers: '/seeker/offers',
     preferences: '/seeker/preferences',
+    account: '/seeker/account',
     jobPrep: '/seeker/jobs/:jobId/prep',
   },
   company: {

@@ -105,9 +105,30 @@ export function safeNext(next: string | null): string | null {
   return next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : null;
 }
 
-/** Where to send a user right after signing in: consent first when the server asks for it (D17). */
+/**
+ * The consent text changed since the user last agreed (D16, D17): the user must agree again before going on.
+ * The user may also have withdrawn AI consent; agreeing again covers both.
+ */
+export function consentOutdated(user: UserOut): boolean {
+  return user.consent_required && user.consent_version !== user.current_consent_version;
+}
+
+/**
+ * AI consent withdrawn on the current text version (D17). `consent_required` with the current version can only
+ * mean `consent_ai_at` is null, since withdrawing keeps `consent_version`. The user keeps using the app; each
+ * AI feature answers 409 `AI_CONSENT_REQUIRED` and the shell offers to agree again.
+ */
+export function aiConsentWithdrawn(user: UserOut): boolean {
+  return user.consent_required && user.consent_version === user.current_consent_version;
+}
+
+/** `/consent` with a way back to `next`. */
+export function consentPath(next: string): string {
+  return `${paths.consent}?next=${encodeURIComponent(next)}`;
+}
+
+/** Where to send a user right after signing in: consent first when the consent text changed (D17). */
 export function afterSignIn(user: UserOut, next: string | null): string {
   const target = safeNext(next) ?? homeFor(user.role);
-  if (user.consent_required) return `${paths.consent}?next=${encodeURIComponent(target)}`;
-  return target;
+  return consentOutdated(user) ? consentPath(target) : target;
 }

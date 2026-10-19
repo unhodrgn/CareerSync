@@ -70,6 +70,17 @@
   cursor: pointer;
 }
 
+.headerQuiet {
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.headerQuiet:hover {
+  color: var(--color-ink);
+}
+
 /* Role switch: two options, each in its own audience colour */
 
 .roles {

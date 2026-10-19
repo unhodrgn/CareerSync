@@ -47,7 +47,8 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
 - Criteria pass a legal guardrail on save (discriminatory criteria blocked with the law cited).
 - Frontend stack (existing): React 19, TypeScript, Vite, React Router 7. Korean UI, `lang="ko"`. All UI strings go through `t()` from `src/i18n` (source locale `ko.ts`); no new dependencies without approval.
 - Devices: **desktop web only** for now. No mobile or tablet layouts; do not spend effort on responsive breakpoints.
-- Undecided (do not design as if decided): seeker-visible criterion importance levels (Q2), band for an arbitrary or applied job (Q4), job search filters / saved jobs / company dashboard metrics (Q11), CV/account deletion (Q13), 사업자등록번호 storage (Q6).
+- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); the band appears only on recommended jobs, not on job detail or applied jobs (D31); no 사업자등록번호 field (D32); no job search filters, saved jobs or company dashboard metrics (D33); CV/account deletion is deferred to a later phase (D34).
+- Undecided (do not design as if decided): the rest of Q11 (seeker profile fields 경력 수준 / 보유 기술 스택, a 기업 탐색 page).
 
 ## Brand Commitments
 

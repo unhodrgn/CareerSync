@@ -49,7 +49,9 @@ docker compose up --build -d
 
 For demo verification: log in as seeker, upload and confirm a text PDF CV,
 apply to the Nextcode job, then log in as hr@nextcode.test and view applicants.
-Job recommendation percentages are demo values (no recommendation API yet).
+Job recommendations are real (`GET /api/recommendations/jobs`): the seeker's 추천 공고
+page shows a band (매우 적합 / 적합 / 참고), never a percentage. Jobs still being
+analyzed are counted as pending and appear after 새로고침.
 
 Local dev/demo setup (Vite dev server), not production. Ports bind to localhost
 only. `docker compose down -v` deletes the demo database and model cache.

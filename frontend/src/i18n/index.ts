@@ -14,7 +14,9 @@ const locales: Record<string, Partial<Messages>> = Object.fromEntries(
 
 const locale: string = DEFAULT_LOCALE;
 
-/** UI text for `key` in the current locale; falls back to Korean. */
-export function t(key: MessageKey): string {
-  return locales[locale]?.[key] ?? ko[key];
+/** UI text for `key` in the current locale; falls back to Korean. `{name}` placeholders are filled from `vars`. */
+export function t(key: MessageKey, vars?: Record<string, string | number>): string {
+  let text: string = locales[locale]?.[key] ?? ko[key];
+  if (vars) for (const [name, value] of Object.entries(vars)) text = text.replaceAll(`{${name}}`, String(value));
+  return text;
 }

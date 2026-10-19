@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router';
 import RequireRole from '@/auth/RequireRole';
+import BrowseLayout from '@/components/layout/BrowseLayout';
 import CompanyLayout from '@/components/layout/CompanyLayout';
 import PublicLayout from '@/components/layout/PublicLayout';
 import SeekerLayout from '@/components/layout/SeekerLayout';
@@ -18,6 +19,7 @@ import JobList from '@/pages/public/JobList';
 import Login from '@/pages/public/Login';
 import NotFound from '@/pages/public/NotFound';
 import Register from '@/pages/public/Register';
+import Account from '@/pages/seeker/Account';
 import Applications from '@/pages/seeker/Applications';
 import Cv from '@/pages/seeker/Cv';
 import JobPrep from '@/pages/seeker/JobPrep';
@@ -30,10 +32,7 @@ export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
-      // Guests may browse jobs (docs/DECISIONS.md D4)
       { path: paths.home, element: <Home /> },
-      { path: paths.jobs, element: <JobList /> },
-      { path: paths.jobDetail, element: <JobDetail /> },
       { path: paths.login, element: <Login /> },
       { path: paths.register, element: <Register /> },
       {
@@ -43,6 +42,14 @@ export const router = createBrowserRouter([
           { path: paths.companyPublic, element: <CompanyPublic /> },
         ],
       },
+    ],
+  },
+  {
+    // Guests may browse jobs (docs/DECISIONS.md D4); signed-in users see them inside their own shell
+    element: <BrowseLayout />,
+    children: [
+      { path: paths.jobs, element: <JobList /> },
+      { path: paths.jobDetail, element: <JobDetail /> },
     ],
   },
   {
@@ -56,6 +63,7 @@ export const router = createBrowserRouter([
           { path: paths.seeker.applications, element: <Applications /> },
           { path: paths.seeker.offers, element: <Offers /> },
           { path: paths.seeker.preferences, element: <Preferences /> },
+          { path: paths.seeker.account, element: <Account /> },
           { path: paths.seeker.jobPrep, element: <JobPrep /> },
         ],
       },

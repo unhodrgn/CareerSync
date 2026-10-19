@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router';
+import AppShell from './AppShell';
 
-// TODO: shell for company pages.
+/** Shell of the company pages (green). RequireRole has already checked the role. */
 export default function CompanyLayout() {
-  return <Outlet />;
+  return <AppShell role="company" />;
 }

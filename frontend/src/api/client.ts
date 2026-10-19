@@ -1,8 +1,17 @@
 // The only place that makes HTTP calls (PROJECT_DOCUMENTATION.md §7). Requests go to /api on the same
 // origin; the Vite dev server forwards them to VITE_API_TARGET.
 import { clearToken, getToken } from '@/auth/tokenStorage';
+import type { ApplicationOut } from '@/types/application';
 import type { ConsentIn, LoginIn, RegisterIn, TokenOut, UserOut } from '@/types/auth';
+import type { InterviewOut, RoadmapOut } from '@/types/career';
 import type { AppErrorBody, ValidationIssue } from '@/types/common';
+import type { CompanyOut, CompanyPublicOut } from '@/types/company';
+import type { CriteriaView } from '@/types/criteria';
+import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
+import type { JobOut, JobPage } from '@/types/job';
+import type { PreferenceIn, PreferenceOut } from '@/types/preference';
+import type { RecommendationList } from '@/types/recommendation';
+import type { SeekerOffer } from '@/types/talent';
 
 export const API_BASE = '/api';
 
@@ -58,15 +67,21 @@ async function toError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, 'SERVER', res.statusText);
 }
 
+/** `body` is sent as JSON, or as multipart when it is a FormData (file upload). */
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = getToken();
+  const multipart = body instanceof FormData;
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
+    });
   } catch {
     throw new ApiError(0, 'NETWORK', 'network');
   }
@@ -86,4 +101,46 @@ export const api = {
   login: (body: LoginIn) => request<TokenOut>('POST', '/auth/login', body),
   me: () => request<UserOut>('GET', '/users/me'),
   consent: (body: ConsentIn) => request<UserOut>('POST', '/users/me/consent', body),
+  withdrawAiConsent: () => request<UserOut>('DELETE', '/users/me/consent/ai'),
+
+  // Jobs (public; the token is sent when there is one)
+  jobs: (params: { q?: string; limit?: number; offset?: number } = {}) => request<JobPage>('GET', `/jobs${query(params)}`),
+  job: (jobId: number) => request<JobOut>('GET', `/jobs/${jobId}`),
+  jobCriteria: (jobId: number) => request<CriteriaView>('GET', `/jobs/${jobId}/criteria`),
+
+  // Companies
+  company: (companyId: number) => request<CompanyPublicOut>('GET', `/companies/${companyId}`),
+  myCompany: () => request<CompanyOut>('GET', '/companies/me'),
+
+  // Seeker: CV
+  myCv: () => request<CvOut>('GET', '/cv/me'),
+  uploadCv: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<CvOut>('POST', '/cv', form);
+  },
+  updateCv: (profileId: number, body: CvUpdate) => request<CvOut>('PUT', `/cv/${profileId}`, body),
+  reviewCv: (profileId: number) => request<CvReviewOut>('POST', `/cv/${profileId}/review`),
+
+  // Seeker: applications, recommendations, preparation, preferences, offers
+  apply: (jobId: number) => request<ApplicationOut>('POST', `/jobs/${jobId}/applications`),
+  myApplications: () => request<ApplicationOut[]>('GET', '/applications/mine'),
+  recommendations: (limit = 20) => request<RecommendationList>('GET', `/recommendations/jobs${query({ limit })}`),
+  roadmap: (jobId: number) => request<RoadmapOut>('POST', `/jobs/${jobId}/roadmap`),
+  interviewQuestions: (jobId: number) => request<InterviewOut>('POST', `/jobs/${jobId}/interview-questions`),
+  myPreferences: () => request<PreferenceOut>('GET', '/preferences/me'),
+  savePreferences: (body: PreferenceIn) => request<PreferenceOut>('PUT', '/preferences/me', body),
+  myOffers: () => request<SeekerOffer[]>('GET', '/talent-offers/mine'),
+  acceptOffer: (offerId: number) => request<SeekerOffer>('POST', `/talent-offers/${offerId}/accept`),
+  rejectOffer: (offerId: number) => request<SeekerOffer>('POST', `/talent-offers/${offerId}/reject`),
 };
+
+/** `?a=1&b=x` from the defined, non-empty values. */
+function query(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') search.append(key, String(value));
+  }
+  const text = search.toString();
+  return text ? `?${text}` : '';
+}

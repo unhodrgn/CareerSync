@@ -1,0 +1,217 @@
+/* App shell: the landing header (64px, 40px gutters, bottom line on the canvas) carrying the role's navigation.
+   The shell sets the page tone once: navy for seekers, green for companies (DESIGN.md Tone Rule). */
+
+.shell {
+  --tone: var(--color-seeker);
+  --tone-accent: var(--color-seeker-accent);
+  --tone-dot: var(--color-seeker-dot);
+  --tone-soft: var(--color-seeker-soft);
+  --tone-badge: var(--color-seeker-badge);
+  --tone-lit: var(--color-seeker-lit);
+  --focus-color: var(--tone);
+  min-height: 100vh;
+  background: var(--color-canvas);
+}
+
+.shell[data-tone='company'] {
+  --tone: var(--color-employer);
+  --tone-accent: var(--color-employer-accent);
+  --tone-dot: var(--color-employer-dot);
+  --tone-soft: var(--color-employer-soft);
+  --tone-badge: var(--color-employer-badge);
+  --tone-lit: var(--color-employer-soft);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 64px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-canvas);
+}
+
+.brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+}
+
+.navList {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  gap: 2px;
+}
+
+.navLink {
+  position: relative;
+  height: 100%;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 160ms var(--ease-out);
+}
+
+.navLink:hover {
+  color: var(--color-ink);
+}
+
+.navLink[aria-current='page'] {
+  color: var(--tone);
+}
+
+.navLink[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--tone);
+}
+
+.badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--tone);
+  color: var(--color-paper);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contextDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone-dot);
+}
+
+.userName {
+  max-width: 160px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inkButton {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
+}
+
+.inkButton:hover {
+  background: var(--color-ink-soft);
+}
+
+.inkButton:active {
+  transform: scale(0.95);
+}
+
+.quietLink {
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.quietLink:hover {
+  color: var(--color-ink);
+}
+
+.tagline {
+  color: var(--color-ink-muted);
+}
+
+/* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
+.banner {
+  padding: 10px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper);
+  font-size: 13.5px;
+  color: var(--color-ink-soft);
+}
+
+.banner a {
+  color: var(--tone);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.main {
+  min-width: 0;
+}
+
+/* Guests: the same header without navigation */
+.guestHeader {
+  justify-content: space-between;
+}

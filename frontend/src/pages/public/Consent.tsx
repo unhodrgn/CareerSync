@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, api } from '@/api/client';
 import { homeFor, safeNext, useAuth } from '@/auth/AuthContext';
 import AuthFrame from '@/components/common/AuthFrame';
@@ -64,16 +64,24 @@ export default function Consent() {
     <AuthFrame
       tone="hub"
       headerEnd={
-        <button
-          type="button"
-          className={styles.headerButton}
-          onClick={() => {
-            logout();
-            navigate(paths.login, { replace: true });
-          }}
-        >
-          {t('auth.consent.otherAccount')}
-        </button>
+        <>
+          {/* A withdrawn seeker came here by choice and may keep using the non-AI features (D17) */}
+          {withdrawn && (
+            <Link to={target} className={styles.headerQuiet}>
+              {t('auth.consent.later')}
+            </Link>
+          )}
+          <button
+            type="button"
+            className={styles.headerButton}
+            onClick={() => {
+              logout();
+              navigate(paths.login, { replace: true });
+            }}
+          >
+            {t('auth.consent.otherAccount')}
+          </button>
+        </>
       }
     >
       <section className={styles.card} aria-labelledby="consent-title">

@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router';
+import AppShell from './AppShell';
 
-// TODO: shell for seeker pages.
+/** Shell of the seeker pages (navy). RequireRole has already checked the role. */
 export default function SeekerLayout() {
-  return <Outlet />;
+  return <AppShell role="seeker" />;
 }
