@@ -20,7 +20,6 @@ export const paths = {
     jobNew: '/company/jobs/new',
     jobEdit: '/company/jobs/:jobId/edit',
     applicants: '/company/jobs/:jobId/applicants',
-    applicantEvaluation: '/company/applications/:applicationId',
     talent: '/company/jobs/:jobId/talent',
     offers: '/company/offers',
     profile: '/company/profile',

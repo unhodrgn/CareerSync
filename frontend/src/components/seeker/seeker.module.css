@@ -261,6 +261,16 @@
   font-weight: 600;
 }
 
+.publicProject {
+  padding: 12px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.publicProject + .publicProject {
+  border-top: 1px solid var(--color-line-soft);
+}
+
 .tagRow {
   display: flex;
   flex-wrap: wrap;

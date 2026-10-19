@@ -46,3 +46,31 @@ export interface GuestCriteriaSetOut {
 
 /** `GET /api/jobs/{job_id}/criteria` answers in one of three shapes, chosen by who asks. */
 export type CriteriaView = CriteriaSetOut | SeekerCriteriaSetOut | GuestCriteriaSetOut;
+
+/** One row of `PUT /api/jobs/{job_id}/criteria`; `id` only for criteria of a published job. */
+export interface CriterionIn {
+  id?: number;
+  name: string;
+  description: string;
+  category: Category;
+  weight: number;
+}
+
+/** A legal-guardrail hit (data/blocklist.yaml); `index` is the row in the saved set. */
+export interface GuardrailHit {
+  index: number | null;
+  field: string;
+  rule_id: string;
+  category: string;
+  matched: string;
+  reason: string;
+  law_ref: string;
+}
+
+export interface CheckResult {
+  allowed: boolean;
+  hits: GuardrailHit[];
+  blocklist_version: string;
+}
+
+export const CATEGORIES: Category[] = ['skill', 'experience', 'project', 'certificate', 'education', 'other'];

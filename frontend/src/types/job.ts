@@ -47,3 +47,57 @@ export interface JobPage {
   limit: number;
   offset: number;
 }
+
+export const EMPLOYMENT_TYPES: EmploymentType[] = ['full_time', 'contract', 'intern'];
+
+export interface JobCreate {
+  title: string;
+  description: string;
+  employment_type: EmploymentType;
+  min_experience_years: number | null;
+  location: string;
+  salary_note: string;
+  deadline: string | null;
+}
+
+/** Partial update: only the fields sent change. After publish only deadline, location and salary_note. */
+export type JobUpdate = Partial<JobCreate>;
+
+export interface SuggestedCriterion {
+  name: string;
+  description: string;
+  category: string;
+  weight: number;
+}
+
+export interface BlockedSuggestion {
+  name: string;
+  /** CRITERIA_BLOCKED (legal guardrail) or CRITERIA_MAJOR_REQUIRED (education without a major, D13). */
+  code: string;
+  reason: string;
+}
+
+export interface JdAnalysisOut {
+  job_id: number;
+  analysis: { profile: Record<string, unknown>; criteria: SuggestedCriterion[] };
+  blocked: BlockedSuggestion[];
+  method: string;
+  notice: string;
+}
+
+export interface JdDraftIn {
+  keywords: string[];
+  notes: string;
+  project_ids: number[];
+}
+
+export interface JdDraftOut {
+  job_id: number;
+  /** The assembled JD text. */
+  description: string;
+  sections: { intro: string; responsibilities: string[]; requirements: string[]; preferred: string[] };
+  dropped: { text: string; reason: string }[];
+  method: string;
+  limited: boolean;
+  notice: string;
+}

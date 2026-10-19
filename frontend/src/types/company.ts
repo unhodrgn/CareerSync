@@ -21,3 +21,19 @@ export interface CompanyProjectOut {
 export interface CompanyPublicOut extends CompanyOut {
   projects: CompanyProjectOut[];
 }
+
+export interface CompanyUpdate {
+  name: string;
+  intro: string;
+  talent_profile: string;
+}
+
+export interface CompanyProjectIn {
+  name: string;
+  description: string;
+  techs: string[];
+}
+
+/** Server limits (backend/app/schemas/company.py, company_project_service.MAX_PROJECTS). */
+export const MAX_PROJECTS = 20;
+export const PROJECT_MAX_TECHS = 20;

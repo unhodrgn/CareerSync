@@ -4,7 +4,6 @@ import BrowseLayout from '@/components/layout/BrowseLayout';
 import CompanyLayout from '@/components/layout/CompanyLayout';
 import PublicLayout from '@/components/layout/PublicLayout';
 import SeekerLayout from '@/components/layout/SeekerLayout';
-import ApplicantEvaluation from '@/pages/company/ApplicantEvaluation';
 import Applicants from '@/pages/company/Applicants';
 import CompanyProfile from '@/pages/company/CompanyProfile';
 import JobEditor from '@/pages/company/JobEditor';
@@ -37,10 +36,7 @@ export const router = createBrowserRouter([
       { path: paths.register, element: <Register /> },
       {
         element: <RequireRole />,
-        children: [
-          { path: paths.consent, element: <Consent /> },
-          { path: paths.companyPublic, element: <CompanyPublic /> },
-        ],
+        children: [{ path: paths.consent, element: <Consent /> }],
       },
     ],
   },
@@ -50,6 +46,8 @@ export const router = createBrowserRouter([
     children: [
       { path: paths.jobs, element: <JobList /> },
       { path: paths.jobDetail, element: <JobDetail /> },
+      // A company profile needs a login (GET /api/companies/{id}); signed in, it shows in the user's own shell
+      { element: <RequireRole />, children: [{ path: paths.companyPublic, element: <CompanyPublic /> }] },
     ],
   },
   {
@@ -79,7 +77,6 @@ export const router = createBrowserRouter([
           { path: paths.company.jobNew, element: <JobEditor /> },
           { path: paths.company.jobEdit, element: <JobEditor /> },
           { path: paths.company.applicants, element: <Applicants /> },
-          { path: paths.company.applicantEvaluation, element: <ApplicantEvaluation /> },
           { path: paths.company.talent, element: <Talent /> },
           { path: paths.company.offers, element: <SentOffers /> },
           { path: paths.company.profile, element: <CompanyProfile /> },

@@ -1027,6 +1027,164 @@
   --status-dot: var(--tone);
 }
 
+/* Job status: published in the tone, draft lighter, closed neutral */
+.status[data-status='published'] {
+  --status-dot: var(--tone);
+}
+
+.status[data-status='draft'] {
+  --status-dot: var(--tone-dot);
+}
+
+/* ── Record lists (DESIGN.md, App pages): one bordered Paper list, rows split by Line Soft ── */
+
+.recordList {
+  margin: 0;
+  padding: 0 20px;
+  list-style: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.recordRow {
+  position: relative;
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  transition: transform 150ms var(--ease-out);
+}
+
+.recordRow + .recordRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.recordTitle {
+  color: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+}
+
+/* A whole-row link: the title link's hit area covers the row (the row is position: relative) */
+.stretched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* A secondary link or button raised above the row's hit area */
+.aboveStretch {
+  position: relative;
+  z-index: 1;
+}
+
+.recordRow:hover .recordTitle {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.recordRow:has(.stretched:active) {
+  transform: scale(0.995);
+}
+
+.rowChevron {
+  color: var(--color-axis);
+  transition: transform 160ms var(--ease-out);
+}
+
+.recordRow:hover .rowChevron {
+  color: var(--color-ink);
+  transform: translateX(2px);
+}
+
+/* ── Score indicator squares (company side only; seekers never see scores, D1) ──
+   met ≥ 75 (the strong level), partial 25–74, missing below 25 (amber ring: nothing found in the CV) */
+.square {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-employer);
+}
+
+.square[data-level='partial'] {
+  background: var(--color-employer-soft);
+  box-shadow: inset 0 0 0 1.5px var(--color-employer);
+}
+
+.square[data-level='missing'] {
+  background: var(--color-gap-badge);
+  box-shadow: inset 0 0 0 1.5px var(--color-gap-line);
+}
+
+/* ── A labelled facts list (term above or beside its value) ── */
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 16px;
+  font-size: 13.5px;
+}
+
+.facts dt {
+  color: var(--color-ink-muted);
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-ink-soft);
+}
+
+/* ── Action bar: the page's save / publish actions, kept in view at the bottom of a long form ── */
+.actionBar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  padding: 10px 12px 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-hub);
+  background: var(--color-paper);
+}
+
+.actionBarText {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+/* A criterion the legal guardrail blocks: input that cannot be saved, so Form Error Red */
+.blocked {
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--color-danger-line);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-danger);
+}
+
+.blocked strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.blockedLaw {
+  color: var(--color-ink-soft);
+}
+
 /* ── Motion (DESIGN.md, App pages · Motion) ──
    State feedback and continuity only: transform and opacity, the system ease, 150–300ms, entrances under 400ms.
    Fill mode is `backwards`, so nothing stays transformed after it arrives, and content is never held back longer
@@ -1093,5 +1251,10 @@
 
   .inlineConfirm {
     animation: enter 200ms var(--ease-out) backwards;
+  }
+
+  /* A <details> disclosure: its content drops into place when it opens (closing is immediate) */
+  .disclosure[open] > :not(summary) {
+    animation: drop 200ms var(--ease-out) backwards;
   }
 }

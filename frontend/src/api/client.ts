@@ -1,17 +1,17 @@
 // The only place that makes HTTP calls (PROJECT_DOCUMENTATION.md §7). Requests go to /api on the same
 // origin; the Vite dev server forwards them to VITE_API_TARGET.
 import { clearToken, getToken } from '@/auth/tokenStorage';
-import type { ApplicationOut } from '@/types/application';
+import type { ApplicantFilters, ApplicantList, ApplicationOut, ApplicationStatus, EvaluationOut } from '@/types/application';
 import type { ConsentIn, LoginIn, RegisterIn, TokenOut, UserOut } from '@/types/auth';
 import type { InterviewOut, RoadmapOut } from '@/types/career';
 import type { AppErrorBody, ValidationIssue } from '@/types/common';
-import type { CompanyOut, CompanyPublicOut } from '@/types/company';
-import type { CriteriaView } from '@/types/criteria';
+import type { CompanyOut, CompanyProjectIn, CompanyProjectOut, CompanyPublicOut, CompanyUpdate } from '@/types/company';
+import type { CheckResult, CriteriaSetOut, CriteriaView, CriterionIn } from '@/types/criteria';
 import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
-import type { JobOut, JobPage } from '@/types/job';
+import type { JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate } from '@/types/job';
 import type { PreferenceIn, PreferenceOut } from '@/types/preference';
 import type { RecommendationList } from '@/types/recommendation';
-import type { SeekerOffer } from '@/types/talent';
+import type { OfferCreate, SeekerOffer, SentOffer, TalentList } from '@/types/talent';
 
 export const API_BASE = '/api';
 
@@ -133,6 +133,47 @@ export const api = {
   myOffers: () => request<SeekerOffer[]>('GET', '/talent-offers/mine'),
   acceptOffer: (offerId: number) => request<SeekerOffer>('POST', `/talent-offers/${offerId}/accept`),
   rejectOffer: (offerId: number) => request<SeekerOffer>('POST', `/talent-offers/${offerId}/reject`),
+
+  // Company: jobs and criteria
+  myJobs: () => request<JobListItem[]>('GET', '/jobs/mine'),
+  createJob: (body: JobCreate) => request<JobOut>('POST', '/jobs', body),
+  updateJob: (jobId: number, body: JobUpdate) => request<JobOut>('PATCH', `/jobs/${jobId}`, body),
+  deleteJob: (jobId: number) => request<void>('DELETE', `/jobs/${jobId}`),
+  publishJob: (jobId: number) => request<JobOut>('POST', `/jobs/${jobId}/publish`),
+  closeJob: (jobId: number) => request<JobOut>('POST', `/jobs/${jobId}/close`),
+  /** The owner's full rows (weights included); the company view of GET /jobs/{id}/criteria. */
+  ownCriteria: (jobId: number) => request<CriteriaSetOut>('GET', `/jobs/${jobId}/criteria`),
+  saveCriteria: (jobId: number, items: CriterionIn[]) => request<CriteriaSetOut>('PUT', `/jobs/${jobId}/criteria`, { items }),
+  checkCriterion: (name: string, description: string) => request<CheckResult>('POST', '/criteria/check', { name, description }),
+  analyzeJob: (jobId: number) => request<JdAnalysisOut>('POST', `/jobs/${jobId}/analyze`),
+  draftJd: (jobId: number, body: JdDraftIn) => request<JdDraftOut>('POST', `/jobs/${jobId}/jd-draft`, body),
+
+  // Company: applicants and evaluation (status changes only from a recruiter's click, AI rule 5)
+  applicants: (jobId: number, filters: ApplicantFilters = {}) => {
+    const search = new URLSearchParams();
+    for (const st of filters.status ?? []) search.append('status', st);
+    if (filters.min_fit !== undefined) search.append('min_fit', String(filters.min_fit));
+    if (filters.evaluation_status) search.append('evaluation_status', filters.evaluation_status);
+    const text = search.toString();
+    return request<ApplicantList>('GET', `/jobs/${jobId}/applications${text ? `?${text}` : ''}`);
+  },
+  evaluation: (applicationId: number) => request<EvaluationOut>('GET', `/applications/${applicationId}/evaluation`),
+  retryEvaluation: (applicationId: number) => request<EvaluationOut>('POST', `/applications/${applicationId}/evaluation/retry`),
+  setApplicationStatus: (applicationId: number, status: ApplicationStatus) =>
+    request<ApplicationOut>('PUT', `/applications/${applicationId}/status`, { status }),
+
+  // Company: talent and sent offers (anonymous until accepted, D3, D19, D20)
+  talent: (jobId: number, limit = 20) => request<TalentList>('GET', `/jobs/${jobId}/talent${query({ limit })}`),
+  sendOffer: (body: OfferCreate) => request<SentOffer>('POST', '/talent-offers', body),
+  sentOffers: () => request<SentOffer[]>('GET', '/talent-offers/sent'),
+  cancelOffer: (offerId: number) => request<SentOffer>('POST', `/talent-offers/${offerId}/cancel`),
+
+  // Company: profile and running projects (D23)
+  updateMyCompany: (body: CompanyUpdate) => request<CompanyOut>('PUT', '/companies/me', body),
+  myProjects: () => request<CompanyProjectOut[]>('GET', '/companies/me/projects'),
+  createProject: (body: CompanyProjectIn) => request<CompanyProjectOut>('POST', '/companies/me/projects', body),
+  updateProject: (projectId: number, body: CompanyProjectIn) => request<CompanyProjectOut>('PUT', `/companies/me/projects/${projectId}`, body),
+  deleteProject: (projectId: number) => request<void>('DELETE', `/companies/me/projects/${projectId}`),
 };
 
 /** `?a=1&b=x` from the defined, non-empty values. */

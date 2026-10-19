@@ -1,7 +1,7 @@
 import { t, type MessageKey } from '@/i18n';
 import type { ApplicationStatus } from '@/types/application';
 import type { Category, Importance } from '@/types/criteria';
-import type { EmploymentType } from '@/types/job';
+import type { EmploymentType, JobStatusName } from '@/types/job';
 import type { MatchLevel } from '@/types/recommendation';
 import type { OfferStatus } from '@/types/talent';
 import { deadlineLabel, experienceLabel } from './format';
@@ -110,4 +110,21 @@ export function JobMeta({
       ))}
     </span>
   );
+}
+
+export function JobStatusTag({ status }: { status: JobStatusName }) {
+  return (
+    <span className={ui.status} data-status={status}>
+      {t(`jobStatus.${status}`)}
+    </span>
+  );
+}
+
+/** Indicator square for one criterion score (company side only, D1). Levels follow the scorer: strong is 75. */
+export function scoreLevel(score: number): 'met' | 'partial' | 'missing' {
+  return score >= 75 ? 'met' : score >= 25 ? 'partial' : 'missing';
+}
+
+export function ScoreSquare({ score }: { score: number }) {
+  return <span className={ui.square} data-level={scoreLevel(score)} aria-hidden="true" />;
 }
