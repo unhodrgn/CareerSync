@@ -38,7 +38,7 @@
 - `scoring/` — `scorers.py` (1 scorer / category), `retrieval.py` (RAG đơn giản), `fit.py` (`score_candidate`, `aggregate_fit`, `rank`, `summary_comment`).
 - `guardrails/` — blocklist tiêu chí, kiểm tra quote bằng chứng.
 - `embedding/` — model embedding, từ điển skill.
-- `bias/audit.py`, `cache/store.py` — stub 1 dòng `TODO`.
+- Bias audit, cache LLM — chưa có code (stub `bias/`, `cache/` đã xoá).
 - `prompts/v1/` — `cv_structure.md`, `jd_analyze.md`, `rubric_score.md`.
 
 **Entrypoint**: `backend/app/main.py` (`app = FastAPI(...)`, mount 7 router, handler `AppError`, `/health`).
@@ -297,7 +297,7 @@ Thứ tự: #15 → #18 (D18). #16 (worker) để sau demo; #17 (giới hạn ch
 | 21 | Nợ test: `PRAGMA foreign_keys` cho SQLite (issue 5, Nhỏ), test drift migration (issue 18, Vừa), test ánh xạ lỗi `AnthropicClient` (Nhỏ) | Nhỏ–Vừa | Sửa `conftest.py` ở root |
 | 22 | Hiệu năng/chi phí: cache embedding chunk (issue 8), cache LLM theo hash (issue 9), log token (issue 10) | Vừa | — |
 | 23 | Xoá CV / tài khoản (issue 11) | Vừa | Để sau (D34); xoá tài khoản công ty còn mở (Q22); FK `RESTRICT` (cần migration) |
-| 24 | Bias audit (`ai/bias/audit.py`) | Vừa | Không chặn demo |
+| 24 | Bias audit (chưa có module) | Vừa | Không chặn demo |
 | 25 | Issue 4: `JWT_SECRET_KEY` rỗng phải được coi như thiếu biến (dùng dev default, như README mô tả); hiện rỗng → login 500 | Nhỏ | `core/config.py`; liên quan #20 |
 | 26 | Frontend cho guest: vào danh sách và chi tiết job không cần login (`App.tsx` đang bắt login mọi trang); ẩn nút apply/khối tiêu chí khi chưa login | Nhỏ | Backend D4 xong; khối tiêu chí theo Q19; chạy `npm run build` |
 | 27 | Frontend gợi ý + consent: trang 추천 dùng `GET /api/recommendations/jobs` (band, `pending_count`, bỏ `demoMatch`); câu đồng ý AI ở 회원가입 nêu “지원 평가 및 맞춤 추천” | Nhỏ–Vừa | D16; chạy `npm run build` |

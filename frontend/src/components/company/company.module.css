@@ -80,12 +80,6 @@
   grid-column: span 2;
 }
 
-.panelSection + .panelSection {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-line-soft);
-}
-
 .sectionHead {
   margin-bottom: 14px;
   display: flex;

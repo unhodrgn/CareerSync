@@ -39,19 +39,19 @@
 | Company profile (name, intro, 인재상) | [Current] | |
 | Company running projects | [Current] | `/api/companies/me/projects`, shown on the public company profile; context for AI JD drafts; never used in scoring (D23) |
 | Jobs: draft → published → closed | [Current] | |
-| AI suggests criteria from the JD (`/analyze`) | [Current] | Backend only; the frontend does not call it. Suggestions that saving would reject are left out (D24, issue 7) |
-| AI drafts a JD for a draft job (`/jd-draft`) | [Current] | Backend only; not saved (D24) |
+| AI suggests criteria from the JD (`/analyze`) | [Current] | Used by the job editor. Suggestions that saving would reject are left out (D24, issue 7) |
+| AI drafts a JD for a draft job (`/jd-draft`) | [Current] | Used by the job editor; not saved (D24) |
 | Criteria + weights with a legal guardrail | [Current] | |
 | CV PDF upload → PII masking → structuring → seeker edits and confirms | [Current] | |
 | Apply → background scoring → applicants ranked by Fit with evidence | [Current] | |
 | Recruiter changes application status | [Current] | |
-| Job list / detail without login | [Planned] | Today both need a token ([§4.2](#42-planned-endpoints--do-not-exist)) |
-| Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py` (not used by any endpoint until job recommendation) |
+| Job list / detail without login | [Current] | `GET /api/jobs`, `GET /api/jobs/{job_id}` are public; the token is optional (D4) |
+| Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py`, used by job recommendation and talent recommendation |
 | AI self-check of a CV version (strengths / improvements, no score) | [Current] | `POST /api/cv/{profile_id}/review` (D25) |
 | Skill roadmap and interview practice questions for a job | [Current] | `POST /api/jobs/{job_id}/roadmap`, `POST /api/jobs/{job_id}/interview-questions` (D21) |
-| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); the frontend page still shows demo numbers |
+| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); seeker page 추천 공고 shows match bands only |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
-| Bias audit, AI cache | [Planned] | Stub files |
+| Bias audit, AI cache | [Planned] | No code yet |
 | Delete CV / account | Deferred | Later phase, not rejected (docs/DECISIONS.md D34) |
 
 **End-to-end flow**
@@ -263,7 +263,7 @@ Paths are working names (design doc 상세 §3.1); field-level request/response 
 |---|---|---|---|---|
 | Delete CV / account | — | — | — | Deferred (docs/DECISIONS.md D34) |
 
-Response sketches (field names not final). `pending_count` = candidates that passed the Pref filter (talent: the candidate filter) but whose evaluation is not `done` yet — queued in this call, still `pending`, `failed` and waiting for re-queue, or left for a later call by the per-call/daily caps. They are not in `items`.
+Response shapes of the recommendation, talent and sent-offer endpoints in [§4.1](#41-existing-endpoints-current) (all implemented; exact schemas in Swagger `/docs`). `pending_count` = candidates that passed the Pref filter (talent: the candidate filter) but whose evaluation is not `done` yet — queued in this call, still `pending`, `failed` and waiting for re-queue, or left for a later call by the per-call/daily caps. They are not in `items`.
 ```
 GET /api/recommendations/jobs (implemented) → {"items": [{"job_id", "title", "company_name", "location", "employment_type", "deadline", "match_level": "매우 적합|적합|참고"}], "pending_count": 3, "notice": AI_NOTICE}
 GET /api/jobs/{job_id}/talent (implemented) → {"job_id", "items": [{"anonymous_id": "C-1A2B3C4D5E", "fit": 80.0, "criteria": [{"criterion_id", "name", "score", "level"}], "skills", "experience_years", "roles", "project_techs", "education": [{"degree", "major"}], "certificates", "desired": {"locations", "employment_types", "job_keywords"}, "offer_status"}], "pending_count": 5, "notice": AI_NOTICE}
@@ -274,26 +274,35 @@ GET /api/talent-offers/sent (implemented) → [{"offer_id", "job_id", "job_title
 
 ## 5. Frontend
 
-> Mục này mô tả frontend cũ đã bị xoá; `frontend/` đang được dựng lại từ đầu và mục này sẽ được cập nhật sau.
+Routes from `frontend/src/routes/router.tsx` (paths in `routes/paths.ts`); every HTTP call goes through `frontend/src/api/client.ts` (`api.*`). Role and consent are enforced by `auth/RequireRole.tsx`: guests go to `/login?next=…`, the wrong role goes to its own home, and a user whose consent text is outdated goes to `/consent` (D17). A seeker who withdrew AI consent is let through; the shell offers to consent again. The token is kept in `sessionStorage` (`auth/tokenStorage.ts`); a 401 on an authenticated call clears it. UI text comes from `src/i18n/` (`t()`); backend error codes map to Korean messages in `api/errors.ts`. All data is real (no mock data).
 
-Routes from `frontend/src/App.tsx`; API calls from `frontend/src/api/client.ts`. Role is enforced by `Guard`. Token is kept in `localStorage`.
+| Route | Page (`src/pages/`) | Role | Calls (`api.*`) |
+|---|---|---|---|
+| `/` | `public/Home` (landing) | — | — |
+| `/login` | `public/Login` | — | `login`, `me` (via `AuthContext`) |
+| `/register` | `public/Register` | — | `register` |
+| `/consent` | `public/Consent` (re-consent) | any signed-in | `me`, `consent` |
+| `/jobs` | `public/JobList` | guest or signed-in | `jobs` |
+| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply` |
+| `/companies/:companyId` | `public/CompanyPublic` | any signed-in | `company` |
+| `/seeker` | `seeker/RecommendedJobs` (추천 공고) | seeker | `recommendations`, `myPreferences` |
+| `/seeker/cv` | `seeker/Cv` (내 이력서) | seeker | `myCv`, `uploadCv`, `updateCv`, `reviewCv` |
+| `/seeker/applications` | `seeker/Applications` (지원 현황) | seeker | `myApplications` |
+| `/seeker/offers` | `seeker/Offers` (받은 제안) | seeker | `myOffers`, `acceptOffer`, `rejectOffer`, `myPreferences` |
+| `/seeker/preferences` | `seeker/Preferences` (희망 조건) | seeker | `myPreferences`, `savePreferences` |
+| `/seeker/account` | `seeker/Account` (내 정보) | seeker | `withdrawAiConsent` |
+| `/seeker/jobs/:jobId/prep` | `seeker/JobPrep` (취업 준비) | seeker | `job`, `myCv`, `roadmap`, `interviewQuestions`, `reviewCv` |
+| `/company/jobs` | `company/JobList` (공고 관리) | company | `myJobs` |
+| `/company/jobs/new`, `/company/jobs/:jobId/edit` | `company/JobEditor` (공고 수정) | company | `job`, `createJob`, `updateJob`, `deleteJob`, `publishJob`, `closeJob`, `ownCriteria`, `saveCriteria`, `checkCriterion`, `analyzeJob`; `JdDraftPanel`: `draftJd`, `myProjects` |
+| `/company/jobs/:jobId/applicants` | `company/Applicants` (지원자 순위) | company | `job`, `applicants` (quick filters, D22); `ApplicantDetail`: `evaluation`, `retryEvaluation`, `setApplicationStatus` |
+| `/company/jobs/:jobId/talent` | `company/Talent` (인재 추천) | company | `job`, `talent`, `sendOffer` |
+| `/company/offers` | `company/SentOffers` (보낸 제안) | company | `sentOffers`, `cancelOffer` |
+| `/company/profile` | `company/CompanyProfile` (기업 프로필) | company | `myCompany`, `updateMyCompany`, `myProjects`, `createProject`, `updateProject`, `deleteProject` |
+| `*` | `public/NotFound` | — | — |
 
-| Route | Page | Role | Calls (`api.*`) | Data |
-|---|---|---|---|---|
-| `/login` | `Login` | — | `login`, `me` (via `AuthContext`) | Real |
-| `/register` | `Register` | — | `register` | Real |
-| `/seeker` | `seeker/Recommended` (추천 공고) | seeker | `publicJobs` | Real jobs, **demo match %** (`mock/data.ts` `demoMatch`, "데모" banner) |
-| `/seeker/jobs/:id` | `seeker/JobDetail` | seeker | `job`, `seekerCriteria`, `myApplications`, `apply` | Real |
-| `/seeker/resume` | `seeker/Resume` (내 이력서) | seeker | `myCv`, `uploadCv`, `updateCv` | Real |
-| `/seeker/prep` | `seeker/Prep` (취업 준비) | seeker | — | Coming soon |
-| `/seeker/me` | `seeker/MyPage` (마이페이지) | seeker | `myApplications` | Real |
-| `/company/jobs` | `company/JobList` | company | `myJobs`, `deleteJob` | Real |
-| `/company/jobs/new`, `/company/jobs/:id/edit` | `company/JobEditor` | company | `job`, `myJobs`, `createJob`, `updateJob`, `publishJob`, `closeJob`, `criteria`, `saveCriteria`, `copyCriteria`, `checkCriterion` | Real |
-| `/company/applicants` | `company/Applicants` (지원자 관리) | company | `myJobs`, `applicants`, `evaluation`, `retryEvaluation`, `setApplicationStatus` | Real |
-| `/company/talent` | `company/Talent` (인재 추천) | company | — | Coming soon |
-| `/company/profile` | `company/CompanyProfile` | company | `myCompany`, `updateCompany` | Real |
+The shell (`components/layout/AppShell.tsx`) also calls `myCompany` (company) and `myOffers` (seeker, pending-offer badge).
 
-Backend endpoints with no frontend caller: `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft`, `POST /api/cv/{profile_id}/review`, `GET /api/companies/{company_id}`, `GET /api/cv/{profile_id}`, `/api/companies/me/projects*`; the quick filters of `GET /api/jobs/{job_id}/applications` are not used yet.
+Backend endpoints with no frontend caller: `GET /api/cv/{profile_id}`, `POST /api/jobs/{job_id}/criteria/copy-from/{source_job_id}`.
 
 ---
 
@@ -317,7 +326,6 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `career/gaps.py`, `career/roadmap.py` | Skills/certificates the job names that the masked CV text lacks (code, `data/skills.yaml`); roadmap steps: LLM writes only goal/activities for computed gaps, other skills dropped, URLs stripped; resources only from `data/learning_resources.yaml` | Claude (`prompts/v1/roadmap.md`) or template | `career_service.roadmap` |
 | `career/interview.py` | Interview questions from the JD, criteria and up to 4 masked CV excerpts (retrieval). Checks: criterion ids must exist, `cv_quote` verified (`verify_quotes`), URLs stripped; every question (LLM and template) with its intent and tips through the criteria guardrail and then `data/interview_blocklist.yaml` (marriage, children, dating, religion, age, appearance, origin, family, politics, health; written for questions, blocks generously); < 3 left → template | Claude (`prompts/v1/interview_questions.md`) or template | `career_service.interview_questions` |
 | `career/cv_review.py` | CV self-check. Rules on the masked text and the version's profile (quotes are CV lines); findings that change scoring (`affects_scoring`) are always included. LLM sees the masked text only: a strength needs a `cv_quote` that passes `verify_quotes`, an improvement's unverified quote becomes null; every item through `data/blocklist.yaml` and `data/interview_blocklist.yaml`; URLs stripped; ≤ 5 each; LLM error or no strength left → rules | Claude (`prompts/v1/cv_review.md`) or rules | `cv_review_service.review` |
-| `bias/audit.py`, `cache/store.py` | — | — | [Planned] stubs |
 
 **Scoring per category**
 Rule scorers give points only for what is found in the masked CV text (`cv_documents.masked_text`, not editable); the seeker-edited profile only says what to look for, and evidence is always a line of that text (issue 3).
@@ -334,12 +342,12 @@ Rule scorers give points only for what is found in the masked CV text (`cv_docum
 
 **Backend ↔ AI.** Services get AI components only through `services/ai_runtime.py` (`skills()`, `embedder()`, `llm()`), so tests swap them. `ai/` receives plain objects (`Candidate`, `Criterion`, `JobContext`) and never touches the DB. The only criteria read path for scoring is `criteria_service.load_for_scoring()` (drops criteria blocked by a newer blocklist and rescales weights).
 
-**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), JD drafts (1 per click, at most `JD_DAILY_LLM_DRAFTS` per company per day), roadmaps, interview questions and CV reviews (1 per new result, cached, together at most `CAREER_DAILY_LLM_GENERATIONS` per seeker per day), `project`/`other` criteria (1–2 per criterion per application). Planned recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; limited by the per-call and daily caps and attempt limit in [§6.1](#61-recommendation) (talent limit still open, issue 26). No cache yet.
+**Cost.** Only Claude calls cost money, and only with `AI_MODE=llm`: CV structuring (1 call per upload), JD analysis (1 per click), JD drafts (1 per click, at most `JD_DAILY_LLM_DRAFTS` per company per day), roadmaps, interview questions and CV reviews (1 per new result, cached, together at most `CAREER_DAILY_LLM_GENERATIONS` per seeker per day), `project`/`other` criteria (1–2 per criterion per application). Job recommendation adds the same scoring cost for jobs a seeker has not applied to, and talent recommendation for public seekers per job; both are limited by the per-call and daily caps and the attempt limit in [§6.1](#61-recommendation) (talent: D19, issue 26). No cache yet.
 
 **Config locations.** Mode: `AI_MODE`. Model: `LLM_MODEL` (default in `ai/llm/client.py`). Embedding: `EMBEDDING_MODEL`. Prompts: `ai/prompts/v1/`, `PROMPT_VERSION` in `ai/parsing/extract.py`. Data: `data/blocklist.yaml` (`grep -c "^  - id:" data/blocklist.yaml` = number of rules), `data/skills.yaml`.
 
 ### 6.1 Recommendation
-Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implemented (`services/recommendation_service.py`); talent recommendation is [Planned], no code. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
+Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendation (`services/recommendation_service.py`) and talent recommendation with offers (`services/talent_service.py`, `services/offer_service.py`) are implemented. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
 
 **Job recommendation (seeker → jobs)**
 - Candidates: published, unexpired jobs. Excluded: jobs already applied to; seekers with no confirmed CV or no AI consent.
@@ -347,10 +355,10 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - **Empty preferences**: an empty field is not counted. A seeker with no preferences has Pref = 100 for every job, so ranking is by Fit alone and the evaluation cap below is what limits cost. Planned: show a "희망 조건을 입력하면 추천이 정확해집니다" prompt on the page when all three are empty.
 - **Fit**: reuse the evaluation for (job, newest confirmed CV version); create it if missing. Fit is computed only for jobs with Pref ≥ 40, to limit LLM calls.
 - **Evaluation cap**: one recommendation call queues at most `RECO_MAX_NEW_EVALUATIONS` (10) evaluations (new or re-queued), picking candidates with the highest Pref first, then newest `published_at`. Jobs over the cap are left out of this response and get evaluated on later calls.
-- **Daily cap per seeker** (**only in `AI_MODE=llm`**, D16): at most `RECO_DAILY_NEW_EVALUATIONS` (30) queued evaluations per seeker per day (KST), so reloading the page cannot bypass the per-call cap. Counting rule and re-queues: see the next bullets (uses `queued_at`); evaluations queued by applying do not count. When the cap is reached, the call returns only existing `done` results. Talent recommendation needs its own per-company limit — see [issue 26](#11-known-issues-and-risks). Both endpoints are covered by [issue 22](#11-known-issues-and-risks). Further option if cost is still high: turn recommendation on only when at least one preference is filled.
+- **Daily cap per seeker** (**only in `AI_MODE=llm`**, D16): at most `RECO_DAILY_NEW_EVALUATIONS` (30) queued evaluations per seeker per day (KST), so reloading the page cannot bypass the per-call cap. Counting rule and re-queues: see the next bullets (uses `queued_at`); evaluations queued by applying do not count. When the cap is reached, the call returns only existing `done` results. Talent recommendation has its own per-company limit (`TALENT_DAILY_NEW_EVALUATIONS`, D19, [issue 26](#11-known-issues-and-risks)). Both endpoints are covered by [issue 22](#11-known-issues-and-risks). Further option if cost is still high: turn recommendation on only when at least one preference is filled.
 - **CV versions:** evaluations are keyed by job × CV version, so a newly **confirmed** CV version cannot reuse old evaluations and is re-evaluated (within the cap). This is a deliberate trade-off: scores always match the CV the seeker confirmed. Saving an edit without confirming creates no evaluation, because recommendation uses only the newest confirmed version.
-- **Get-or-create rule** (implemented for apply and retry; recommendations must follow it): always obtain the evaluation through `evaluation_service.ensure(job_id, cv_profile_id)` (unique on job × CV version), never create one directly. `ensure()` must catch `IntegrityError` on insert (inside a savepoint), roll back that savepoint and re-read the row, so two concurrent requests end up with the same evaluation instead of a 500. Queue scoring **only** when the evaluation is new, `failed`, or `pending` for longer than `EVALUATION_STALE_MINUTES`; a fresh `pending` one is left alone because a task is already running. Implemented as `evaluation_service.claim()`: one conditional `UPDATE … WHERE status = 'failed' OR (status = 'pending' AND (queued_at IS NULL OR queued_at < now − EVALUATION_STALE_MINUTES))`, so of several concurrent requests exactly one queues. A concurrent apply by the same seeker gets 409 `ALREADY_APPLIED` (unique `applications(job_id, seeker_id)`).
-- **Columns for the rule above:** `evaluations.queued_at` (set on every queue) and `evaluations.attempts` (incremented on every queue). Every queue path (apply, retry, recommendation) must set both; the stale check uses `queued_at`, because a re-queued evaluation keeps its old `created_at`.
+- **Get-or-create rule** (implemented for apply, retry, job recommendation and talent recommendation; new queue paths must follow it): always obtain the evaluation through `evaluation_service.ensure(job_id, cv_profile_id)` (unique on job × CV version), never create one directly. `ensure()` must catch `IntegrityError` on insert (inside a savepoint), roll back that savepoint and re-read the row, so two concurrent requests end up with the same evaluation instead of a 500. Queue scoring **only** when the evaluation is new, `failed`, or `pending` for longer than `EVALUATION_STALE_MINUTES`; a fresh `pending` one is left alone because a task is already running. Implemented as `evaluation_service.claim()`: one conditional `UPDATE … WHERE status = 'failed' OR (status = 'pending' AND (queued_at IS NULL OR queued_at < now − EVALUATION_STALE_MINUTES))`, so of several concurrent requests exactly one queues. A concurrent apply by the same seeker gets 409 `ALREADY_APPLIED` (unique `applications(job_id, seeker_id)`).
+- **Columns for the rule above:** `evaluations.queued_at` (set on every queue) and `evaluations.attempts` (incremented on every queue). Every queue path (apply, retry, job recommendation, talent recommendation) must set both; the stale check uses `queued_at`, because a re-queued evaluation keeps its old `created_at`.
 - **Re-queues count toward the caps**: every queue — new, `failed` or stale `pending` — uses one slot of `RECO_MAX_NEW_EVALUATIONS` and of `RECO_DAILY_NEW_EVALUATIONS` (daily count = the seeker's evaluations with `queued_at` today that no application references). Recommendation stops re-queuing an evaluation after `EVALUATION_MAX_ATTEMPTS` (3) attempts (`claim(max_attempts=…)`); it then stays `failed` and recommendation skips it. `attempts` is reset to 0 when the seeker applies to that job or the company clicks 다시 분석 (both queue it again and are not limited by this count). A newly confirmed CV version is a new evaluation, so it starts at 0. Editing the job does not reset it: after publishing only weights can change, and weights do not need re-scoring.
 - **Fencing** (implemented in `evaluation_service.evaluate`): the background task receives the `queued_at` value it was queued with. Before writing scores it updates the row only `WHERE id = :id AND queued_at = :token` (or re-reads it under `SELECT … FOR UPDATE`); if no row matches, a newer queue has replaced it, so the run discards its results and exits without changing `status`. This stops an old, slow run from overwriting the result of a newer one.
 - **Concurrency**: calls by the same seeker run one at a time (`SELECT … FOR UPDATE` on the `users` row), so parallel calls cannot overrun the caps; `claim()` keeps one evaluation from being queued twice.
@@ -369,7 +377,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16. Job recommendation is implem
 - Offers (D20, `services/offer_service.py`): the company sends one to an `anonymous_id` for one of its published jobs, with an optional `message`; the seeker must pass the same rules as the talent list. One live offer per (company, seeker): a `pending` (not expired) or `accepted` one blocks a new offer for any job (issue 16, checked in the service under a `FOR UPDATE` lock on `companies`, no DB constraint). After `rejected` the company cannot offer the same job again; another job is fine; `cancelled` blocks nothing (issue 23). At most `OFFER_DAILY_LIMIT` (20) offers per company per day (KST). A `pending` offer expires `OFFER_EXPIRY_DAYS` (14) after `created_at` (computed, shown as `expired`). Accept, reject and cancel are each one conditional `UPDATE … WHERE status = 'pending'` and not expired, so of two concurrent answers one wins. Contact (`display_name`, email from `users`) is returned **only after `accepted`**.
 - **Leaving the pool with a pending offer** (former Q10, decided in D20): turning `profile_public` off or withdrawing AI consent keeps the offer answerable for the seeker; the company keeps the `anonymous_id` but no longer sees the anonymous profile (`candidate: null`). An accepted offer keeps its contact details.
 
-**Consent:** `CONSENT_VERSION` is `2026-10-13`; recommendation requires `consent_version ≥ RECO_MIN_CONSENT_VERSION` (`2026-10-13`), else 409 `AI_CONSENT_REQUIRED`, so users who consented to an older version get no evaluation for jobs they did not apply to. Apply and CV upload need AI consent but not the newest version; existing applications stay valid. Users re-consent with `POST /api/users/me/consent`; `/api/users/me` tells the frontend when (`consent_required`). A seeker may withdraw AI consent (`DELETE /api/users/me/consent/ai`): every new AI use of their data stops (CV upload, apply, recommendation, the company's 다시 분석), they leave the talent pool, stored data stays, and a run queued before the withdrawal is not cancelled (D17). Not built yet: the consent text naming "지원 평가 및 맞춤 추천" and the re-consent screen (frontend). Appearing in talent recommendation additionally requires the separate `profile_public` opt-in (`profile_public_at` records when).
+**Consent:** `CONSENT_VERSION` is `2026-10-13`; recommendation requires `consent_version ≥ RECO_MIN_CONSENT_VERSION` (`2026-10-13`), else 409 `AI_CONSENT_REQUIRED`, so users who consented to an older version get no evaluation for jobs they did not apply to. Apply and CV upload need AI consent but not the newest version; existing applications stay valid. Users re-consent with `POST /api/users/me/consent`; `/api/users/me` tells the frontend when (`consent_required`). A seeker may withdraw AI consent (`DELETE /api/users/me/consent/ai`): every new AI use of their data stops (CV upload, apply, recommendation, the company's 다시 분석), they leave the talent pool, stored data stays, and a run queued before the withdrawal is not cancelled (D17). The frontend has the re-consent screen (`/consent`, §5); its consent text names "지원 평가와 맞춤 공고 추천" and is still marked as a draft (`auth.consent.draftNote`). Appearing in talent recommendation additionally requires the separate `profile_public` opt-in (`profile_public_at` records when).
 
 **Evaluation (AI quality) plan [Planned]:** synthetic data only — 20 synthetic CVs + 5 jobs with hand-made answers. Metrics: extraction precision/recall, quote-verification pass rate and evidence review, top-5 agreement of Fit ranking vs hand ranking, processing time (`POST /api/cv` → response; apply → `done`), failed-evaluation and upload-error rates. Each measured for rules-only and LLM mode.
 
@@ -415,12 +423,13 @@ CareerSync/
 │   ├── app/models/         # user, job, criteria, cv, application, matching
 │   ├── app/schemas/        # Pydantic request/response
 │   ├── app/services/       # auth, job, criteria, cv, application, evaluation, ai_runtime
-│   ├── app/api/v1/         # routers (recommendations.py is a stub)
+│   ├── app/api/v1/         # routers
 │   └── tests/
-├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, bias*, cache* (*stub), tests
-├── data/                   # blocklist.yaml, skills.yaml
-├── scripts/                # seed.py (demo data), docker_init.py (migrate + seed)
-└── frontend/src/           # App.tsx, api/, auth/, components/, mock/, pages/
+├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
+├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml
+├── docs/                   # DECISIONS.md, docker-compose.md, PROGRESS_BACKEND_AI.md, reference/ (proposal, design document, market research PDFs)
+├── scripts/                # seed.py (demo data), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
+└── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
 ```
 
 **Dependencies:** `api` → `services` → `models` + `ai`; `api/v1/jobs.py` calls `ai.parsing.extract.analyze_jd` directly; `criteria_service` → `ai/guardrails` + `data/blocklist.yaml`; `frontend` → backend only over `/api`.
@@ -466,7 +475,7 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview questions + CV review, D25) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
 | `JD_DAILY_LLM_DRAFTS` | `20` LLM JD drafts per company per day (KST), only in `AI_MODE=llm`; every LLM call counts, failed ones too; over it the template is returned with `limited: true`. Counted in process memory (`jd_service`): reset on restart, correct only with one backend process | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
-| `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); recommendation will reuse it |
+| `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); also used by job and talent recommendation to re-queue stale `pending` evaluations |
 
 Service constant: `company_project_service.MAX_PROJECTS` = `20` running projects per company (D23).
 
@@ -509,20 +518,20 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 6 | Architecture | Scoring runs in-process (`BackgroundTasks`); a restart leaves evaluations `pending` until 다시 분석. **Must be fixed before enabling talent recommendation** — recommendation multiplies the number of background evaluations. **Mitigated for the demo (D18):** recommendation and talent calls re-queue `pending` evaluations older than `EVALUATION_STALE_MINUTES`; a separate worker is still open | `api/v1/applications.py` | Open |
 | 7 | AI / UX | JD-suggested criteria skip the guardrail (it only blocks on save). **Fixed (D24):** `/analyze` leaves out suggestions with a guardrail hit or an education criterion without a major and lists them in `blocked` | `analyze_jd`, `/analyze`, `services/jd_service.py` | Fixed |
 | 8 | Performance | Retrieval re-embeds all CV passages for every criterion | `ai/scoring/retrieval.py` | Open |
-| 9 | Cost | No LLM cache; `cv_documents.sha256` unused | `ai/cache/store.py` (stub) | Open |
+| 9 | Cost | No LLM cache; `cv_documents.sha256` unused | — (no cache module yet) | Open |
 | 10 | Observability | Token usage is not logged | `ai/llm/client.py` | Open |
 | 11 | Privacy | No API to delete a CV or account; `applications.cv_profile_id` is RESTRICT | — | Open |
-| 12 | Security | Token in `localStorage` (XSS exposure) | `frontend/src/api/client.ts` | Open |
+| 12 | Security | Token in `sessionStorage` (XSS exposure) | `frontend/src/auth/tokenStorage.ts` | Open |
 | 13 | Data quality | A whitespace-only company name passes validation and becomes empty | `api/v1/companies.py` | Open |
 | 14 | Staleness | Editing 인재상 after scoring does not re-score `other` criteria | — | Open |
 | 15 | Design | Newest CV must be confirmed to apply, even if an older version was confirmed | `cv_service.latest_confirmed` | Open |
 | 16 | Data | `talent_offers` allows duplicate `pending` offers from the same company to the same seeker; planned: check in the service, no DB constraint. **Fixed (D20):** checked in `offer_service.create` under a lock on `companies` | `models/matching.py` | Fixed |
 | 17 | Data | Desired role is free-text keywords (`seeker_job_keywords`) and job titles are free text — Pref matching must handle this — see [Q1](#12-open-questions) | `models/matching.py` | Open |
 | 18 | Tests | Tests build tables with `create_all`, not migrations; model/migration drift is not tested | `backend/tests/conftest.py` | Open |
-| 19 | Frontend | 추천 공고 shows demo %; 인재 추천 and 취업 준비 are placeholders | `frontend/src/pages/` | Open |
+| 19 | Frontend | 추천 공고 shows demo %; 인재 추천 and 취업 준비 are placeholders. **Fixed:** every page uses the real API (§5) | `frontend/src/pages/` | Fixed |
 | 20 | Breaking-change risk | Changing `cv_profile.v1`, `to_profile_data`, the Fit formula or `load_for_scoring` affects stored scores and applicant screens | see [`CLAUDE.md`](CLAUDE.md) | Open |
 | 21 | Legal | Blocklist `law_ref` values are an unverified reading of the law; re-check their legal validity before the demo | `data/blocklist.yaml` | Open |
-| 22 | Cost / abuse | No rate limit on endpoints that can call the LLM: `POST /api/cv`, `/analyze`, apply, `/evaluation/retry`, and the planned `GET /api/recommendations/jobs` and `GET /api/jobs/{job_id}/talent`. A user can loop requests and spend API credit. The per-call and daily evaluation caps in [§6.1](#61-recommendation) limit recommendation only; a general rate limit is still needed | `api/v1/` | Open |
+| 22 | Cost / abuse | No rate limit on endpoints that can call the LLM: `POST /api/cv`, `/analyze`, apply, `/evaluation/retry`, `/jd-draft`, `/review`, `/roadmap`, `/interview-questions`, `GET /api/recommendations/jobs` and `GET /api/jobs/{job_id}/talent`. A user can loop requests and spend API credit. The per-call and daily caps in [§6.1](#61-recommendation) limit job and talent recommendation, and the daily LLM limits (`CAREER_DAILY_LLM_GENERATIONS`, `JD_DAILY_LLM_DRAFTS`) the career contents, CV review and JD drafts; a general rate limit is still needed | `api/v1/` | Open |
 | 23 | Data / UX | After a seeker rejects an offer, nothing stops the same company from sending a new offer right away (issue 16 only covers duplicate `pending`). Needs a rule, e.g. no re-offer for the same job, or a cool-down. When decided, also update the talent candidate filter in [§6.1](#61-recommendation). **Fixed (D20):** no re-offer for the same job after `rejected`; another job is allowed | `services/offer_service.py`, `services/talent_service.py` | Fixed |
 | 24 | Privacy | Anonymous profiles can still identify a person when combined: rare skills/certificates, exact experience months, project descriptions, a small applicant pool. Consider rounding experience to years, hiding free-text project descriptions, and a minimum pool size before showing results. **Done (D19):** experience in whole years, no free text or dates; no minimum pool size (decided) | `services/talent_service.py` | Open |
 | 25 | Concurrency | Apply calls `evaluation_service.ensure()` (reuse is correct) but queues scoring whenever the evaluation is not `done`. If it is a fresh `pending` (e.g. queued by recommendation, or by another request), the same evaluation is scored twice; `evaluate()` clears and rewrites scores, so the two runs can collide. Also, two concurrent `ensure()` calls for the same job × CV version hit `uq_evaluations_job_profile` and one request fails with 500. Fix: `ensure()` catches `IntegrityError` and re-reads; apply follows the get-or-create rule in [§6.1](#61-recommendation); every queue sets `queued_at`/`attempts`. Related: issue 2. **Fixed:** `ensure()` savepoint, `claim()`, fencing | `application_service.apply`, `api/v1/applications.py`, `evaluation_service.ensure` | Fixed |
@@ -550,23 +559,24 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 
 | Korean | English | Meaning here |
 |---|---|---|
-| 과제계획서 | Project proposal | Capstone project proposal (version 2026-10-08) |
+| 과제계획서 | Project proposal | Capstone project proposal (version 2026-10-08), `docs/reference/CareerSync_과제계획서.pdf` |
 | 인재상 | Talent profile | Company's description of the people it wants (`companies.talent_profile`) |
 | 신입 (가능) | Entry level (OK) | `min_experience_years = NULL` |
 | 희망 직무 | Desired role | `seeker_job_keywords` |
 | 근무 조건 / 희망 근무지 / 고용형태 | Working conditions / desired location / employment type | `seeker_preferred_locations`, `seeker_preferred_employment_types` |
 | 추천 공고 | Recommended jobs | Seeker page `/seeker` |
-| 인재 추천 | Talent recommendation | Company page `/company/talent` |
+| 인재 추천 | Talent recommendation | Company page `/company/jobs/:jobId/talent` |
 | 기업 제안 | Company offer | `talent_offers` |
-| 지원자 관리 | Applicant management | Company page `/company/applicants` |
-| 내 이력서 | My CV | Seeker page `/seeker/resume` |
-| 마이페이지 | My page | Seeker page `/seeker/me` |
-| 취업 준비 | Job preparation | Placeholder page `/seeker/prep` |
+| 지원자 순위 (지원자 관리) | Applicant ranking | Company page `/company/jobs/:jobId/applicants` |
+| 내 이력서 | My CV | Seeker page `/seeker/cv` |
+| 지원 현황 | My applications | Seeker page `/seeker/applications` |
+| 취업 준비 | Job preparation | Seeker page `/seeker/jobs/:jobId/prep` (roadmap, interview questions, CV self-check) |
 | 다시 분석 | Re-analyze | Button that calls `/evaluation/retry` |
 | 검토 전 / 서류 검토 / 면접 예정 / 보류 / 합격 / 불합격 | submitted / reviewing / interview / on_hold / passed / rejected | `applications.status` |
 | 중요도 핵심 / 중요 / 일반 | Importance core / important / normal | What signed-in seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`; docs/DECISIONS.md D30) |
 | 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16) |
 | 인재풀 공개 | Talent-pool opt-in | `seeker_preferences.profile_public` |
-| 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.1 dated 2026-10-12 |
+| 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.1 dated 2026-10-12; the PDF in the repo is `docs/reference/CareerSync_설계서.pdf` |
+| 시장조사 보고서 | Market research report | `docs/reference/CareerSync 시장조사 보고서.pdf` (source of the figures in the README overview) |
 | 채용절차법 제4조의3 | Fair Hiring Procedure Act, Art. 4-3 | Basis of the criteria blocklist |
 | 개인정보 보호법 | Personal Information Protection Act | Consent, deletion rights |

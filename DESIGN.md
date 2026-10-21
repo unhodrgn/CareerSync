@@ -251,7 +251,7 @@ components:
 
 ## Overview
 
-Binding visual reference: `EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels).html` (repo root), confirmed by Long 2026-10-16; it supersedes the earlier PNG and the first landing build.
+Binding visual reference: the landing reference "EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels)", confirmed by Long 2026-10-16 (the HTML file is no longer in the repo; the shipped landing and this document carry its decisions); it supersedes the earlier PNG and the first landing build.
 
 **Creative North Star: "One Spine, Two Fields"**
 

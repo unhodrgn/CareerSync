@@ -54,7 +54,7 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
 
 - Name: **CareerSync**. Tagline in docs: 기업 맞춤형 AI 채용 매칭 플랫폼 (criteria-based hiring and job matching). Logo mark: drawn in `frontend/src/components/common/icons.tsx` (`LogoMark`); no separate asset file.
 - Voice: user-facing text is Korean; claims stay factual (what the AI checked, what evidence exists), never promises of hiring outcomes.
-- **Binding visual reference:** `EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels).html` (repo root, untracked) is the landing reference, confirmed by Long 2026-10-16; it supersedes the earlier PNG of the same name and the first landing build. Its visuals bind later design work; its sample content does not override product rules. How the build resolved its content conflicts:
+- **Binding visual reference:** "EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels)" is the landing reference, confirmed by Long 2026-10-16 (the HTML file is no longer in the repo; `DESIGN.md` and the shipped landing carry its decisions); it supersedes the earlier PNG of the same name and the first landing build. Its visuals bind later design work; its sample content does not override product rules. How the build resolved its content conflicts:
   - Seeker card: the 4 criteria names with a neutral "구간 반영" badge, the AWS row as the amber "이력서에 없음" gap (D21), the JD-only gap in the footer; no "Matched" rows, no numbers (D1, D16, D21).
   - Spine: neutral category tags instead of the High / Core / Gap badges (importance levels are Q2, undecided).
   - Employer card: named applicants (not anonymous); anonymity is stated only for talent recommendation, in the trust note.
@@ -62,8 +62,8 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
 
 ## Evidence on Hand
 
-- Market research: `CareerSync 시장조사 보고서.pdf` (README cites companies struggling most with finding candidates, 44.5%, and reviewing applications, 41.0%).
-- Plans: `CareerSync_과제계획서.pdf`, `CareerSync_설계서.pdf` (design document; not a source of decisions, D11).
+- Market research: `docs/reference/CareerSync 시장조사 보고서.pdf` (README cites companies struggling most with finding candidates, 44.5%, and reviewing applications, 41.0%).
+- Plans: `docs/reference/CareerSync_과제계획서.pdf`, `docs/reference/CareerSync_설계서.pdf` (design document; not a source of decisions, D11).
 - Demo data: `scripts/seed.py` (synthetic). Real CVs must never be used.
 - None exist, and must not be invented: testimonials, customer logos, usage numbers, accuracy benchmarks, pricing, partner companies.
 

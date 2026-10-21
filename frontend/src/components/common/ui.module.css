@@ -90,12 +90,6 @@
   letter-spacing: -0.015em;
 }
 
-.panelMeta {
-  font-size: 12.5px;
-  color: var(--color-ink-muted);
-  white-space: nowrap;
-}
-
 .sectionTitle {
   margin: 0 0 10px;
   font-size: 13px;
@@ -268,12 +262,6 @@
 .tagTone {
   background: var(--tone-soft);
   color: var(--tone);
-}
-
-.tagEmployer {
-  background: var(--color-employer-soft);
-  color: var(--color-employer);
-  box-shadow: inset 0 0 0 1px var(--color-employer-tag-line);
 }
 
 .dot {
@@ -597,50 +585,9 @@
   background: rgb(0 0 0 / 0.06);
 }
 
-.chipStatic {
-  padding: 0 12px;
-}
-
 .chipInput {
   display: flex;
   gap: 8px;
-}
-
-/* Segmented control */
-
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--color-line-soft);
-}
-
-.segmented button {
-  height: 30px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--color-ink-muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background-color 160ms var(--ease-out),
-    color 160ms var(--ease-out);
-}
-
-.segmented button:hover {
-  color: var(--color-ink);
-}
-
-.segmented button[aria-pressed='true'] {
-  background: var(--color-paper);
-  color: var(--color-ink);
-  box-shadow: 0 0 0 1px var(--color-line);
 }
 
 /* Tabs */
@@ -708,34 +655,6 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 8px;
-}
-
-.row {
-  min-height: 44px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
-  font-size: 13.5px;
-}
-
-.rowName {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-}
-
-.rowEnd {
-  flex: none;
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 

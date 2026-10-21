@@ -24,7 +24,7 @@
 
 ### 1.2 Trong phạm vi sản phẩm, chưa chốt có bắt buộc cho demo hay không
 
-Có trong brief 2026-10-13; chưa chốt bắt buộc cho demo hay làm sau (Q10, Q11).
+Có trong brief 2026-10-13. Q10 đã đóng: AI tự kiểm tra CV (D25), skill roadmap và câu hỏi phỏng vấn (D21), AI hỗ trợ viết JD (D24), filter nhanh ứng viên (D22) đã chốt làm và đã có. Các mục ngoài brief vẫn chưa chốt (Q11).
 
 - Seeker: upload CV / profile, AI tự kiểm tra profile, xem job + match band, apply, theo dõi trạng thái, skill roadmap cho phần thiếu, câu hỏi phỏng vấn theo JD.
 - Employer: đăng ký business, đăng job (AI hỗ trợ viết JD), nhận đơn, tự đặt tiêu chí đánh giá, dashboard ứng viên đã xếp hạng + điểm mạnh/yếu, filter nhanh, project đang chạy.
@@ -96,18 +96,17 @@ Chỉ gồm những gì chưa chốt. Chốt xong thì chuyển thành một dò
 
 | # | Câu hỏi | Lệch ở đâu |
 |---|---|---|
-| Q1 | 설계서 ghi seeker xem **“적합도 점수”**, còn Figma và frontend đang hiện **%**. Xác nhận là các chỗ này bị D1 thay thế? | 설계서 기본 §3.1(4) (tr. 12–13: “추천 채용공고 목록과 적합도 정보”, “적합도 점수와 추천 근거”); Figma ghi chú “예시 데이터” (tr. 17); `frontend/src/pages/seeker/Recommended.tsx` + `mock/data.ts` `demoMatch` (%) |
+| Q1 | 설계서 ghi seeker xem **“적합도 점수”**, còn Figma hiện **%**. Xác nhận là các chỗ này bị D1 thay thế? (Frontend hiện chỉ hiện band theo D1, D16.) | 설계서 기본 §3.1(4) (tr. 12–13: “추천 채용공고 목록과 적합도 정보”, “적합도 점수와 추천 근거”); Figma ghi chú “예시 데이터” (tr. 17) |
 | Q9 | Các luật `[Planned]` trong `PROJECT_DOCUMENTATION.md` §6.1, §9 — chuyển vào §2 không? Gồm: luật queue/retry (`ensure()` + `IntegrityError`, chỉ queue khi mới / `failed` / `pending` ≥ 10 phút, fencing theo `queued_at`); giới hạn 10 evaluation mới/lần, 30/seeker/ngày (KST), tối đa 3 lần thử; trả về `done` + `pending_count`; cách khớp Pref (location bằng nhau hoặc chứa nhau, employment type bằng nhau, keyword là substring của title/JD); preference trống = khớp + nhắc nhập; tie-break Final ↓, Fit ↓, `published_at` mới nhất; bump `CONSENT_VERSION` + đồng ý lại. | `PROJECT_DOCUMENTATION.md` §6.1, §9 |
 
 ### 3.2 Phạm vi chưa chốt
 
 | # | Câu hỏi | Nguồn |
 |---|---|---|
-| Q10 | Tính năng nào trong brief là **bắt buộc cho demo**: AI tự kiểm tra CV (điểm mạnh / cải thiện), skill roadmap, câu hỏi phỏng vấn theo JD, AI hỗ trợ **viết** JD (hiện chỉ có phân tích JD đã viết), filter nhanh ứng viên? | Brief 2026-10-13. 설계서: có “강점 및 개선 제안” (tr. 11), “부족한 역량 … 개선 방향” (tr. 2); **không** có câu hỏi phỏng vấn, viết JD, filter ứng viên. Code: chưa có cái nào (`PROGRESS_BACKEND_AI.md` §3) |
 | Q11 | Các mục có trong 설계서 / Figma nhưng không có trong brief: field “경력 수준”, “보유 기술 스택” trong profile seeker; trang 기업 탐색. Trong hay ngoài phạm vi? (Lưu job, filter tìm kiếm, số liệu dashboard đã chốt ở D33.) | 설계서 tr. 9, 10, 12, 15, 18; `PROJECT_DOCUMENTATION.md` Q8 cũ (đã xoá, chuyển về đây và Q21). Code: chỉ tìm theo title (`job_service.list_public`) |
 | Q12 | Demo chạy `AI_MODE` nào (rules hay llm)? (Phần embedding đã chốt ở D26.) | D5, D7; `docker-compose.yml:16` |
 | Q14 | `law_ref` trong blocklist cần xác nhận lại tính pháp lý trước demo: xác nhận dựa trên nguồn nào, và có đưa vào §1.1 thành hạng mục bắt buộc không? | `PROJECT_DOCUMENTATION.md` Q7, issue 21; `data/blocklist.yaml` |
-| Q20 | **#14 — tiêu chí `experience` chỉ tính kinh nghiệm liên quan** (để sau demo; hiện tính tổng số tháng). Cần chốt: (a) kinh nghiệm không liên quan tính 0 hay 50%? (b) áp cho mọi tiêu chí `experience`, hay chỉ khi tiêu chí có “관련” hoặc nêu kỹ năng? (c) có chấm lại evaluation cũ không — không chấm lại thì trong cùng một job, người apply trước và sau bị chấm theo hai luật khác nhau (gợi ý job và talent cũng dùng lại evaluation cũ); chấm lại thì đổi điểm công ty đã xem? (d) entry chỉ có chức danh (vd “ABC 백엔드 개발자”) mà không nêu công nghệ sẽ bị coi là **không liên quan** nếu chỉ khớp theo kỹ năng trong `data/skills.yaml` — chấp nhận, hay thêm danh sách từ chỉ vai trò (백엔드, 프론트엔드, 데이터…)? Đề xuất lúc lập plan: (a) 0; (b) mọi tiêu chí, tính tổng khi job và tiêu chí không nêu kỹ năng nào; (c) không chấm lại; (d) chấp nhận và ghi issue. Ảnh hưởng: đổi điểm evaluation mới; không đổi công thức Fit, `load_for_scoring`, `cv_profile.v1`; vẫn chỉ đọc `masked_text` (AI rule 14) | `PROGRESS_BACKEND_AI.md` #14; `ai/scoring/scorers.py` `score_experience`; `PROJECT_DOCUMENTATION.md` §6 |
+| Q20 | **#14 — tiêu chí `experience` chỉ tính kinh nghiệm liên quan** (để sau demo; hiện tính tổng số tháng). Cần chốt: (a) kinh nghiệm không liên quan tính 0 hay 50%? (b) áp cho mọi tiêu chí `experience`, hay chỉ khi tiêu chí có “관련” hoặc nêu kỹ năng? (c) có chấm lại evaluation cũ không — không chấm lại thì trong cùng một job, người apply trước và sau bị chấm theo hai luật khác nhau (gợi ý job và talent cũng dùng lại evaluation cũ); chấm lại thì đổi điểm công ty đã xem? (d) entry chỉ có chức danh (vd “ABC 백엔드 개발자”) mà không nêu công nghệ sẽ bị coi là **không liên quan** nếu chỉ khớp theo kỹ năng trong `data/skills.yaml` — chấp nhận, hay thêm danh sách từ chỉ vai trò (백엔드, 프론트엔드, 데이터…)? Đề xuất lúc lập plan: (a) 0; (b) mọi tiêu chí, tính tổng khi job và tiêu chí không nêu kỹ năng nào; (c) không chấm lại; (d) chấp nhận và ghi issue. Ảnh hưởng: đổi điểm evaluation mới; không đổi công thức Fit, `load_for_scoring`, `cv_profile.v1`; vẫn chỉ đọc `masked_text` (AI rule 14) | `docs/PROGRESS_BACKEND_AI.md` #14; `ai/scoring/scorers.py` `score_experience`; `PROJECT_DOCUMENTATION.md` §6 |
 | Q21 | Field **số người tuyển (모집 인원)** trong form job: có làm không? Nếu có thì cần cột mới ở `job_postings` (migration) và đổi contract tạo/sửa job. | Figma form job trong 설계서; `PROJECT_DOCUMENTATION.md` Q8 cũ (đã xoá) |
 | Q22 | **Xoá tài khoản công ty**: chưa chốt (D34 chỉ nói về seeker). Xoá thì job, đơn ứng tuyển, evaluation, offer của công ty xử lý thế nào? | D34; `PROJECT_DOCUMENTATION.md` Q5 cũ (đã xoá) |
 
@@ -115,5 +114,5 @@ Chỉ gồm những gì chưa chốt. Chốt xong thì chuyển thành một dò
 
 | # | Câu hỏi | Nguồn |
 |---|---|---|
-| Q16 | Phiên bản 설계서: PDF trong repo ghi **버전 1.0, 2026-10-11**, còn `PROJECT_DOCUMENTATION.md` dẫn **v1.1, 2026-10-12**. File nào là bản hiện hành? | `CareerSync_설계서.pdf` tr. 1; `PROJECT_DOCUMENTATION.md` dòng 7 |
-| Q17 | Có cập nhật các tài liệu sau theo file này không, và khi nào: (a) 설계서 (tr. 5, 12–13, 21, 26–27 — key bật LLM, điểm phù hợp cho seeker); (b) `PROJECT_DOCUMENTATION.md` §1 (project công ty đang là `[DB only]`); (c) `PROGRESS_BACKEND_AI.md` (project công ty xếp P1 và phụ thuộc Q3)? | Các file nêu trên |
+| Q16 | Phiên bản 설계서: PDF trong repo ghi **버전 1.0, 2026-10-11**, còn `PROJECT_DOCUMENTATION.md` dẫn **v1.1, 2026-10-12**. File nào là bản hiện hành? | `docs/reference/CareerSync_설계서.pdf` tr. 1; `PROJECT_DOCUMENTATION.md` dòng 7 |
+| Q17 | Có cập nhật các tài liệu sau theo file này không, và khi nào: (a) 설계서 (tr. 5, 12–13, 21, 26–27 — key bật LLM, điểm phù hợp cho seeker); (b) `docs/PROGRESS_BACKEND_AI.md` (project công ty xếp P1 và phụ thuộc Q3)? | Các file nêu trên |

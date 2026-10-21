@@ -1,5 +1,4 @@
-/* Design tokens (colors, type, radii, shadows, motion) as CSS variables. Values follow the landing reference
-   `EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels).html`. */
+/* Design tokens (colors, type, radii, shadows, motion) as CSS variables. Values follow DESIGN.md. */
 @font-face {
   font-family: 'Pretendard Variable';
   src: url('../assets/fonts/PretendardVariable.woff2') format('woff2-variations');

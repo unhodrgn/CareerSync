@@ -27,17 +27,17 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 
 | Feature | Status | What exists today |
 | --- | --- | --- |
-| 🔐 Authentication | ✅ Done | Register as seeker or company with privacy and AI consent, JWT login (2 h access token, Argon2id passwords) |
-| 🏢 Company profile | ✅ Done | Name, intro, 인재상 (talent profile). Running projects are not built yet |
-| 📝 Job postings | ✅ Done | Draft → published → closed; after publish only deadline, location and salary note can change. `POST /jobs/{id}/analyze` reads the JD and suggests a criteria draft |
-| ⚖️ Criteria & weights | ✅ Done | Per-job criteria (max 10, integer weights summing to 100), copy from another job, live guardrail that blocks discriminatory criteria with the law that forbids them |
-| 📄 CV analysis | ✅ Done | Upload a text PDF (≤ 5 pages, ≤ 5 MB), PII is masked, skills/education/experience/projects/certificates are extracted, the seeker edits and confirms (each save is a new version) |
-| 📊 Applicant evaluation | ✅ Done | Apply → background scoring → recruiter sees applicants ranked by Fit with per-criterion score, evidence and comment. Weight edits re-rank without new AI calls |
+| 🔐 Authentication | ✅ Done | Register as seeker or company with privacy and AI consent, JWT login (2 h access token, Argon2id passwords), re-consent screen, seeker can withdraw AI consent |
+| 🏢 Company profile | ✅ Done | Name, intro, 인재상 (talent profile), running projects (shown on the public company page and usable as context for AI JD drafts) |
+| 📝 Job postings | ✅ Done | Draft → published → closed; after publish only deadline, location and salary note can change. AI drafts a JD for a draft job and suggests a criteria draft from the JD |
+| ⚖️ Criteria & weights | ✅ Done | Per-job criteria (max 10, integer weights summing to 100), live guardrail that blocks discriminatory criteria with the law that forbids them |
+| 📄 CV analysis | ✅ Done | Upload a text PDF (≤ 5 pages, ≤ 5 MB), PII is masked, skills/education/experience/projects/certificates are extracted, the seeker edits and confirms (each save is a new version); AI self-check of the CV (strengths, improvements) |
+| 📊 Applicant evaluation | ✅ Done | Apply → background scoring → recruiter sees applicants ranked by Fit with per-criterion score, evidence and comment, with quick filters. Weight edits re-rank without new AI calls |
 | 🧑‍💼 Recruiter workflow | ✅ Done | Status changes (검토 전, 서류 검토, 면접 예정, 보류, 합격, 불합격) only happen when the recruiter clicks |
-| 🎯 Job recommendation | ⏳ Planned | No `/api/recommendations` yet. The seeker 추천 공고 page shows real jobs but demo match % (yellow "데모" banner) |
-| 🔎 Talent recommendation (인재 추천) | ⏳ Planned | Placeholder page; waiting on a privacy decision about showing non-applicants to companies |
-| 🛡️ Bias audit, AI cache | ⏳ Planned | `ai/bias/` and `ai/cache/` are stubs |
-| 🐳 `docker compose up` | Implemented; Docker runtime verification pending | Starts DB, migrations + demo seed, backend and frontend. See [Compose guide](docs/docker-compose.md) |
+| 🎯 Job recommendation | ✅ Done | 추천 공고: jobs matching the seeker's preferences and the job's criteria, shown with a match band (매우 적합 / 적합 / 참고), no scores |
+| 🧭 Job preparation | ✅ Done | 취업 준비 for a job: skills the job asks for that the CV lacks with a learning plan, and interview practice questions |
+| 🔎 Talent recommendation (인재 추천) | ✅ Done | Companies see anonymous opted-in seekers per published job and send offers; contact details only after the seeker accepts |
+| 🐳 `docker compose up` | ✅ Done | Starts DB, migrations + demo seed, backend and frontend. See [Compose guide](docs/docker-compose.md) |
 
 ## 🧠 How Scoring Works
 
@@ -240,11 +240,11 @@ All passwords are `demo1234`.
 
 | Role | Email | What to try |
 | --- | --- | --- |
-| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상"), see 지원자 관리 |
+| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상"), see 지원자 순위 and 인재 추천 of a job |
 | Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
-| Seeker | `seeker@demo.test` | Upload a text PDF CV in 내 이력서, confirm it, apply to a job, check 마이페이지 |
+| Seeker | `seeker@demo.test` | Upload a text PDF CV in 내 이력서, confirm it, set 희망 조건, see 추천 공고, apply to a job, check 지원 현황 |
 
-A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test` and open 지원자 관리 to see the ranked applicant with per-criterion scores and evidence.
+A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
 
 ### 9. Run the tests
 
@@ -254,7 +254,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `523 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `515 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 198 backend tests.
+Expected: `528 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `520 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 203 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -393,7 +393,7 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET / PUT | `/api/jobs/{job_id}/criteria` | Read or replace the criteria set |
-| POST | `/api/jobs/{job_id}/criteria/copy-from/{source_job_id}` | Copy criteria from another own job |
+| POST | `/api/jobs/{job_id}/criteria/copy-from/{source_job_id}` | Copy criteria from another own job (API only; the UI does not offer it) |
 | POST | `/api/criteria/check` | Guardrail check for one criterion (used live in the editor) |
 
 ### CV
@@ -426,8 +426,6 @@ Base URL `http://localhost:8000`. Request/response schemas as currently implemen
 | POST | `/api/jobs/{job_id}/roadmap` | Seeker: skills the job asks for that the CV lacks, with a learning plan |
 | POST | `/api/jobs/{job_id}/interview-questions` | Seeker: interview practice questions for a job |
 
-Recommendations (`/api/recommendations`) are not built yet.
-
 ## 📁 Project Structure
 
 ```
@@ -436,6 +434,11 @@ CareerSync/
 ├── conftest.py                  # Test-wide settings: no network, no .env, hashing embedder
 ├── pyproject.toml               # pytest config (run pytest from the repo root)
 ├── docker-compose.yml           # DB, init, backend and frontend
+├── docs/
+│   ├── DECISIONS.md             # Decisions and scope (source of truth)
+│   ├── docker-compose.md        # Compose guide
+│   ├── PROGRESS_BACKEND_AI.md   # Backend/AI progress and issue list
+│   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
 │   ├── migrations/versions/     # 0001 … 0011
@@ -443,7 +446,7 @@ CareerSync/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app (run uvicorn from backend/)
 │   │   ├── core/                # Settings (.env loading), JWT, dependencies, errors
-│   │   ├── api/v1/              # auth, users, companies, jobs, criteria, cv, applications
+│   │   ├── api/v1/              # auth, users, companies, jobs, criteria, cv, applications, preferences, recommendations, talent, career
 │   │   ├── models/              # SQLAlchemy models
 │   │   ├── schemas/             # Pydantic schemas
 │   │   ├── services/            # Business logic; calls ai/ through ai_runtime
@@ -455,22 +458,30 @@ CareerSync/
 │   ├── jd/                      # JD drafts for companies
 │   ├── parsing/                 # PDF → text, PII masking, CV/JD structuring
 │   ├── embedding/               # e5 / hashing embedders, skill dictionary
-│   ├── scoring/                 # Per-criterion scorers and Fit (shared by evaluation and future recommendations)
+│   ├── scoring/                 # Per-criterion scorers, Fit and Pref (shared by evaluation and recommendations)
 │   ├── guardrails/              # Criteria blocklist, evidence check
-│   ├── bias/, cache/            # Stubs (planned)
+│   ├── career/                  # Skill gaps, roadmap, interview questions, CV self-check
 │   └── tests/
 ├── data/
 │   ├── blocklist.yaml           # Disallowed criteria with their legal basis
-│   └── skills.yaml              # Skill dictionary and aliases
-├── scripts/seed.py              # Demo companies, jobs, criteria and accounts
+│   ├── interview_blocklist.yaml # Disallowed interview question topics
+│   ├── learning_resources.yaml  # Verified learning resources for the roadmap
+│   └── skills.yaml              # Skill dictionary, aliases and related-skill groups
+├── scripts/
+│   ├── seed.py                  # Demo companies, jobs, criteria and accounts
+│   ├── docker_init.py           # Compose init: migrations + seed
+│   └── smoke_test.py            # End-to-end check of a running app over HTTP
 └── frontend/                    # React + TypeScript + Vite
     ├── vite.config.ts           # Port 3000, /api proxy to :8000
     └── src/
-        ├── api/                 # Fetch client and API types
-        ├── auth/                # Login state
-        ├── components/          # Layout and shared UI
-        ├── mock/data.ts         # Demo data still used by 추천 공고 match %
-        └── pages/               # Login, Register, seeker/*, company/*
+        ├── api/                 # Fetch client and error texts
+        ├── auth/                # Login state and role guard
+        ├── components/          # Layouts and shared UI (common, seeker, company)
+        ├── i18n/                # UI text (ko)
+        ├── pages/               # public/*, seeker/*, company/*
+        ├── routes/              # Router and paths
+        ├── styles/              # Design tokens and global CSS
+        └── types/               # API types
 ```
 
 ## 🔄 Core User Flows
@@ -478,16 +489,18 @@ CareerSync/
 ### Flow A: Job seeker
 
 ```
-Register → Upload CV → AI analysis → Edit & confirm → Browse jobs → Apply → Track status in 마이페이지
-                                                     (planned: recommended jobs with reasons)
+Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match band)
+        → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황
+        → (opted in) Answer anonymous offers from companies in 받은 제안
 ```
 
 ### Flow B: Company
 
 ```
-Register → Company profile → Create job → (optional) AI suggests criteria from the JD
+Register → Company profile + running projects → Create job → (optional) AI drafts the JD and suggests criteria
         → Set criteria + weights (blocked if discriminatory) → Publish
         → Applicants ranked by Fit → Per-criterion score + evidence → Recruiter updates status
+        → 인재 추천: anonymous seekers ranked by Fit → Send offer → Contact after acceptance
 ```
 
 ## 📏 Scoring Rules
@@ -498,7 +511,7 @@ Register → Company profile → Create job → (optional) AI suggests criteria 
 | Fit score | Weighted sum of per-criterion scores (0–100) |
 | Weight edits after publish | Allowed, re-ranked instantly without re-calling AI |
 | Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only (D30, D35) |
-| Final score (planned, with recommendations) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
+| Final score (job recommendation) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
 
 Coefficients live in `backend/app/core/config.py`.
 
