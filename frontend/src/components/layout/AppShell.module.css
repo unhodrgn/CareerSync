@@ -1,0 +1,380 @@
+/* App shell. Signed in: the landing's audience field reduced to a navigation rail (navy for seekers, green for
+   companies), the page on the canvas to its right. Guests: the landing header over the canvas.
+   The shell sets the page tone once (DESIGN.md Tone Rule) and --shell-top, the height of anything sticky at the
+   top of the viewport, so sticky panels inside pages sit below it. */
+
+.shell,
+.guestShell {
+  --tone: var(--color-seeker);
+  --tone-accent: var(--color-seeker-accent);
+  --tone-dot: var(--color-seeker-dot);
+  --tone-soft: var(--color-seeker-soft);
+  --tone-badge: var(--color-seeker-badge);
+  --tone-lit: var(--color-seeker-lit);
+  --focus-color: var(--tone);
+  min-height: 100vh;
+  background: var(--color-canvas);
+}
+
+.shell {
+  --shell-top: 0px;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+}
+
+.guestShell {
+  --shell-top: 64px;
+}
+
+/* App pages reserve the scrollbar's room, so a page growing past the viewport never shifts the layout sideways
+   (scoped to the shell: the landing and auth pages keep the browser default) */
+:global(html):has(.shell),
+:global(html):has(.guestShell) {
+  scrollbar-gutter: stable;
+}
+
+.shell[data-tone='company'] {
+  --tone: var(--color-employer);
+  --tone-accent: var(--color-employer-accent);
+  --tone-dot: var(--color-employer-dot);
+  --tone-soft: var(--color-employer-soft);
+  --tone-badge: var(--color-employer-badge);
+  --tone-lit: var(--color-employer-soft);
+}
+
+/* ── Rail ── */
+
+.rail {
+  --focus-color: var(--color-paper);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  background: var(--tone);
+  color: var(--color-paper);
+}
+
+.rail .brand {
+  padding: 0 8px;
+  gap: 10px;
+  color: var(--color-paper);
+}
+
+.rail .brandName {
+  font-size: 17px;
+}
+
+.nav {
+  margin-top: 28px;
+  flex: 1;
+}
+
+.navList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+/* Settings-like pages after a thin rule */
+.navDivider {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+}
+
+.navLink {
+  position: relative;
+  isolation: isolate;
+  height: 40px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  color: rgb(255 255 255 / 0.78);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+
+.navLink svg {
+  flex: none;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.navLink:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--color-paper);
+}
+
+/* The current page's fill: a layer that fades in (opacity only) */
+.navLink::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.13);
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.navLink[aria-current='page'] {
+  color: var(--color-paper);
+}
+
+.navLink[aria-current='page']::before {
+  opacity: 1;
+}
+
+.navLink[aria-current='page'] svg {
+  color: var(--tone-accent);
+}
+
+/* Outlines stay inside the row so neighbours never cover them */
+.navLink:focus-visible,
+.logout:focus-visible {
+  outline-offset: -2px;
+}
+
+.badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--tone-accent);
+  color: var(--tone);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Who is signed in, then 로그아웃 as a labelled row */
+.user {
+  padding: 14px 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+}
+
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--tone-badge);
+  color: var(--tone-accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.userText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+}
+
+.userName,
+.userDetail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.userDetail {
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.logout {
+  height: 36px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgb(255 255 255 / 0.78);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+
+.logout svg {
+  flex: none;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.logout:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--color-paper);
+}
+
+.main {
+  min-width: 0;
+}
+
+/* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
+.banner {
+  margin: 0;
+  padding: 10px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper);
+  font-size: 13.5px;
+  color: var(--color-ink-soft);
+}
+
+.banner a {
+  color: var(--tone);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+/* ── Guest header: the landing header with 회원가입 and 로그인 ── */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 64px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-canvas);
+}
+
+.brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.inkButton {
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
+}
+
+.inkButton:hover {
+  background: var(--color-ink-soft);
+}
+
+.inkButton:active {
+  transform: scale(0.95);
+}
+
+.quietLink {
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.quietLink:hover {
+  color: var(--color-ink);
+}
+
+/* ── Motion: page enter on route change, the withdrawn banner ── */
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.page {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Each route arrives once (keyed by path); no delay, so content is never held back */
+  .page {
+    animation: pageEnter 260ms var(--ease-out) backwards;
+  }
+
+  .banner {
+    animation: drop 220ms var(--ease-out) backwards;
+  }
+}
+
+/* Reduced motion: no animation or transition anywhere in the app shell (landing and auth pages keep their own rules) */
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after,
+  .guestShell *,
+  .guestShell *::before,
+  .guestShell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

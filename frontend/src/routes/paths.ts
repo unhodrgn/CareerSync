@@ -1,0 +1,27 @@
+export const paths = {
+  home: '/',
+  jobs: '/jobs',
+  jobDetail: '/jobs/:jobId',
+  login: '/login',
+  register: '/register',
+  consent: '/consent',
+  companyPublic: '/companies/:companyId',
+  seeker: {
+    recommended: '/seeker',
+    cv: '/seeker/cv',
+    applications: '/seeker/applications',
+    offers: '/seeker/offers',
+    preferences: '/seeker/preferences',
+    account: '/seeker/account',
+    jobPrep: '/seeker/jobs/:jobId/prep',
+  },
+  company: {
+    jobs: '/company/jobs',
+    jobNew: '/company/jobs/new',
+    jobEdit: '/company/jobs/:jobId/edit',
+    applicants: '/company/jobs/:jobId/applicants',
+    talent: '/company/jobs/:jobId/talent',
+    offers: '/company/offers',
+    profile: '/company/profile',
+  },
+} as const;

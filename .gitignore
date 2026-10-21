@@ -184,3 +184,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# impeccable: local tooling and ephemeral output
+.agent/
+.gemini/
+.claude/
+.kombai/
+**/.impeccable/config.local.json
+**/.impeccable/hook.cache.json
+**/.impeccable/hook.pending.json
+**/.impeccable/*.png
+**/.impeccable/review/
+**/.impeccable/questions/
+**/.impeccable/live/server.json
+**/.impeccable/live/sessions/
+**/.impeccable/live/previews/

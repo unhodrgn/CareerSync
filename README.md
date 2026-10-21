@@ -497,7 +497,7 @@ Register → Company profile → Create job → (optional) AI suggests criteria 
 | Criteria per job | At most 10, integer weights summing to 100 |
 | Fit score | Weighted sum of per-criterion scores (0–100) |
 | Weight edits after publish | Allowed, re-ranked instantly without re-calling AI |
-| Seeker visibility of weights | Criterion name + importance (높음 ≥ 25, 보통 ≥ 10, else 낮음), no raw numbers |
+| Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only (D30, D35) |
 | Final score (planned, with recommendations) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
 
 Coefficients live in `backend/app/core/config.py`.

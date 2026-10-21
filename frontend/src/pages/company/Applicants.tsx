@@ -1,319 +1,249 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
-import {
-  APPLICATION_STATUS_LABEL,
-  EVALUATION_STATUS_LABEL,
-  type ApplicantList,
-  type ApplicantRow,
-  type ApplicationStatus,
-  type EvaluationOut,
-  type JobListItem,
-} from "../../api/types";
-import { ErrorBox, Meter, errorText } from "../../components/ui";
+import { useState, type KeyboardEvent } from 'react';
+import { useParams, useSearchParams } from 'react-router';
+import { api } from '@/api/client';
+import { useApi } from '@/api/useApi';
+import { AiNotice } from '@/components/common/AiNotice';
+import { formatDate, monthsLabel } from '@/components/common/format';
+import { RefreshIcon } from '@/components/common/icons';
+import { ApplicationStatusTag, ScoreSquare } from '@/components/common/Labels';
+import { cx, PageHead } from '@/components/common/Page';
+import { Empty, ErrorPanel, Loading } from '@/components/common/States';
+import ui from '@/components/common/ui.module.css';
+import ApplicantDetail from '@/components/company/ApplicantDetail';
+import JobHeader from '@/components/company/JobHeader';
+import s from '@/components/company/company.module.css';
+import { t } from '@/i18n';
+import { paths } from '@/routes/paths';
+import { APPLICATION_STATUSES, type ApplicantList, type ApplicationStatus, type EvaluationStatus } from '@/types/application';
 
-type Tab = "summary" | "scores" | "evidence";
+const MIN_FITS = [60, 70, 80];
+const EVAL_STATUSES: EvaluationStatus[] = ['done', 'pending', 'failed'];
 
-// While an evaluation is still running, re-read the list this often
-const POLL_MS = 4000;
-
-function experience(months: number): string {
-  if (!months) return "경력 없음";
-  const y = Math.floor(months / 12);
-  const m = months % 12;
-  return y ? `경력 ${y}년${m ? ` ${m}개월` : ""}` : `경력 ${m}개월`;
-}
-
-function methodLabel(method: string): string {
-  if (method.startsWith("rule:")) return "규칙";
-  if (method.startsWith("llm:")) return "AI 루브릭";
-  return "유사도 추정";
-}
-
+/**
+ * Applicants ranked by Fit (D22): the quick filters apply after ranking, so a rank never shifts. The selected
+ * applicant (`?selected=`) opens beside the table with the evaluation and the status buttons.
+ */
 export default function Applicants() {
-  const [params, setParams] = useSearchParams();
-  const [jobs, setJobs] = useState<JobListItem[] | null>(null);
-  const [list, setList] = useState<ApplicantList | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [evaluation, setEvaluation] = useState<EvaluationOut | null>(null);
-  const [tab, setTab] = useState<Tab>("scores");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const jobId = Number(params.get("job")) || null;
-
-  useEffect(() => {
-    api
-      .myJobs()
-      .then((all) => {
-        const usable = all.filter((j) => j.status !== "draft");
-        setJobs(usable);
-        if (!jobId && usable.length) setParams({ job: String(usable[0].id) }, { replace: true });
-      })
-      .catch((err) => setError(errorText(err)));
-  }, []);
-
-  const loadList = useCallback(
-    (id: number) =>
-      api
-        .applicants(id)
-        .then((l) => {
-          setList(l);
-          setSelectedId((cur) => (cur && l.items.some((r) => r.application_id === cur) ? cur : l.items[0]?.application_id ?? null));
-        })
-        .catch((err) => setError(errorText(err))),
-    [],
+  const { jobId } = useParams();
+  const id = Number(jobId);
+  const job = useApi(() => api.job(id), [id]);
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus[]>([]);
+  const [minFit, setMinFit] = useState<number | undefined>(undefined);
+  const [evalFilter, setEvalFilter] = useState<EvaluationStatus | undefined>(undefined);
+  const list = useApi(
+    () => api.applicants(id, { status: statusFilter, min_fit: minFit, evaluation_status: evalFilter }),
+    [id, statusFilter.join(','), minFit, evalFilter],
   );
+  const [params, setParams] = useSearchParams();
+  const selected = Number(params.get('selected')) || null;
+  const select = (applicationId: number) => setParams({ selected: String(applicationId) }, { replace: true });
 
-  useEffect(() => {
-    setList(null);
-    setSelectedId(null);
-    setEvaluation(null);
-    setError("");
-    if (jobId) loadList(jobId);
-  }, [jobId, loadList]);
-
-  // Poll while any evaluation is still running
-  const pending = list?.items.some((r) => r.evaluation_status === "pending") ?? false;
-  useEffect(() => {
-    if (!pending || !jobId) return;
-    const t = window.setTimeout(() => loadList(jobId), POLL_MS);
-    return () => window.clearTimeout(t);
-  }, [list, pending, jobId, loadList]);
-
-  const selected = list?.items.find((r) => r.application_id === selectedId) ?? null;
-  const selectedState = selected?.evaluation_status;
-  useEffect(() => {
-    if (!selectedId) return;
-    api
-      .evaluation(selectedId)
-      .then(setEvaluation)
-      .catch((err) => setError(errorText(err)));
-  }, [selectedId, selectedState]);
-
-  async function changeStatus(row: ApplicantRow, status: ApplicationStatus) {
-    setBusy(true);
-    try {
-      const out = await api.setApplicationStatus(row.application_id, status);
-      setList((l) =>
-        l && { ...l, items: l.items.map((r) => (r.application_id === row.application_id ? { ...r, status: out.status } : r)) },
-      );
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
+  if (job.state.status === 'loading') {
+    return (
+      <div className={ui.page}>
+        <Loading rows={8} />
+      </div>
+    );
+  }
+  if (job.state.status === 'error') {
+    return (
+      <div className={ui.page}>
+        <PageHead title={t('page.company.applicants.title')} back={{ to: paths.company.jobs, label: t('jobTabs.back') }} />
+        <ErrorPanel error={job.state.error} onRetry={job.reload} />
+      </div>
+    );
   }
 
-  async function retry(row: ApplicantRow) {
-    setBusy(true);
-    try {
-      setEvaluation(await api.retryEvaluation(row.application_id));
-      if (jobId) await loadList(jobId);
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const evalFor = evaluation && selected && evaluation.application_id === selected.application_id ? evaluation : null;
-
+  const filtered = statusFilter.length > 0 || minFit !== undefined || evalFilter !== undefined;
   return (
-    <>
-      <div className="row-between wrap">
-        <h1 className="h1" style={{ margin: 0 }}>지원자 평가 결과</h1>
-        {jobs && jobs.length > 0 && (
-          <select
-            style={{ maxWidth: 360 }}
-            value={jobId ?? ""}
-            onChange={(e) => setParams({ job: e.target.value })}
-            aria-label="공고 선택"
-          >
-            {jobs.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.title}
-                {j.status === "closed" ? " (마감)" : ""}
+    <div className={ui.page} style={{ maxWidth: 1360 }}>
+      <JobHeader job={job.state.data} />
+      <div className={s.filters}>
+        <span className={s.filterGroup} role="group" aria-label={t('apl.filter.status')}>
+          {t('apl.filter.status')}
+          {APPLICATION_STATUSES.map((x) => (
+            <button
+              key={x}
+              type="button"
+              className={s.toggle}
+              aria-pressed={statusFilter.includes(x)}
+              onClick={() => setStatusFilter((f) => (f.includes(x) ? f.filter((y) => y !== x) : [...f, x]))}
+            >
+              {t(`appStatus.${x}`)}
+            </button>
+          ))}
+        </span>
+        <label className={s.filterGroup}>
+          {t('apl.filter.minFit')}
+          <select className={cx(ui.select, s.smallSelect)} value={minFit ?? ''} onChange={(e) => setMinFit(e.target.value ? Number(e.target.value) : undefined)}>
+            <option value="">{t('apl.filter.all')}</option>
+            {MIN_FITS.map((n) => (
+              <option key={n} value={n}>
+                {t('apl.filter.minFitValue', { n })}
               </option>
             ))}
           </select>
+        </label>
+        <label className={s.filterGroup}>
+          {t('apl.filter.eval')}
+          <select
+            className={cx(ui.select, s.smallSelect)}
+            value={evalFilter ?? ''}
+            onChange={(e) => setEvalFilter((e.target.value || undefined) as EvaluationStatus | undefined)}
+          >
+            <option value="">{t('apl.filter.all')}</option>
+            {EVAL_STATUSES.map((x) => (
+              <option key={x} value={x}>
+                {t(`evalStatus.${x}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtered && (
+          <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={() => (setStatusFilter([]), setMinFit(undefined), setEvalFilter(undefined))}>
+            {t('apl.filter.reset')}
+          </button>
         )}
       </div>
-      <ErrorBox>{error}</ErrorBox>
 
-      {jobs === null && !error && <p className="muted">불러오는 중…</p>}
-      {jobs?.length === 0 && (
-        <p className="card muted">
-          게시한 공고가 없습니다. <Link to="/company/jobs">채용공고 관리</Link>에서 공고를 게시하면 지원자를 볼 수 있습니다.
-        </p>
+      {list.state.status === 'loading' && <Loading rows={6} />}
+      {list.state.status === 'error' && <ErrorPanel error={list.state.error} onRetry={list.reload} />}
+      {list.state.status === 'ok' && (
+        <Board data={list.state.data} selected={selected} onSelect={select} onRefresh={list.reload} setData={list.setData} filtered={filtered} />
       )}
+    </div>
+  );
+}
 
-      {list && (
-        <>
-          <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            공고: <strong>{list.job_title}</strong> · 지원자 {list.items.length}명 · 적합도 순
-            {pending && " · AI 분석 중인 지원자가 있습니다"}
-          </p>
-          {list.excluded_criteria.length > 0 && (
-            <div className="alert alert-info">
-              변경된 차단 기준에 해당하는 항목({list.excluded_criteria.map((c) => c.name).join(", ")})은 적합도 계산에서
-              제외하고 나머지 가중치를 다시 맞췄습니다.
-            </div>
+function Board({
+  data,
+  selected,
+  onSelect,
+  onRefresh,
+  setData,
+  filtered,
+}: {
+  data: ApplicantList;
+  selected: number | null;
+  onSelect: (id: number) => void;
+  onRefresh: () => void;
+  setData: (d: ApplicantList) => void;
+  filtered: boolean;
+}) {
+  if (data.total_count === 0) return <Empty title={t('apl.empty.title')} body={t('apl.empty.body')} />;
+  const current = data.items.find((r) => r.application_id === selected) ?? null;
+  const onKey = (e: KeyboardEvent, applicationId: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(applicationId);
+    }
+  };
+  const pending = data.items.some((r) => r.evaluation_status === 'pending');
+
+  return (
+    <div className={s.board}>
+      <section className={ui.panel} aria-labelledby="ranking-title">
+        <div className={s.tableHead}>
+          <h2 id="ranking-title" className={ui.panelTitle}>
+            {t('apl.total', { shown: data.items.length, total: data.total_count })}
+          </h2>
+          {pending && (
+            <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={onRefresh}>
+              <RefreshIcon width={15} height={15} />
+              {t('common.refresh')}
+            </button>
           )}
-          {list.items.length === 0 && <p className="card muted">아직 지원자가 없습니다.</p>}
-        </>
-      )}
-
-      {list && selected && (
-        <div className="split">
-          <div className="stack" style={{ gap: 8 }}>
-            {list.items.map((a) => (
-              <button
-                key={a.application_id}
-                className={`pick ${a.application_id === selected.application_id ? "on" : ""}`}
-                onClick={() => setSelectedId(a.application_id)}
-              >
-                <div className="row-between">
-                  <div className="row">
-                    <span className="muted" style={{ width: 16 }}>{a.rank ?? "-"}</span>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{a.name}</div>
-                      <div className="muted" style={{ fontSize: 13 }}>
-                        {experience(a.experience_months)} · {APPLICATION_STATUS_LABEL[a.status]}
-                      </div>
-                    </div>
-                  </div>
-                  {a.fit !== null ? (
-                    <span className="match-num" style={{ color: "var(--green)" }}>{Math.round(a.fit)}%</span>
-                  ) : (
-                    <span className={`chip ${a.evaluation_status === "failed" ? "chip-red" : "chip-amber"}`}>
-                      {EVALUATION_STATUS_LABEL[a.evaluation_status]}
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <section className="card stack">
-            <div className="row-between wrap">
-              <div className="row">
-                <div className="avatar">{selected.name[0]}</div>
-                <div>
-                  <div style={{ fontWeight: 700 }}>
-                    {selected.name} <span className="muted" style={{ fontWeight: 400 }}>({selected.email})</span>
-                  </div>
-                  <div className="muted" style={{ fontSize: 14 }}>
-                    {experience(selected.experience_months)} · 지원일 {selected.applied_at.slice(0, 10)}
-                  </div>
-                </div>
-              </div>
-              <div className="row">
-                <select
-                  style={{ maxWidth: 140 }}
-                  value={selected.status}
-                  disabled={busy}
-                  aria-label="지원 상태"
-                  onChange={(e) => changeStatus(selected, e.target.value as ApplicationStatus)}
-                >
-                  {(Object.keys(APPLICATION_STATUS_LABEL) as ApplicationStatus[]).map((s) => (
-                    <option key={s} value={s}>{APPLICATION_STATUS_LABEL[s]}</option>
-                  ))}
-                </select>
-                <span className="muted" style={{ fontSize: 14, whiteSpace: "nowrap" }}>적합도</span>
-                <div className="score-ring">{selected.fit !== null ? `${Math.round(selected.fit)}%` : "-"}</div>
-              </div>
-            </div>
-
-            {selected.evaluation_status === "pending" && (
-              <div className="alert alert-info">AI가 이력서를 평가 기준별로 분석하고 있습니다. 완료되면 자동으로 표시됩니다.</div>
-            )}
-            {selected.evaluation_status === "failed" && (
-              <div className="alert alert-error row-between wrap">
-                <span>AI 분석에 실패했습니다.{evalFor?.error && ` (${evalFor.error})`}</span>
-                <button className="btn btn-small" disabled={busy} onClick={() => retry(selected)}>다시 분석</button>
-              </div>
-            )}
-
-            {selected.evaluation_status === "done" && evalFor && (
-              <>
-                <div className="tabs">
-                  <button className={tab === "summary" ? "on" : ""} onClick={() => setTab("summary")}>평가 요약</button>
-                  <button className={tab === "scores" ? "on" : ""} onClick={() => setTab("scores")}>항목별 점수</button>
-                  <button className={tab === "evidence" ? "on" : ""} onClick={() => setTab("evidence")}>평가 근거</button>
-                </div>
-
-                {tab === "summary" && (
-                  <div className="stack" style={{ gap: 10 }}>
-                    {evalFor.items.map((c) => (
-                      <div key={c.criterion_id} className="skill-row" style={{ gridTemplateColumns: "130px 1fr 48px" }}>
-                        <span>{c.name}</span>
-                        <Meter value={c.score} tone="green" />
-                        <span className="muted" style={{ textAlign: "right" }}>{c.score}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {tab === "scores" && (
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>평가 항목</th>
-                        <th className="num">가중치</th>
-                        <th className="num">점수(100점)</th>
-                        <th>판단 이유</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {evalFor.items.map((c) => (
-                        <tr key={c.criterion_id}>
-                          <td>{c.name}</td>
-                          <td className="num muted">{c.weight}%</td>
-                          <td className="num">{c.score}</td>
-                          <td className="muted">{c.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-
-                {tab === "evidence" && (
-                  <div className="stack">
-                    {evalFor.items.map((c) => (
-                      <div key={c.criterion_id} className="card card-tight stack" style={{ gap: 6 }}>
-                        <div className="row-between">
-                          <strong>{c.name}</strong>
-                          <span className="row" style={{ gap: 6 }}>
-                            <span className="chip chip-gray">{methodLabel(c.method)}</span>
-                            <span className="match-num">{c.score}점</span>
-                          </span>
-                        </div>
-                        <div className="muted" style={{ fontSize: 14 }}>{c.reason}</div>
-                        {c.evidence.length > 0 ? (
-                          c.evidence.map((q, i) => (
-                            <blockquote key={i} style={{ margin: 0, paddingLeft: 10, borderLeft: "3px solid var(--line)", fontSize: 14 }}>
-                              {q}
-                            </blockquote>
-                          ))
-                        ) : (
-                          <span className="field-hint">이력서에서 근거 문장을 찾지 못했습니다.</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="alert alert-info">
-                  <strong>종합 의견 (AI 분석)</strong>
-                  <p style={{ marginTop: 4 }}>{evalFor.summary}</p>
-                </div>
-              </>
-            )}
-            <p className="field-hint">{list.notice}</p>
-          </section>
         </div>
+        <AiNotice notice={data.notice} />
+        {filtered && <p className={ui.caption}>{t('apl.filter.note')}</p>}
+        {data.items.length === 0 ? (
+          <Empty panel={false} title={t('apl.noMatch')} />
+        ) : (
+          <table className={ui.table} style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>{t('apl.col.rank')}</th>
+                <th>{t('apl.col.name')}</th>
+                {/* Fit sits by the name: rank, applicant and fit read as one; the criteria after it are the evidence */}
+                <th className={s.fitHead}>{t('apl.col.fit')}</th>
+                {data.criteria.map((c) => (
+                  <th key={c.id} className={s.critHead} title={c.name}>
+                    <span className={s.critHeadName}>{c.name}</span>
+                    <span className={s.critHeadWeight}>{Math.round(c.weight)}%</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className={ui.stagger}>
+              {data.items.map((a) => (
+                <tr
+                  key={a.application_id}
+                  className={s.applicantRow}
+                  tabIndex={0}
+                  aria-selected={selected === a.application_id}
+                  onClick={() => onSelect(a.application_id)}
+                  onKeyDown={(e) => onKey(e, a.application_id)}
+                >
+                  <td>{a.rank ? <span className={s.rank} data-top={a.rank === 1 || undefined}>{a.rank}</span> : <span className={ui.muted}>—</span>}</td>
+                  <td>
+                    <span className={s.nameCell}>
+                      <strong>{a.name}</strong>
+                      {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
+                      <span className={cx(ui.caption, s.nameFacts)}>
+                        <ApplicationStatusTag status={a.status} />
+                        <span>
+                          {a.evaluation_status === 'done'
+                            ? t('apl.experience', { value: monthsLabel(a.experience_months) })
+                            : t('apl.applied', { date: formatDate(a.applied_at) })}
+                        </span>
+                      </span>
+                    </span>
+                  </td>
+                  <td className={s.fitCell}>
+                    {a.fit !== null ? <span className={s.fit}>{a.fit.toFixed(1)}</span> : <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>}
+                  </td>
+                  {data.criteria.map((c) => {
+                    const sc = a.scores.find((x) => x.criterion_id === c.id);
+                    return (
+                      <td key={c.id} className={s.scoreCell}>
+                        {sc ? (
+                          <span className={s.score}>
+                            <ScoreSquare score={sc.score} />
+                            {sc.score}
+                          </span>
+                        ) : a.evaluation_status === 'pending' ? (
+                          <span className={ui.skeleton} style={{ display: 'inline-block', width: 28, height: 10 }} />
+                        ) : (
+                          <span className={ui.muted}>—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {data.excluded_criteria.length > 0 && (
+          <p className={ui.caption} style={{ marginTop: 12 }}>
+            {t('apl.detail.excluded', { names: data.excluded_criteria.map((c) => c.name).join(', ') })}
+          </p>
+        )}
+      </section>
+
+      {current ? (
+        <ApplicantDetail
+          key={current.application_id}
+          row={current}
+          criteriaCount={data.criteria.length}
+          onStatusChanged={(status) => setData({ ...data, items: data.items.map((r) => (r.application_id === current.application_id ? { ...r, status } : r)) })}
+          onEvaluationChanged={onRefresh}
+        />
+      ) : (
+        <aside className={cx(ui.panel, s.detail)}>
+          <p className={ui.caption}>{t('apl.select')}</p>
+        </aside>
       )}
-    </>
+    </div>
   );
 }

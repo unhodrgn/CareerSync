@@ -1,0 +1,698 @@
+/* Company pages: layout only. Colours, rows, notices and motion come from the shared layer (ui.module.css); green is
+   the tone (set by the shell). */
+
+/* Job header: back link, the job title as the page's one H1, its status, meta and the job's tabs */
+.jobHeader {
+  margin-bottom: 24px;
+}
+
+.jobTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.jobMeta {
+  margin-top: 6px;
+}
+
+.jobTabs {
+  margin: 18px 0 0;
+}
+
+.tabDisabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* 공고 관리 rows */
+.jobRowMain {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.jobRowHead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Job rows use the Title size, like the seeker job lists */
+.jobRowTitle {
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+/* A closed job recedes; drafts and published jobs keep an Ink title */
+[data-closed] .jobRowTitle {
+  color: var(--color-ink-muted);
+}
+
+.jobRowSide {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: var(--color-ink-muted);
+}
+
+/* Job editor: the form on the left, the two-way preview on the right */
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 24px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.span2 {
+  grid-column: span 2;
+}
+
+.panelSection + .panelSection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.sectionHead {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.critList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crit {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 180px 96px 32px;
+  align-items: start;
+  gap: 10px;
+}
+
+.crit + .crit {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.critIndex {
+  padding-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.critWide {
+  grid-column: 2 / -1;
+}
+
+.weight {
+  position: relative;
+}
+
+.weight input {
+  padding-right: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.weight span {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.critFoot {
+  margin-top: 12px;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalValue {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.totalValue[data-off] {
+  color: var(--color-danger);
+}
+
+/* AI drafting and suggestions sit inside their panel, set off by a rule (no box inside the box) */
+.aiSection {
+  margin-top: 16px;
+  padding-top: 16px;
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.draftOut {
+  display: grid;
+  gap: 12px;
+}
+
+.draftOut h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.draftOut ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+
+.suggestRow {
+  min-height: 44px;
+  padding: 6px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 56px auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+}
+
+.suggestRow + .suggestRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.suggestName {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.weightText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two-way preview: one criteria set, read by seekers (no weights) and by the ranking (weights) */
+.preview {
+  position: sticky;
+  /* Below whatever the shell keeps at the top of the viewport (--shell-top) */
+  top: calc(var(--shell-top, 0px) + 24px);
+}
+
+.previewSide + .previewSide {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.previewHead {
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-seeker-dot);
+}
+
+.dot[data-side='company'] {
+  background: var(--color-employer-dot);
+}
+
+/* Applicants: filters, the ranked table and the selected applicant beside it */
+.filters {
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-ink-soft);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle[aria-pressed='true'] {
+  border-color: var(--tone);
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+
+.smallSelect {
+  height: 32px;
+  width: auto;
+  font-size: 13px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: start;
+  gap: 20px;
+}
+
+.tableHead {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.board th.critHead,
+.board td.scoreCell {
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+/* Criterion names take up to two lines, so the columns stay as narrow as their scores (the full name is in the title) */
+.critHead {
+  max-width: 80px;
+}
+
+.board th.critHead {
+  white-space: normal;
+}
+
+.critHeadName {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--color-ink-soft);
+}
+
+.critHeadWeight {
+  font-weight: 400;
+}
+
+.score {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* In the ranking the criterion scores are evidence: the square carries met / partial / missing, the number stays quiet */
+.scoreCell .score {
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+}
+
+.applicantRow {
+  cursor: pointer;
+}
+
+.applicantRow:hover td {
+  background: var(--color-sunken);
+}
+
+.applicantRow[aria-selected='true'] td {
+  background: var(--tone-soft);
+}
+
+.applicantRow:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: -2px;
+}
+
+.rank {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-line-soft);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank[data-top] {
+  background: var(--color-employer);
+  color: var(--color-paper);
+}
+
+.nameCell {
+  display: grid;
+  gap: 2px;
+}
+
+.nameCell strong {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nameFacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.nameFacts > * {
+  white-space: nowrap;
+}
+
+.board th.fitHead,
+.board td.fitCell {
+  padding-right: 20px;
+  white-space: nowrap;
+}
+
+.fit {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail {
+  position: sticky;
+  top: calc(var(--shell-top, 0px) + 24px);
+  max-height: calc(100vh - var(--shell-top, 0px) - 40px);
+  overflow-y: auto;
+}
+
+.detailHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detailName {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.fitBlock {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.fitBig {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.detailSection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.statusOption {
+  height: 34px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 150ms var(--ease-out);
+}
+
+.statusOption:hover {
+  border-color: var(--color-axis);
+}
+
+.statusOption:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.statusOption[aria-pressed='true'] {
+  border-color: var(--tone);
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+
+.evalItem {
+  padding: 14px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.evalItem + .evalItem {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.evalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.evalName {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Talent: one list, each candidate a row with facts, scores and the offer action */
+.talentRow {
+  padding: 20px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 16px 24px;
+}
+
+.talentRow + .talentRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.anonId {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Evidence under the anonymous ID: quieter than the ID and the Fit, louder than the facts below */
+.critScores {
+  margin: 10px 0 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+}
+
+.critScores .score {
+  font-size: inherit;
+}
+
+.talentSide {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 8px;
+  text-align: right;
+}
+
+.composer {
+  grid-column: 1 / -1;
+}
+
+.counter {
+  justify-self: end;
+  font-size: 12px;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lockLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+/* Sent offers */
+.offerRow {
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.offerRow + .offerRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.offerProfile {
+  grid-column: 1 / -1;
+}
+
+.offerProfile summary {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tone);
+  font-size: 13px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.offerProfile summary::-webkit-details-marker {
+  display: none;
+}
+
+.offerProfile[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.offerProfile > div {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Company profile */
+.profileGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.projectRow {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+}
+
+.projectRow + .projectRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.projectName {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.projectWide {
+  grid-column: 1 / -1;
+}
+
+/* The action bar while it asks to confirm 마감 or 삭제 */
+.confirmBar {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirmBar:focus {
+  outline: none;
+}
+
+.confirmBar:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 4px;
+}
+
+.noticeWrap {
+  margin-bottom: 16px;
+}
+
+.noticeWrap:focus {
+  outline: none;
+}
