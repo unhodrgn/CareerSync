@@ -427,7 +427,7 @@ CareerSync/
 │   └── tests/
 ├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
 ├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml, demo/demo_cv.pdf (synthetic demo CV)
-├── docs/                   # DECISIONS.md, docker-compose.md, PROGRESS_BACKEND_AI.md, reference/ (proposal, design document, market research PDFs)
+├── docs/                   # DECISIONS.md, docker-compose.md, archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
 ├── scripts/                # seed.py (demo data), make_demo_cv.py (builds data/demo/demo_cv.pdf), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
 └── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
 ```
@@ -440,14 +440,14 @@ CareerSync/
 
 ## 9. Environment and configuration
 
-Read from `.env` in the repo root; shell variables win. Defaults below are the code defaults.
+Read from `.env` in the repo root; shell variables win. Defaults below are the code defaults. An empty or whitespace-only value counts as unset (`env_or_default` in `core/config.py`; the same inline rule in `ai/`), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
 
 | Variable | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | — | Replaces the five `DB_*` variables |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | `localhost` / `5432` / `postgres` / `postgres` / `careersync_db` | Manual Docker setup uses port 5433 (`.env.example`) |
-| `JWT_SECRET_KEY` | dev default, only when the variable is **missing** | Empty string breaks login ([issue 4](#11-known-issues-and-risks)) |
-| `TALENT_ID_SECRET` | dev default, only when the variable is **missing** | HMAC key for talent `anonymous_id`; separate from `JWT_SECRET_KEY`. Changing it changes every anonymous ID companies see (offers keep working; they store the seeker) |
+| `JWT_SECRET_KEY` | dev default when the variable is missing or empty | While `JWT_SECRET_KEY` or `TALENT_ID_SECRET` is on its built-in dev value, the backend logs one warning at startup (names only, never values; `main.py` lifespan) |
+| `TALENT_ID_SECRET` | dev default when the variable is missing or empty | HMAC key for talent `anonymous_id`; separate from `JWT_SECRET_KEY`. Changing it changes every anonymous ID companies see (offers keep working; they store the seeker) |
 | `JWT_EXPIRE_MINUTES` | `120` | |
 | `AI_MODE` | `rules` | `rules` or `llm`, case-insensitive; empty = `rules`. Only `llm` makes Claude calls (paid). Another value, or `llm` without `LLM_API_KEY`, stops startup (`LLMConfigError`) |
 | `LLM_API_KEY` | — | Required when `AI_MODE=llm`; ignored in `rules`. `ANTHROPIC_API_KEY` is not read |
@@ -515,7 +515,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 1 | Cost / security | `ANTHROPIC_API_KEY` is read as well as `LLM_API_KEY`; a machine with it set makes paid calls silently (Compose passes only `LLM_API_KEY`). **Fixed:** only `LLM_API_KEY` is read, and only when `AI_MODE=llm` | `ai/llm/client.py` | Fixed |
 | 2 | Concurrency | `retry` rejects only `done`; re-running a `pending` evaluation can start two scoring threads. **Planned fix:** allow retry only for `failed`, or `pending` older than 10 minutes; otherwise 409. Uses `evaluations.queued_at`. Related: issue 25. **Fixed:** as planned, 409 `EVALUATION_IN_PROGRESS` | `application_service.retry` | Fixed |
 | 3 | Trust | `experience`, generic certificates and skill "uses" take evidence from seeker-editable `source` fields, not from the masked CV text. **Must be fixed before enabling talent recommendation** ([§6.1](#61-recommendation)). **Fixed:** rule scorers read only the masked text; the experience months shown to companies (`ApplicantRow.experience_months`) use the same `verified_experience`. The seeker's own `CvOut.total_experience_months` still follows their edits | `ai/scoring/scorers.py` | Fixed |
-| 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`) | `core/config.py` | Open |
+| 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`). **Fixed:** an empty or whitespace-only value counts as unset for every setting where empty means nothing (`env_or_default`), so the dev default is used and the startup warning names it | `core/config.py` | Fixed |
 | 5 | Tests | SQLite tests do not enable `PRAGMA foreign_keys`; FK errors (e.g. RESTRICT) go unnoticed unless tests run on PostgreSQL | `backend/tests/conftest.py` | Open |
 | 6 | Architecture | Scoring runs in-process (`BackgroundTasks`); a restart leaves evaluations `pending` until 다시 분석. **Must be fixed before enabling talent recommendation** — recommendation multiplies the number of background evaluations. **Mitigated for the demo (D18):** recommendation and talent calls re-queue `pending` evaluations older than `EVALUATION_STALE_MINUTES`; a separate worker is still open | `api/v1/applications.py` | Open |
 | 7 | AI / UX | JD-suggested criteria skip the guardrail (it only blocks on save). **Fixed (D24):** `/analyze` leaves out suggestions with a guardrail hit or an education criterion without a major and lists them in `blocked` | `analyze_jd`, `/analyze`, `services/jd_service.py` | Fixed |
@@ -544,6 +544,13 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7. **Fixed for interview questions:** a separate `data/interview_blocklist.yaml`, written for questions, runs after the criteria guardrail on LLM and template questions (question, intent, tips). `data/blocklist.yaml` and the criteria guardrail are unchanged; the legal review of both lists (Q7 here, Q14 in docs/DECISIONS.md) is still open | `data/interview_blocklist.yaml`, `ai/career/interview.py` | Fixed |
 | 31 | Consistency | Scoring rules changed on 2026-10-14 (D27 related skills, D28 rules-mode project/neutral). Evaluations stored before keep their scores, so within one job applicants can be scored under the old and the new rules; recommendation and talent reuse old evaluations too. Re-seed the demo DB, or re-queue evaluations, before the demo | `evaluations`, `criterion_scores` | Open |
 | 32 | AI quality | With e5 every CV passage has cosine 0.80–0.89 to every query (even the masked contact block), while the retrieval steps (`_RETRIEVAL_STEPS` 0.2/0.4/0.6) were set for hashing: in rules mode an `other` criterion that matches one keyword reaches ≥ 50, and passage ranking (also the CV excerpts for interview questions and the LLM rubric) barely separates relevant from unrelated text. Needs per-model calibration or relative scores. **Mitigated (D28):** chunks of headings or masked contact data only are no longer retrieval candidates, so the contact block is not picked for a project criterion; the thresholds stay until after the demo | `ai/scoring/retrieval.py`, `ai/scoring/scorers.py` | Open |
+| 33 | Privacy | Only the account's `display_name` is masked as a name (also when written with spaces between syllables); a name written another way in the CV (e.g. romanized, or someone else's name) reaches the LLM unmasked | `ai/parsing/pii.py` (`mask_pii`), `services/cv_service.py` (`upload`) | Open |
+| 34 | Security | The built-in dev secrets (`core/config.py`) and the Compose defaults (`docker-compose.yml`, `local-demo-…`) are public in the repo: a shared deployment that keeps them lets anyone sign valid access tokens and recompute anonymous IDs. The startup warning (issue 4) covers the built-in values only, not the Compose defaults. Refusing to start outside development: docs/DECISIONS.md Q23 | `core/config.py`, `docker-compose.yml` | Open |
+| 35 | Security | A failed evaluation stores the raw exception text (`"{type}: {message}"`, ≤ 500 characters) in `evaluations.error`, and `EvaluationOut.error` returns it to the recruiter, so internal details (e.g. a database error) leave the backend. The current frontend does not show the field | `services/evaluation_service.py`, `services/application_service.py` (`evaluation`) | Open |
+| 36 | Data quality | `evaluations.llm_model` records the model whenever `AI_MODE=llm`, even when no criterion used it (only `project`/`other` call the LLM, and they can fall back to retrieval). The per-criterion `criterion_scores.method` is correct | `services/evaluation_service.py` | Open |
+| 37 | Data quality | Job search `q` goes into `ILIKE '%…%'` without escaping `%` and `_`, so they act as wildcards (not an injection: the value is a bound parameter) | `services/job_service.py` (`list_public`) | Open |
+| 38 | Security | The 5 MB CV limit is checked only after the whole request is received: Starlette (1.7.0 here) limits form fields to 1 MB but not file parts, which it spools to a temporary file; neither the app nor Compose sets a request size limit | `api/v1/cv.py`, `app/main.py` | Open |
+| 39 | Data / UX | `PUT /api/cv/{profile_id}` on a version of an **older** CV document saves the new version under that document, but `latest()` orders by document first, so the edit (even confirmed) is never the version used to apply, for recommendation or for talent; when the newest document's version is unconfirmed, applying fails with `CV_NOT_CONFIRMED`. API only: the frontend edits the newest version. Related: issue 15, [Q6](#12-open-questions) | `services/cv_service.py` (`update`, `latest`) | Open |
 
 ---
 

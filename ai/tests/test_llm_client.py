@@ -7,6 +7,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from ai.llm.client import (
+    DEFAULT_MODEL,
     LLM_MAX_RETRIES,
     LLM_TIMEOUT_SECONDS,
     AnthropicClient,
@@ -15,12 +16,13 @@ from ai.llm.client import (
     ai_mode,
     check_llm_config,
     get_llm_client,
+    llm_model,
 )
 
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for key in ("AI_MODE", "LLM_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL"):
+    for key in ("AI_MODE", "LLM_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -78,6 +80,28 @@ def test_llm_mode_with_key_builds_the_client(monkeypatch):
     client = get_llm_client()  # constructing the SDK client sends no request
     assert isinstance(client, AnthropicClient)
     assert client.model == "claude-test-model"
+
+
+@pytest.mark.parametrize("blank", [None, "", "  \t "], ids=["missing", "empty", "whitespace"])
+def test_unset_or_blank_llm_model_and_effort_mean_the_defaults(monkeypatch, blank):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_API_KEY", "sk-test")
+    if blank is not None:
+        monkeypatch.setenv("LLM_MODEL", blank)
+        monkeypatch.setenv("LLM_EFFORT", blank)
+    client = get_llm_client()
+    assert llm_model() == client.model == DEFAULT_MODEL
+    assert client.effort == "low"
+
+
+def test_set_llm_model_and_effort_are_used(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_API_KEY", "sk-test")
+    monkeypatch.setenv("LLM_MODEL", "claude-test-model")
+    monkeypatch.setenv("LLM_EFFORT", "high")
+    client = get_llm_client()
+    assert llm_model() == client.model == "claude-test-model"
+    assert client.effort == "high"
 
 
 def test_sdk_client_timeout_and_retries():

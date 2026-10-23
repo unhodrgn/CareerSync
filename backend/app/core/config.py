@@ -13,25 +13,37 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if os.getenv("CAREERSYNC_DOTENV", "1") != "0":
     load_dotenv(REPO_ROOT / ".env", override=False)
 
+# Built-in secrets for local development only; the backend logs a warning at startup while one is in use
+DEV_JWT_SECRET_KEY = "dev-only-secret-change-me-in-production-please"
+DEV_TALENT_ID_SECRET = "dev-only-talent-id-secret-change-me-in-production"
+
+
+def env_or_default(name: str, default: str) -> str:
+    """The variable's value, or `default` when it is missing, empty or whitespace only (like Compose's
+    `${VAR:-default}`). A value that is set is returned unchanged."""
+    value = os.getenv(name)
+    return value if value is not None and value.strip() else default
+
 
 def _database_url() -> str:
-    if url := os.getenv("DATABASE_URL"):
+    if url := env_or_default("DATABASE_URL", ""):
         return url
-    user = os.getenv("DB_USER", "postgres")
-    password = os.getenv("DB_PASSWORD", "postgres")
-    host = os.getenv("DB_HOST", "localhost")
-    port = os.getenv("DB_PORT", "5432")
-    name = os.getenv("DB_NAME", "careersync_db")
+    user = env_or_default("DB_USER", "postgres")
+    password = env_or_default("DB_PASSWORD", "postgres")
+    host = env_or_default("DB_HOST", "localhost")
+    port = env_or_default("DB_PORT", "5432")
+    name = env_or_default("DB_NAME", "careersync_db")
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}"
 
 
 class Settings:
     DATABASE_URL: str = _database_url()
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-only-secret-change-me-in-production-please")
+    JWT_SECRET_KEY: str = env_or_default("JWT_SECRET_KEY", DEV_JWT_SECRET_KEY)
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "120"))
+    # An invalid number still fails at startup; only missing or blank means the default
+    JWT_EXPIRE_MINUTES: int = int(env_or_default("JWT_EXPIRE_MINUTES", "120"))
     # Key for the HMAC behind talent anonymous IDs; separate from JWT_SECRET_KEY so rotating one does not change the other
-    TALENT_ID_SECRET: str = os.getenv("TALENT_ID_SECRET", "dev-only-talent-id-secret-change-me-in-production")
+    TALENT_ID_SECRET: str = env_or_default("TALENT_ID_SECRET", DEV_TALENT_ID_SECRET)
 
     # Version of the consent text shown at registration; stored with each user
     CONSENT_VERSION: str = "2026-10-13"
@@ -39,10 +51,10 @@ class Settings:
     # users who consented to an older version get no recommendation (versions are ISO dates)
     RECO_MIN_CONSENT_VERSION: str = "2026-10-13"
 
-    BLOCKLIST_PATH: Path = Path(os.getenv("BLOCKLIST_PATH", REPO_ROOT / "data" / "blocklist.yaml"))
-    SKILLS_PATH: Path = Path(os.getenv("SKILLS_PATH", REPO_ROOT / "data" / "skills.yaml"))
+    BLOCKLIST_PATH: Path = Path(env_or_default("BLOCKLIST_PATH", str(REPO_ROOT / "data" / "blocklist.yaml")))
+    SKILLS_PATH: Path = Path(env_or_default("SKILLS_PATH", str(REPO_ROOT / "data" / "skills.yaml")))
     # Interview questions only, after the criteria guardrail (issue 30); data/blocklist.yaml stays unchanged
-    INTERVIEW_BLOCKLIST_PATH: Path = Path(os.getenv("INTERVIEW_BLOCKLIST_PATH", REPO_ROOT / "data" / "interview_blocklist.yaml"))
+    INTERVIEW_BLOCKLIST_PATH: Path = Path(env_or_default("INTERVIEW_BLOCKLIST_PATH", str(REPO_ROOT / "data" / "interview_blocklist.yaml")))
 
     # Evaluation criteria
     CRITERIA_MAX_ITEMS: int = 10
@@ -80,7 +92,7 @@ class Settings:
     # Career content (roadmap, interview questions; docs/DECISIONS.md D21): new LLM generations per seeker per day
     # (KST), only in AI_MODE=llm; cached content does not count. Over the limit the template is returned
     CAREER_DAILY_LLM_GENERATIONS: int = 10
-    LEARNING_RESOURCES_PATH: Path = Path(os.getenv("LEARNING_RESOURCES_PATH", REPO_ROOT / "data" / "learning_resources.yaml"))
+    LEARNING_RESOURCES_PATH: Path = Path(env_or_default("LEARNING_RESOURCES_PATH", str(REPO_ROOT / "data" / "learning_resources.yaml")))
 
     # JD drafts (docs/DECISIONS.md D24): LLM drafts per company per day (KST), only in AI_MODE=llm. Counted in
     # process memory: reset on restart, correct only with one backend process (uvicorn without --workers)
@@ -88,3 +100,12 @@ class Settings:
 
 
 settings = Settings()
+
+
+def dev_secrets_in_use() -> list[str]:
+    """Names (never values) of the secrets still on their built-in dev value, for the startup warning."""
+    secrets = (
+        ("JWT_SECRET_KEY", settings.JWT_SECRET_KEY, DEV_JWT_SECRET_KEY),
+        ("TALENT_ID_SECRET", settings.TALENT_ID_SECRET, DEV_TALENT_ID_SECRET),
+    )
+    return [name for name, value, dev in secrets if value == dev]

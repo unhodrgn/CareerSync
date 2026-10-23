@@ -98,8 +98,8 @@ def _api_key() -> str:
 
 
 def llm_model() -> str:
-    """The model `llm` mode calls (LLM_MODEL)."""
-    return os.getenv("LLM_MODEL", DEFAULT_MODEL)
+    """The model `llm` mode calls (LLM_MODEL; unset, empty or whitespace only means the default)."""
+    return (os.getenv("LLM_MODEL") or "").strip() or DEFAULT_MODEL
 
 
 def _checked_mode() -> str:
@@ -124,5 +124,5 @@ def get_llm_client() -> LLMClient | None:
     return AnthropicClient(
         api_key=_api_key(),
         model=llm_model(),
-        effort=os.getenv("LLM_EFFORT", "low"),
+        effort=(os.getenv("LLM_EFFORT") or "").strip() or "low",
     )

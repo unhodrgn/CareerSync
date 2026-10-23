@@ -1,3 +1,4 @@
+Snapshot of 2026-10-08..14 (main @ 56371c6). Not maintained. Current state: PROJECT_DOCUMENTATION.md; decisions: DECISIONS.md.
 # Tiến độ Backend + AI — CareerSync
 
 > Code: `main` @ `56371c6` + migration `0008` (`evaluations.queued_at`, `attempts`).

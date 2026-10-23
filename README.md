@@ -155,15 +155,17 @@ LLM_API_KEY=
 EMBEDDING_MODEL=intfloat/multilingual-e5-base
 ```
 
+An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
+
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
-| `JWT_SECRET_KEY` | for anything shared | Any long random string. A dev default is used if empty |
-| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing |
+| `JWT_SECRET_KEY` | for anything shared | Any long random string. A built-in dev value is used if it is missing or empty; while this or `TALENT_ID_SECRET` uses its dev value, the backend logs one warning at startup (names only, never values) |
+| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing or empty |
 | `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis and project/other criteria use rules and keyword retrieval and no LLM is called, even with a key. Any other value stops the backend at startup |
 | `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
-| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 |
-| `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning) |
+| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 (also when empty) |
+| `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning). Empty also means e5 now; an empty value used to fall back to the hashing embedder |
 
 > 🔒 Never commit `.env`. It is in `.gitignore`; only `.env.example` with placeholders is committed.
 
@@ -444,7 +446,7 @@ CareerSync/
 ├── docs/
 │   ├── DECISIONS.md             # Decisions and scope (source of truth)
 │   ├── docker-compose.md        # Compose guide
-│   ├── PROGRESS_BACKEND_AI.md   # Backend/AI progress and issue list
+│   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
 │   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
