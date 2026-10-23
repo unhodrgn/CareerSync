@@ -204,11 +204,15 @@ PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts
 added hr@nextcode.test
 added hr@cloudlab.test
 added seeker@demo.test
+added seeker2@demo.test
+cv    seeker2@demo.test · demo_cv.pdf (rules)
+cv    seeker2@demo.test · confirmed as version 2
+pref  seeker2@demo.test · 서울, 정규직, talent pool on
 
 All demo accounts use the password: demo1234
 ```
 
-The seed is safe to run again; existing accounts are skipped.
+The seed is safe to run again; existing accounts are skipped (`seeker2@demo.test` only gets the steps it is still missing). It never calls the LLM: it runs in `AI_MODE=rules` whatever `.env` says, so no API key is needed.
 
 ### 6. Run the backend (terminal 1)
 
@@ -242,7 +246,10 @@ All passwords are `demo1234`.
 | --- | --- | --- |
 | Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상"), see 지원자 순위 and 인재 추천 of a job |
 | Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
-| Seeker | `seeker@demo.test` | Upload a text PDF CV in 내 이력서, confirm it, set 희망 조건, see 추천 공고, apply to a job, check 지원 현황 |
+| Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서, confirm it, set 희망 조건, see 추천 공고, apply to a job, check 지원 현황 |
+| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직, in the talent pool. Shows 추천 공고, 취업 준비 and the CV self-check at once, and appears in 인재 추천 for the companies |
+
+The demo CV is made up (`scripts/make_demo_cv.py` builds it). Both seekers carry the CV's name, so the name is masked before any text reaches the LLM.
 
 A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
 
@@ -254,7 +261,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `528 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `520 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 203 backend tests.
+Expected: `556 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `548 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 207 backend tests.
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -337,7 +344,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 ### The first CV upload or evaluation is very slow or fails offline
 
-The first use downloads the `multilingual-e5-base` model (about 1 GB). Set `EMBEDDING_MODEL=hashing-ngram-v1` in `.env` and restart the backend to skip it. If the model cannot be loaded, the backend also falls back to the hashing embedder on its own.
+The first use downloads the `multilingual-e5-base` model (about 1 GB). Set `EMBEDDING_MODEL=hashing-ngram-v1` in `.env` and restart the backend to skip it. If the model cannot be loaded, the backend also falls back to the hashing embedder on its own. The backend loads the model in the background at startup and logs which one scores: `Embedding model ready: …`, or a line saying the configured model is not available and which one is used instead (an error with `AI_MODE=llm`, a warning otherwise). The startup log also shows `AI_MODE` and, in llm mode, `LLM_MODEL` (never the key).
 
 ### CV analysis or project criteria look basic
 
@@ -463,12 +470,14 @@ CareerSync/
 │   ├── career/                  # Skill gaps, roadmap, interview questions, CV self-check
 │   └── tests/
 ├── data/
+│   ├── demo/demo_cv.pdf         # Synthetic demo CV (built by scripts/make_demo_cv.py)
 │   ├── blocklist.yaml           # Disallowed criteria with their legal basis
 │   ├── interview_blocklist.yaml # Disallowed interview question topics
 │   ├── learning_resources.yaml  # Verified learning resources for the roadmap
 │   └── skills.yaml              # Skill dictionary, aliases and related-skill groups
 ├── scripts/
-│   ├── seed.py                  # Demo companies, jobs, criteria and accounts
+│   ├── seed.py                  # Demo companies, jobs, criteria and accounts (one seeker with the demo CV)
+│   ├── make_demo_cv.py          # Builds data/demo/demo_cv.pdf and checks it reads back
 │   ├── docker_init.py           # Compose init: migrations + seed
 │   └── smoke_test.py            # End-to-end check of a running app over HTTP
 └── frontend/                    # React + TypeScript + Vite
@@ -530,14 +539,3 @@ Coefficients live in `backend/app/core/config.py`.
 - AI 기본법
 
 The product does not collect sensitive group attributes. A bias audit on synthetic labeled data is planned.
-
-## 🗓️ Timeline
-
-| Milestone | Date |
-| --- | --- |
-| Requirement Freeze | 2026-10-07 |
-| Design Freeze | 2026-10-13 |
-| Prototype Complete | 2026-10-18 |
-| Coding starts | 2026-10-19 |
-| Recommendation MVP | 2026-11-29 |
-| Final demo | before 2026-12-13 |
