@@ -1,0 +1,224 @@
+# Name masking cases for ai/tests/test_pii_names.py (docs/DECISIONS.md D39). Synthetic names only.
+#   names:       the account name passed to mask_pii
+#   masked:      must not survive (compared ignoring case and diacritics)
+#   kept:        must survive exactly
+#   known_leaks: out of scope (an unlabeled third person, a given name alone); counted, not required
+cases:
+  - id: korean-name-in-header
+    names: [김지원]
+    text: |
+      김지원
+      이메일: jiwon.kim@example.com
+
+      경력
+      (주)넥스트코드 | 백엔드 개발자 2021.03 ~ 2023.02
+      - Java, Spring Boot 기반 주문 API 개발
+    masked: [김지원, jiwon.kim@example.com]
+    kept: ["(주)넥스트코드 | 백엔드 개발자 2021.03 ~ 2023.02", "- Java, Spring Boot 기반 주문 API 개발", 경력]
+
+  - id: english-spelling-in-header
+    names: [김지원]
+    text: |
+      Jiwon Kim
+      Backend Developer
+
+      경력
+      - Java, Spring 기반 API 개발
+    masked: [Jiwon Kim]
+    kept: [Backend Developer, "- Java, Spring 기반 API 개발"]
+
+  - id: romanized-spellings-in-header-and-body
+    names: [김지원]
+    text: |
+      김지원 | KIM JI-WON
+
+      프로젝트
+      사내 기술 발표 (발표자: Kim Ji Won)
+      - Ji-won Kim이 API 설계를 주도
+    masked: [김지원, KIM JI-WON, Kim Ji Won, Ji-won Kim]
+    kept: [사내 기술 발표, API 설계를 주도]
+
+  - id: english-spelling-only-in-a-sentence
+    names: [이서연]
+    text: |
+      자기소개
+      안녕하세요. 저는 Seoyeon Lee입니다. 고객 지원 시스템을 만들었습니다.
+    masked: [Seoyeon Lee]
+    kept: [자기소개, 고객 지원 시스템을 만들었습니다]
+
+  - id: own-name-labels
+    names: [이서연]
+    text: |
+      인적사항
+      성명: 이서연
+      성명(영문): LEE SEO-YEON
+      Name: Seoyeon Lee
+
+      학력
+      한빛대학교 컴퓨터공학과 학사 2016.03 ~ 2020.02
+    masked: [이서연, LEE SEO-YEON, Seoyeon Lee]
+    kept: [인적사항, 한빛대학교 컴퓨터공학과 학사 2016.03 ~ 2020.02]
+
+  - id: label-gives-a-name-the-account-does-not
+    names: [Yeoni]
+    text: |
+      이름: 정하윤
+
+      경력
+      - 정하윤 명의로 오픈소스 라이브러리에 기여
+    masked: [정하윤]
+    kept: [명의로 오픈소스 라이브러리에 기여]
+
+  - id: form-style-label-with-spaced-syllables
+    names: []
+    text: |
+      성 명  최 유 진
+
+      경력
+      - 결제 모듈 개발
+      - 최유진 주도로 배포 자동화
+    masked: [최 유 진, 최유진]
+    kept: [결제 모듈 개발, 주도로 배포 자동화]
+
+  - id: vietnamese-name-with-and-without-diacritics
+    names: [Phạm Minh Châu]
+    text: |
+      PHAM MINH CHAU
+      Software Engineer
+
+      Experience
+      - Chau Pham built the payment API with Java
+      - Phạm Minh Châu's team moved the batch jobs to Kubernetes
+    masked: [PHAM MINH CHAU, Chau Pham, Phạm Minh Châu]
+    kept: [Software Engineer, built the payment API with Java, team moved the batch jobs to Kubernetes]
+
+  - id: vietnamese-d-with-stroke
+    names: [Đỗ Thu Hà]
+    text: |
+      Do Thu Ha
+
+      Projects
+      - Ha Do designed the data pipeline
+    masked: [Do Thu Ha, Ha Do]
+    kept: [designed the data pipeline]
+
+  - id: name-inside-korean-sentences
+    names: [김지원]
+    text: |
+      자기소개
+      김지원은 팀 리드로 일했습니다. 지원자 김지원의 강점은 협업입니다.
+    masked: [김지원]
+    kept: [팀 리드로 일했습니다, 지원자, 강점은 협업입니다]
+
+  - id: given-name-equals-a-common-word
+    names: [김지원]
+    text: |
+      경력
+      - 고객 지원 시스템 개발
+      - 지원 동기와 사내 지원금 정책 정리
+    masked: []
+    kept: [고객 지원 시스템 개발, 지원 동기와 사내 지원금 정책 정리]
+
+  - id: given-name-inside-another-word
+    names: [이하늘]
+    text: |
+      이하늘
+
+      프로젝트
+      - 하늘색 테마 UI 구현
+    masked: [이하늘]
+    kept: [하늘색 테마 UI 구현]
+
+  - id: given-name-equals-a-skill
+    names: [Julia Park]
+    text: |
+      Julia Park
+
+      Skills
+      Julia, Python, R
+
+      Projects
+      - Park Julia presented the Julia notebook
+    masked: [Julia Park, Park Julia]
+    kept: ["Julia, Python, R", presented the Julia notebook]
+
+  - id: name-parts-inside-words-and-firm-names
+    names: [Grace Kim]
+    text: |
+      Experience
+      - Implemented graceful shutdown for the API server
+      - Interned at Kim & Chang
+    masked: []
+    kept: [Implemented graceful shutdown for the API server, Interned at Kim & Chang]
+
+  - id: header-lines-that-are-not-names
+    names: [박서준]
+    text: |
+      이력서
+      Java Spring
+      Backend Developer
+
+      경력
+      넥스트코드 | 데이터 엔지니어 2022.01 ~ 현재
+    masked: []
+    kept: [이력서, Java Spring, Backend Developer, "넥스트코드 | 데이터 엔지니어 2022.01 ~ 현재"]
+
+  - id: more-header-lines-that-are-not-names
+    names: [박서준]
+    text: |
+      포트폴리오
+      넥스트코드
+      Data Engineer
+
+      기술
+      Python, Airflow
+    masked: []
+    kept: [포트폴리오, 넥스트코드, Data Engineer, "Python, Airflow"]
+
+  - id: header-name-without-account-match
+    names: []
+    text: |
+      윤서아 | 백엔드 개발자
+      Seoa Yoon
+
+      경력
+      - 윤서아 주도로 주문 API 재설계
+    masked: [윤서아, Seoa Yoon]
+    kept: [백엔드 개발자, 주도로 주문 API 재설계]
+
+  - id: labeled-third-parties
+    names: [김지원]
+    text: |
+      경력
+      - 결제 시스템 개발
+
+      추천인: 박서준 팀장 (넥스트코드)
+      담당자: 정하윤
+      Reference: Grace Lee, Professor at Hanbit University
+
+      활동
+      - 박서준 팀장과 사내 스터디 운영
+    masked: [박서준, 정하윤, Grace Lee]
+    kept: [팀장 (넥스트코드), Professor at Hanbit University, 사내 스터디 운영, 결제 시스템 개발]
+
+  - id: labels-whose-value-is-not-a-name
+    names: [김지원]
+    text: |
+      프로젝트
+      주문 시스템 개편 2023.01 ~ 2023.06
+      담당자: 결제 모듈 개발
+      담당자 역할: API 설계
+      이름 변경 API 개발
+    masked: []
+    kept: [결제 모듈 개발, "담당자 역할: API 설계", 이름 변경 API 개발]
+
+  - id: known-leaks
+    names: [김지원]
+    text: |
+      경력
+      - 홍길동 팀장님과 결제 시스템 개발
+      - Jiwon led the API redesign
+      - 동료 Minjun Choi와 코드 리뷰
+    masked: []
+    kept: [결제 시스템 개발, led the API redesign, 코드 리뷰]
+    known_leaks: [홍길동, Jiwon, Minjun Choi]

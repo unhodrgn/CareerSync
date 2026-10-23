@@ -48,7 +48,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 | Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; in `AI_MODE=rules`, keyword retrieval is used instead |
 | Fit score | Weighted sum of stored per-criterion scores, recomputed from the current weights |
 | Criteria guardrail | `data/blocklist.yaml`: 채용절차법 제4조의3 items plus gender, age, religion, disability, each tagged with its law |
-| Privacy | Name, email and phone are masked before any text is sent to the LLM |
+| Privacy | Before any text reaches the LLM, the CV is masked: email, phone, URLs, 주민번호, birth date and address by pattern, and, on a best-effort basis, names: the seeker's own name (the account name and its spellings such as romanized or without diacritics, labeled name lines such as 성명/Name, and a name at the top of the CV) and names on labeled lines such as 추천인/담당자/Reference. Other people's names without such a label, school and company names, and a name mentioned only by its given name are not masked |
 
 Pretrained models only; nothing is trained from scratch. The LLM is always called through `LLMClient` (`ai/llm/client.py`), so the model can be swapped without touching callers.
 
@@ -532,7 +532,7 @@ Coefficients live in `backend/app/core/config.py`.
 
 **Out of scope:** OCR, HWP/DOCX, scraping job sites, multiple recruiters per company, email notifications, interview scheduling, preference model trained from logs, admin screen, payments, mobile app.
 
-**Targets** (demo scale, ≤ 100 seekers, ≤ 50 jobs): CRUD p95 < 500 ms · CV analysis ≤ 60 s · evaluation after applying ≤ 30 s · every criterion score has evidence · no name, email or phone sent to the LLM.
+**Targets** (demo scale, ≤ 100 seekers, ≤ 50 jobs): CRUD p95 < 500 ms · CV analysis ≤ 60 s · evaluation after applying ≤ 30 s · every criterion score has evidence · no email or phone, and on a best-effort basis no seeker name or labeled reference name, sent to the LLM.
 
 ## 🔒 Legal & Ethics
 

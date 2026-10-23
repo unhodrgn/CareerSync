@@ -164,7 +164,7 @@ def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
         pdf = extract_text(data)
     except PdfError as e:
         raise AppError(422, e.code, e.message) from e
-    masked = mask_pii(pdf.text, [user.display_name] if user.display_name else [])
+    masked = mask_pii(pdf.text, [user.display_name] if user.display_name else [], ai_runtime.skills())
     profile, method = structure_cv(masked.text, ai_runtime.skills(), ai_runtime.llm())
     doc = CvDocument(
         seeker_id=user.id,
