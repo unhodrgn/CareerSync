@@ -54,6 +54,7 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 ```bash
 pytest                                   # from the repo root; no DB, network or key needed
 pytest --collect-only -q | tail -1       # count tests
+pytest backend/tests/docs -q             # doc-drift guards only (links, IDs, API, env, constants, numbers)
 cd backend && alembic upgrade head       # migrations (run alembic from backend/)
 cd backend && uvicorn app.main:app --reload   # API on :8000, Swagger at /docs
 cd frontend && npm run dev               # UI on :3000 (proxy /api → :8000)

@@ -1,0 +1,23 @@
+# Known, intended differences between the docs and the code, per guard (backend/tests/docs/).
+# Every entry needs a `reason`. An entry that no longer matches a real difference fails its guard: remove it then.
+
+# test_doc_links.py: backticked repo paths that intentionally do not exist
+paths:
+  - path: ai/prompts/vN
+    reason: Placeholder for a prompt version folder (CLAUDE.md AI rule 11, PROJECT_DOCUMENTATION.md §7)
+  - path: backend/.env
+    reason: README troubleshooting warns against creating .env there
+  - path: docs/PROGRESS_BACKEND_AI.md
+    reason: D37 names the path the file was moved from (DECISIONS rows are history)
+
+# test_doc_ids.py: references to IDs that no longer exist and cannot be reworded
+ids: []
+
+# test_doc_api.py: endpoints served on purpose without a row in a Method/Path/Who table ("METHOD /path")
+api_undocumented: []
+
+# test_doc_env.py: variables read by code on purpose without a row in an env table with a Default column
+env_undocumented: []
+
+# test_doc_constants.py: backticked constant names in the docs that do not resolve to code
+constants: []

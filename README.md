@@ -200,7 +200,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0010 -> 0011 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). The seed then prints:
 
 ```
 added hr@nextcode.test
@@ -263,7 +263,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `556 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `548 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 207 backend tests.
+Every test must pass. Some are skipped: the PostgreSQL tests (see `TEST_DATABASE_URL`), and the tests in `ai/tests/test_e5_quality.py`, which run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` runs only the backend tests (including the doc-drift guards in `backend/tests/docs/`).
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -363,7 +363,7 @@ Node is too old for Vite 8. Check `node --version` and install Node 22 LTS (or 2
 
 ## 🔌 API Overview
 
-Base URL `http://localhost:8000`. Request/response schemas as currently implemented are at **http://localhost:8000/docs**; the API in `PROJECT_DOCUMENTATION.md` §4 is the standard. All endpoints except register, login, `/health`, `GET /api/jobs` and `GET /api/jobs/{job_id}` need `Authorization: Bearer <token>`.
+Base URL `http://localhost:8000`. Request/response schemas as currently implemented are at **http://localhost:8000/docs**; the API in `PROJECT_DOCUMENTATION.md` §4 is the standard. All endpoints except register, login, `/health`, `GET /api/jobs`, `GET /api/jobs/{job_id}` and `GET /api/jobs/{job_id}/criteria` need `Authorization: Bearer <token>`.
 
 ### Auth & users
 
