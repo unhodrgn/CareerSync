@@ -9,6 +9,7 @@ import logging
 import math
 import os
 import re
+import threading
 from functools import lru_cache
 from typing import Protocol
 
@@ -66,13 +67,29 @@ class HashingEmbedder:
         return [self._vector(t) for t in texts]
 
 
+def configured_model() -> str:
+    """The embedding model EMBEDDING_MODEL asks for; `get_embedder().name` differs after a fallback."""
+    return os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL)
+
+
+_load_lock = threading.Lock()
+
+
 @lru_cache(maxsize=1)
-def get_embedder() -> Embedder:
-    name = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL)
+def _load() -> Embedder:
+    name = configured_model()
     if name == HashingEmbedder.name:
         return HashingEmbedder()
     try:
         return E5Embedder(name)
     except Exception as e:  # noqa: BLE001  (missing package, no network for weights, ...)
-        log.warning("Embedding model %s unavailable (%s); using %s", name, e, HashingEmbedder.name)
+        # A warning with the cause; the startup warm-up (backend/app/main.py) reports it as an error in llm mode
+        log.warning("Embedding model %s unavailable (%s); using %s instead", name, e, HashingEmbedder.name)
         return HashingEmbedder()
+
+
+def get_embedder() -> Embedder:
+    """The process-wide embedder, loaded once. The lock keeps a request and the startup warm-up
+    (backend/app/main.py) from loading the model twice at the same time."""
+    with _load_lock:
+        return _load()

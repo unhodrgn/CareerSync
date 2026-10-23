@@ -14,8 +14,11 @@ docker compose ps -a
 Open http://localhost:3000. API health: http://localhost:8000/health.
 Swagger: http://localhost:8000/docs.
 
-Demo accounts: seeker@demo.test, hr@nextcode.test, hr@cloudlab.test.
-All demo passwords: demo1234.
+Demo accounts: seeker@demo.test (no CV yet; upload data/demo/demo_cv.pdf),
+seeker2@demo.test (demo CV confirmed, preferences set, in the talent pool),
+hr@nextcode.test, hr@cloudlab.test. All demo passwords: demo1234.
+The seed runs on every `docker compose up`, so an existing demo database gets
+seeker2@demo.test on the next start without a reset.
 
 The first build downloads Python/Node dependencies and can take several minutes.
 Compose waits for PostgreSQL, runs Alembic and the idempotent seed script,

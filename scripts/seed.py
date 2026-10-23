@@ -1,23 +1,38 @@
-"""Seed demo data: two companies with recruiters, one seeker, jobs with criteria.
+"""Seed demo data: two companies with recruiters, jobs with criteria, and two seekers.
+
+- seeker@demo.test: no CV and no preferences, for uploading data/demo/demo_cv.pdf live.
+- seeker2@demo.test: that CV uploaded and confirmed, preferences 서울 · 정규직, in the talent pool.
+
+Both seekers are named like the person in the demo CV, so the name is masked before any LLM call.
+The seed never calls the LLM: it forces AI_MODE=rules for its own process, so the CV is structured by rules
+and no API key is needed, whatever mode the app runs in.
 
 Run after migrations:  cd backend && alembic upgrade head && python ../scripts/seed.py
-Safe to run again: accounts that already exist are skipped. All accounts use the password printed below.
+Safe to run again: accounts that already exist are skipped (seeker2 only gets what it is still missing).
+All accounts use the password printed below.
 """
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "backend")]
 
+# Before anything asks for the LLM client (it reads AI_MODE on every call); also wins over .env
+os.environ["AI_MODE"] = "rules"
+
 from sqlalchemy import func, select  # noqa: E402
 
+from app.core.errors import AppError  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.models import Company, User  # noqa: E402
 from app.schemas.auth import RegisterIn  # noqa: E402
 from app.schemas.company import CompanyUpdate  # noqa: E402
 from app.schemas.criteria import CriterionIn  # noqa: E402
 from app.schemas.job import JobCreate  # noqa: E402
-from app.services import auth_service, criteria_service, job_service  # noqa: E402
+from app.schemas.preference import PreferenceIn  # noqa: E402
+from app.services import auth_service, criteria_service, cv_service, job_service, preference_service  # noqa: E402
+from make_demo_cv import CV_NAME, CV_PATH  # noqa: E402  (scripts/ is on sys.path when this file runs)
 
 PASSWORD = "demo1234"
 
@@ -93,7 +108,9 @@ COMPANIES = [
     },
 ]
 
-SEEKER = {"email": "seeker@demo.test", "display_name": "데모 구직자"}
+SEEKER = {"email": "seeker@demo.test", "display_name": CV_NAME}
+SEEKER_WITH_CV = {"email": "seeker2@demo.test", "display_name": CV_NAME}
+SEEKER_WITH_CV_PREFERENCES = PreferenceIn(locations=["서울"], employment_types=["full_time"], profile_public=True)
 
 
 def _exists(db, email: str) -> bool:
@@ -113,6 +130,30 @@ def _register(db, email: str, display_name: str, role: str, company_name: str | 
             consent_ai=True,
         ),
     )
+
+
+def _seed_seeker_with_cv(db) -> None:
+    """seeker2: the demo CV uploaded and confirmed as in the app (a confirm saves a new version), then
+    preferences with the talent-pool opt-in. Each step runs only if still missing, so a run that stopped
+    halfway is completed by the next one."""
+    email = SEEKER_WITH_CV["email"]
+    user = db.scalar(select(User).where(func.lower(User.email) == email))
+    if user is None:
+        user = _register(db, email, SEEKER_WITH_CV["display_name"], "seeker")
+        print(f"added {email}")
+    else:
+        print(f"skip  {email} (exists)")
+    try:
+        profile = cv_service.latest(db, user)
+    except AppError:  # CV_NOT_FOUND
+        profile = cv_service.upload(db, user, CV_PATH.name, CV_PATH.read_bytes())
+        print(f"cv    {email} · {CV_PATH.name} ({profile.method})")
+    if profile.confirmed_at is None:
+        profile = cv_service.update(db, user, profile.id, cv_service.to_profile_data(profile), confirm=True)
+        print(f"cv    {email} · confirmed as version {profile.version}")
+    if preference_service.get_mine(db, user) is None:
+        preference_service.replace_mine(db, user, SEEKER_WITH_CV_PREFERENCES)
+        print(f"pref  {email} · 서울, 정규직, talent pool on")
 
 
 def main() -> None:
@@ -139,6 +180,7 @@ def main() -> None:
         else:
             _register(db, SEEKER["email"], SEEKER["display_name"], "seeker")
             print(f"added {SEEKER['email']}")
+        _seed_seeker_with_cv(db)
         print(f"\nAll demo accounts use the password: {PASSWORD}")
     finally:
         db.close()
