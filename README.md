@@ -48,7 +48,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 | Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; in `AI_MODE=rules`, keyword retrieval is used instead |
 | Fit score | Weighted sum of stored per-criterion scores, recomputed from the current weights |
 | Criteria guardrail | `data/blocklist.yaml`: 채용절차법 제4조의3 items plus gender, age, religion, disability, each tagged with its law |
-| Privacy | Name, email and phone are masked before any text is sent to the LLM |
+| Privacy | Before any text reaches the LLM, the CV is masked: email, phone, URLs, 주민번호, birth date and address by pattern, and, on a best-effort basis, names: the seeker's own name (the account name and its spellings such as romanized or without diacritics, labeled name lines such as 성명/Name, and a name at the top of the CV) and names on labeled lines such as 추천인/담당자/Reference. Other people's names without such a label, school and company names, and a name mentioned only by its given name are not masked |
 
 Pretrained models only; nothing is trained from scratch. The LLM is always called through `LLMClient` (`ai/llm/client.py`), so the model can be swapped without touching callers.
 
@@ -155,15 +155,17 @@ LLM_API_KEY=
 EMBEDDING_MODEL=intfloat/multilingual-e5-base
 ```
 
+An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
+
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
-| `JWT_SECRET_KEY` | for anything shared | Any long random string. A dev default is used if empty |
-| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing |
+| `JWT_SECRET_KEY` | for anything shared | Any long random string. A built-in dev value is used if it is missing or empty; while this or `TALENT_ID_SECRET` uses its dev value, the backend logs one warning at startup (names only, never values) |
+| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing or empty |
 | `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis and project/other criteria use rules and keyword retrieval and no LLM is called, even with a key. Any other value stops the backend at startup |
 | `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
-| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 |
-| `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning) |
+| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 (also when empty) |
+| `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning). Empty also means e5 now; an empty value used to fall back to the hashing embedder |
 
 > 🔒 Never commit `.env`. It is in `.gitignore`; only `.env.example` with placeholders is committed.
 
@@ -198,7 +200,7 @@ cd ..
 
 PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
 
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). Expected output ends with `Running upgrade 0010 -> 0011 ...` and then:
+`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). The seed then prints:
 
 ```
 added hr@nextcode.test
@@ -261,7 +263,7 @@ From the **repo root**, with the venv active:
 pytest
 ```
 
-Expected: `556 passed, 15 skipped` (the skipped tests need PostgreSQL, see `TEST_DATABASE_URL`). The 8 tests in `ai/tests/test_e5_quality.py` run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it); without it expect `548 passed, 23 skipped`. Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` only runs the 207 backend tests.
+Every test must pass. Some are skipped: the PostgreSQL tests (see `TEST_DATABASE_URL`), and the tests in `ai/tests/test_e5_quality.py`, which run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` runs only the backend tests (including the doc-drift guards in `backend/tests/docs/`).
 
 To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
 
@@ -361,7 +363,7 @@ Node is too old for Vite 8. Check `node --version` and install Node 22 LTS (or 2
 
 ## 🔌 API Overview
 
-Base URL `http://localhost:8000`. Request/response schemas as currently implemented are at **http://localhost:8000/docs**; the API in `PROJECT_DOCUMENTATION.md` §4 is the standard. All endpoints except register, login, `/health`, `GET /api/jobs` and `GET /api/jobs/{job_id}` need `Authorization: Bearer <token>`.
+Base URL `http://localhost:8000`. Request/response schemas as currently implemented are at **http://localhost:8000/docs**; the API in `PROJECT_DOCUMENTATION.md` §4 is the standard. All endpoints except register, login, `/health`, `GET /api/jobs`, `GET /api/jobs/{job_id}` and `GET /api/jobs/{job_id}/criteria` need `Authorization: Bearer <token>`.
 
 ### Auth & users
 
@@ -444,7 +446,7 @@ CareerSync/
 ├── docs/
 │   ├── DECISIONS.md             # Decisions and scope (source of truth)
 │   ├── docker-compose.md        # Compose guide
-│   ├── PROGRESS_BACKEND_AI.md   # Backend/AI progress and issue list
+│   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
 │   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/
 │   ├── alembic.ini              # Run alembic from backend/
@@ -530,7 +532,7 @@ Coefficients live in `backend/app/core/config.py`.
 
 **Out of scope:** OCR, HWP/DOCX, scraping job sites, multiple recruiters per company, email notifications, interview scheduling, preference model trained from logs, admin screen, payments, mobile app.
 
-**Targets** (demo scale, ≤ 100 seekers, ≤ 50 jobs): CRUD p95 < 500 ms · CV analysis ≤ 60 s · evaluation after applying ≤ 30 s · every criterion score has evidence · no name, email or phone sent to the LLM.
+**Targets** (demo scale, ≤ 100 seekers, ≤ 50 jobs): CRUD p95 < 500 ms · CV analysis ≤ 60 s · evaluation after applying ≤ 30 s · every criterion score has evidence · no email or phone, and on a best-effort basis no seeker name or labeled reference name, sent to the LLM.
 
 ## 🔒 Legal & Ethics
 

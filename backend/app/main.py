@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from ai.embedding.model import configured_model, get_embedder
 from ai.llm.client import check_llm_config, llm_model
 from app.api.v1 import applications, auth, career, companies, criteria, cv, jobs, preferences, recommendations, talent, users
+from app.core.config import dev_secrets_in_use
 from app.core.errors import AppError
 
 # uvicorn configures only its own loggers, so INFO lines reach the console through this one
@@ -40,6 +41,11 @@ async def lifespan(_: FastAPI):
         log.info("AI_MODE=llm, LLM_MODEL=%s", llm_model())  # never the key
     else:
         log.info("AI_MODE=rules (no LLM calls)")
+    if names := dev_secrets_in_use():  # one line, names only, never the values
+        log.warning(
+            "Built-in dev secret in use for %s (local development only; set a long random value for anything shared)",
+            ", ".join(names),
+        )
     threading.Thread(target=warm_up_embedder, args=(mode,), name="embedder-warm-up", daemon=True).start()
     yield
 

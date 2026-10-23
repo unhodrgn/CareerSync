@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 import pytest
 
 from ai.tests.helpers import SAMPLE_CV, FakeLLM, make_pdf
+from app.core.config import settings
 from app.models import CvProfile, Evaluation, User
 from app.schemas.application import AI_NOTICE
 from app.services import ai_runtime
@@ -257,6 +258,39 @@ def test_no_personal_data_reaches_the_llm(client, db, world, job, monkeypatch):
             assert secret not in user
     ev = db.query(Evaluation).one()
     assert ev.llm_model == "fake-llm"
+
+
+# The account name also romanized, and a labeled reference (D39)
+PRIVATE_CV = SAMPLE_CV.replace("김지원\n", "김지원 | Jiwon Kim\n", 1) + "추천인: 박서준 팀장 (넥스트코드)\n- KIM JI-WON 명의로 사내 기술 발표\n"
+
+
+def test_no_personal_data_reaches_the_llm_on_any_seeker_path(client, db, world, job, monkeypatch):
+    """CV structuring, scoring, the CV review, interview questions and the roadmap. Every call is recorded and then
+    fails, so each feature falls back to its rules or template."""
+    llm = FakeLLM()
+    monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
+    monkeypatch.setattr(ai_runtime, "mode", lambda: "llm")
+    h = seeker(db, "kim@seeker.test", "김지원")
+    db.query(User).filter_by(email="kim@seeker.test").update({"consent_version": settings.CONSENT_VERSION})
+    db.commit()
+    gap_job = world["job2"].id  # names a skill the CV lacks, so the roadmap asks the LLM
+    kubernetes = [{"name": "Kubernetes 운영 경험", "category": "skill", "weight": 100}]
+    assert client.put(f"/api/jobs/{gap_job}/criteria", json={"items": kubernetes}, headers=world["recruiter"]).status_code == 200
+    assert client.post(f"/api/jobs/{gap_job}/publish", headers=world["recruiter"]).status_code == 200
+
+    cv = confirm(client, h, upload(client, h, PRIVATE_CV).json()).json()
+    assert client.post(f"/api/jobs/{job}/applications", headers=h).status_code == 201
+    assert client.post(f"/api/cv/{cv['id']}/review", headers=h).status_code == 200
+    assert client.post(f"/api/jobs/{job}/interview-questions", headers=h).status_code == 200
+    assert client.post(f"/api/jobs/{gap_job}/roadmap", headers=h).status_code == 200
+
+    prompts = [user for _system, user in llm.calls]
+    assert any("<gaps>" in p for p in prompts)  # roadmap
+    assert sum("<cv_excerpts>" in p for p in prompts) >= 2  # rubric scoring and interview questions
+    assert len(prompts) >= 5  # and CV structuring and the CV review
+    for p in prompts:
+        for secret in ("jiwon.kim@example.com", "010-1234-5678", "테헤란로", "김지원", "jiwon kim", "kim ji-won", "박서준"):
+            assert secret not in p.lower()
 
 
 def test_jd_analysis_suggests_criteria(client, world):

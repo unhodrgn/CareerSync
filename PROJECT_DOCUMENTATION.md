@@ -20,8 +20,7 @@
 9. [Environment and configuration](#9-environment-and-configuration)
 10. [Development rules](#10-development-rules)
 11. [Known issues and risks](#11-known-issues-and-risks)
-12. [Open questions](#12-open-questions)
-13. [Glossary](#13-glossary)
+12. [Glossary](#12-glossary)
 
 ---
 
@@ -204,7 +203,7 @@ erDiagram
 
 ## 4. API
 
-Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response schemas as currently implemented; this section is the standard — if the implementation differs, fix the code. Except `register`, `login`, `/health`, `GET /api/jobs` and `GET /api/jobs/{job_id}`, every endpoint needs `Authorization: Bearer <token>` (lifetime `JWT_EXPIRE_MINUTES`). On those two job routes the token is optional (`OptionalUser`), but a token that is sent must be valid (401 otherwise). "Company" = `CompanyUser` dependency; "Seeker" = checked in the service (`SEEKER_ONLY`, 403).
+Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response schemas as currently implemented; this section is the standard — if the implementation differs, fix the code. Except `register`, `login`, `/health`, `GET /api/jobs`, `GET /api/jobs/{job_id}` and `GET /api/jobs/{job_id}/criteria`, every endpoint needs `Authorization: Bearer <token>` (lifetime `JWT_EXPIRE_MINUTES`). On those three job routes the token is optional (`OptionalUser`), but a token that is sent must be valid (401 otherwise). "Company" = `CompanyUser` dependency; "Seeker" = checked in the service (`SEEKER_ONLY`, 403).
 
 ### 4.1 Existing endpoints [Current]
 | Method | Path | Purpose | Who | Main errors | Service | AI |
@@ -217,7 +216,8 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET / PUT | `/api/companies/me` | Own company profile | Company | 422 | route | — |
 | GET | `/api/companies/{company_id}` | Public company profile, with its running `projects` (oldest first) | Logged in | 404 `COMPANY_NOT_FOUND` | route | — |
 | GET | `/api/companies/me/projects` | Own running projects (oldest first): `id`, `name`, `description`, `techs`, `created_at`, `updated_at` | Company | — | `company_project_service` | — |
-| POST / PUT / DELETE | `/api/companies/me/projects`, `/api/companies/me/projects/{project_id}` | Create (201) / replace / delete (204) a running project: `name` 1–200 (whitespace collapsed), `description` ≤ 2000, `techs` ≤ 20 items of 1–100 characters (normalized with `data/skills.yaml`, duplicates merged ignoring case). Not used in scoring (D23) | Company | 404 `PROJECT_NOT_FOUND` (another company's); 409 `PROJECT_LIMIT` (over `MAX_PROJECTS`); 422 | `company_project_service` | normalize |
+| POST | `/api/companies/me/projects` | Create (201) a running project: `name` 1–200 (whitespace collapsed), `description` ≤ 2000, `techs` ≤ 20 items of 1–100 characters (normalized with `data/skills.yaml`, duplicates merged ignoring case). Not used in scoring (D23) | Company | 409 `PROJECT_LIMIT` (over `MAX_PROJECTS`); 422 | `company_project_service` | normalize |
+| PUT / DELETE | `/api/companies/me/projects/{project_id}` | Replace (same fields as create) / delete (204) a running project | Company | 404 `PROJECT_NOT_FOUND` (another company's); 422 | `company_project_service` | normalize |
 | POST | `/api/jobs` | Create draft | Company | 422 `DEADLINE_IN_PAST` | `job_service.create` | — |
 | GET | `/api/jobs` | Published, unexpired jobs (`q`, `limit`, `offset`) | Anyone (token optional) | — | `job_service.list_public` | — |
 | GET | `/api/jobs/mine` | Own jobs, all statuses | Company | — | `job_service.list_mine` | — |
@@ -313,7 +313,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | Component | Does | Model / method | Called from |
 |---|---|---|---|
 | `parsing/pdf.py` | PDF → text; checks size, pages, encryption, text present | PyMuPDF | `cv_service.upload` |
-| `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date, address, and the user's `display_name`; line breaks are kept so section headings stay on their own line | Regex | `cv_service.upload` |
+| `parsing/pii.py` | Masks email, URL, 주민번호, phone, birth date and address; then names, best effort (D39): the user's `display_name` (also with spaces between syllables) and its other spellings (no diacritics, family name first or last, given name joined/hyphenated/spaced, romanized Korean, full names only), the value of a labeled line (이름/성명/Name; 추천인/추천자/담당자/지도교수/Reference for other people) and a name-shaped segment of the first 3 lines before the first heading (no digits, dictionary skill, heading or role word). Each name found is masked wherever it appears. A given name or surname alone, unlabeled third persons, schools and companies are not masked. Line breaks are kept so section headings stay on their own line | Regex; `data/skills.yaml` as a guard | `cv_service.upload` |
 | `parsing/extract.py` `structure_cv` | Masked text → `CvProfile`; skills normalized; experience months computed in code | Claude (`prompts/v1/cv_structure.md`) or rules | `cv_service.upload` |
 | `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100. Rules: a JD with a 자격 요건/필수 heading line takes required skills only from that section and preferred ones from 우대 (D27), else the text before "우대" is required; `jd_service` then drops those saving would reject (guardrail, D13) and rescales | Claude (`jd_analyze.md`) or rules | `jd_service.analyze` |
 | `jd/draft.py` | JD draft from the title, keywords, notes, company profile and chosen projects: fixed parts assembled in code; every sentence dropped on pay/money amounts, URL/email/phone or a `data/blocklist.yaml` hit (the intro sentence by sentence; the template's notes are their own sentence); LLM error or no requirement left → template | Claude (`prompts/v1/jd_draft.md`) or template | `jd_service.draft` |
@@ -351,7 +351,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendatio
 
 **Job recommendation (seeker → jobs)**
 - Candidates: published, unexpired jobs. Excluded: jobs already applied to; seekers with no confirmed CV or no AI consent.
-- **Pref** (0–100, `ai/scoring/pref.py` `pref_score`; docs/DECISIONS.md D15) = mean over the preference fields the seeker **filled in**, each 0 or 100: desired locations (match when equal or one contains the other, e.g. "서울" ⊂ "서울 강남구"), employment types (job's type in the list), role keywords (any keyword in the job title or JD; a keyword starting or ending with a Latin letter or digit must sit on a word boundary there, so "Java" does not match "JavaScript"). Compared after whitespace/case normalization; synonyms stay in Q1. With 1 field filled Pref is 0/100, with 2 it is 0/50/100, with 3 it is 0/33.3/66.7/100, so "≥ 40" means at least half of the filled fields match. The result also lists matched and missed fields.
+- **Pref** (0–100, `ai/scoring/pref.py` `pref_score`; docs/DECISIONS.md D15) = mean over the preference fields the seeker **filled in**, each 0 or 100: desired locations (match when equal or one contains the other, e.g. "서울" ⊂ "서울 강남구"), employment types (job's type in the list), role keywords (any keyword in the job title or JD; a keyword starting or ending with a Latin letter or digit must sit on a word boundary there, so "Java" does not match "JavaScript"). Compared after whitespace/case normalization; synonyms stay open ([Q25](docs/DECISIONS.md#3-câu-hỏi-còn-mở)). With 1 field filled Pref is 0/100, with 2 it is 0/50/100, with 3 it is 0/33.3/66.7/100, so "≥ 40" means at least half of the filled fields match. The result also lists matched and missed fields.
 - **Empty preferences**: an empty field is not counted. A seeker with no preferences has Pref = 100 for every job, so ranking is by Fit alone and the evaluation cap below is what limits cost. Planned: show a "희망 조건을 입력하면 추천이 정확해집니다" prompt on the page when all three are empty.
 - **Fit**: reuse the evaluation for (job, newest confirmed CV version); create it if missing. Fit is computed only for jobs with Pref ≥ 40, to limit LLM calls.
 - **Evaluation cap**: one recommendation call queues at most `RECO_MAX_NEW_EVALUATIONS` (10) evaluations (new or re-queued), picking candidates with the highest Pref first, then newest `published_at`. Jobs over the cap are left out of this response and get evaluated on later calls.
@@ -427,7 +427,7 @@ CareerSync/
 │   └── tests/
 ├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
 ├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml, demo/demo_cv.pdf (synthetic demo CV)
-├── docs/                   # DECISIONS.md, docker-compose.md, PROGRESS_BACKEND_AI.md, reference/ (proposal, design document, market research PDFs)
+├── docs/                   # DECISIONS.md, docker-compose.md, archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
 ├── scripts/                # seed.py (demo data), make_demo_cv.py (builds data/demo/demo_cv.pdf), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
 └── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
 ```
@@ -440,14 +440,14 @@ CareerSync/
 
 ## 9. Environment and configuration
 
-Read from `.env` in the repo root; shell variables win. Defaults below are the code defaults.
+Read from `.env` in the repo root; shell variables win. Defaults below are the code defaults. An empty or whitespace-only value counts as unset (`env_or_default` in `core/config.py`; the same inline rule in `ai/`), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
 
 | Variable | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | — | Replaces the five `DB_*` variables |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | `localhost` / `5432` / `postgres` / `postgres` / `careersync_db` | Manual Docker setup uses port 5433 (`.env.example`) |
-| `JWT_SECRET_KEY` | dev default, only when the variable is **missing** | Empty string breaks login ([issue 4](#11-known-issues-and-risks)) |
-| `TALENT_ID_SECRET` | dev default, only when the variable is **missing** | HMAC key for talent `anonymous_id`; separate from `JWT_SECRET_KEY`. Changing it changes every anonymous ID companies see (offers keep working; they store the seeker) |
+| `JWT_SECRET_KEY` | dev default when the variable is missing or empty | While `JWT_SECRET_KEY` or `TALENT_ID_SECRET` is on its built-in dev value, the backend logs one warning at startup (names only, never values; `main.py` lifespan) |
+| `TALENT_ID_SECRET` | dev default when the variable is missing or empty | HMAC key for talent `anonymous_id`; separate from `JWT_SECRET_KEY`. Changing it changes every anonymous ID companies see (offers keep working; they store the seeker) |
 | `JWT_EXPIRE_MINUTES` | `120` | |
 | `AI_MODE` | `rules` | `rules` or `llm`, case-insensitive; empty = `rules`. Only `llm` makes Claude calls (paid). Another value, or `llm` without `LLM_API_KEY`, stops startup (`LLMConfigError`) |
 | `LLM_API_KEY` | — | Required when `AI_MODE=llm`; ignored in `rules`. `ANTHROPIC_API_KEY` is not read |
@@ -501,8 +501,9 @@ LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` secon
 ### Keeping this document current
 - **Doc first.** When a task adds or changes a table, endpoint, page, env variable or constant, update the affected section of this document as part of that task; decisions go to docs/DECISIONS.md.
 - If the code differs from this document, fix the code. If this document looks wrong or outdated, ask Long instead of editing it.
-- Re-check the header commit and the [Known issues](#11-known-issues-and-risks) / [Open questions](#12-open-questions) lists at each milestone.
+- Re-check the header commit and the [Known issues](#11-known-issues-and-risks) / [open questions](docs/DECISIONS.md#3-câu-hỏi-còn-mở) lists at each milestone.
 - Counts: `pytest --collect-only -q | tail -1`, `/docs`, and the table-list command in §3.
+- **Doc-drift guards** (`backend/tests/docs/`, part of every `pytest` run and of CI in `.github/workflows/ci.yml`) compare the docs with the code: links and anchors, D/Q/issue references, the §4.1 table and the tokenless-endpoint sentences vs the routes (including Who), env variables (§9, `.env.example`, Compose), quoted constants and thresholds (§9 and `backend/tests/docs/claims.py`), the demo accounts and the migration range. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails. A failing guard names the doc place and the code place; the doc is the standard (D11), so fix the code unless the doc is wrong.
 
 ---
 
@@ -515,7 +516,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 1 | Cost / security | `ANTHROPIC_API_KEY` is read as well as `LLM_API_KEY`; a machine with it set makes paid calls silently (Compose passes only `LLM_API_KEY`). **Fixed:** only `LLM_API_KEY` is read, and only when `AI_MODE=llm` | `ai/llm/client.py` | Fixed |
 | 2 | Concurrency | `retry` rejects only `done`; re-running a `pending` evaluation can start two scoring threads. **Planned fix:** allow retry only for `failed`, or `pending` older than 10 minutes; otherwise 409. Uses `evaluations.queued_at`. Related: issue 25. **Fixed:** as planned, 409 `EVALUATION_IN_PROGRESS` | `application_service.retry` | Fixed |
 | 3 | Trust | `experience`, generic certificates and skill "uses" take evidence from seeker-editable `source` fields, not from the masked CV text. **Must be fixed before enabling talent recommendation** ([§6.1](#61-recommendation)). **Fixed:** rule scorers read only the masked text; the experience months shown to companies (`ApplicantRow.experience_months`) use the same `verified_experience`. The seeker's own `CvOut.total_experience_months` still follows their edits | `ai/scoring/scorers.py` | Fixed |
-| 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`) | `core/config.py` | Open |
+| 4 | Config | `JWT_SECRET_KEY=` (empty) → login 500 (`HMAC key must not be empty`). **Fixed:** an empty or whitespace-only value counts as unset for every setting where empty means nothing (`env_or_default`), so the dev default is used and the startup warning names it | `core/config.py` | Fixed |
 | 5 | Tests | SQLite tests do not enable `PRAGMA foreign_keys`; FK errors (e.g. RESTRICT) go unnoticed unless tests run on PostgreSQL | `backend/tests/conftest.py` | Open |
 | 6 | Architecture | Scoring runs in-process (`BackgroundTasks`); a restart leaves evaluations `pending` until 다시 분석. **Must be fixed before enabling talent recommendation** — recommendation multiplies the number of background evaluations. **Mitigated for the demo (D18):** recommendation and talent calls re-queue `pending` evaluations older than `EVALUATION_STALE_MINUTES`; a separate worker is still open | `api/v1/applications.py` | Open |
 | 7 | AI / UX | JD-suggested criteria skip the guardrail (it only blocks on save). **Fixed (D24):** `/analyze` leaves out suggestions with a guardrail hit or an education criterion without a major and lists them in `blocked` | `analyze_jd`, `/analyze`, `services/jd_service.py` | Fixed |
@@ -528,7 +529,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 14 | Staleness | Editing 인재상 after scoring does not re-score `other` criteria | — | Open |
 | 15 | Design | Newest CV must be confirmed to apply, even if an older version was confirmed | `cv_service.latest_confirmed` | Open |
 | 16 | Data | `talent_offers` allows duplicate `pending` offers from the same company to the same seeker; planned: check in the service, no DB constraint. **Fixed (D20):** checked in `offer_service.create` under a lock on `companies` | `models/matching.py` | Fixed |
-| 17 | Data | Desired role is free-text keywords (`seeker_job_keywords`) and job titles are free text — Pref matching must handle this — see [Q1](#12-open-questions) | `models/matching.py` | Open |
+| 17 | Data | Desired role is free-text keywords (`seeker_job_keywords`) and job titles are free text — Pref matching must handle this — see [Q25](docs/DECISIONS.md#3-câu-hỏi-còn-mở) | `models/matching.py` | Open |
 | 18 | Tests | Tests build tables with `create_all`, not migrations; model/migration drift is not tested | `backend/tests/conftest.py` | Open |
 | 19 | Frontend | 추천 공고 shows demo %; 인재 추천 and 취업 준비 are placeholders. **Fixed:** every page uses the real API (§5) | `frontend/src/pages/` | Fixed |
 | 20 | Breaking-change risk | Changing `cv_profile.v1`, `to_profile_data`, the Fit formula or `load_for_scoring` affects stored scores and applicant screens | see [`CLAUDE.md`](CLAUDE.md) | Open |
@@ -541,23 +542,21 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 27 | Schema | Migration `0008` for `evaluations.queued_at` (timestamptz) + `evaluations.attempts` (smallint, default 0) — see [§3.4](#34-applications-and-evaluation). **Blocks** issue 2, issue 25 and [§6.1](#61-recommendation) (stale check, fencing, caps, attempt limit) | `backend/migrations/`, `models/application.py` | Fixed |
 | 28 | Consistency | `AI_NOTICE` is only in applicant/evaluation responses; `POST /api/cv` (AI-structured CV) and `POST /api/jobs/{job_id}/analyze` return AI output without it, although rule 8 in §10 and `CLAUDE.md` require it. **Fixed:** `CvOut` and `JdAnalysisOut` have `notice` | `schemas/cv.py`, `api/v1/jobs.py` | Fixed |
 | 29 | Concurrency | `career_service` holds the `FOR UPDATE` lock on the seeker's `users` row for the whole LLM call (up to `LLM_TIMEOUT_SECONDS` = 30 s per try, up to 3 tries with the SDK retries), so one seeker's roadmap/interview calls wait for each other. Accepted for the demo. Planned fix (after the demo): reserve the daily slot in a short transaction (e.g. insert a placeholder row), release the lock, call the LLM, then fill in or remove the placeholder | `services/career_service.py` | Open |
-| 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7. **Fixed for interview questions:** a separate `data/interview_blocklist.yaml`, written for questions, runs after the criteria guardrail on LLM and template questions (question, intent, tips). `data/blocklist.yaml` and the criteria guardrail are unchanged; the legal review of both lists (Q7 here, Q14 in docs/DECISIONS.md) is still open | `data/interview_blocklist.yaml`, `ai/career/interview.py` | Fixed |
+| 30 | Guardrail | `data/blocklist.yaml` is written for criterion names (nouns such as "결혼 여부") and misses some interview-style phrasings, e.g. "결혼하셨나요?" or "자녀 계획". Interview questions pass the same guardrail, and the prompt forbids these topics, but the filter alone does not catch them. Extending the patterns also changes what criteria are blocked, so it needs the legal review in Q7. **Fixed for interview questions:** a separate `data/interview_blocklist.yaml`, written for questions, runs after the criteria guardrail on LLM and template questions (question, intent, tips). `data/blocklist.yaml` and the criteria guardrail are unchanged; the legal review of both lists (Q14 in docs/DECISIONS.md) is still open | `data/interview_blocklist.yaml`, `ai/career/interview.py` | Fixed |
 | 31 | Consistency | Scoring rules changed on 2026-10-14 (D27 related skills, D28 rules-mode project/neutral). Evaluations stored before keep their scores, so within one job applicants can be scored under the old and the new rules; recommendation and talent reuse old evaluations too. Re-seed the demo DB, or re-queue evaluations, before the demo | `evaluations`, `criterion_scores` | Open |
 | 32 | AI quality | With e5 every CV passage has cosine 0.80–0.89 to every query (even the masked contact block), while the retrieval steps (`_RETRIEVAL_STEPS` 0.2/0.4/0.6) were set for hashing: in rules mode an `other` criterion that matches one keyword reaches ≥ 50, and passage ranking (also the CV excerpts for interview questions and the LLM rubric) barely separates relevant from unrelated text. Needs per-model calibration or relative scores. **Mitigated (D28):** chunks of headings or masked contact data only are no longer retrieval candidates, so the contact block is not picked for a project criterion; the thresholds stay until after the demo | `ai/scoring/retrieval.py`, `ai/scoring/scorers.py` | Open |
+| 33 | Privacy | Only the account's `display_name` is masked as a name (also when written with spaces between syllables); a name written another way in the CV (e.g. romanized, or someone else's name) reaches the LLM unmasked. **Mitigated (D39):** other spellings of the account name, labeled name lines (also 추천인/담당자/Reference) and a name at the top of the CV are masked too, for new uploads only (CVs already stored keep their `masked_text`; re-seed the demo database). Still leaking: unlabeled third persons, a given name alone, spellings the rules do not derive | `ai/parsing/pii.py` (`mask_pii`), `services/cv_service.py` (`upload`) | Open |
+| 34 | Security | The built-in dev secrets (`core/config.py`) and the Compose defaults (`docker-compose.yml`, `local-demo-…`) are public in the repo: a shared deployment that keeps them lets anyone sign valid access tokens and recompute anonymous IDs. The startup warning (issue 4) covers the built-in values only, not the Compose defaults. Refusing to start outside development: docs/DECISIONS.md Q23 | `core/config.py`, `docker-compose.yml` | Open |
+| 35 | Security | A failed evaluation stores the raw exception text (`"{type}: {message}"`, ≤ 500 characters) in `evaluations.error`, and `EvaluationOut.error` returns it to the recruiter, so internal details (e.g. a database error) leave the backend. The current frontend does not show the field | `services/evaluation_service.py`, `services/application_service.py` (`evaluation`) | Open |
+| 36 | Data quality | `evaluations.llm_model` records the model whenever `AI_MODE=llm`, even when no criterion used it (only `project`/`other` call the LLM, and they can fall back to retrieval). The per-criterion `criterion_scores.method` is correct | `services/evaluation_service.py` | Open |
+| 37 | Data quality | Job search `q` goes into `ILIKE '%…%'` without escaping `%` and `_`, so they act as wildcards (not an injection: the value is a bound parameter) | `services/job_service.py` (`list_public`) | Open |
+| 38 | Security | The 5 MB CV limit is checked only after the whole request is received: Starlette (1.7.0 here) limits form fields to 1 MB but not file parts, which it spools to a temporary file; neither the app nor Compose sets a request size limit | `api/v1/cv.py`, `app/main.py` | Open |
+| 39 | Data / UX | `PUT /api/cv/{profile_id}` on a version of an **older** CV document saves the new version under that document, but `latest()` orders by document first, so the edit (even confirmed) is never the version used to apply, for recommendation or for talent; when the newest document's version is unconfirmed, applying fails with `CV_NOT_CONFIRMED`. API only: the frontend edits the newest version. Related: issue 15, [Q26](docs/DECISIONS.md#3-câu-hỏi-còn-mở) | `services/cv_service.py` (`update`, `latest`) | Open |
+| 40 | Privacy | Company-written text reaches the LLM unmasked: `/analyze` sends the job title and JD, `/jd-draft` the title, keywords, notes, company intro, 인재상 and chosen projects. It holds no seeker data, but a recruiter's own name, email or phone typed there is sent as written (JD drafts drop contact data from the output only) | `services/jd_service.py`, `ai/parsing/extract.py` (`analyze_jd`), `ai/jd/draft.py` | Open |
 
 ---
 
-## 12. Open questions
-
-| # | Question | Blocks |
-|---|---|---|
-| Q1 | Pref beyond normalization and containment: synonyms for locations and role keywords (e.g. "강남" vs "서울 강남구", "백엔드" vs "Backend")? Should a role mismatch alone exclude a job? (Formula: docs/DECISIONS.md D2; field rules: D15) | Recommendation quality |
-| Q6 | Issue 15: allow applying with an older confirmed CV version? | Apply, recommendation |
-| Q7 | Blocklist legal references: re-check their legal validity before the demo | Demo |
-
----
-
-## 13. Glossary
+## 12. Glossary
 
 | Korean | English | Meaning here |
 |---|---|---|

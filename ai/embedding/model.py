@@ -68,8 +68,9 @@ class HashingEmbedder:
 
 
 def configured_model() -> str:
-    """The embedding model EMBEDDING_MODEL asks for; `get_embedder().name` differs after a fallback."""
-    return os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL)
+    """The embedding model EMBEDDING_MODEL asks for (unset, empty or whitespace only means the default);
+    `get_embedder().name` differs after a fallback."""
+    return (os.getenv("EMBEDDING_MODEL") or "").strip() or DEFAULT_MODEL
 
 
 _load_lock = threading.Lock()
