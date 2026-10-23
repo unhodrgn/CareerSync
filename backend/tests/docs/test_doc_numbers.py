@@ -13,6 +13,8 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.test\b")
 PASSWORD = re.compile(r"\bdemo\d+\b")
 RANGE = re.compile(r"`?\b(\d{4})`?\s*(?:…|\.\.\.|→|->)\s*`?(\d{4})\b`?")
 MIGRATION_ID = re.compile(r"\bmigrations?\s+`?(\d{4})\b`?", re.IGNORECASE)
+# Every pytest summary names passed or skipped; a bare "failed" is too common ("port 5432 failed")
+TEST_COUNT = re.compile(r"\b\d+\s+(?:passed|skipped|deselected|tests?)\b", re.IGNORECASE)
 
 
 def seed_accounts(source: str) -> tuple[dict[str, int], str | None]:
@@ -90,6 +92,22 @@ def migration_problems(docs: list[Doc], chain: list[str]) -> list[str]:
     if not ranges:
         problems.append(f"No doc gives the migration range ({first} … {head}) any more. Restore it (e.g. the README tree) or drop this check.")
     return problems
+
+
+def count_problems(docs: list[Doc]) -> list[str]:
+    """Hand-typed test counts go stale with every new test and differ per machine (e5 cached or not)."""
+    return [
+        f"{doc.rel}:{line} gives a test count ({m.group(0)!r}). Counts go stale: describe what must pass instead, "
+        f"and use `pytest --collect-only -q | tail -1` to count."
+        for doc in docs
+        for line, text in doc.numbered()  # code blocks too
+        for m in TEST_COUNT.finditer(text)
+    ]
+
+
+def test_no_hand_typed_test_counts():
+    problems = count_problems(guarded_docs())
+    assert not problems, report(problems)
 
 
 def test_demo_accounts_match_the_seed():

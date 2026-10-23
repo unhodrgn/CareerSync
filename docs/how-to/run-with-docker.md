@@ -36,6 +36,13 @@ DB_USER, DB_PASSWORD and DB_NAME are shared by the database and backend.
 Changing credentials after the database volume is initialized does not change
 the credentials already stored in PostgreSQL.
 
+The containers do not read .env themselves (CAREERSYNC_DOTENV=0). Compose takes
+only these variables from .env or the shell and passes them on: DB_USER,
+DB_PASSWORD, DB_NAME, JWT_SECRET_KEY, TALENT_ID_SECRET, AI_MODE, LLM_API_KEY,
+LLM_MODEL, EMBEDDING_MODEL, and the COMPOSE_* ports below. Anything else in .env,
+such as LLM_EFFORT, JWT_EXPIRE_MINUTES, DATABASE_URL or the *_PATH overrides, has
+no effect under Compose (see docker-compose.yml).
+
 Optional .env variables: COMPOSE_DB_PORT (5434), COMPOSE_BACKEND_PORT (8000),
 COMPOSE_FRONTEND_PORT (3000). Access the corresponding port if changed.
 AI_MODE defaults to rules. AI_MODE=llm needs LLM_API_KEY, otherwise the backend

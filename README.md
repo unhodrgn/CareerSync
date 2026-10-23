@@ -8,7 +8,7 @@ Soongsil University RISE Capstone project. This is a working prototype under act
 
 Decisions and scope: [`docs/DECISIONS.md`](docs/DECISIONS.md) (source of truth). Technical reference: [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
 
-[Status](#-status) · [Run It Locally](#️-run-it-locally) · [Troubleshooting](#️-troubleshooting) · [API](#-api-overview) · [Project Structure](#-project-structure)
+[Status](#-status) · [Run with Docker](docs/how-to/run-with-docker.md) · [Run It Locally](docs/how-to/run-locally.md) · [Troubleshooting](docs/how-to/troubleshooting.md) · [API](#-api-overview) · [Project Structure](#-project-structure)
 
 ---
 
@@ -37,7 +37,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 | 🎯 Job recommendation | ✅ Done | 추천 공고: jobs matching the seeker's preferences and the job's criteria, shown with a match band (매우 적합 / 적합 / 참고), no scores |
 | 🧭 Job preparation | ✅ Done | 취업 준비 for a job: skills the job asks for that the CV lacks with a learning plan, and interview practice questions |
 | 🔎 Talent recommendation (인재 추천) | ✅ Done | Companies see anonymous opted-in seekers per published job and send offers; contact details only after the seeker accepts |
-| 🐳 `docker compose up` | ✅ Done | Starts DB, migrations + demo seed, backend and frontend. See [Compose guide](docs/docker-compose.md) |
+| 🐳 `docker compose up` | ✅ Done | Starts DB, migrations + demo seed, backend and frontend. See [Compose guide](docs/how-to/run-with-docker.md) |
 
 ## 🧠 How Scoring Works
 
@@ -71,295 +71,11 @@ Browser ──► Vite dev server :3000 ──(/api proxy)──► FastAPI :800
 
 ## 🐳 Run with Docker Compose
 
-With Docker Desktop running, create `.env` from `.env.example` if needed, then run `docker compose up --build -d`. The demo embedding `intfloat/multilingual-e5-base` is the default and downloads about 1 GB on the first run (kept in the `model-cache` volume); set `EMBEDDING_MODEL=hashing-ngram-v1` only for a quick try. Open http://localhost:3000. See [the full guide](docs/docker-compose.md) for ports, logs and stopping the app. This uses a separate database from the manual setup below.
+With Docker Desktop running, create `.env` from `.env.example` if needed, then run `docker compose up --build -d`. The demo embedding `intfloat/multilingual-e5-base` is the default and downloads about 1 GB on the first run (kept in the `model-cache` volume); set `EMBEDDING_MODEL=hashing-ngram-v1` only for a quick try. Open http://localhost:3000. See [the full guide](docs/how-to/run-with-docker.md) for ports, logs, stopping the app and which `.env` variables Compose passes on. This uses a separate database from the manual setup below. Demo accounts (password `demo1234`): `hr@nextcode.test`, `hr@cloudlab.test`, `seeker@demo.test`, `seeker2@demo.test`.
 
 ## ⚙️ Run It Locally
 
-Commands: **bash** (macOS/Linux/Git Bash) and **PowerShell** (Windows) where they differ.
-
-You need **three terminals** in the end: PostgreSQL runs in Docker in the background, the backend runs in terminal 1, the frontend in terminal 2.
-
-### 0. Prerequisites
-
-| Tool | Version | Check |
-| --- | --- | --- |
-| Git | any | `git --version` |
-| Python | **3.11 or newer** | `python --version` (Windows: `py -3.11 --version`) |
-| Node.js | **20.19+ or 22.12+** (Vite 8 needs it; npm comes with it) | `node --version` |
-| Docker Desktop | running | `docker ps` must not print an error |
-
-On Windows, start Docker Desktop and wait until it says "Engine running" before step 2.
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/unhodrgn/CareerSync.git
-cd CareerSync
-```
-
-Commands run from the **repo root** unless they `cd backend` / `cd frontend`.
-
-### 2. Start PostgreSQL in Docker (port 5433)
-
-The container listens on **5433** on your machine, so it does not collide with a PostgreSQL already installed on Windows/macOS (which usually holds 5432).
-
-```bash
-docker run -d --name careersync-db \
-  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=careersync_db \
-  -p 5433:5432 -v careersync-pgdata:/var/lib/postgresql/data postgres:16
-```
-
-```powershell
-docker run -d --name careersync-db `
-  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=careersync_db `
-  -p 5433:5432 -v careersync-pgdata:/var/lib/postgresql/data postgres:16
-```
-
-Check it is up: `docker ps` should show `careersync-db` with `0.0.0.0:5433->5432/tcp`.
-
-You only run `docker run` once. Later (after a reboot) just start the existing container:
-
-```bash
-docker start careersync-db
-```
-
-The `careersync-pgdata` volume keeps the data when the container stops.
-
-### 3. Create the `.env` file (repo root)
-
-```bash
-cp .env.example .env
-```
-
-```powershell
-Copy-Item .env.example .env
-```
-
-The file must be **`.env` in the repo root**, not in `backend/`. The backend, `alembic` and `scripts/seed.py` all read it on startup. Variables already set in the shell win over `.env`.
-
-The defaults already match the Docker command above:
-
-```env
-DB_HOST=localhost
-DB_PORT=5433
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=careersync_db
-
-JWT_SECRET_KEY=replace_with_a_secure_random_secret
-TALENT_ID_SECRET=replace_with_another_secure_random_secret
-
-# Optional
-AI_MODE=rules
-LLM_API_KEY=
-EMBEDDING_MODEL=intfloat/multilingual-e5-base
-```
-
-An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
-
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
-| `JWT_SECRET_KEY` | for anything shared | Any long random string. A built-in dev value is used if it is missing or empty; while this or `TALENT_ID_SECRET` uses its dev value, the backend logs one warning at startup (names only, never values) |
-| `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing or empty |
-| `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis and project/other criteria use rules and keyword retrieval and no LLM is called, even with a key. Any other value stops the backend at startup |
-| `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
-| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 (also when empty) |
-| `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` downloads about 1 GB on the first CV upload or evaluation. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning). Empty also means e5 now; an empty value used to fall back to the hashing embedder |
-
-> 🔒 Never commit `.env`. It is in `.gitignore`; only `.env.example` with placeholders is committed.
-
-### 4. Backend: virtual environment and dependencies
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r backend/requirements.txt
-```
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r backend/requirements.txt
-```
-
-**Activate the venv again in every new terminal** before running `alembic`, `uvicorn`, `pytest` or the seed script.
-
-`sentence-transformers` pulls in PyTorch, so the first install takes a few minutes and several GB. On Linux, installing the CPU build first keeps it much smaller: `pip install torch --index-url https://download.pytorch.org/whl/cpu`, then the requirements.
-
-### 5. Create the tables and load demo data
-
-```bash
-cd backend
-alembic upgrade head
-python ../scripts/seed.py
-cd ..
-```
-
-PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts\seed.py`, `cd ..`).
-
-`alembic` **must run inside `backend/`** (that is where `alembic.ini` is). The seed then prints:
-
-```
-added hr@nextcode.test
-added hr@cloudlab.test
-added seeker@demo.test
-added seeker2@demo.test
-cv    seeker2@demo.test · demo_cv.pdf (rules)
-cv    seeker2@demo.test · confirmed as version 2
-pref  seeker2@demo.test · 서울, 정규직, talent pool on
-
-All demo accounts use the password: demo1234
-```
-
-The seed is safe to run again; existing accounts are skipped (`seeker2@demo.test` only gets the steps it is still missing). It never calls the LLM: it runs in `AI_MODE=rules` whatever `.env` says, so no API key is needed.
-
-### 6. Run the backend (terminal 1)
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-`uvicorn` **must also run inside `backend/`**, otherwise you get `ModuleNotFoundError: No module named 'app'`.
-
-Check it:
-
-- http://localhost:8000/health → `{"status":"ok"}`
-- http://localhost:8000/docs → Swagger UI for every endpoint
-
-### 7. Run the frontend (terminal 2)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open **http://localhost:3000**. The Vite dev server forwards `/api` to `http://127.0.0.1:8000`, so start the backend first. No CORS setup is needed.
-
-### 8. Log in with a demo account
-
-All passwords are `demo1234`.
-
-| Role | Email | What to try |
-| --- | --- | --- |
-| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상"), see 지원자 순위 and 인재 추천 of a job |
-| Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
-| Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서, confirm it, set 희망 조건, see 추천 공고, apply to a job, check 지원 현황 |
-| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직, in the talent pool. Shows 추천 공고, 취업 준비 and the CV self-check at once, and appears in 인재 추천 for the companies |
-
-The demo CV is made up (`scripts/make_demo_cv.py` builds it). Both seekers carry the CV's name, so the name is masked before any text reaches the LLM.
-
-A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
-
-### 9. Run the tests
-
-From the **repo root**, with the venv active:
-
-```bash
-pytest
-```
-
-Every test must pass. Some are skipped: the PostgreSQL tests (see `TEST_DATABASE_URL`), and the tests in `ai/tests/test_e5_quality.py`, which run only when `intfloat/multilingual-e5-base` is already in the Hugging Face cache (they never download it). Tests need no database, no network and no API key: they use in-memory SQLite, the hashing embedder and a fake LLM, and they ignore your `.env`. Running `pytest` inside `backend/` runs only the backend tests (including the doc-drift guards in `backend/tests/docs/`).
-
-To run the API tests against PostgreSQL instead, set `TEST_DATABASE_URL` (the tests drop and recreate all tables, so point it at a separate database).
-
-Frontend type check and production build:
-
-```bash
-cd frontend
-npm run build
-```
-
-### 10. After `git pull`
-
-After every pull:
-
-```bash
-source .venv/bin/activate            # PowerShell: .\.venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt
-cd backend && alembic upgrade head && cd ..
-cd frontend && npm install && cd ..
-```
-
-## 🧪 Quick Command Reference
-
-| Task | Where | Command |
-| --- | --- | --- |
-| Start the database | anywhere | `docker start careersync-db` |
-| Activate the venv | repo root | `source .venv/bin/activate` / `.\.venv\Scripts\Activate.ps1` |
-| Install backend deps | repo root | `pip install -r backend/requirements.txt` |
-| Apply migrations | `backend/` | `alembic upgrade head` |
-| Load demo data | `backend/` or root | `python ../scripts/seed.py` / `python scripts/seed.py` |
-| Run the backend | `backend/` | `uvicorn app.main:app --reload --port 8000` |
-| Run the frontend | `frontend/` | `npm install` then `npm run dev` → http://localhost:3000 |
-| Run all tests | repo root | `pytest` |
-| Build the frontend | `frontend/` | `npm run build` |
-| Open a SQL shell | anywhere | `docker exec -it careersync-db psql -U postgres -d careersync_db` |
-| Reset the database | anywhere | `docker rm -f careersync-db` and `docker volume rm careersync-pgdata`, then step 2 and step 5 again |
-
-## 🛠️ Troubleshooting
-
-### `password authentication failed for user "postgres"` or `connection ... port 5432 failed`
-
-The backend is talking to the wrong PostgreSQL. With `DB_PORT=5432` it reaches a PostgreSQL installed on your machine (with a different password) or nothing at all.
-
-- Make sure `.env` exists **in the repo root** (not `backend/.env`) and says `DB_PORT=5433`, `DB_PASSWORD=postgres`.
-- Make sure no `DB_PORT`, `DB_PASSWORD` or `DATABASE_URL` is left over in the shell, since shell variables win over `.env`. PowerShell: `Get-ChildItem Env:DB_*`, then `Remove-Item Env:DB_PORT`. bash: `env | grep DB_`, then `unset DB_PORT`.
-- If you started the container with a different password, either fix `.env` or reset the database (see the command reference). Changing `POSTGRES_PASSWORD` later has no effect on an existing volume.
-
-### `Connection refused` on port 5433
-
-The container is not running. `docker ps -a` shows it; start it with `docker start careersync-db`. If `docker` itself errors, Docker Desktop is not started.
-
-### `port is already allocated` when running `docker run`
-
-Something else uses 5433. Either stop it, or publish another port (`-p 5434:5432`) and set `DB_PORT=5434` in `.env`. If the error is `name "/careersync-db" is already in use`, the container already exists: use `docker start careersync-db`.
-
-### `No 'script_location' key found` or `Path doesn't exist: migrations`
-
-`alembic` was run from the repo root. Run it from `backend/`: `cd backend`, then `alembic upgrade head`.
-
-### `ModuleNotFoundError: No module named 'app'`
-
-`uvicorn` was run from the repo root. Run it from `backend/`.
-
-### `ModuleNotFoundError` for `dotenv`, `fitz`, `sentence_transformers`, `argon2` ... (often right after `git pull`)
-
-Either the venv is not active (no `(.venv)` in the prompt) or new dependencies were added. Activate the venv and run `pip install -r backend/requirements.txt` again from the repo root.
-
-### `relation "..." does not exist` or `column ... does not exist`
-
-A migration has not been applied, usually after a pull. `cd backend`, then `alembic upgrade head`.
-
-### PowerShell says `running scripts is disabled on this system` when activating the venv
-
-Allow local scripts once for your user, then activate again:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-.\.venv\Scripts\Activate.ps1
-```
-
-### The first CV upload or evaluation is very slow or fails offline
-
-The first use downloads the `multilingual-e5-base` model (about 1 GB). Set `EMBEDDING_MODEL=hashing-ngram-v1` in `.env` and restart the backend to skip it. If the model cannot be loaded, the backend also falls back to the hashing embedder on its own. The backend loads the model in the background at startup and logs which one scores: `Embedding model ready: …`, or a line saying the configured model is not available and which one is used instead (an error with `AI_MODE=llm`, a warning otherwise). The startup log also shows `AI_MODE` and, in llm mode, `LLM_MODEL` (never the key).
-
-### CV analysis or project criteria look basic
-
-That is the rules mode (`AI_MODE=rules`, the default); extraction and judgment criteria use rules and keyword retrieval. Set `AI_MODE=llm` and an Anthropic API key (`LLM_API_KEY`) in `.env` and restart the backend for LLM-refined results; with `AI_MODE=llm` and no key the backend does not start. A wrong key shows up as an authentication error in the backend log and the evaluation is marked failed; recruiters can re-run it with 다시 분석 in 지원자 관리.
-
-### The frontend shows network errors or "인증이 필요합니다"
-
-- Network errors: the backend is not running on port 8000. Start it first. If it runs elsewhere, start Vite with `VITE_API_TARGET`, e.g. `VITE_API_TARGET=http://127.0.0.1:8001 npm run dev` (PowerShell: `$env:VITE_API_TARGET="http://127.0.0.1:8001"; npm run dev`).
-- "인증이 필요합니다" (401): the login expired after 2 hours, or the database was reset. Log in again.
-
-### `npm run dev` fails with a syntax or engine error
-
-Node is too old for Vite 8. Check `node --version` and install Node 22 LTS (or 20.19+).
+Manual setup (PostgreSQL in Docker, the backend and frontend on your machine), the `.env` variables, the demo accounts, tests and a command reference: [docs/how-to/run-locally.md](docs/how-to/run-locally.md). If something fails, see [docs/how-to/troubleshooting.md](docs/how-to/troubleshooting.md).
 
 ## 🔌 API Overview
 
@@ -445,7 +161,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── docs/
 │   ├── DECISIONS.md             # Decisions and scope (source of truth)
-│   ├── docker-compose.md        # Compose guide
+│   ├── how-to/                  # run-with-docker.md, run-locally.md, troubleshooting.md
 │   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
 │   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/

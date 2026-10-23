@@ -413,7 +413,7 @@ CareerSync/
 ├── CLAUDE.md, PROJECT_DOCUMENTATION.md, README.md
 ├── .env.example            # copy to .env in the repo root (never commit .env)
 ├── conftest.py, pyproject.toml   # test setup; run pytest from the root
-├── docker-compose.yml, docs/docker-compose.md
+├── docker-compose.yml, docs/how-to/run-with-docker.md
 ├── backend/
 │   ├── alembic.ini, migrations/versions/   # run alembic from backend/
 │   ├── requirements.txt, Dockerfile
@@ -427,7 +427,7 @@ CareerSync/
 │   └── tests/
 ├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
 ├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml, demo/demo_cv.pdf (synthetic demo CV)
-├── docs/                   # DECISIONS.md, docker-compose.md, archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
+├── docs/                   # DECISIONS.md, how-to/ (run-with-docker.md, run-locally.md, troubleshooting.md), archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
 ├── scripts/                # seed.py (demo data), make_demo_cv.py (builds data/demo/demo_cv.pdf), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
 └── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
 ```
@@ -481,7 +481,7 @@ Service constant: `company_project_service.MAX_PROJECTS` = `20` running projects
 
 LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` seconds per request and `LLM_MAX_RETRIES` = `2` SDK retries, so a failing call ends after about 90 s and the caller falls back to rules or a template.
 
-**Databases.** Manual: `postgres:16` container on host port 5433. Compose: service `db` on host port 5434 with its own volume (separate data). Migrate: `cd backend && alembic upgrade head`. Demo data: `python scripts/seed.py` (accounts and password in the README). The seed always runs in `AI_MODE=rules` (no LLM call, no key) and gives `seeker2@demo.test` the synthetic demo CV `data/demo/demo_cv.pdf`, confirmed, with preferences and the talent-pool opt-in.
+**Databases.** Manual: `postgres:16` container on host port 5433. Compose: service `db` on host port 5434 with its own volume (separate data). Migrate: `cd backend && alembic upgrade head`. Demo data: `python scripts/seed.py` (accounts and password in `docs/how-to/run-locally.md`). The seed always runs in `AI_MODE=rules` (no LLM call, no key) and gives `seeker2@demo.test` the synthetic demo CV `data/demo/demo_cv.pdf`, confirmed, with preferences and the talent-pool opt-in.
 
 **Runtime.** Python 3.11+ (Docker image 3.12, CPU torch); Node 20.19+ or 22.12+; dependencies in `backend/requirements.txt` and `frontend/package.json`. Secrets: `.env` is git-ignored; no real secret is committed. The backend runs as **one** uvicorn process (Compose and `backend/Dockerfile` start `uvicorn` without `--workers`; do not set `WEB_CONCURRENCY`): the JD draft counter (`JD_DAILY_LLM_DRAFTS`, D24) lives in process memory and would be per process otherwise.
 
