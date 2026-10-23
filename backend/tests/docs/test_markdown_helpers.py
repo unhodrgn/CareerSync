@@ -7,7 +7,7 @@ from .test_doc_constants import claim_problems, constant_problems
 from .test_doc_env import UNKNOWN, Compose, Reader, compose_vars, env_block_problems, env_problems, example_vars, readers_in
 from .test_doc_ids import code_reference_problems, collect_ids, issue_numbers, reference_problems
 from .test_doc_links import link_problems, path_problems
-from .test_doc_numbers import account_problems, migration_problems
+from .test_doc_numbers import account_problems, count_problems, migration_problems
 
 D11 = "The doc is the standard (D11)"
 
@@ -270,3 +270,17 @@ def test_account_and_migration_guards():
         "README.md:2 gives the migrations as 0001 … 0010; backend/migrations/versions runs 0001 … 0011. Fix the doc.",
         "README.md:2 mentions migration 0042, which backend/migrations/versions does not have. Fix the doc.",
     ]
+
+
+def test_test_count_guard_flags_counts_in_prose_and_code_blocks():
+    d = doc(
+        "README.md",
+        "Expected: `12 passed, 3 skipped`.\nRun the 8 tests in e5.\n```\n40 passed in 2.1s\n```\n"
+        "Ask 3–10 questions; 5 pages; connection to port 5432 failed.",
+    )
+    problems = count_problems([d])
+    assert [p.split(" gives")[0] for p in problems] == ["README.md:1", "README.md:1", "README.md:2", "README.md:4"]
+    assert problems[0] == (
+        "README.md:1 gives a test count ('12 passed'). Counts go stale: describe what must pass instead, "
+        "and use `pytest --collect-only -q | tail -1` to count."
+    )
