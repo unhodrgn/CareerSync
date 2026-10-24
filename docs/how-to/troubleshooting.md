@@ -49,7 +49,7 @@ The backend starts downloading the `multilingual-e5-base` model (about 1 GB) in 
 
 ## CV analysis or project criteria look basic
 
-That is the rules mode (`AI_MODE=rules`, the default); extraction and judgment criteria use rules and keyword retrieval. Set `AI_MODE=llm` and an Anthropic API key (`LLM_API_KEY`) in `.env` and restart the backend for LLM-refined results; with `AI_MODE=llm` and no key the backend does not start. A wrong key shows up as an authentication error in the backend log and the evaluation is marked failed; recruiters can re-run it with 다시 분석 in 지원자 관리.
+That is the rules mode (`AI_MODE=rules`, the default): CV extraction uses rules, `project` criteria are scored from the CV's 프로젝트 entries and `other` criteria by keyword retrieval (D28; see [How it works](../explanation/how-it-works.md#how-scoring-works)). Set `AI_MODE=llm` and an Anthropic API key (`LLM_API_KEY`) in `.env` and restart the backend for LLM-refined results; with `AI_MODE=llm` and no key the backend does not start. A wrong key shows up as an authentication error in the backend log and the evaluation is marked failed; recruiters can re-run it with 다시 분석 in 지원자 관리.
 
 ## The frontend shows network errors or "인증이 필요합니다"
 

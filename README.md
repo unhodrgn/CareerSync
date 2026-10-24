@@ -8,7 +8,7 @@ Soongsil University RISE Capstone project. This is a working prototype under act
 
 Decisions and scope: [`docs/DECISIONS.md`](docs/DECISIONS.md) (source of truth). Technical reference: [`PROJECT_DOCUMENTATION.md`](PROJECT_DOCUMENTATION.md).
 
-[Status](#-status) · [Run with Docker](docs/how-to/run-with-docker.md) · [Run It Locally](docs/how-to/run-locally.md) · [Troubleshooting](docs/how-to/troubleshooting.md) · [API](#-api-overview) · [Project Structure](#-project-structure)
+[Status](#-status) · [Run with Docker](docs/how-to/run-with-docker.md) · [Run It Locally](docs/how-to/run-locally.md) · [Troubleshooting](docs/how-to/troubleshooting.md) · [How It Works](docs/explanation/how-it-works.md) · [Privacy & Legal](docs/explanation/privacy-and-legal.md) · [API](#-api-overview) · [Project Structure](#-project-structure)
 
 ---
 
@@ -41,16 +41,7 @@ The core idea: **one set of company-defined criteria powers two things**: scorin
 
 ## 🧠 How Scoring Works
 
-| Step | Approach |
-| --- | --- |
-| CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (default `AI_MODE=rules`); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
-| Skill, experience, education, certificate criteria | Rule-based scoring; skills matched with a dictionary and declared groups of related skills (`data/skills.yaml`); `intfloat/multilingual-e5-base` embeddings for retrieval |
-| Project / other (judgment) criteria | LLM with a rubric and evidence quoted from the CV; in `AI_MODE=rules`, keyword retrieval is used instead |
-| Fit score | Weighted sum of stored per-criterion scores, recomputed from the current weights |
-| Criteria guardrail | `data/blocklist.yaml`: 채용절차법 제4조의3 items plus gender, age, religion, disability, each tagged with its law |
-| Privacy | Before any text reaches the LLM, the CV is masked: email, phone, URLs, 주민번호, birth date and address by pattern, and, on a best-effort basis, names: the seeker's own name (the account name and its spellings such as romanized or without diacritics, labeled name lines such as 성명/Name, and a name at the top of the CV) and names on labeled lines such as 추천인/담당자/Reference. Other people's names without such a label, school and company names, and a name mentioned only by its given name are not masked |
-
-Pretrained models only; nothing is trained from scratch. The LLM is always called through `LLMClient` (`ai/llm/client.py`), so the model can be swapped without touching callers.
+Rule-based scoring of each company-defined criterion on the masked CV text, an optional LLM rubric for judgment criteria, and a Fit score that is the weighted average of the criterion scores. The flows, the scoring table, the scoring rules and the architecture: [docs/explanation/how-it-works.md](docs/explanation/how-it-works.md). What is masked before the LLM, consent and the legal guardrail: [docs/explanation/privacy-and-legal.md](docs/explanation/privacy-and-legal.md).
 
 ## 🧰 Tech Stack
 
@@ -63,11 +54,7 @@ Pretrained models only; nothing is trained from scratch. The LLM is always calle
 | Auth | JWT (PyJWT) · Argon2id |
 | Infrastructure | Docker (for PostgreSQL) · Git / GitHub |
 
-```
-Browser ──► Vite dev server :3000 ──(/api proxy)──► FastAPI :8000 ──► PostgreSQL :5433 (Docker)
-                                                        │
-                                                        └──► ai/ (parsing, scoring, guardrails) ──► LLM API (optional)
-```
+The architecture diagram is in [How it works](docs/explanation/how-it-works.md#architecture).
 
 ## 🐳 Run with Docker Compose
 
@@ -162,6 +149,7 @@ CareerSync/
 ├── docs/
 │   ├── DECISIONS.md             # Decisions and scope (source of truth)
 │   ├── how-to/                  # run-with-docker.md, run-locally.md, troubleshooting.md
+│   ├── explanation/             # how-it-works.md, privacy-and-legal.md
 │   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
 │   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/
@@ -211,36 +199,9 @@ CareerSync/
         └── types/               # API types
 ```
 
-## 🔄 Core User Flows
+## 🔄 Core User Flows and Scoring Rules
 
-### Flow A: Job seeker
-
-```
-Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match band)
-        → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황
-        → (opted in) Answer anonymous offers from companies in 받은 제안
-```
-
-### Flow B: Company
-
-```
-Register → Company profile + running projects → Create job → (optional) AI drafts the JD and suggests criteria
-        → Set criteria + weights (blocked if discriminatory) → Publish
-        → Applicants ranked by Fit → Per-criterion score + evidence → Recruiter updates status
-        → 인재 추천: anonymous seekers ranked by Fit → Send offer → Contact after acceptance
-```
-
-## 📏 Scoring Rules
-
-| Rule | Value |
-| --- | --- |
-| Criteria per job | At most 10, integer weights summing to 100 |
-| Fit score | Weighted sum of per-criterion scores (0–100) |
-| Weight edits after publish | Allowed, re-ranked instantly without re-calling AI |
-| Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only (D30, D35) |
-| Final score (job recommendation) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
-
-Coefficients live in `backend/app/core/config.py`.
+The seeker and company flows and the scoring rules table: [docs/explanation/how-it-works.md](docs/explanation/how-it-works.md#user-flows).
 
 ## 🎯 MVP Scope (plan)
 
@@ -252,8 +213,4 @@ Coefficients live in `backend/app/core/config.py`.
 
 ## 🔒 Legal & Ethics
 
-- 채용절차법 제4조의3 (disallowed criteria are blocked at input)
-- 개인정보 보호법 제37조의2 (consent and explanation for automated processing)
-- AI 기본법
-
-The product does not collect sensitive group attributes. A bias audit on synthetic labeled data is planned.
+The laws the product follows, the discriminatory-criteria guardrail, consent and masking: [docs/explanation/privacy-and-legal.md](docs/explanation/privacy-and-legal.md).
