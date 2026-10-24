@@ -408,31 +408,89 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendatio
 
 ## 8. Files and folders
 
+The tree lists every top-level entry and every folder down to two levels below the repo root; `backend/tests/docs/test_doc_tree.py` checks it against the files (deliberate omissions: `tree_omitted` in `backend/tests/docs/allowlist.yaml`). Not shown: local and generated folders (`.venv/`, `node_modules/`, `dist/`, `__pycache__/`, hidden tool folders) and `.env`.
+
 ```
 CareerSync/
-├── CLAUDE.md, PROJECT_DOCUMENTATION.md, README.md
-├── .env.example            # copy to .env in the repo root (never commit .env)
-├── conftest.py, pyproject.toml   # test setup; run pytest from the root
-├── docker-compose.yml, docs/how-to/run-with-docker.md
+├── .github/
+│   └── workflows/ci.yml         # CI: pytest (doc-drift guards included) and the frontend build
+├── .dockerignore                # Keeps .env, .venv, node_modules, dist and caches out of the images
+├── .env.example                 # Copy to .env in the repo root (never commit .env)
+├── .gitignore
+├── CLAUDE.md                    # Rules for AI coding assistants
+├── DESIGN.md                    # Design system of the frontend
+├── PRODUCT.md                   # Product context for design work (not a source of decisions)
+├── PROJECT_DOCUMENTATION.md     # Technical reference (this file)
+├── README.md                    # Overview, status and entry points
+├── conftest.py                  # Test-wide settings: no network, no .env, hashing embedder
+├── pyproject.toml               # pytest config (run pytest from the repo root)
+├── docker-compose.yml           # DB, init, backend and frontend
+├── docs/
+│   ├── DECISIONS.md             # Decisions and scope (source of truth)
+│   ├── how-to/                  # run-with-docker.md, run-locally.md, troubleshooting.md
+│   ├── explanation/             # how-it-works.md, privacy-and-legal.md
+│   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
+│   └── reference/               # Project proposal, design document and market research (PDF)
 ├── backend/
-│   ├── alembic.ini, migrations/versions/   # run alembic from backend/
-│   ├── requirements.txt, Dockerfile
-│   ├── app/main.py         # app, routers, AppError handler, /health
-│   ├── app/core/           # config, security (JWT, Argon2), deps, errors
-│   ├── app/db/session.py   # engine, SessionLocal, Base
-│   ├── app/models/         # user, job, criteria, cv, application, matching
-│   ├── app/schemas/        # Pydantic request/response
-│   ├── app/services/       # auth, job, criteria, cv, application, evaluation, ai_runtime
-│   ├── app/api/v1/         # routers
+│   ├── Dockerfile               # Backend image for Compose (build context: repo root)
+│   ├── alembic.ini              # Run alembic from backend/
+│   ├── migrations/versions/     # 0001 … 0011
+│   ├── requirements.txt         # Backend + AI + test dependencies
+│   ├── app/
+│   │   ├── main.py              # FastAPI app, routers, AppError handler, /health (run uvicorn from backend/)
+│   │   ├── core/                # config (.env loading), security (JWT, Argon2), deps, errors
+│   │   ├── db/session.py        # Engine, SessionLocal, Base
+│   │   ├── api/v1/              # Routers: auth, users, companies, jobs, criteria, cv, applications, preferences, recommendations, talent, career
+│   │   ├── models/              # SQLAlchemy models: user, job, criteria, cv, application, matching, career
+│   │   ├── schemas/             # Pydantic request/response
+│   │   └── services/            # Business logic; calls ai/ through ai_runtime. auth, job, jd, criteria, cv, cv_review, application,
+│   │                            # evaluation, preference, recommendation, talent, offer, career, company_project, consent, ai_runtime
+│   └── tests/                   # API tests (SQLite in memory)
+│       └── docs/                # Doc-drift guards: links, IDs, API, env, constants, numbers, this tree
+├── ai/
+│   ├── llm/client.py            # LLMClient (Anthropic); None unless AI_MODE=llm
+│   ├── prompts/v1/              # cv_structure, jd_analyze, jd_draft, rubric_score, roadmap, interview_questions, cv_review
+│   ├── jd/                      # JD drafts for companies
+│   ├── parsing/                 # PDF → text, PII masking, CV/JD structuring
+│   ├── embedding/               # e5 / hashing embedders, skill dictionary
+│   ├── scoring/                 # Per-criterion scorers, Fit and Pref (shared by evaluation and recommendations)
+│   ├── guardrails/              # Criteria blocklist, evidence check
+│   ├── career/                  # Skill gaps, roadmap, interview questions, CV self-check
 │   └── tests/
-├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
-├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml, demo/demo_cv.pdf (synthetic demo CV)
-├── docs/                   # DECISIONS.md, how-to/ (run-with-docker.md, run-locally.md, troubleshooting.md), explanation/ (how-it-works.md, privacy-and-legal.md), archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
-├── scripts/                # seed.py (demo data), make_demo_cv.py (builds data/demo/demo_cv.pdf), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
-└── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
+│       └── fixtures/            # Synthetic CV text and guardrail / PII name cases
+├── data/
+│   ├── demo/demo_cv.pdf         # Synthetic demo CV (built by scripts/make_demo_cv.py)
+│   ├── blocklist.yaml           # Disallowed criteria with their legal basis
+│   ├── interview_blocklist.yaml # Disallowed interview question topics
+│   ├── learning_resources.yaml  # Verified learning resources for the roadmap
+│   └── skills.yaml              # Skill dictionary, aliases and related-skill groups
+├── scripts/
+│   ├── seed.py                  # Demo companies, jobs, criteria and accounts (one seeker with the demo CV)
+│   ├── make_demo_cv.py          # Builds data/demo/demo_cv.pdf and checks it reads back
+│   ├── docker_init.py           # Compose init: migrations + seed
+│   └── smoke_test.py            # End-to-end check of a running app over HTTP
+└── frontend/                    # React + TypeScript + Vite
+    ├── Dockerfile               # Vite dev server on :3000 for Compose
+    ├── .env.example             # Optional VITE_API_TARGET (copy to frontend/.env.local)
+    ├── index.html, package.json, package-lock.json
+    ├── tsconfig.json, tsconfig.app.json, tsconfig.node.json
+    ├── vite.config.ts           # Port 3000, /api proxy to :8000
+    └── src/
+        ├── App.tsx, main.tsx
+        ├── api/                 # Fetch client and error texts
+        ├── assets/fonts/        # Pretendard (with its license)
+        ├── auth/                # Login state and role guard
+        ├── components/
+        │   └── common/, layout/, seeker/, company/   # Shared UI, app shell and layouts, per-role UI
+        ├── i18n/                # UI text (ko)
+        ├── pages/
+        │   └── public/, seeker/, company/
+        ├── routes/              # Router and paths
+        ├── styles/              # Design tokens and global CSS
+        └── types/               # API types
 ```
 
-**Dependencies:** `api` → `services` → `models` + `ai`; `api/v1/jobs.py` calls `ai.parsing.extract.analyze_jd` directly; `criteria_service` → `ai/guardrails` + `data/blocklist.yaml`; `frontend` → backend only over `/api`.
+**Dependencies:** `api` → `services` → `models` + `ai`; the only direct `ai.*` import in `api/` is `api/v1/cv.py`, which imports `MAX_BYTES` from `ai.parsing.pdf`; `criteria_service` → `ai/guardrails` + `data/blocklist.yaml`; `frontend` → backend only over `/api`.
 
 **Key files:** `services/criteria_service.py` (`load_for_scoring`), `services/evaluation_service.py`, `services/cv_service.py` (`to_profile_data`, `_fill_relational_profile`), `ai/scoring/scorers.py`, `ai/scoring/fit.py`, `ai/llm/client.py`, `ai/parsing/pii.py`, `data/blocklist.yaml`, `core/deps.py`.
 
@@ -503,7 +561,7 @@ LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` secon
 - If the code differs from this document, fix the code. If this document looks wrong or outdated, ask Long instead of editing it.
 - Re-check the header commit and the [Known issues](#11-known-issues-and-risks) / [open questions](docs/DECISIONS.md#3-câu-hỏi-còn-mở) lists at each milestone.
 - Counts: `pytest --collect-only -q | tail -1`, `/docs`, and the table-list command in §3.
-- **Doc-drift guards** (`backend/tests/docs/`, part of every `pytest` run and of CI in `.github/workflows/ci.yml`) compare the docs with the code: links and anchors, D/Q/issue references, the §4.1 table and the tokenless-endpoint sentences vs the routes (including Who), env variables (§9, `.env.example`, Compose), quoted constants and thresholds (§9 and `backend/tests/docs/claims.py`), the demo accounts and the migration range. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails. A failing guard names the doc place and the code place; the doc is the standard (D11), so fix the code unless the doc is wrong.
+- **Doc-drift guards** (`backend/tests/docs/`, part of every `pytest` run and of CI in `.github/workflows/ci.yml`) compare the docs with the code: links and anchors, D/Q/issue references, the §4.1 table and the tokenless-endpoint sentences vs the routes (including Who), env variables (§9, `.env.example`, Compose), quoted constants and thresholds (§9 and `backend/tests/docs/claims.py`), the demo accounts, the migration range and the §8 tree vs the files. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails. A failing guard names the doc place and the code place; the doc is the standard (D11), so fix the code unless the doc is wrong.
 
 ---
 
