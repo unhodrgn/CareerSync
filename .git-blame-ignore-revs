@@ -1,0 +1,2 @@
+# Translation-only commits that git blame skips (locally: git config blame.ignoreRevsFile .git-blame-ignore-revs)
+d48867815defcef8a5956cc9406263ffbf3f2add
