@@ -36,14 +36,14 @@ Read the relevant part of PROJECT_DOCUMENTATION.md before making a plan. Priorit
 |---|---|---|
 | 1 | Every feature works in `AI_MODE=rules` (rules / retrieval fallback). | By convention + tests run in `rules` mode without a key (`FakeLLM`, hashing embedder). Add a rules path for anything new. |
 | 2 | The LLM is called only through `ai/llm/client.py` (`get_llm_client()` / `ai_runtime.llm()`). | By convention — `anthropic` is imported only in `client.py` today. Do not import it anywhere else. |
-| 3 | The LLM sees only PII-masked text (`cv_documents.masked_text`), never the PDF, `display_name`, email or raw text. | By design in `cv_service.upload` and `evaluation_service.evaluate`; tested by `test_no_personal_data_reaches_the_llm` (`backend/tests/test_applications_api.py`). Keep it. |
+| 3 | The LLM sees only PII-masked text (`cv_documents.masked_text`), never the PDF, `display_name`, email or raw text. | By design in `cv_service.upload` and `evaluation_service.evaluate`; tested end to end by `test_no_personal_data_reaches_the_llm_on_any_seeker_path` in `backend/tests/test_applications_api.py` (all five seeker paths that call the LLM: CV structuring, scoring, CV review, interview questions, roadmap) and, for name masking (D39), by `ai/tests/test_pii_names.py`. Keep it. |
 | 4 | LLM quotes are verified against the masked CV (`ai/guardrails/evidence.py`); failure → one retry → retrieval. | Guaranteed for `project`/`other` scoring. New LLM features must verify quotes too. |
 | 5 | The AI never accepts or rejects anyone; `applications.status` changes only by a recruiter action. | Guaranteed — only `application_service.set_status` writes it. Never let AI code call it. |
 | 6 | Responses that carry AI results include `AI_NOTICE`. | By design in today's schemas (applicant, evaluation, `CvOut`, `JdAnalysisOut`, recommendation, talent and career responses have a `notice` field). New AI responses must include it. |
 | 7 | Scoring reads criteria only through `criteria_service.load_for_scoring()`. | By convention. |
 | 8 | `ai/` never imports `app.*`; services reach AI only through `services/ai_runtime.py`. | By convention — currently true. Keep `ai/` DB-free, pass plain objects (`Candidate`, `Criterion`, `JobContext`). |
 | 9 | Weights are never stored in `criterion_scores` and never shown to seekers (seekers see importance / match bands only). | By design; keep it in any new seeker-facing response. |
-| 10 | Criteria pass the legal guardrail (`data/blocklist.yaml`) on save. | Guaranteed on save; **not** for JD-suggested criteria (doc issue 7). |
+| 10 | Criteria pass the legal guardrail (`data/blocklist.yaml`) on save. | Guaranteed on save, and JD suggestions that would be blocked are left out (D24). |
 | 11 | Prompts live in `ai/prompts/vN/`; changing a prompt's meaning bumps `PROMPT_VERSION`. Evaluations record model, embedding, prompt and skills versions. | By convention. |
 | 12 | Pretrained models only; nothing is trained. | By convention. |
 | 13 | Evaluations are obtained through `evaluation_service.ensure()` (get-or-create on job × CV version). | By convention — apply and retry use `ensure()` then `evaluation_service.claim()`, which queues only new, `failed` or stale `pending` evaluations; runs write results only with their `queued_at` token. New queue paths must do the same. |
