@@ -447,7 +447,7 @@ CareerSync/
 │   │   └── services/            # Business logic; calls ai/ through ai_runtime. auth, job, jd, criteria, cv, cv_review, application,
 │   │                            # evaluation, preference, recommendation, talent, offer, career, company_project, consent, ai_runtime
 │   └── tests/                   # API tests (SQLite in memory)
-│       └── docs/                # Doc-drift guards: links, IDs, API, env, constants, numbers, this tree
+│       └── docs/                # Doc-drift guards: links, IDs, API, env, constants, numbers, this tree, language
 ├── ai/
 │   ├── llm/client.py            # LLMClient (Anthropic); None unless AI_MODE=llm
 │   ├── prompts/v1/              # cv_structure, jd_analyze, jd_draft, rubric_score, roadmap, interview_questions, cv_review
@@ -562,7 +562,7 @@ LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` secon
 - If the code differs from this document, fix the code. If this document looks wrong or outdated, ask Long instead of editing it.
 - Re-check the header commit and the [Known issues](#11-known-issues-and-risks) / [open questions](docs/DECISIONS.md#3-open-questions) lists at each milestone.
 - Counts: `pytest --collect-only -q | tail -1`, `/docs`, and the table-list command in §3.
-- **Doc-drift guards** (`backend/tests/docs/`, part of every `pytest` run and of CI in `.github/workflows/ci.yml`) compare the docs with the code: links and anchors, D/Q/issue references, the §4.1 table and the tokenless-endpoint sentences vs the routes (including Who), env variables (§9, `.env.example`, Compose), quoted constants and thresholds (§9 and `backend/tests/docs/claims.py`), the demo accounts, the migration range and the §8 tree vs the files. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails. A failing guard names the doc place and the code place; the doc is the standard (D11), so fix the code unless the doc is wrong.
+- **Doc-drift guards** (`backend/tests/docs/`, part of every `pytest` run and of CI in `.github/workflows/ci.yml`) compare the docs with the code: links and anchors, D/Q/issue references, the §4.1 table and the tokenless-endpoint sentences vs the routes (including Who), env variables (§9, `.env.example`, Compose), quoted constants and thresholds (§9 and `backend/tests/docs/claims.py`), the demo accounts, the migration range, the §8 tree vs the files, and that the docs are English (no Vietnamese letters; D40). A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails. A failing guard names the doc place and the code place; the doc is the standard (D11), so fix the code unless the doc is wrong.
 
 ---
 

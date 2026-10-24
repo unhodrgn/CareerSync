@@ -1,11 +1,11 @@
 # CLAUDE.md — rules for AI coding assistants (CareerSync)
 
-Long là developer duy nhất. Chỉ làm đúng task Long yêu cầu, trong đúng phạm vi đó. Không tự đề xuất phân công, không nhắc review/phụ thuộc vào người khác. Chưa chắc thì hỏi Long.
+Long is the only developer. Do exactly the task Long asks for, within exactly that scope. Do not propose a division of work on your own, and do not mention reviews by or dependencies on other people. If unsure, ask Long.
 
-Khi thấy mâu thuẫn, ghi vào mục câu hỏi mở của docs/DECISIONS.md thay vì tự đoán.
+When you find a contradiction, record it in the open questions section of docs/DECISIONS.md instead of guessing.
 
-Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu kỹ thuật (API, schema, cách chạy): PROJECT_DOCUMENTATION.md.
-Đọc phần liên quan trong PROJECT_DOCUMENTATION.md trước khi lập plan. Thứ tự ưu tiên: DECISIONS.md > PROJECT_DOCUMENTATION.md > code. Nếu code lệch doc thì sửa CODE theo doc, giữ nguyên doc. Trước khi sửa phải liệt kê chỗ lệch cho Long; nếu nghi doc sai hoặc lỗi thời thì hỏi Long, không tự sửa doc.
+Decisions and scope: docs/DECISIONS.md (source of truth). Technical documentation (API, schema, how to run): PROJECT_DOCUMENTATION.md.
+Read the relevant part of PROJECT_DOCUMENTATION.md before making a plan. Priority order: DECISIONS.md > PROJECT_DOCUMENTATION.md > code. If the code differs from the doc, fix the CODE to match the doc and leave the doc unchanged. Before fixing, list the differences for Long; if you suspect the doc is wrong or outdated, ask Long and do not fix the doc yourself.
 
 ## How to work (every task)
 
@@ -14,13 +14,13 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 3. **Find callers first.** Before changing a function, schema or endpoint, search its callers in `backend/`, `ai/` and `frontend/src/api/client.ts`.
 4. **No git.** Do not run `git commit`, `push`, `merge`, `rebase`, `checkout`/`switch`, `reset` or `stash`. Read-only git (`status`, `diff`, `log`, `branch`) is fine. The user commits. If the branch looks wrong for the task (e.g. missing migrations), stop and say so.
 5. **Test.** Run `pytest` from the repo root after every change; it must pass. For frontend changes also run `npm run build` in `frontend/`. Report results, including anything you could not run.
-6. **Keep the docs current.** Quyết định ghi vào `docs/DECISIONS.md`; `PROJECT_DOCUMENTATION.md` chỉ ghi nội dung kỹ thuật. If a task adds or changes a table, endpoint, page, env variable or constant, update the matching section of `PROJECT_DOCUMENTATION.md` in the same change (see its "Keeping this document current"). Do not change the header commit line.
-7. **Decisions are not yours.** "Đã chốt" = có trong `docs/DECISIONS.md`. Nhãn **[Recommended]**/`TBD` trong `PROJECT_DOCUMENTATION.md` chỉ là gợi ý. Do not implement anything else as if decided; ask, or implement only what the user explicitly confirms in this task.
-8. **Language.** Code, comments, commit messages: English. User-facing text (errors, notices, AI comments): Korean.
+6. **Keep the docs current.** Decisions go into `docs/DECISIONS.md`; `PROJECT_DOCUMENTATION.md` records only technical content. If a task adds or changes a table, endpoint, page, env variable or constant, update the matching section of `PROJECT_DOCUMENTATION.md` in the same change (see its "Keeping this document current"). Do not change the header commit line.
+7. **Decisions are not yours.** "Decided" = present in `docs/DECISIONS.md`. The **[Recommended]**/`TBD` labels in `PROJECT_DOCUMENTATION.md` are only suggestions. Do not implement anything else as if decided; ask, or implement only what the user explicitly confirms in this task.
+8. **Language.** Code, comments, commit messages: English. User-facing text (errors, notices, AI comments): Korean. Markdown docs: English; Korean product/UI terms and law names stay Korean with an English gloss at first use (D40; terms in `PROJECT_DOCUMENTATION.md` §12).
 
 ## Permissions
 
-- Hỏi Long trước khi sửa `backend/app/models/`, `backend/app/db/`, `backend/migrations/` (schema thay đổi luôn qua migration mới).
+- Ask Long before changing `backend/app/models/`, `backend/app/db/`, `backend/migrations/` (schema changes always go through a new migration).
 
 **Never, even if asked casually** (stop and confirm explicitly):
 - edit an already-applied migration — always add a new one (next number, `down_revision` = current head);
@@ -54,7 +54,7 @@ Quyết định và phạm vi: docs/DECISIONS.md (nguồn chuẩn). Tài liệu 
 ```bash
 pytest                                   # from the repo root; no DB, network or key needed
 pytest --collect-only -q | tail -1       # count tests
-pytest backend/tests/docs -q             # doc-drift guards only (links, IDs, API, env, constants, numbers)
+pytest backend/tests/docs -q             # doc-drift guards only (links, IDs, API, env, constants, numbers, tree, language)
 cd backend && alembic upgrade head       # migrations (run alembic from backend/)
 cd backend && uvicorn app.main:app --reload   # API on :8000, Swagger at /docs
 cd frontend && npm run dev               # UI on :3000 (proxy /api → :8000)

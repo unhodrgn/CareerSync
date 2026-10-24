@@ -10,7 +10,7 @@ from .markdown import ROOT, Allowlist, Doc, guarded_docs, load, report, tables
 
 D_REF = re.compile(r"\bD(\d{1,3})(?![0-9])")
 Q_REF = re.compile(r"\bQ(\d{1,3})(?![0-9])")
-ISSUE_REF = re.compile(r"\bissues?\s+(\d+(?:\s*(?:,|and|và|–|-|to)\s*\d+)*)", re.IGNORECASE)
+ISSUE_REF = re.compile(r"\bissues?\s+(\d+(?:\s*(?:,|and|–|-|to)\s*\d+)*)", re.IGNORECASE)
 DECISIONS = "docs/DECISIONS.md"
 ISSUES = "PROJECT_DOCUMENTATION.md"
 CODE_DIRS = ("backend/app", "backend/tests", "ai", "scripts", "frontend/src")
@@ -55,7 +55,7 @@ def collect_ids(decisions: Doc, issues_doc: Doc) -> Ids:
 def issue_numbers(text: str) -> list[int]:
     """'33–39' → 33..39; '3, 6 and 26' → [3, 6, 26]."""
     numbers = []
-    for part in re.split(r"\s*(?:,|and|và)\s*", text):
+    for part in re.split(r"\s*(?:,|and)\s*", text):
         if m := re.fullmatch(r"(\d+)\s*(?:–|-|to)\s*(\d+)", part.strip()):
             numbers += list(range(int(m.group(1)), int(m.group(2)) + 1))
         elif part.strip().isdigit():
