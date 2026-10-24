@@ -66,17 +66,17 @@ CLAIMS = (
     ),
     Claim(
         "reco-caps-d16",
-        r"tối đa \*\*(\d+)\*\* lần xếp hàng evaluation mỗi lần gọi.*?\*\*(\d+)\*\*/seeker/ngày.*?tối đa \*\*(\d+)\*\* lần",
+        r"at most \*\*(\d+)\*\* evaluations queued per call.*?\*\*(\d+)\*\*/seeker/day.*?at most \*\*(\d+)\*\* times",
         lambda: (s.RECO_MAX_NEW_EVALUATIONS, s.RECO_DAILY_NEW_EVALUATIONS, s.EVALUATION_MAX_ATTEMPTS),
         f"{CONFIG} RECO_MAX_NEW_EVALUATIONS, RECO_DAILY_NEW_EVALUATIONS, EVALUATION_MAX_ATTEMPTS",
     ),
     Claim(
         "talent-caps-d19",
-        r"(\d+) lần xếp hàng/lần gọi \(luôn\), (\d+)/công ty/ngày",
+        r"(\d+) queued per call \(always\), (\d+)/company/day",
         lambda: (s.TALENT_MAX_NEW_EVALUATIONS, s.TALENT_DAILY_NEW_EVALUATIONS),
         f"{CONFIG} TALENT_MAX_NEW_EVALUATIONS, TALENT_DAILY_NEW_EVALUATIONS",
     ),
-    Claim("offer-limit-d20", r"Tối đa (\d+) offer/công ty/ngày", lambda: (s.OFFER_DAILY_LIMIT,), f"{CONFIG} OFFER_DAILY_LIMIT"),
-    Claim("offer-expiry-d20", r"hết hạn sau (\d+) ngày", lambda: (s.OFFER_EXPIRY_DAYS,), f"{CONFIG} OFFER_EXPIRY_DAYS"),
-    Claim("jd-drafts-d24", r"\*\*(\d+) nháp LLM/công ty/ngày KST\*\*", lambda: (s.JD_DAILY_LLM_DRAFTS,), f"{CONFIG} JD_DAILY_LLM_DRAFTS"),
+    Claim("offer-limit-d20", r"At most (\d+) offers/company/day", lambda: (s.OFFER_DAILY_LIMIT,), f"{CONFIG} OFFER_DAILY_LIMIT"),
+    Claim("offer-expiry-d20", r"expires after (\d+) days", lambda: (s.OFFER_EXPIRY_DAYS,), f"{CONFIG} OFFER_EXPIRY_DAYS"),
+    Claim("jd-drafts-d24", r"\*\*(\d+) LLM drafts/company/day KST\*\*", lambda: (s.JD_DAILY_LLM_DRAFTS,), f"{CONFIG} JD_DAILY_LLM_DRAFTS"),
 )
