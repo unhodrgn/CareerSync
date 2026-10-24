@@ -21,3 +21,6 @@ env_undocumented: []
 
 # test_doc_constants.py: backticked constant names in the docs that do not resolve to code
 constants: []
+
+# test_doc_tree.py: top-level entries and folders (down to two levels below the root) left out of the CareerSync/ tree on purpose
+tree_omitted: []

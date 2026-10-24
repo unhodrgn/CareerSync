@@ -8,6 +8,7 @@ from .test_doc_env import UNKNOWN, Compose, Reader, compose_vars, env_block_prob
 from .test_doc_ids import code_reference_problems, collect_ids, issue_numbers, reference_problems
 from .test_doc_links import link_problems, path_problems
 from .test_doc_numbers import account_problems, count_problems, migration_problems
+from .test_doc_tree import Entry, parse_tree, repo_paths, tree_problems, trees
 
 D11 = "The doc is the standard (D11)"
 
@@ -284,3 +285,83 @@ def test_test_count_guard_flags_counts_in_prose_and_code_blocks():
         "README.md:1 gives a test count ('12 passed'). Counts go stale: describe what must pass instead, "
         "and use `pytest --collect-only -q | tail -1` to count."
     )
+
+
+# ── Tree ──
+
+TREE = """Intro.
+```
+CareerSync/
+├── README.md, .env.example      # comma list; this is a comment, gone.md
+├── app/
+│   ├── main.py                  # entry
+│   │                            # a continued comment
+│   └── api/v1/                  # a/b entry: lists api/ too
+│       └── jobs.py
+└── web/
+    └── src/
+```
+"""
+
+
+def test_tree_parser_reads_levels_paths_comma_lists_and_comments():
+    d = doc("PROJECT_DOCUMENTATION.md", TREE)
+    [(_, fence, body)] = trees([d])
+    entries, problems = parse_tree(d, body)
+    assert fence == 2 and problems == []
+    assert entries == [
+        Entry("README.md", False, 4),
+        Entry(".env.example", False, 4),
+        Entry("app", True, 5),
+        Entry("app/main.py", False, 6),
+        Entry("app/api/v1", True, 8),
+        Entry("app/api/v1/jobs.py", False, 9),
+        Entry("web", True, 10),
+        Entry("web/src", True, 11),
+    ]
+
+
+def test_tree_parser_reports_bad_indentation_and_children_of_a_file():
+    d = doc("a.md", "```\nCareerSync/\n├── a.txt\n│   └── b.txt\n├── c/\n│  └── d.txt\nloose text\n```")
+    [(_, _, body)] = trees([d])
+    entries, problems = parse_tree(d, body)
+    assert [e.path for e in entries] == ["a.txt", "c"]
+    assert problems == [
+        "a.md:4 is indented below an entry that is not a folder (folders end with /). Fix the tree.",
+        "a.md:6 is not indented by 4 characters (│ or spaces) per level. Fix the line.",
+        "a.md:7 is not a tree line (├── or └── after 4 characters per level). Fix the line.",
+    ]
+
+
+def test_tree_guard_reports_missing_entries_wrong_kinds_unlisted_folders_and_stale_omissions():
+    d = doc("PROJECT_DOCUMENTATION.md", TREE)
+    [(_, fence, body)] = trees([d])
+    entries, _ = parse_tree(d, body)
+    files = {"README.md", ".env.example", "app/main.py", "web", "LICENSE", "tools/x/y.py"}
+    dirs = {"app", "app/api", "app/api/v1", "app/models", "app/models/deep", "tools", "tools/x"}
+    allowed = Allowlist("tree_omitted", "path", {"tree_omitted": [
+        {"path": "tools", "reason": "local helper scripts"}, {"path": "app/main.py", "reason": "old"}
+    ]})
+    problems = tree_problems(d, fence, entries, files, dirs, allowed) + allowed.problems()
+    assert problems == [
+        "PROJECT_DOCUMENTATION.md:9 lists app/api/v1/jobs.py, which is not in the repo (missing, or local/generated and "
+        "skipped). Fix the tree or restore the file.",
+        "PROJECT_DOCUMENTATION.md:10 lists web/ as a folder, but it is a file. Drop the / in the tree.",
+        "PROJECT_DOCUMENTATION.md:11 lists web/src/, which is not in the repo (missing, or local/generated and skipped). "
+        "Fix the tree or restore the file.",
+        "PROJECT_DOCUMENTATION.md:2 the folder tree does not list LICENSE. Add it to the tree, or allowlist it in "
+        "backend/tests/docs/allowlist.yaml [tree_omitted] with a reason.",
+        "PROJECT_DOCUMENTATION.md:2 the folder tree does not list app/models/. Add it to the tree, or allowlist it in "
+        "backend/tests/docs/allowlist.yaml [tree_omitted] with a reason.",
+        "allowlist.yaml [tree_omitted] 'app/main.py' no longer matches any difference. Remove the entry.",
+    ]
+
+
+def test_repo_walk_skips_local_generated_and_tool_folders(tmp_path):
+    for rel in ("README.md", ".env", ".env.example", "AUDIT_REPORT.md", ".github/workflows/ci.yml", ".claude/x.json",
+                ".venv/lib.py", "frontend/node_modules/m.js", "frontend/dist/i.js", "ai/__pycache__/a.pyc", "ai/a.py"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("x", encoding="utf-8")
+    files, dirs = repo_paths(tmp_path)
+    assert files == {"README.md", ".env.example", ".github/workflows/ci.yml", "ai/a.py"}
+    assert dirs == {".github", ".github/workflows", "frontend", "ai"}
