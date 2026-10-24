@@ -427,7 +427,7 @@ CareerSync/
 │   └── tests/
 ├── ai/                     # llm, prompts/v1, parsing, embedding, scoring, guardrails, jd, career, tests
 ├── data/                   # blocklist.yaml, interview_blocklist.yaml, learning_resources.yaml, skills.yaml, demo/demo_cv.pdf (synthetic demo CV)
-├── docs/                   # DECISIONS.md, how-to/ (run-with-docker.md, run-locally.md, troubleshooting.md), archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
+├── docs/                   # DECISIONS.md, how-to/ (run-with-docker.md, run-locally.md, troubleshooting.md), explanation/ (how-it-works.md, privacy-and-legal.md), archive/ (PROGRESS_BACKEND_AI.md: old snapshot, not maintained), reference/ (proposal, design document, market research PDFs)
 ├── scripts/                # seed.py (demo data), make_demo_cv.py (builds data/demo/demo_cv.pdf), docker_init.py (migrate + seed), smoke_test.py (end-to-end HTTP check)
 └── frontend/src/           # App.tsx, main.tsx, api/, auth/, components/, i18n/, pages/, routes/, styles/, types/
 ```
