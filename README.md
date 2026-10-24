@@ -14,11 +14,11 @@ A working prototype for a local demo, built as a Soongsil University Capstone pr
 
 CareerSync는 기업이 직접 정한 평가 기준 하나로 지원자 평가와 공고 추천을 함께 처리하는 채용 매칭 플랫폼입니다.
 
-- **기업**: 공고마다 평가 기준과 가중치를 정하면, 지원자를 기준별 점수와 근거(이력서 인용)와 함께 적합도 순으로 볼 수 있습니다. 차별적인 기준은 입력 단계에서 막힙니다.
-- **구직자**: 이력서(PDF)를 올리고 희망 조건을 정하면 추천 공고를 적합도 구간(매우 적합 / 적합 / 참고)으로 받고, 부족한 역량과 면접 질문으로 지원을 준비할 수 있습니다. 점수와 가중치는 보이지 않습니다.
-- **인재 추천**: 동의한 구직자만 익명으로 기업에 보이며, 제안을 수락한 뒤에만 연락처가 공개됩니다.
-- **AI는 합격·불합격을 결정하지 않습니다.** 지원 상태는 채용 담당자가 직접 바꿀 때만 바뀝니다.
-- 이메일, 전화번호와 본인 이름 등 개인정보는 LLM에 보내기 전에 가립니다. 기본은 규칙 기반 채점이며 LLM은 선택 사항입니다.
+- **기업**: 공고마다 평가 기준과 가중치를 정하면, 지원자를 적합도 순으로 보고 기준별 점수와 근거(이력서에서 인용한 문장)를 확인할 수 있습니다. 차별적인 기준은 입력 단계에서 차단됩니다.
+- **구직자**: 이력서(PDF)를 올리고 희망 조건을 정하면 추천 공고를 적합도 구간(매우 적합 / 적합 / 참고)과 함께 받고, 취업 준비 화면에서 부족한 역량의 학습 계획과 면접 연습 질문을 볼 수 있습니다. 구직자에게는 점수와 가중치가 공개되지 않습니다.
+- **인재 추천**: 인재풀 공개에 동의한 구직자만 익명으로 기업에 보이며, 구직자가 제안을 수락한 뒤에만 연락처가 공개됩니다.
+- **AI는 합격·불합격을 결정하지 않습니다.** 지원 상태는 채용 담당자가 직접 변경할 때만 바뀝니다.
+- 이메일, 전화번호, 본인 이름(가능한 범위에서) 등 개인정보는 LLM에 보내기 전에 가립니다. 기본 채점은 규칙 기반이며, LLM은 설정으로 켰을 때만 사용합니다.
 
 숭실대학교 캡스톤 프로젝트이며, 로컬에서 실행하는 데모용 프로토타입입니다.
 
@@ -56,10 +56,10 @@ Demo accounts (password `demo1234` for all):
 A typical demo:
 
 1. Log in as `seeker@demo.test`, open 내 이력서 (My CV), upload `data/demo/demo_cv.pdf` and confirm the extracted profile.
-2. Open 추천 공고 (Recommended jobs) to see jobs with their match band, then apply to the 넥스트코드 backend job.
+2. Open 추천 공고 (Recommended jobs). The first visit only starts scoring ("분석 중", analyzing); press 새로고침 (refresh) after a few seconds to see the jobs with their match band. Open the 넥스트코드 backend job and press 지원하기 (Apply).
 3. Log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 tab: the applicant is ranked by Fit with a score, evidence and comment per criterion.
-4. Change a weight and watch the ranking update without new AI calls; add a criterion such as "키 175cm 이상" (height of at least 175 cm) to see the guardrail block it and name the law.
-5. Open 인재 추천 for the job to find `seeker2@demo.test` as an anonymous seeker, send an offer, then log in as that seeker to accept it.
+4. In the job's 공고 수정 (Edit job) tab, move weight from one criterion to another (the total must stay 100) and save: the Fit is recomputed without new AI calls. To see the guardrail, open the draft 프론트엔드 개발자 (React) job instead, add a criterion such as "키 175cm 이상" (height of at least 175 cm) and leave the field: it is blocked with the law that forbids it. A published job's criteria are fixed, so this only works on a draft.
+5. Open the backend job's 인재 추천 tab; after 새로고침, `seeker2@demo.test` appears as an anonymous seeker. Send an offer, then log in as that seeker and accept it in 받은 제안 (Received offers).
 
 To run the backend and frontend on your machine instead, see [Run locally](docs/how-to/run-locally.md); if something fails, see [Troubleshooting](docs/how-to/troubleshooting.md).
 
@@ -151,7 +151,7 @@ What is required for the demo, what is in product scope and what is out of scope
 
 ## Development
 
-Run `pytest` from the repository root (no database, network or API key needed); it includes the doc-drift guards in `backend/tests/docs/`, which also run in CI. For frontend changes, also run `npm run build` in `frontend/`. Details: [Run locally §9](docs/how-to/run-locally.md#9-run-the-tests).
+Run `pytest` from the repository root (no database, network or API key needed); it includes the doc-drift guards in `backend/tests/docs/`, which also run in CI. For frontend changes, also run `npm run build` in `frontend/`. Doc rules and commit style: [CONTRIBUTING.md](CONTRIBUTING.md); details: [Run locally §9](docs/how-to/run-locally.md#9-run-the-tests).
 
 ## Acknowledgements
 

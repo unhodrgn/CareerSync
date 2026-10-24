@@ -32,6 +32,7 @@ There are no tutorials yet; a guided first-demo walkthrough is planned.
 | [DECISIONS.md](DECISIONS.md) | Reference | Decisions, demo scope and open questions. The source of truth: on any conflict it wins |
 | [PROJECT_DOCUMENTATION.md](../PROJECT_DOCUMENTATION.md) | Reference | Technical reference: database, API (§4.1), frontend, AI, files (§8), configuration (§9), known issues (§11), glossary (§12) |
 | Swagger at http://localhost:8000/docs | Reference | Request and response schemas as implemented (while the backend runs) |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Reference | How to run the tests and doc guards, the doc rules, commit style |
 | [CLAUDE.md](../CLAUDE.md) | Reference | Rules for AI coding assistants working on this repository |
 | [DESIGN.md](../DESIGN.md) | Reference | Design system of the frontend |
 | [PRODUCT.md](../PRODUCT.md) | Reference | Product context for design work (not a source of decisions) |

@@ -1,5 +1,5 @@
 // The access token from POST /api/auth/login lives in sessionStorage: it survives a reload and ends with the tab
-// (issue 12, decided by Long 2026-10-16 for the demo). Storage can be unavailable (private mode, blocked site data);
+// (XSS exposure: issue 12). Storage can be unavailable (private mode, blocked site data);
 // then the token is kept in memory until the next reload.
 const KEY = 'careersync.token';
 let memory: string | null = null;
