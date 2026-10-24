@@ -37,7 +37,7 @@ CLAIMS = (
     ),
     Claim(
         "reco-thresholds",
-        r"Fit ≥ (\d+)\s*(?:\*\*)?(?:and|và)(?:\*\*)?\s*Pref ≥ (\d+)",
+        r"Fit ≥ (\d+)\s*(?:\*\*)?and(?:\*\*)?\s*Pref ≥ (\d+)",
         lambda: (s.RECO_MIN_FIT, s.RECO_MIN_PREF),
         f"{CONFIG} RECO_MIN_FIT, RECO_MIN_PREF",
     ),

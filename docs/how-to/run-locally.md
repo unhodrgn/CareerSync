@@ -178,14 +178,14 @@ All passwords are `demo1234`.
 
 | Role | Email | What to try |
 | --- | --- | --- |
-| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상"), see 지원자 순위 and 인재 추천 of a job |
+| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상", height of at least 175 cm), see 지원자 순위 (Applicant ranking) and 인재 추천 (Talent recommendation) of a job |
 | Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
-| Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서, confirm it, set 희망 조건, see 추천 공고, apply to a job, check 지원 현황 |
-| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직, in the talent pool. Shows 추천 공고, 취업 준비 and the CV self-check at once, and appears in 인재 추천 for the companies |
+| Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서 (My CV), confirm it, set 희망 조건 (Preferences), see 추천 공고 (Recommended jobs), apply to a job, check 지원 현황 (My applications) |
+| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직 (Seoul, full-time), in the talent pool. Shows 추천 공고, 취업 준비 (Job preparation) and the CV self-check at once, and appears in 인재 추천 for the companies |
 
 The demo CV is made up (`scripts/make_demo_cv.py` builds it). Both seekers carry the CV's name, so the name is masked before any text reaches the LLM.
 
-A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
+A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
 
 ## 9. Run the tests
 

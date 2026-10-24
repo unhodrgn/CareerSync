@@ -6,6 +6,7 @@ from .test_doc_api import Route, api_problems, public_sentence_problems, row_ope
 from .test_doc_constants import claim_problems, constant_problems
 from .test_doc_env import UNKNOWN, Compose, Reader, compose_vars, env_block_problems, env_problems, example_vars, readers_in
 from .test_doc_ids import code_reference_problems, collect_ids, issue_numbers, reference_problems
+from .test_doc_language import language_problems, vietnamese_words
 from .test_doc_links import link_problems, path_problems
 from .test_doc_numbers import account_problems, count_problems, migration_problems
 from .test_doc_tree import Entry, parse_tree, repo_paths, tree_problems, trees
@@ -68,14 +69,14 @@ def test_path_guard_reports_a_missing_repo_path():
 # ── IDs ──
 
 DECISIONS = """## 2
-| ID | Ngày | Quyết định | Lý do |
+| ID | Date | Decision | Reason |
 |---|---|---|---|
-| D1 | 2026-10-13 | chốt Q2 | x |
+| D1 | 2026-10-13 | decides Q2 | x |
 | D2 | 2026-10-13 | y | z |
 | D2 | 2026-10-14 | again | z |
 
 ## 3
-| # | Câu hỏi | Nguồn |
+| # | Question | Source |
 |---|---|---|
 | Q5 | open? | D1 |
 """
@@ -365,3 +366,24 @@ def test_repo_walk_skips_local_generated_and_tool_folders(tmp_path):
     files, dirs = repo_paths(tmp_path)
     assert files == {"README.md", ".env.example", ".github/workflows/ci.yml", "ai/a.py"}
     assert dirs == {".github", ".github/workflows", "frontend", "ai"}
+
+
+# ── Language ──
+
+
+def test_language_guard_finds_vietnamese_letters_but_allows_korean_and_french_accents():
+    assert vietnamese_words("Đã chốt: “thay D6”, **không** làm.") == ["Đã", "chốt", "không"]
+    assert vietnamese_words("chốt") == ["chốt"]  # decomposed marks are normalized first
+    assert vietnamese_words("인재 추천 (talent recommendation), résumé, café, 매우 적합") == []
+    # Shared accents alone pass: a word such as "và" or "chú" is only caught next to a Vietnamese-specific letter
+    assert vietnamese_words("và chú") == []
+
+
+def test_language_guard_reports_prose_and_code_lines_with_the_words():
+    d = doc("README.md", "# Title\nSeekers see bands.\nQuyết định đã chốt.\n```\nghi chú: đã sửa\n```")
+    assert language_problems([d]) == [
+        "README.md:3 has Vietnamese text: 'Quyết', 'định', 'đã' (+1 more). Markdown docs are English "
+        "(docs/DECISIONS.md D40): translate the line; Korean terms stay, with an English gloss at first use.",
+        "README.md:5 has Vietnamese text: 'đã', 'sửa'. Markdown docs are English (docs/DECISIONS.md D40): translate "
+        "the line; Korean terms stay, with an English gloss at first use.",
+    ]

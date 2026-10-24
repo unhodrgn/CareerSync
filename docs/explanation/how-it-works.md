@@ -10,8 +10,8 @@ One set of company-defined criteria powers two things: scoring the people who ap
 
 ```
 Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match band)
-        → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황
-        → (opted in) Answer anonymous offers from companies in 받은 제안
+        → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황 (My applications)
+        → (opted in) Answer anonymous offers from companies in 받은 제안 (Received offers)
 ```
 
 ### Flow B: Company
@@ -20,7 +20,7 @@ Register → Upload CV → AI analysis → Edit & confirm → Set preferences �
 Register → Company profile + running projects → Create job → (optional) AI drafts the JD and suggests criteria
         → Set criteria + weights (blocked if discriminatory) → Publish
         → Applicants ranked by Fit → Per-criterion score + evidence → Recruiter updates status
-        → 인재 추천: anonymous seekers ranked by Fit → Send offer → Contact after acceptance
+        → 인재 추천 (talent recommendation): anonymous seekers ranked by Fit → Send offer → Contact after acceptance
 ```
 
 ## Architecture
@@ -39,7 +39,7 @@ The backend calls the AI code only through `backend/app/services/ai_runtime.py`,
 | --- | --- |
 | CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (default `AI_MODE=rules`); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
 | Skill, experience, education, certificate criteria | Rule-based scoring on the masked CV text, in both modes. Skills are matched with a dictionary and declared groups of related skills (`data/skills.yaml`, D27), without embeddings; a skill the dictionary does not know is looked up by the keywords of its name (D28) |
-| Project / other (judgment) criteria | `AI_MODE=llm`: LLM with a rubric (0/25/50/75/100) and evidence quoted from the CV; the quotes are verified against the CV, with one retry, then retrieval. `AI_MODE=rules` (D28): a `project` criterion is scored from the entries of the CV's 프로젝트 section (any entry 25, one entry naming a skill or keyword of the criterion or job 50, two or more 75, no 프로젝트 section 0); an `other` criterion by keyword/embedding retrieval, with a neutral 50 when retrieval finds nothing (only `other` gets it) |
+| Project / other (judgment) criteria | `AI_MODE=llm`: LLM with a rubric (0/25/50/75/100) and evidence quoted from the CV; the quotes are verified against the CV, with one retry, then retrieval. `AI_MODE=rules` (D28): a `project` criterion is scored from the entries of the CV's 프로젝트 (projects) section (any entry 25, one entry naming a skill or keyword of the criterion or job 50, two or more 75, no 프로젝트 section 0); an `other` criterion by keyword/embedding retrieval, with a neutral 50 when retrieval finds nothing (only `other` gets it) |
 | Retrieval (embeddings) | `intfloat/multilingual-e5-base` (fallback `hashing-ngram-v1`, D26) is used only to find the CV passages relevant to a criterion: for project/other criteria, for skills the dictionary does not know, and for the CV excerpts of interview questions. It never scores a skill on its own |
 | Fit score | Weighted average of the stored per-criterion scores, recomputed from the current weights |
 
@@ -55,4 +55,4 @@ Pretrained models only; nothing is trained from scratch. The LLM is always calle
 | Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only. D30 defines the three labels and D35 the guest view; the thresholds are `IMPORTANCE_HIGH` and `IMPORTANCE_MID` in `backend/app/core/config.py` |
 | Final score (job recommendation) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
 
-Coefficients live in `backend/app/core/config.py`. Seekers never see a score: job recommendation shows only a match band (D16), and a seeker's own application shows its status, not its evaluation.
+The importance labels 핵심 / 중요 / 일반 mean core / important / general. Coefficients live in `backend/app/core/config.py`. Seekers never see a score: job recommendation shows only a match band (D16), and a seeker's own application shows its status, not its evaluation.
