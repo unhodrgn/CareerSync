@@ -4,7 +4,7 @@
 >
 > Rules for AI coding assistants: [`CLAUDE.md`](CLAUDE.md).
 > Written against `main` at commit `56371c6` (2026-10-08). The doc is the standard: if the code differs from the doc, fix the code to match the doc. If the doc looks wrong or outdated, ask Long.
-> [Planned] items come from the design document 「AI 소프트웨어 기본설계서 및 상세설계서」 (AI software basic and detailed design document) v1.1 (2026-10-12), which is not a source of decisions.
+> [Planned] items come from the design document 「AI 소프트웨어 기본설계서 및 상세설계서」 (AI software basic and detailed design document) v1.0 (2026-10-11), which is not a source of decisions.
 >
 > Labels: **[Current]** in the code and working · **[DB only]** tables exist, no API/logic yet · **[Planned]** intended direction, not yet a decision, no code · **[Recommended]** a suggestion, not agreed · `TBD` not decided.
 
@@ -417,8 +417,10 @@ CareerSync/
 ├── .dockerignore                # Keeps .env, .venv, node_modules, dist and caches out of the images
 ├── .env.example                 # Copy to .env in the repo root (never commit .env)
 ├── .git-blame-ignore-revs       # Translation-only commits that git blame skips
+├── .gitattributes               # LF line endings for every text file; binaries marked
 ├── .gitignore
 ├── CLAUDE.md                    # Rules for AI coding assistants
+├── CONTRIBUTING.md              # Tests, doc guards, doc rules and commit style
 ├── DESIGN.md                    # Design system of the frontend
 ├── PRODUCT.md                   # Product context for design work (not a source of decisions)
 ├── PROJECT_DOCUMENTATION.md     # Technical reference (this file)
@@ -637,7 +639,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 중요도 핵심 / 중요 / 일반 | Importance core / important / general | What signed-in seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`; docs/DECISIONS.md D30) |
 | 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16) |
 | 인재풀 공개 | Talent-pool opt-in | `seeker_preferences.profile_public` |
-| 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.1 dated 2026-10-12; the PDF in the repo is `docs/reference/CareerSync_설계서.pdf` |
+| 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.0 dated 2026-10-11; the PDF in the repo is `docs/reference/CareerSync_설계서.pdf` |
 | 시장조사 보고서 | Market research report | `docs/reference/CareerSync 시장조사 보고서.pdf` (source of the figures in the README overview) |
 | 채용절차법 제4조의3 | Fair Hiring Procedure Act, Art. 4-3 | Basis of the criteria blocklist |
 | 개인정보 보호법 | Personal Information Protection Act | Consent, deletion rights |

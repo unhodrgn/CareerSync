@@ -1,0 +1,9 @@
+# LF line endings in the repository and in every working copy, whatever core.autocrlf says
+* text=auto eol=lf
+
+# Binary files: never convert
+*.pdf binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.woff2 binary
