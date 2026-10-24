@@ -15,7 +15,7 @@ Two co-equal audiences; neither side's needs automatically win. The shared-crite
 - **Job seekers** (`seeker`, Korean-speaking): upload a text PDF CV, check and confirm what the AI extracted, set preferences, browse jobs (also without logging in), get recommended jobs with a match band, apply and track status, prepare for a specific job (skill gaps / roadmap, interview practice questions, CV self-check), and answer anonymous offers from companies.
 - **Recruiters** (`company`, one account = one company): keep a company profile and running projects, write job postings (with AI drafting and criteria suggestions), define their own evaluation criteria and weights, review applicants ranked by Fit with per-criterion evidence, change application status, browse anonymous opt-in talent and send offers.
 
-Near-term audience: this is a Soongsil University RISE capstone prototype, demoed locally via Docker Compose.
+Near-term audience: this is a Soongsil University capstone prototype, demoed locally via Docker Compose.
 
 ## Product Purpose
 

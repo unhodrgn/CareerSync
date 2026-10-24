@@ -428,6 +428,7 @@ CareerSync/
 ├── docker-compose.yml           # DB, init, backend and frontend
 ├── docs/
 │   ├── DECISIONS.md             # Decisions and scope (source of truth)
+│   ├── index.md                 # Map of every doc and its Diataxis type
 │   ├── how-to/                  # run-with-docker.md, run-locally.md, troubleshooting.md
 │   ├── explanation/             # how-it-works.md, privacy-and-legal.md
 │   ├── archive/                 # PROGRESS_BACKEND_AI.md: old progress snapshot (2026-10-08..14), not maintained
