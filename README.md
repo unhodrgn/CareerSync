@@ -69,7 +69,7 @@ To run the backend and frontend on your machine instead, see [Run locally](docs/
 
 | Feature | Status | What exists today |
 | --- | --- | --- |
-| Guest browsing | Done | Published jobs, job detail with criterion names only, and the public company page without logging in (D4, D35) |
+| Guest browsing | Done | Published jobs and job detail (criterion names only) without logging in (D4, D35); company pages need a login. |
 | Authentication and consent | Partial | Register as seeker or company with privacy and AI consent, JWT login (2 h access token, Argon2id passwords), re-consent screen, seeker can withdraw AI consent. Gap: the consent text is still marked as a draft |
 | Company profile | Done | Name, intro, 인재상 (talent profile), running projects (shown on the public company page and usable as context for AI JD drafts) |
 | Job postings | Done | Draft → published → closed; after publishing only the deadline, location and salary note can change. AI drafts a JD for a draft job and suggests criteria from the JD |
@@ -156,3 +156,5 @@ Run `pytest` from the repository root (no database, network or API key needed); 
 ## Acknowledgements
 
 Soongsil University Capstone.
+
+License: not chosen yet; all rights reserved until a license is added.

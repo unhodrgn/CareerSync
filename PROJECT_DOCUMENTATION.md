@@ -3,7 +3,7 @@
 > Decisions and scope: see docs/DECISIONS.md. If the two conflict, DECISIONS.md is right.
 >
 > Rules for AI coding assistants: [`CLAUDE.md`](CLAUDE.md).
-> Written against `main` at commit `56371c6` (2026-10-08). The doc is the standard: if the code differs from the doc, fix the code to match the doc. If the doc looks wrong or outdated, ask Long.
+> Written against `main` at commit `5615851` (2026-10-25). The doc is the standard: if the code differs from the doc, fix the code to match the doc. If the doc looks wrong or outdated, ask Long.
 > [Planned] items come from the design document 「AI 소프트웨어 기본설계서 및 상세설계서」 (AI software basic and detailed design document) v1.0 (2026-10-11), which is not a source of decisions.
 >
 > Labels: **[Current]** in the code and working · **[DB only]** tables exist, no API/logic yet · **[Planned]** intended direction, not yet a decision, no code · **[Recommended]** a suggestion, not agreed · `TBD` not decided.
