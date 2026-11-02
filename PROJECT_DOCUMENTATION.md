@@ -48,7 +48,7 @@
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py`, used by job recommendation and talent recommendation |
 | AI self-check of a CV version (strengths / improvements, no score) | [Current] | `POST /api/cv/{profile_id}/review` (D25) |
 | Skill roadmap and interview practice questions for a job | [Current] | `POST /api/jobs/{job_id}/roadmap`, `POST /api/jobs/{job_id}/interview-questions` (D21) |
-| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); seeker page 추천 공고 (Recommended jobs) shows match bands only (매우 적합 / 적합 / 참고: very good / good / reference) |
+| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); seeker page 추천 공고 (Recommended jobs) shows the match score (an integer 0–100) with its match band (매우 적합 / 적합 / 참고: very good / good / reference), strengths and gaps; the job detail page shows the score from `GET /api/jobs/{job_id}/match` when an evaluation is already done (D42–D44) |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | No code yet |
 | Delete CV / account | Deferred | Later phase, not rejected (docs/DECISIONS.md D34) |
@@ -103,7 +103,7 @@ flowchart LR
 
 ## 3. Database
 
-PostgreSQL 16, Alembic migrations `0001` → `0011`. List the current tables with:
+PostgreSQL 16, Alembic migrations `0001` → `0015`. List the current tables with:
 `python -c "import app.models; from app.db.session import Base; print(sorted(Base.metadata.tables))"` (from `backend/`).
 JSON columns are `JSONB` on PostgreSQL and `JSON` on SQLite. All `created_at`/`updated_at` columns are `timestamptz` with `now()` defaults.
 
@@ -113,8 +113,10 @@ JSON columns are `JSONB` on PostgreSQL and `JSON` on SQLite. All `created_at`/`u
 **`users`** — `id` PK · `email` varchar(255), unique on `lower(email)` · `password_hash` (Argon2id) · `display_name` varchar(50) (shown to recruiters, masked out of CV text) · `role` `seeker`|`company` · `company_id` FK → companies (CASCADE; required when role is company) · `consent_privacy_at`, `consent_ai_at` (AI consent required to apply), `consent_version` · `created_at`
 
 ### 3.2 Jobs and criteria
-**`job_postings`** — `id` PK · `company_id` FK → companies (CASCADE) · `title` varchar(200) · `description` text (JD, ≤10000, required to publish) · `employment_type` `full_time`|`contract`|`intern` · `min_experience_years` smallint 0–30, NULL = 신입 가능 (entry level allowed) · `location`, `salary_note` varchar(100) free text · `deadline` date · `status` `draft`|`published`|`closed` · `criteria_updated_at` · `published_at`, `closed_at` · `created_at`, `updated_at`.
-After publishing only `deadline`, `location`, `salary_note` change; `closed` is final; only drafts can be deleted.
+**`job_postings`** — `id` PK · `company_id` FK → companies (CASCADE) · `title` varchar(200) · `description` text (JD, ≤10000, required to publish) · `employment_type` `full_time`|`contract`|`intern` · `min_experience_years` smallint 0–30, NULL = 신입 가능 (entry level allowed) · `location`, `salary_note` varchar(100) free text · `deadline` date · `category` varchar(20) NULL, indexed (`0012`, D45): `dev`|`data_ai`|`design`|`marketing`|`planning`, checked by the API schema, required to publish, NULL on jobs published before `0012` · `headcount` smallint NULL (`0015`, D47): 모집 인원 (number of hires), 1–999 (DB check `ck_job_postings_headcount` and the API schema), NULL = not stated, locked after publish like the other posting fields, never a scoring input · `status` `draft`|`published`|`closed` · `criteria_updated_at` · `published_at`, `closed_at` · `created_at`, `updated_at`.
+After publishing only `deadline`, `location`, `salary_note` change; `closed` is final; only drafts can be deleted. Job tags are not stored: they are computed on read from the criteria and the JD (`ai/jd/tags.py`, D45).
+
+**`saved_jobs`** (`0013`, D45) — `user_id` FK → users (CASCADE) · `job_id` FK → job_postings (CASCADE) · `created_at` · PK (`user_id`, `job_id`). A seeker's saved jobs (공고 저장). Seeker-only data: only `saved_job_service` reads it, no company-facing response says who saved a job, and saving never creates an evaluation.
 
 **`job_criteria`** — `id` PK · `job_id` FK → job_postings (CASCADE) · `name` varchar(50), unique per job on `lower(trim(name))` · `description` text (rubric, ≤500) · `category` `skill`|`experience`|`project`|`certificate`|`education`|`other` · `weight` 1–100 · `position` · `guardrail_version` · `created_at`, `updated_at`.
 Service rules: 1–`CRITERIA_MAX_ITEMS` criteria, unique names, weights sum to `CRITERIA_WEIGHT_TOTAL`; an `education` criterion names at least one major or 이공계/STEM (checked on draft save, copy and publish); after publishing only weights and order change.
@@ -149,11 +151,12 @@ Child tables of `cv_profiles` (all `cv_profile_id` FK → cv_profiles, CASCADE, 
 **`criterion_scores`** — `evaluation_id` FK (CASCADE) · `job_criteria_id` FK (CASCADE) · `score` 0–100 · `level` · `reason` · `evidence` JSON (quotes) · `method` (`rule:skill`, `llm:<model>`, `retrieval`, …). Unique (`evaluation_id`, `job_criteria_id`). Weights are **not** stored.
 
 ### 3.5 Matching groundwork
-Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` is used by talent offers (D20); `company_projects*` are used by `/api/companies/me/projects` (D23).
+Created in `0007` (`seeker_profile_skills` and `experience_level` in `0014`). The `seeker_*` tables are used by `/api/preferences/me`; `talent_offers` is used by talent offers (D20); `company_projects*` are used by `/api/companies/me/projects` (D23).
 
 | Table | Columns | Purpose |
 |---|---|---|
-| `seeker_preferences` | `seeker_id` FK → users (CASCADE), unique · `profile_public` bool default false · `profile_public_at` · `created_at`, `updated_at` | One row per seeker. `profile_public` = opt-in to appear anonymously in talent recommendation |
+| `seeker_preferences` | `seeker_id` FK → users (CASCADE), unique · `profile_public` bool default false · `profile_public_at` · `experience_level` varchar(20) NULL (`0014`): `new`\|`junior`\|`mid`\|`senior`, checked by the API schema · `created_at`, `updated_at` | One row per seeker. `profile_public` = opt-in to appear anonymously in talent recommendation. `experience_level` = self-declared 경력 수준 (experience level), display only (D46) |
+| `seeker_profile_skills` (`0014`) | `preference_id` FK (CASCADE), indexed · `skill` varchar(100); unique per preference | Self-declared 보유 기술 스택 (tech stack), normalized with `data/skills.yaml`, at most 20. Display only (D46, AI rule 14): Fit, Pref and every scorer read preferences only through `preference_service.to_preferences`, which leaves it out |
 | `seeker_preferred_locations` | `preference_id` FK (CASCADE) · `location` varchar(100); unique per preference | Desired work locations (free text) |
 | `seeker_preferred_employment_types` | `preference_id` FK (CASCADE) · `employment_type` `full_time`\|`contract`\|`intern`; unique per preference | Desired employment types |
 | `seeker_job_keywords` | `preference_id` FK (CASCADE) · `keyword` varchar(100); unique per preference | Desired role keywords (free text) |
@@ -164,12 +167,15 @@ Created in `0007`. The four `seeker_*` tables are used by `/api/preferences/me`;
 | `cv_reviews` (`0011`) | `cv_document_id` FK → cv_documents, `seeker_id` FK → users (both CASCADE, indexed) · `prompt_version` · `method` (`llm:<model>`) · `content` JSON (`strengths`, `improvements`) · `created_at`; unique (document, prompt version, method) | The LLM part of a CV self-check (D25), per CV document: every version shares the masked text. Rule findings are computed per request; rules results and fallbacks are not stored |
 
 ### 3.6 ERD
+Relationships only; the columns are in §3.1–§3.5 (`0015` added a column, no relationship).
 ```mermaid
 erDiagram
     companies ||--o{ users : company_id
     companies ||--o{ job_postings : company_id
     companies ||--o{ criteria_guardrail_logs : company_id
     job_postings ||--o{ job_criteria : job_id
+    users ||--o{ saved_jobs : user_id
+    job_postings ||--o{ saved_jobs : job_id
     users ||--o{ cv_documents : seeker_id
     cv_documents ||--o{ cv_profiles : cv_document_id
     cv_profiles ||--o{ cv_skills : cv_profile_id
@@ -192,6 +198,7 @@ erDiagram
     seeker_preferences ||--o{ seeker_preferred_locations : preference_id
     seeker_preferences ||--o{ seeker_preferred_employment_types : preference_id
     seeker_preferences ||--o{ seeker_job_keywords : preference_id
+    seeker_preferences ||--o{ seeker_profile_skills : preference_id
     companies ||--o{ talent_offers : company_id
     users ||--o{ talent_offers : seeker_id
     job_postings |o--o{ talent_offers : "job_id (SET NULL)"
@@ -211,6 +218,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/auth/register` | Register seeker or company (consents required) | Anyone | 409 `EMAIL_TAKEN` | `auth_service.register` | — |
 | POST | `/api/auth/login` | Bearer token | Anyone | 401 `INVALID_CREDENTIALS` | `auth_service.authenticate` | — |
 | GET | `/api/users/me` | Current user, plus `current_consent_version` and `consent_required` (AI consent withdrawn or `consent_version` ≠ `CONSENT_VERSION` → show the consent screen) | Logged in | 401 | — | — |
+| PATCH | `/api/users/me` | Change the display name (`display_name`, 1–50 characters after trimming); no other field is accepted, the email stays read-only (D36). A seeker's name is locked once they have uploaded a CV (D46): name masking (D39) used it. The check runs under a row lock on the user that CV upload takes too; an upload whose name changed during the analysis stores nothing (409 `NAME_CHANGED` there) | Logged in | 409 `NAME_LOCKED`; 422 | `account_service.rename` | — |
 | POST | `/api/users/me/consent` | Consent (again) to the current text: body `version` (must equal `CONSENT_VERSION`), `consent_privacy`, `consent_ai` (both true). Sets `consent_privacy_at`, `consent_ai_at`, `consent_version`; no history | Logged in | 409 `CONSENT_VERSION_OUTDATED` (+ `current_version`); 422 | `consent_service.consent` | — |
 | DELETE | `/api/users/me/consent/ai` | Withdraw AI consent: `consent_ai_at = null` (keeps `consent_version`), `profile_public` off. Stored CVs, evaluations and applications stay; a run already queued finishes | Seeker | 403 `SEEKER_ONLY` | `consent_service.withdraw_ai` | — |
 | GET / PUT | `/api/companies/me` | Own company profile | Company | 422 | route | — |
@@ -218,13 +226,13 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET | `/api/companies/me/projects` | Own running projects (oldest first): `id`, `name`, `description`, `techs`, `created_at`, `updated_at` | Company | — | `company_project_service` | — |
 | POST | `/api/companies/me/projects` | Create (201) a running project: `name` 1–200 (whitespace collapsed), `description` ≤ 2000, `techs` ≤ 20 items of 1–100 characters (normalized with `data/skills.yaml`, duplicates merged ignoring case). Not used in scoring (D23) | Company | 409 `PROJECT_LIMIT` (over `MAX_PROJECTS`); 422 | `company_project_service` | normalize |
 | PUT / DELETE | `/api/companies/me/projects/{project_id}` | Replace (same fields as create) / delete (204) a running project | Company | 404 `PROJECT_NOT_FOUND` (another company's); 422 | `company_project_service` | normalize |
-| POST | `/api/jobs` | Create draft | Company | 422 `DEADLINE_IN_PAST` | `job_service.create` | — |
-| GET | `/api/jobs` | Published, unexpired jobs (`q`, `limit`, `offset`) | Anyone (token optional) | — | `job_service.list_public` | — |
+| POST | `/api/jobs` | Create draft; optional `category` (`dev`\|`data_ai`\|`design`\|`marketing`\|`planning`, D45) and `headcount` (1–999, D47). `JobOut` returns `headcount` (null = not stated) | Company | 422 `DEADLINE_IN_PAST`, unknown category, `headcount` outside 1–999 | `job_service.create` | — |
+| GET | `/api/jobs` | Published, unexpired jobs, newest first. `q` matches the title, the company name or a tag (part of a tag, or a `data/skills.yaml` alias of one); `category`; `region` (a `JOB_REGIONS` name, §9: the job's `location` starts with the name or its full province name); `limit`, `offset`. With `q` the filtering and paging happen in Python over every job passing the other filters (tags are computed, not stored). Items here, in `/mine` and the job responses carry `category` and `tags` (D45) | Anyone (token optional) | 422 `REGION_INVALID` (+ `regions`), unknown category | `job_service.list_public` | tags |
 | GET | `/api/jobs/mine` | Own jobs, all statuses | Company | — | `job_service.list_mine` | — |
 | GET | `/api/jobs/{job_id}` | Job detail. Guest: published, unexpired only. Logged in: also expired published. Owner: also draft/closed | Anyone (token optional) | 404 `JOB_NOT_FOUND` | `job_service.get_visible_job` | — |
-| PATCH | `/api/jobs/{job_id}` | Edit (after publish: deadline/location/salary_note) | Company | 409 `JOB_CLOSED`, `JOB_FIELD_LOCKED`; 422 `FIELD_REQUIRED` | `job_service.update` | — |
+| PATCH | `/api/jobs/{job_id}` | Edit (after publish: deadline/location/salary_note; `category` and `headcount` on drafts only; `headcount: null` clears it) | Company | 409 `JOB_CLOSED`, `JOB_FIELD_LOCKED` (+ `fields`); 422 `FIELD_REQUIRED`, `headcount` outside 1–999 | `job_service.update` | — |
 | DELETE | `/api/jobs/{job_id}` | Delete a draft | Company | 409 `JOB_NOT_DRAFT` | `job_service.delete` | — |
-| POST | `/api/jobs/{job_id}/publish` | Publish (needs JD + valid criteria) | Company | 409 `JOB_NOT_DRAFT`; 422 `JOB_INCOMPLETE` + criteria errors | `job_service.publish` | guardrail |
+| POST | `/api/jobs/{job_id}/publish` | Publish (needs JD, `category` and valid criteria) | Company | 409 `JOB_NOT_DRAFT`; 422 `JOB_INCOMPLETE`, `FIELD_REQUIRED` (`fields: ["category"]`) + criteria errors | `job_service.publish` | guardrail |
 | POST | `/api/jobs/{job_id}/close` | Close (final) | Company | 409 `JOB_NOT_PUBLISHED` | `job_service.close` | — |
 | POST | `/api/jobs/{job_id}/analyze` | Suggest criteria from the JD (not saved). Suggestions that saving would reject — a criteria guardrail hit, or `education` without a major (D13) — are left out and listed in `blocked` (`name`, `code` `CRITERIA_BLOCKED`\|`CRITERIA_MAJOR_REQUIRED`, `reason`); the rest are rescaled to 100. Nothing is written to `criteria_guardrail_logs` | Company | 404 | `jd_service.analyze` | **LLM** / rules, guardrail |
 | POST | `/api/jobs/{job_id}/jd-draft` | AI JD draft for an own **draft** job, not saved. Body: `keywords` (≤ 10, 1–50 characters), `notes` (≤ 1000), `project_ids` (own running projects as context). Response: `description` (assembled JD), `sections` (`intro`, `responsibilities`, `requirements`, `preferred`), `dropped` (`text`, `reason`: pay or money amounts, URL/email/phone, criteria blocklist hits, too long), `method`, `limited`, `notice`. Over `JD_DAILY_LLM_DRAFTS` in `AI_MODE=llm` → template with `limited: true` (D24) | Company | 404 `JOB_NOT_FOUND`, `PROJECT_NOT_FOUND`; 409 `JOB_NOT_DRAFT`; 422 | `jd_service.draft` | **LLM** / template, guardrail |
@@ -236,14 +244,17 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | GET | `/api/cv/me` | Newest version of the newest CV | Seeker | 404 `CV_NOT_FOUND` | `cv_service.latest` | — |
 | GET / PUT | `/api/cv/{profile_id}` | Read a version / save edits as a new version (`confirm`) | Seeker (own) | 404 | `cv_service.get_own`, `update` | normalize |
 | POST | `/api/cv/{profile_id}/review` | AI self-check of an own CV version, confirmed or not: `strengths`, `improvements` (`title`, `detail`, `cv_quote` — a verified line of the masked CV or null, `affects_scoring` — rule findings that change what scoring can read, always listed first), `method`, `limited`, `notice`. No score. The LLM part is cached per CV document; shares the daily LLM limit with the roadmap and interview questions (D25) | Seeker (own) | 404 `CV_NOT_FOUND`; 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no `consent_ai_at`; the version is not checked) | `cv_review_service.review` | **LLM** / rules, guardrail |
+| GET | `/api/saved-jobs/mine` | The seeker's saved jobs as `JobListItem[]`, newest saved first; closed and expired jobs stay in the list (see `status`, `expired`) (D45) | Seeker | 403 `SEEKER_ONLY` | `saved_job_service.list_mine` | tags |
+| PUT / DELETE | `/api/jobs/{job_id}/save` | Save / remove a saved job; 204, both idempotent. Saving needs a job the seeker can see (published; expired included); removing works for any job, also a closed one. Never creates or queues an evaluation (D31, D44) | Seeker | 403 `SEEKER_ONLY`; 404 `JOB_NOT_FOUND` (save only) | `saved_job_service.save`, `unsave` | — |
 | POST | `/api/jobs/{job_id}/applications` | Apply with the newest confirmed CV; scoring runs in background | Seeker | 409 `JOB_EXPIRED`, `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`, `ALREADY_APPLIED` | `application_service.apply` | **scoring** |
 | GET | `/api/applications/mine` | Own applications | Logged in. Filters by `seeker_id = current user`, no role check — a company account gets `200 []` (companies cannot apply) | — | `application_service.list_mine` | — |
 | GET | `/api/jobs/{job_id}/applications` | Applicants ranked by Fit. Optional quick filters (D22): `status` (repeatable), `min_fit` (0–100; leaves out applicants without a Fit), `evaluation_status`; applied after ranking, so ranks stay those of the full list. `total_count` = applicants before filtering | Company | 404; 422 (bad filter value) | `application_service.ranked` | Fit |
 | GET | `/api/applications/{application_id}/evaluation` | Per-criterion score, reason, evidence | Company | 404 `APPLICATION_NOT_FOUND` | `application_service.evaluation` | — |
 | POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running), `AI_CONSENT_WITHDRAWN` (the applicant withdrew AI consent) | `application_service.retry` | **scoring** |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes status | Company | 404, 422 | `application_service.set_status` | — |
-| GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`). GET returns empty lists before the first save. PUT trims, collapses whitespace and merges duplicates; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type) | `preference_service` | — |
-| GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref, band only (`limit` 1–50, no offset). Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
+| GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`), plus the optional display-only `experience_level` (`new`\|`junior`\|`mid`\|`senior`) and `skills` (≤ 20, normalized with `data/skills.yaml`, duplicates merged; D46). GET returns empty lists (and `experience_level: null`) before the first save. PUT trims, collapses whitespace and merges duplicates; `experience_level` and `skills` left out of the body stay unchanged; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type or experience level, over 20 skills, a skill over 100 characters) | `preference_service` | — |
+| GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref (`limit` 1–50, no offset). Each item: job fields, `match_score` (Final rounded to an integer), `match_level` (band of that number), `strengths` and `gaps` (≤ `RECO_MAX_SKILL_ITEMS` each, from the job's text and the masked CV text, D43); never Fit, Pref, per-criterion scores or weights. Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count`. `notice` = `AI_NOTICE` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
+| GET | `/api/jobs/{job_id}/match` | The match score of one job the seeker can see (published; expired included): `job_id`, `match_score` (int or null), `match_level` (or null), `status` (`done` / `pending` / `none`), `notice`. Reads the evaluation for (job, newest confirmed CV) and **never creates or queues one** (D44). `none`: no evaluation, a `failed` one, an applied job, no confirmed CV, or AI consent older than `RECO_MIN_CONSENT_VERSION` | Seeker | 403 `SEEKER_ONLY`; 404 `JOB_NOT_FOUND` (draft, closed or missing) | `recommendation_service.job_match` | Pref, Fit |
 | GET | `/api/jobs/{job_id}/talent?limit=20` | Anonymous opted-in seekers for one of the company's published jobs, ranked by Fit (Pref ≥ 40, Fit ≥ 40). Queues missing/failed/stale evaluations in the background within the caps; not-yet-scored candidates are only counted in `pending_count` | Company (own job) | 404 `JOB_NOT_FOUND` (other company's or not published) | `talent_service.recommend` | Pref, Fit, **scoring** |
 | POST | `/api/talent-offers` | Send an offer: `job_id` (own published job), `anonymous_id` (from the talent list), `message` (optional, ≤ 1000) | Company | 404 `JOB_NOT_FOUND`, `TALENT_NOT_FOUND` (not in the pool or not passing Pref/Fit); 409 `OFFER_EXISTS` (+ `offer_id`), `OFFER_REJECTED`; 429 `OFFER_DAILY_LIMIT`; 422 | `offer_service.create` | — |
 | GET | `/api/talent-offers/sent?job_id=` | Offers the company sent: status (`expired` computed), `candidate` (anonymous profile, null while the seeker is not public), `contact` (`display_name`, email) only after `accepted` | Company | — | `offer_service.sent` | — |
@@ -274,35 +285,24 @@ GET /api/talent-offers/sent (implemented) → [{"offer_id", "job_id", "job_title
 
 ## 5. Frontend
 
-Routes from `frontend/src/routes/router.tsx` (paths in `routes/paths.ts`); every HTTP call goes through `frontend/src/api/client.ts` (`api.*`). Role and consent are enforced by `auth/RequireRole.tsx`: guests go to `/login?next=…`, the wrong role goes to its own home, and a user whose consent text is outdated goes to `/consent` (D17). A seeker who withdrew AI consent is let through; the shell offers to consent again. The token is kept in `sessionStorage` (`auth/tokenStorage.ts`); a 401 on an authenticated call clears it. UI text comes from `src/i18n/` (`t()`); backend error codes map to Korean messages in `api/errors.ts`. All data is real (no mock data).
+The frontend copied from CareerSync-Frontend is the product target since 2026-10-26 (Long; its features are decided in D42–D47). It has no router: `src/App.tsx` picks the page from the hash URL (`#jobs`, `#login`, …) through `hooks/useCareerStore.ts`, which holds all state and actions and is shared through `context/CareerContext.tsx`. Pages never call `fetch`: every HTTP call goes through `frontend/src/services/apiService.ts` (`api.*`, typed with the backend DTOs in `src/types/`), which uses `services/httpClient.ts`: base `/api` on the same origin (the Vite dev server forwards it to `VITE_API_TARGET`, §9; the backend has no CORS setup), `Authorization: Bearer <token>`, no cookies. The token is kept in `sessionStorage` (`services/tokenStorage.ts`, issue 12); a 401 on an authenticated call clears it and the store shows the login page. On load a stored token is checked with `me`. The role and the consent state come from `GET /api/users/me`: `resolvePage` in the store sends guests on a role page to `login`, the wrong role to its own dashboard, and a user whose consent text is outdated to `consent` (D17); a seeker who only withdrew AI consent is let through. This picks the screen only; the backend checks every call. Logging out drops the token (the JWT is stateless; there is no logout endpoint). The three backend error shapes (`{code, message}`, `{detail: "…"}`, 422 `{detail: [...]}`) become one `ApiError`, and `services/errors.ts` turns it into one Korean sentence. There is no mock data. UI text is still written in the components; moving it to `t()` (§7) is a separate task.
 
-| Route | Page (`src/pages/`) | Role | Calls (`api.*`) |
+| Page (hash) | File (`src/pages/`) | Role | Calls (`api.*`) |
 |---|---|---|---|
-| `/` | `public/Home` (landing) | — | — |
-| `/login` | `public/Login` | — | `login`, `me` (via `AuthContext`) |
-| `/register` | `public/Register` | — | `register` |
-| `/consent` | `public/Consent` (re-consent) | any signed-in | `me`, `consent` |
-| `/jobs` | `public/JobList` | guest or signed-in | `jobs` |
-| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply` |
-| `/companies/:companyId` | `public/CompanyPublic` | any signed-in | `company` |
-| `/seeker` | `seeker/RecommendedJobs` (추천 공고) | seeker | `recommendations`, `myPreferences` |
-| `/seeker/cv` | `seeker/Cv` (내 이력서: My CV) | seeker | `myCv`, `uploadCv`, `updateCv`, `reviewCv` |
-| `/seeker/applications` | `seeker/Applications` (지원 현황: My applications) | seeker | `myApplications` |
-| `/seeker/offers` | `seeker/Offers` (받은 제안: Received offers) | seeker | `myOffers`, `acceptOffer`, `rejectOffer`, `myPreferences` |
-| `/seeker/preferences` | `seeker/Preferences` (희망 조건: Preferences) | seeker | `myPreferences`, `savePreferences` |
-| `/seeker/account` | `seeker/Account` (내 정보: My account) | seeker | `withdrawAiConsent` |
-| `/seeker/jobs/:jobId/prep` | `seeker/JobPrep` (취업 준비: Job preparation) | seeker | `job`, `myCv`, `roadmap`, `interviewQuestions`, `reviewCv` |
-| `/company/jobs` | `company/JobList` (공고 관리: Job management) | company | `myJobs` |
-| `/company/jobs/new`, `/company/jobs/:jobId/edit` | `company/JobEditor` (공고 수정: Edit job) | company | `job`, `createJob`, `updateJob`, `deleteJob`, `publishJob`, `closeJob`, `ownCriteria`, `saveCriteria`, `checkCriterion`, `analyzeJob`; `JdDraftPanel`: `draftJd`, `myProjects` |
-| `/company/jobs/:jobId/applicants` | `company/Applicants` (지원자 순위: Applicant ranking) | company | `job`, `applicants` (quick filters, D22); `ApplicantDetail`: `evaluation`, `retryEvaluation`, `setApplicationStatus` |
-| `/company/jobs/:jobId/talent` | `company/Talent` (인재 추천: Talent recommendation) | company | `job`, `talent`, `sendOffer` |
-| `/company/offers` | `company/SentOffers` (보낸 제안: Sent offers) | company | `sentOffers`, `cancelOffer` |
-| `/company/profile` | `company/CompanyProfile` (기업 프로필: Company profile) | company | `myCompany`, `updateMyCompany`, `myProjects`, `createProject`, `updateProject`, `deleteProject` |
-| `*` | `public/NotFound` | — | — |
+| `home` | `HomePage` (newest three jobs; the hero search opens `jobs`) | — | `jobs` |
+| `jobs` | `JobsPage` (search by title, company and tag, category tabs and region select, all on the server (D45); 20 per page, “더 보기” (load more); seekers: 저장한 공고 tab) | — | `jobs`; seeker: `savedJobs`, `saveJob`, `unsaveJob` |
+| `detail/<job_id>` | `JobDetailPage` (JD, salary note, deadline and D-day, criterion names; signed-in seekers also see the importance, D30, D35; bookmark; apply: the button shows the seeker's real application status, and a refused apply (409 `CV_NOT_CONFIRMED`, `AI_CONSENT_REQUIRED`, `ALREADY_APPLIED`, `JOB_EXPIRED`) is explained with a link to `resume` or `consent` where one helps; match score (D44): a seeker who has not applied sees the score, band, “점수는 합격 가능성을 뜻하지 않습니다.” (the score does not mean a chance of being hired) and `notice` when the status is `done`, “scoring in progress” for `pending`, and a link to `matches` for `none`; guests, companies and applied jobs see no score) | — | `job`, `jobCriteria`; seeker: `jobMatch` (not for applied jobs), `saveJob`, `unsaveJob`, `apply`, then `myApplications` |
+| `resume` | `ResumePage` (upload a text PDF ≤ 5 MB / 5 pages; the parsed CV with the masked-data kinds and `notice`; `CvEditor` to correct and confirm it as a new version; AI self-check with `strengths` / `improvements` items and `notice`) | seeker | `myCv` (on sign-in and on every visit), `uploadCv`, `updateCv` (`confirm: true`), `reviewCv` |
+| `matches` | `MatchesPage` (recommended jobs, each with the match score, band, the disclaimer and `notice` beside the score, strengths (이력서에서 확인된 기술, skills found in the CV) and gaps (이력서에서 찾지 못한 기술, skills not found in the CV); “분석 중인 공고가 N건” (N jobs being analyzed) from `pending_count` with 새로고침 (refresh); a 409 `CV_NOT_CONFIRMED` or `AI_CONSENT_REQUIRED` shows its sentence with a link to `resume` or `consent`) | seeker | `recommendations` (on every visit and on refresh) |
+| `applications` | `ApplicationsPage` (each application with its real status, set by the company; no score) | seeker | `myApplications` (on sign-in and after every apply) |
+| `profile` | `ProfilePage` (name and read-only email; the name field is locked with an explanation once a CV was uploaded, D46; preferences: job keywords, regions and employment types, which feed Pref, plus the display-only experience level and skills, labeled as not used for matching; the talent opt-in is not on this page and is sent back unchanged) | seeker | `updateMe`, `myPreferences` (on sign-in and on every visit), `savePreferences` |
+| `login`, `signup`, `register` | `AuthPage` (role choice, registration with 회사명 (company name) for companies and the two required consents) | guest | `login`, `me`, `register` (then logs in) |
+| `consent` | `ConsentPage` (re-consent) | any signed-in | `consent`, `me` |
+| `company` | `CompanyDashboardPage` (the company's jobs with status 작성 중 / 게시 중 / 기간 만료 / 마감 (draft / published / deadline passed / closed), category, deadline and criteria count; per row: edit and delete a draft, criteria, publish a draft, close a published job (confirm dialog), view a published or closed job. A refused publish is explained in Korean with a link to the job form or the criteria editor (`services/jobForm.ts` `publishIssue`). No counts until the stats endpoint exists (D45); nothing about who saved a job) | company | `myJobs` (on every visit and after each change), `publishJob`, `closeJob`, `deleteJob` |
+| `post`, `post/<job_id>` | `PostJobPage` (new draft or edit of a draft: title, 직무 분야 (category), location, employment type, experience (years or empty = 신입 가능), 모집 인원 (headcount, 1–999 or empty), deadline (date, empty = always open), salary note, and two text areas, 주요 업무 (duties) and 자격 요건 및 우대 사항 (requirements), saved as one `description` with the headings `[주요 업무]` and `[자격 요건 및 우대 사항]` (F13). Creating saves a draft and opens its criteria; a published or closed job is not editable here) | company | `job` (edit), `createJob`, `updateJob` |
+| `criteria/<job_id>` | `CriteriaPage` (the owner's criteria editor with weights: name, category, rubric, weight per row, total shown against `CRITERIA_WEIGHT_TOTAL`, up to `CRITERIA_MAX_ITEMS` rows; the same checks as the server before saving; a live legal-guardrail check while typing; the server's refusals (`CRITERIA_BLOCKED`, `CRITERIA_MAJOR_REQUIRED`, `WEIGHT_SUM_INVALID`, 422 on a row, …) shown in Korean on the row they name. Published jobs: weights only; closed jobs: read only) | company | `job`, `ownerCriteria`, `saveCriteria`, `checkCriterion` |
 
-The shell (`components/layout/AppShell.tsx`) also calls `myCompany` (company) and `myOffers` (seeker, pending-offer badge).
-
-Backend endpoints with no frontend caller: `GET /api/cv/{profile_id}`, `POST /api/jobs/{job_id}/criteria/copy-from/{source_job_id}`.
+Pages not connected to the backend yet: `CandidatesPage` (its actions show “이 기능은 아직 서버와 연결되지 않았습니다.” (this feature is not connected to the server yet)); the company dashboard shows no counts until the stats endpoint exists. The seeker dashboard shows the real CV state, the number of recommended jobs (`recommendations`, loaded on every dashboard visit; jobs still being scored are counted on the tile's second line), application count and saved count. The company dashboard counts (D45) have no backend yet, so the company dashboard shows only the job list. Saved jobs (D45): the bookmark on `JobCard` and `JobDetailPage` is shown to seekers and guests (a guest's click goes to login) and hidden for companies; it calls `saveJob` / `unsaveJob` and updates the list at once, undoing that one change if the server refuses. The seeker's saved jobs (`savedJobs`) load once after sign-in and feed the 저장한 공고 (saved jobs) tab on `JobsPage` and the count on the seeker dashboard. Category labels and the region names are in `frontend/src/data/categories.ts` (the names mirror `JOB_REGIONS`). Job cards and the detail page show the tags from the API. D-day is computed from `deadline` in `services/jobView.ts`.
 
 ---
 
@@ -317,6 +317,7 @@ Everything is in `ai/`. Pretrained models only; nothing is trained. **Rules for 
 | `parsing/extract.py` `structure_cv` | Masked text → `CvProfile`; skills normalized; experience months computed in code | Claude (`prompts/v1/cv_structure.md`) or rules | `cv_service.upload` |
 | `parsing/extract.py` `analyze_jd` | JD → suggested criteria, weights adjusted to 100. Rules: a JD with a 자격 요건/필수 (qualifications/required) heading line takes required skills only from that section and preferred ones from 우대 (preferred) (D27), else the text before "우대" is required; `jd_service` then drops those saving would reject (guardrail, D13) and rescales | Claude (`jd_analyze.md`) or rules | `jd_service.analyze` |
 | `jd/draft.py` | JD draft from the title, keywords, notes, company profile and chosen projects: fixed parts assembled in code; every sentence dropped on pay/money amounts, URL/email/phone or a `data/blocklist.yaml` hit (the intro sentence by sentence; the template's notes are their own sentence); LLM error or no requirement left → template | Claude (`prompts/v1/jd_draft.md`) or template | `jd_service.draft` |
+| `jd/tags.py` | Job tags for the public list and search (D45): skills named by the criteria, then the title and JD, at most `JOB_TAGS_MAX`; search also matches an alias of a tag. Never read by scoring | `data/skills.yaml` | `job_service.tags`, `list_public` |
 | `parsing/profile.py` | Pydantic schemas `cv_profile.v1`, `jd_profile.v1` (LLM output = API body) | — | everywhere |
 | `guardrails/` | Blocks discriminatory criteria; verifies LLM quotes exist in the CV | Rules + `data/blocklist.yaml` | `criteria_service`, scorers |
 | `embedding/skills.py` | Skill/certificate dictionary, aliases → canonical names; `related` groups of closely related skills (D27) | `data/skills.yaml` | parsing, scoring |
@@ -347,7 +348,7 @@ Rule scorers give points only for what is found in the masked CV text (`cv_docum
 **Config locations.** Mode: `AI_MODE`. Model: `LLM_MODEL` (default in `ai/llm/client.py`). Embedding: `EMBEDDING_MODEL`. Prompts: `ai/prompts/v1/`, `PROMPT_VERSION` in `ai/parsing/extract.py`. Data: `data/blocklist.yaml` (`grep -c "^  - id:" data/blocklist.yaml` = number of rules), `data/skills.yaml`.
 
 ### 6.1 Recommendation
-Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendation (`services/recommendation_service.py`) and talent recommendation with offers (`services/talent_service.py`, `services/offer_service.py`) are implemented. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
+Decided parts: docs/DECISIONS.md D2, D3, D15, D16, D18–D20, D42–D44 (D42 replaces D1, D44 replaces D31). Job recommendation (`services/recommendation_service.py`) and talent recommendation with offers (`services/talent_service.py`, `services/offer_service.py`) are implemented. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
 
 **Job recommendation (seeker → jobs)**
 - Candidates: published, unexpired jobs. Excluded: jobs already applied to; seekers with no confirmed CV or no AI consent.
@@ -365,7 +366,9 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendatio
 - **Sync vs background**: new evaluations run in the **background** (same `evaluation_service.run_in_background` as applying); the call never waits for scoring. The response lists only jobs whose evaluation is `done`, plus `"pending_count"` so the page can show "분석 중 N건" ("N being analyzed"). **Retry of `pending`:** nobody clicks 다시 분석 on the seeker side, so the next recommendation call re-queues its own `pending` evaluations older than `EVALUATION_STALE_MINUTES` (10, same rule as issue 2) and `failed` ones, still within the cap. Evaluations shared with an application keep the company's 다시 분석 path too.
 - **Final** = 0.5·Fit + 0.5·Pref; recommend only when Fit ≥ 40 **and** Pref ≥ 40.
 - Order: ① filter candidates → ② Pref, drop < 40 → ③ load `done` evaluations; queue missing/stale ones up to the cap → ④ Fit with current weights, drop < 40 → ⑤ Final → ⑥ sort by Final ↓, then Fit ↓, then newest `published_at`, top `limit`.
-- Seekers see **bands only** (D16): 매우 적합 Final ≥ 80 · 적합 60–79 · 참고 40–59. No Fit, Pref or Final numbers, no per-criterion scores, no weights, and no matched/missing criterion names by score (D21: only skills/certificates the CV text lacks, via the roadmap).
+- Seekers see the **match score** (D42): Final rounded half up to an integer 0–100 (`match_score`), with its band taken from that number, so the two always agree: 매우 적합 ≥ 80 · 적합 60–79 · 참고 40–59. The frontend always shows “점수는 합격 가능성을 뜻하지 않습니다.” (the score does not mean a chance of being hired) and `AI_NOTICE` beside it. No Fit or Pref numbers, no per-criterion scores, no weights, and no criterion names tied to scores.
+- **Strengths and gaps** (D43): each recommended job lists at most `RECO_MAX_SKILL_ITEMS` (3) skills or certificates the job names (criteria names and descriptions, then the JD) that the masked CV text shows (`strengths`) or lacks (`gaps`). `ai/career/gaps.py` `match_skills` computes both from `data/skills.yaml`, the same scan as the roadmap's gaps (D21), never from criterion scores.
+- **Job detail** (D44): `GET /api/jobs/{job_id}/match` reads the evaluation for (job, newest confirmed CV) and never creates, queues or re-queues one, so it costs no scoring. `done` gives the score and band computed like the list (current weights, current preferences) but without the Fit/Pref thresholds; `pending` gives no number; `none` covers no evaluation, a `failed` one, an applied job, no confirmed CV and AI consent older than `RECO_MIN_CONSENT_VERSION`. Applied jobs never show a score.
 
 **Talent recommendation (company → seekers)**
 - **Prerequisites (D18):** [issue 3](#11-known-issues-and-risks) fixed (rule scores and what companies see come from the masked text); [issue 6](#11-known-issues-and-risks) mitigated for the demo by re-queuing stale `pending` evaluations (a separate worker comes after the demo); [issue 26](#11-known-issues-and-risks) handled by the caps below; [issue 24](#11-known-issues-and-risks) reduced (see the anonymous profile).
@@ -397,8 +400,8 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendatio
 - Logging: `logging.getLogger(__name__)`; warnings/exceptions on AI failures. No central config.
 - Imports: stdlib → third-party → `ai.*` → `app.*`.
 - Prompts: versioned Markdown under `ai/prompts/vN/`.
-- Frontend: `PascalCase.tsx` components, pages under `pages/seeker/*` and `pages/company/*`, all HTTP through `src/api/client.ts`.
-- Frontend UI text: never hardcoded in components; every string goes through `t(key)` from `src/i18n/` (source locale `src/i18n/ko.ts`, keys type-checked). A new language is one new file `src/i18n/<locale>.ts` (`export default { ... } satisfies Messages`); no other file changes.
+- Frontend: `PascalCase.tsx` components, one file per page in `src/pages/`, all HTTP through `src/services/apiService.ts`; code comments in English.
+- Frontend UI text (target rule): never hardcoded in components; every string goes through `t(key)` from `src/i18n/` (source locale `src/i18n/ko.ts`, keys type-checked). A new language is one new file `src/i18n/<locale>.ts` (`export default { ... } satisfies Messages`); no other file changes. The current frontend does not follow it yet (no `src/i18n/`); moving its text there is a separate task.
 - Commits: imperative, capitalized English sentence.
 - Tests: pytest from the repo root; no DB, network or key needed (in-memory SQLite, hashing embedder, `FakeLLM`).
 
@@ -438,7 +441,7 @@ CareerSync/
 ├── backend/
 │   ├── Dockerfile               # Backend image for Compose (build context: repo root)
 │   ├── alembic.ini              # Run alembic from backend/
-│   ├── migrations/versions/     # 0001 … 0011
+│   ├── migrations/versions/     # 0001 … 0015
 │   ├── requirements.txt         # Backend + AI + test dependencies
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, routers, AppError handler, /health (run uvicorn from backend/)
@@ -454,7 +457,7 @@ CareerSync/
 ├── ai/
 │   ├── llm/client.py            # LLMClient (Anthropic); None unless AI_MODE=llm
 │   ├── prompts/v1/              # cv_structure, jd_analyze, jd_draft, rubric_score, roadmap, interview_questions, cv_review
-│   ├── jd/                      # JD drafts for companies
+│   ├── jd/                      # JD drafts for companies, job tags
 │   ├── parsing/                 # PDF → text, PII masking, CV/JD structuring
 │   ├── embedding/               # e5 / hashing embedders, skill dictionary
 │   ├── scoring/                 # Per-criterion scorers, Fit and Pref (shared by evaluation and recommendations)
@@ -479,19 +482,19 @@ CareerSync/
     ├── index.html, package.json, package-lock.json
     ├── tsconfig.json, tsconfig.app.json, tsconfig.node.json
     ├── vite.config.ts           # Port 3000, /api proxy to :8000
+    ├── docs/                    # Frontend notes: backend integration, motion
+    ├── public/                  # Static files served as is
+    ├── tests/                   # node --test tests of the service layer (no browser)
     └── src/
-        ├── App.tsx, main.tsx
-        ├── api/                 # Fetch client and error texts
-        ├── assets/fonts/        # Pretendard (with its license)
-        ├── auth/                # Login state and role guard
-        ├── components/
-        │   └── common/, layout/, seeker/, company/   # Shared UI, app shell and layouts, per-role UI
-        ├── i18n/                # UI text (ko)
-        ├── pages/
-        │   └── public/, seeker/, company/
-        ├── routes/              # Router and paths
-        ├── styles/              # Design tokens and global CSS
-        └── types/               # API types
+        ├── App.tsx, main.tsx    # Layout and page by hash URL
+        ├── components/          # Icon, JobCard, form helpers
+        │   └── layout/          # Header, Footer, Sidebar
+        ├── context/             # CareerContext: shares the store with the pages
+        ├── data/                # Categories and form field names
+        ├── hooks/               # useCareerStore (state, loading, actions), useScrollReveal
+        ├── pages/               # One file per page
+        ├── services/            # httpClient (fetch, Bearer, errors), apiService (endpoints), errors, tokenStorage
+        └── types/               # View models (index.ts) and backend DTOs (auth, job, criteria, common)
 ```
 
 **Dependencies:** `api` → `services` → `models` + `ai`; the only direct `ai.*` import in `api/` is `api/v1/cv.py`, which imports `MAX_BYTES` from `ai.parsing.pdf`; `criteria_service` → `ai/guardrails` + `data/blocklist.yaml`; `frontend` → backend only over `/api`.
@@ -527,7 +530,8 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 |---|---|---|
 | `RECO_FIT_WEIGHT` / `RECO_PREF_WEIGHT` | `0.5` / `0.5` | Current |
 | `RECO_MIN_FIT` / `RECO_MIN_PREF` | `40` / `40` | Current |
-| `RECO_BAND_HIGH` / `RECO_BAND_MID` | `80` / `60` (≥ 80 매우 적합, ≥ 60 적합, else 참고) | Current |
+| `RECO_BAND_HIGH` / `RECO_BAND_MID` | `80` / `60` (≥ 80 매우 적합, ≥ 60 적합, else 참고; applied to the match score) | Current |
+| `RECO_MAX_SKILL_ITEMS` | `3` strengths and `3` gaps per recommended job (D43) | Current |
 | `RECO_MAX_NEW_EVALUATIONS` | `10` per call, always | Current |
 | `RECO_DAILY_NEW_EVALUATIONS` | `30` per seeker per day (KST), new + re-queued, only in `AI_MODE=llm` | Current |
 | `TALENT_MAX_NEW_EVALUATIONS` | `10` per talent call, always | Current |
@@ -537,9 +541,12 @@ Read from `.env` in the repo root; shell variables win. Defaults below are the c
 | `CAREER_DAILY_LLM_GENERATIONS` | `10` new LLM generations (roadmap + interview questions + CV review, D25) per seeker per day (KST), only in `AI_MODE=llm`; cached content does not count; over it the template is returned with `limited: true` | Current |
 | `JD_DAILY_LLM_DRAFTS` | `20` LLM JD drafts per company per day (KST), only in `AI_MODE=llm`; every LLM call counts, failed ones too; over it the template is returned with `limited: true`. Counted in process memory (`jd_service`): reset on restart, correct only with one backend process | Current |
 | `EVALUATION_MAX_ATTEMPTS` | `3` automatic attempts from recommendation | Current |
+| `JOB_TAGS_MAX` | `5` tags per job (D45) | Current |
 | `EVALUATION_STALE_MINUTES` | `10` (retry allowed for `pending` older than this; shared with issue 2) | Current (`core/config.py`); also used by job and talent recommendation to re-queue stale `pending` evaluations |
 
 Service constant: `company_project_service.MAX_PROJECTS` = `20` running projects per company (D23).
+
+Region filter (D45): `JOB_REGIONS` in `core/config.py` maps each region name that `GET /api/jobs?region=` accepts to the location prefixes it matches. 17 regions, 서울 (Seoul) and 경기 (Gyeonggi) first, then 인천, 부산, 대구, 광주, 대전, 울산, 세종, 강원, 충북, 충남, 전북, 전남, 경북, 경남, 제주; 충북/충남/전북/전남/경북/경남 also match their full province names (e.g. 충청북도). Any other name → 422 `REGION_INVALID`. The frontend keeps the same names in `frontend/src/data/categories.ts`.
 
 LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` seconds per request and `LLM_MAX_RETRIES` = `2` SDK retries, so a failing call ends after about 90 s and the caller falls back to rules or a template.
 
@@ -554,7 +561,7 @@ LLM client constants in `ai/llm/client.py`: `LLM_TIMEOUT_SECONDS` = `30.0` secon
 1. `pytest` must pass before and after every change.
 2. Do not change the architecture, the DB schema, auth, or an existing API contract unless the task asks for it; schema changes always go through a new migration, never edit an applied one.
 3. Stay inside the task; small, revertible changes, one purpose each.
-4. Before changing a function/endpoint, find its callers (backend and `frontend/src/api/client.ts`).
+4. Before changing a function/endpoint, find its callers (backend and `frontend/src/services/apiService.ts`).
 5. Never commit `.env`, API keys or real CVs; use synthetic data.
 6. Every feature must work in `AI_MODE=rules`.
 7. Run `alembic` and `uvicorn` from `backend/`, `pytest` from the root.
@@ -586,7 +593,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 9 | Cost | No LLM cache; `cv_documents.sha256` unused | — (no cache module yet) | Open |
 | 10 | Observability | Token usage is not logged | `ai/llm/client.py` | Open |
 | 11 | Privacy | No API to delete a CV or account; `applications.cv_profile_id` is RESTRICT | — | Open |
-| 12 | Security | Token in `sessionStorage` (XSS exposure) | `frontend/src/auth/tokenStorage.ts` | Open |
+| 12 | Security | Token in `sessionStorage` (XSS exposure) | `frontend/src/services/tokenStorage.ts` | Open |
 | 13 | Data quality | A whitespace-only company name passes validation and becomes empty | `api/v1/companies.py` | Open |
 | 14 | Staleness | Editing 인재상 after scoring does not re-score `other` criteria | — | Open |
 | 15 | Design | Newest CV must be confirmed to apply, even if an older version was confirmed | `cv_service.latest_confirmed` | Open |
@@ -615,6 +622,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 38 | Security | The 5 MB CV limit is checked only after the whole request is received: Starlette (1.7.0 here) limits form fields to 1 MB but not file parts, which it spools to a temporary file; neither the app nor Compose sets a request size limit | `api/v1/cv.py`, `app/main.py` | Open |
 | 39 | Data / UX | `PUT /api/cv/{profile_id}` on a version of an **older** CV document saves the new version under that document, but `latest()` orders by document first, so the edit (even confirmed) is never the version used to apply, for recommendation or for talent; when the newest document's version is unconfirmed, applying fails with `CV_NOT_CONFIRMED`. API only: the frontend edits the newest version. Related: issue 15, [Q26](docs/DECISIONS.md#3-open-questions) | `services/cv_service.py` (`update`, `latest`) | Open |
 | 40 | Privacy | Company-written text reaches the LLM unmasked: `/analyze` sends the job title and JD, `/jd-draft` the title, keywords, notes, company intro, 인재상 and chosen projects. It holds no seeker data, but a recruiter's own name, email or phone typed there is sent as written (JD drafts drop contact data from the output only) | `services/jd_service.py`, `ai/parsing/extract.py` (`analyze_jd`), `ai/jd/draft.py` | Open |
+| 41 | Privacy | Name masking (D39) uses the `display_name` of the upload: a name changed afterwards would not be masked in the stored `masked_text`. **Fixed:** the name is locked after the first CV upload (409 `NAME_LOCKED`, D46), checked under a user row lock that upload also takes, and an upload whose name changed during the analysis is refused (409 `NAME_CHANGED`). There is no CV deletion yet (D34); a seeker without documents has no stored masked text, so the lock may lift then | `services/account_service.py`, `services/cv_service.py` (`upload`) | Fixed |
 
 ---
 
@@ -637,7 +645,8 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 다시 분석 | Re-analyze | Button that calls `/evaluation/retry` |
 | 검토 전 / 서류 검토 / 면접 예정 / 보류 / 합격 / 불합격 | submitted / reviewing / interview / on_hold / passed / rejected | `applications.status` |
 | 중요도 핵심 / 중요 / 일반 | Importance core / important / general | What signed-in seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`; docs/DECISIONS.md D30) |
-| 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16) |
+| 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | Shown to seekers with the match score: match score ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16, D42) |
+| 매칭 점수 | Match score | Final rounded to an integer 0–100, shown to seekers with the band (docs/DECISIONS.md D42) |
 | 인재풀 공개 | Talent-pool opt-in | `seeker_preferences.profile_public` |
 | 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.0 dated 2026-10-11; the PDF in the repo is `docs/reference/CareerSync_설계서.pdf` |
 | 시장조사 보고서 | Market research report | `docs/reference/CareerSync 시장조사 보고서.pdf` (source of the figures in the README overview) |
@@ -655,8 +664,9 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | Job posting | **job**; its text is the **JD** | posting, vacancy |
 | Company-defined item | **criterion / criteria**, **weight** | standard, factor |
 | Label seekers see instead of a weight | **importance** (핵심 / 중요 / 일반 = core / important / general) | |
-| Scores | **Fit**, **Pref**, **Final** (capitalized) | match score |
-| What seekers see instead of scores | **match band** (매우 적합 / 적합 / 참고 = very good / good / reference) | grade, level |
+| Scores | **Fit**, **Pref**, **Final** (capitalized) | |
+| What seekers see | **match score** (Final rounded to an integer 0–100) with its **match band** (매우 적합 / 적합 / 참고 = very good / good / reference) | grade, level, match rate |
+| Skills a recommended job names that the CV text shows / lacks | **strengths** / **gaps** | |
 | Stored result of scoring one CV version for one job | **evaluation**; the act is **scoring** | assessment |
 | Consent | **privacy consent**, **AI consent**, **re-consent**, **withdraw AI consent** | agreement |
 | CV | **CV**, **CV version**, **confirmed CV**, **masked text** | résumé, profile (except `cv_profiles`) |

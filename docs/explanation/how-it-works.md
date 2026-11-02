@@ -9,7 +9,7 @@ One set of company-defined criteria powers two things: scoring the people who ap
 ### Flow A: Job seeker
 
 ```
-Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match band)
+Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match score and band)
         → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황 (My applications)
         → (opted in) Answer anonymous offers from companies in 받은 제안 (Received offers)
 ```
@@ -55,4 +55,4 @@ Pretrained models only; nothing is trained from scratch. The LLM is always calle
 | Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only. D30 defines the three labels and D35 the guest view; the thresholds are `IMPORTANCE_HIGH` and `IMPORTANCE_MID` in `backend/app/core/config.py` |
 | Final score (job recommendation) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
 
-The importance labels 핵심 / 중요 / 일반 mean core / important / general. Coefficients live in `backend/app/core/config.py`. Seekers never see a score: job recommendation shows only a match band (D16), and a seeker's own application shows its status, not its evaluation.
+The importance labels 핵심 / 중요 / 일반 mean core / important / general. Coefficients live in `backend/app/core/config.py`. Seekers see the match score, Final rounded to an integer 0–100, with its match band and “점수는 합격 가능성을 뜻하지 않습니다” (“the score does not mean a chance of being hired”) plus the AI notice (D42); never Fit, Pref, per-criterion scores or weights. Each recommended job also lists at most 3 strengths and 3 gaps: skills the job names that the masked CV text shows or lacks, found in code from `data/skills.yaml`, not from scores (D43). The job detail page shows the score only when it was already computed for the current confirmed CV, and asking for it never starts scoring (D44). A seeker's own application shows its status, never a score.

@@ -15,6 +15,7 @@ What can still reach the LLM, and is tracked: unlabeled names of other people an
 - Registration needs consent to personal data processing and to AI analysis. AI consent is required to upload a CV and to apply.
 - Job recommendation uses a CV for jobs the seeker did not apply to, so it needs consent to the current consent text (D16); a user who consented to an older text consents again on the consent screen.
 - A seeker can withdraw AI consent at any time: every new AI use of their data stops (CV analysis, applying, recommendation, a company's 다시 분석 (re-analyze)), and they leave the talent pool. Stored CVs, evaluations and applications stay, and a run queued before the withdrawal finishes.
+- Seekers see a match score (D42): Final rounded to an integer, with its band, “점수는 합격 가능성을 뜻하지 않습니다” (“the score does not mean a chance of being hired”) and the AI notice; never Fit, Pref, per-criterion scores or weights, and never a score on a job they applied to (D44). Whether this adds duties under the 인공지능 기본법 (AI Basic Act) is still open (Q29), and so is a limit on how often a seeker can re-confirm a CV to watch the score move (Q30).
 - Appearing in talent recommendation needs a separate opt-in. Companies see an anonymous profile only, and contact details only after the seeker accepts an offer (D3, D19, D20).
 
 The AI never decides: it gives scores and evidence, and every status change (서류 검토 (reviewing), 면접 예정 (interview), 합격 (passed), 불합격 (rejected) …) is a recruiter's click.

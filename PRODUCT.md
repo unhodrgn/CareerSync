@@ -12,14 +12,14 @@ web
 
 Two co-equal audiences; neither side's needs automatically win. The shared-criteria mechanism that connects them is the product.
 
-- **Job seekers** (`seeker`, Korean-speaking): upload a text PDF CV, check and confirm what the AI extracted, set preferences, browse jobs (also without logging in), get recommended jobs with a match band, apply and track status, prepare for a specific job (skill gaps / roadmap, interview practice questions, CV self-check), and answer anonymous offers from companies.
+- **Job seekers** (`seeker`, Korean-speaking): upload a text PDF CV, check and confirm what the AI extracted, set preferences, browse jobs (also without logging in), get recommended jobs with a match score and band, apply and track status, prepare for a specific job (skill gaps / roadmap, interview practice questions, CV self-check), and answer anonymous offers from companies.
 - **Recruiters** (`company`, one account = one company): keep a company profile and running projects, write job postings (with AI drafting and criteria suggestions), define their own evaluation criteria and weights, review applicants ranked by Fit with per-criterion evidence, change application status, browse anonymous opt-in talent and send offers.
 
 Near-term audience: this is a Soongsil University capstone prototype, demoed locally via Docker Compose.
 
 ## Product Purpose
 
-Each company defines evaluation criteria and weights per job. The same criteria (1) score applicants and (2) recommend the company's jobs to seekers who have not applied. Both sides get an explainable result: recruiters see scores with evidence quoted from the CV; seekers see a match band and what is missing from their CV.
+Each company defines evaluation criteria and weights per job. The same criteria (1) score applicants and (2) recommend the company's jobs to seekers who have not applied. Both sides get an explainable result: recruiters see scores with evidence quoted from the CV; seekers see a match score with its band, and what their CV shows or lacks for the job.
 
 Success: a recruiter trusts and acts on the ranking because every score points to CV evidence; a seeker understands what a company values and how well they fit before applying.
 
@@ -38,27 +38,23 @@ One set of company-defined criteria works in both directions on a single platfor
 
 Binding product rules that every screen must respect (see `docs/DECISIONS.md` for the full text):
 
-- **Seekers see bands, never numbers** (D1, D16): no Fit %, Final, per-criterion score or weight. Recommendation bands: 매우 적합 / 적합 / 참고. Job-prep gaps are skills/certificates the job names that the CV text lacks, computed by code, not from company scores (D21).
+- **Seekers see the match score, never its parts** (D42–D44): Final rounded to an integer 0–100 with its band (매우 적합 / 적합 / 참고), always beside “점수는 합격 가능성을 뜻하지 않습니다” (“the score does not mean a chance of being hired”) and the AI notice. No Fit, Pref, per-criterion score or weight, and no score on applied jobs. Strengths and gaps are skills/certificates the job names that the CV text shows or lacks, computed by code, not from company scores (D21, D43).
 - **AI never decides** (CLAUDE.md AI rule 5): status changes only from a recruiter click. UI copy must not imply the AI accepted or rejected anyone.
 - **AI results carry a notice** (AI rule 6): responses with AI output include `notice` (`AI_NOTICE`); the UI shows it.
 - **Talent is anonymous until offer acceptance** (D3, D19, D20): companies see `anonymous_id` and verified facts only; acceptance reveals only `display_name` + email. Applicants (who applied) are not anonymous to the company.
 - **Consent gates AI use** (D16, D17): AI consent, re-consent for a newer `CONSENT_VERSION`, and withdrawal each change what a seeker can do; screens must handle the 409 consent states.
 - Talent recommendation (anonymous list + offers) is in the demo (D29).
 - Criteria pass a legal guardrail on save (discriminatory criteria blocked with the law cited).
-- Frontend stack (existing): React 19, TypeScript, Vite, React Router 7. Korean UI, `lang="ko"`. All UI strings go through `t()` from `src/i18n` (source locale `ko.ts`); no new dependencies without approval.
-- Devices: **desktop web only** for now. No mobile or tablet layouts; do not spend effort on responsive breakpoints.
-- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); the band appears only on recommended jobs, not on job detail or applied jobs (D31); no 사업자등록번호 field (D32); no job search filters, saved jobs or company dashboard metrics (D33); CV/account deletion is deferred to a later phase (D34).
+- Frontend stack (existing): React 19, TypeScript, Vite. Korean UI, `lang="ko"`. All UI strings go through `t()` from `src/i18n` (source locale `ko.ts`); no new dependencies without approval. Known gap: the current frontend writes Korean strings directly in components; moving them to `t()` is a separate task (D50).
+- Devices: **desktop web only** for now (D51). The breakpoints already in `frontend/src/App.css` may stay, but they are not a requirement; do not spend effort on mobile or tablet layouts.
+- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); the match score appears on recommended jobs and on job detail when already computed, never on applied jobs (D44, replaces D31); no 사업자등록번호 field (D32); job search filters, saved jobs and dashboard counts are in scope (D45, replaces D33); CV/account deletion is deferred to a later phase (D34).
 - Undecided (do not design as if decided): the rest of Q11 (seeker profile fields 경력 수준 / 보유 기술 스택, a 기업 탐색 page).
 
 ## Brand Commitments
 
-- Name: **CareerSync**. Tagline in docs: 기업 맞춤형 AI 채용 매칭 플랫폼 (criteria-based hiring and job matching). Logo mark: drawn in `frontend/src/components/common/icons.tsx` (`LogoMark`); no separate asset file.
+- Name: **CareerSync**. Tagline in docs: 기업 맞춤형 AI 채용 매칭 플랫폼 (criteria-based hiring and job matching). Logo mark: undecided (D49); the ✳ glyph in the header is a placeholder, and no design work should treat it or any drawn mark as final.
 - Voice: user-facing text is Korean; claims stay factual (what the AI checked, what evidence exists), never promises of hiring outcomes.
-- **Binding visual reference:** "EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels)" is the landing reference, confirmed by Long 2026-10-16 (the HTML file is no longer in the repo; `DESIGN.md` and the shipped landing carry its decisions); it supersedes the earlier PNG of the same name and the first landing build. Its visuals bind later design work; its sample content does not override product rules. How the build resolved its content conflicts:
-  - Seeker card: the 4 criteria names with a neutral "구간 반영" badge, the AWS row as the amber "이력서에 없음" gap (D21), the JD-only gap in the footer; no "Matched" rows, no numbers (D1, D16, D21).
-  - Spine: neutral category tags instead of the High / Core / Gap badges (importance levels are Q2, undecided).
-  - Employer card: named applicants (not anonymous); anonymity is stated only for talent recommendation, in the trust note.
-  - Copy is Korean through `t()`; the example uses the seed job 클라우드랩 · 데이터 엔지니어, labeled 예시.
+- **Binding visual reference:** the new frontend's look, as recorded in `DESIGN.md`, binds later design work (D48; replaces the earlier "Dual-Trail Outcome Flow" landing reference). Its sample content does not override product rules.
 
 ## Evidence on Hand
 
@@ -72,5 +68,5 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
 1. **One criteria set, two directions.** Every surface should make visible that the company's own criteria drive both applicant ranking and seeker guidance.
 2. **Evidence before verdict.** Show what the AI found in the CV (quotes, verified facts) alongside any score; a number without evidence is incomplete.
 3. **Humans decide.** The AI scores and explains; recruiters decide; seekers control their data, consent and visibility.
-4. **Each side sees only what it is entitled to.** Seekers get bands and gaps, not company weights; companies get anonymous talent until a seeker accepts.
+4. **Each side sees only what it is entitled to.** Seekers get a match score, strengths and gaps, not per-criterion scores or company weights; companies get anonymous talent until a seeker accepts.
 5. **Rules mode is the real product.** Design for deterministic rule-based output first; LLM mode adds richer text, not new screens.
