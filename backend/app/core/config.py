@@ -76,6 +76,8 @@ class Settings:
     # Seeker-facing band from Final: >= HIGH → 매우 적합, >= MID → 적합, else 참고
     RECO_BAND_HIGH: float = 80
     RECO_BAND_MID: float = 60
+    # Strengths and gaps per recommended job (D43): at most this many of each
+    RECO_MAX_SKILL_ITEMS: int = 3
     # Evaluations one call may queue (new or re-queued), always
     RECO_MAX_NEW_EVALUATIONS: int = 10
     # Per seeker per day (KST), only in AI_MODE=llm, where scoring costs money
@@ -93,6 +95,30 @@ class Settings:
     # (KST), only in AI_MODE=llm; cached content does not count. Over the limit the template is returned
     CAREER_DAILY_LLM_GENERATIONS: int = 10
     LEARNING_RESOURCES_PATH: Path = Path(env_or_default("LEARNING_RESOURCES_PATH", str(REPO_ROOT / "data" / "learning_resources.yaml")))
+
+    # Public job list filters (docs/DECISIONS.md D45). Region name → location prefixes it matches (short and full
+    # names), 서울 and 경기 first. A job matches when its location starts with one of the prefixes
+    JOB_REGIONS: dict[str, tuple[str, ...]] = {
+        "서울": ("서울",),
+        "경기": ("경기",),
+        "인천": ("인천",),
+        "부산": ("부산",),
+        "대구": ("대구",),
+        "광주": ("광주",),
+        "대전": ("대전",),
+        "울산": ("울산",),
+        "세종": ("세종",),
+        "강원": ("강원",),
+        "충북": ("충북", "충청북도"),
+        "충남": ("충남", "충청남도"),
+        "전북": ("전북", "전라북도"),
+        "전남": ("전남", "전라남도"),
+        "경북": ("경북", "경상북도"),
+        "경남": ("경남", "경상남도"),
+        "제주": ("제주",),
+    }
+    # Tags per job, computed from the criteria and the JD with data/skills.yaml; never used in scoring
+    JOB_TAGS_MAX: int = 5
 
     # JD drafts (docs/DECISIONS.md D24): LLM drafts per company per day (KST), only in AI_MODE=llm. Counted in
     # process memory: reset on restart, correct only with one backend process (uvicorn without --workers)

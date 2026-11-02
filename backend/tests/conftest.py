@@ -62,9 +62,9 @@ def world(db):
         consent_version=settings.CONSENT_VERSION,
     )
     jd = "Java/Spring 백엔드 API 개발"
-    job = JobPosting(company_id=acme.id, title="Backend Engineer", description=jd)
-    job2 = JobPosting(company_id=acme.id, title="Platform Engineer", description=jd)
-    rival_job = JobPosting(company_id=other.id, title="Rival job", description=jd)
+    job = JobPosting(company_id=acme.id, title="Backend Engineer", description=jd, category="dev", headcount=3)
+    job2 = JobPosting(company_id=acme.id, title="Platform Engineer", description=jd, category="dev")
+    rival_job = JobPosting(company_id=other.id, title="Rival job", description=jd, category="dev")
     db.add_all([recruiter, rival, seeker, job, job2, rival_job])
     db.commit()
     return {

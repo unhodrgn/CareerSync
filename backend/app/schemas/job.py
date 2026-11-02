@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 EmploymentType = Literal["full_time", "contract", "intern"]
 JobStatusName = Literal["draft", "published", "closed"]
+# Job field for the public filter (D45); Korean labels live in the frontend
+JobCategory = Literal["dev", "data_ai", "design", "marketing", "planning"]
 
 
 class JobCreate(BaseModel):
@@ -15,10 +17,13 @@ class JobCreate(BaseModel):
     location: str = Field("", max_length=100)
     salary_note: str = Field("", max_length=100)
     deadline: date | None = None
+    category: JobCategory | None = Field(None, description="Required before publishing")
+    headcount: int | None = Field(None, ge=1, le=999, description="모집 인원 (number of hires, D47); None = not stated")
 
 
 class JobUpdate(BaseModel):
-    """Partial update: only fields present in the request change. After publish only deadline, location, salary_note."""
+    """Partial update: only fields present in the request change. After publish only deadline, location, salary_note.
+    `headcount: null` clears it."""
 
     title: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=10000)
@@ -27,6 +32,8 @@ class JobUpdate(BaseModel):
     location: str | None = Field(None, max_length=100)
     salary_note: str | None = Field(None, max_length=100)
     deadline: date | None = None
+    category: JobCategory | None = None
+    headcount: int | None = Field(None, ge=1, le=999)
 
 
 class JobOut(BaseModel):
@@ -47,6 +54,9 @@ class JobOut(BaseModel):
     closed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    category: JobCategory | None = Field(description="null for jobs published before categories existed")
+    tags: list[str] = Field(description="Skills the criteria and the JD name (data/skills.yaml); display and search only, never scored")
+    headcount: int | None = Field(description="모집 인원 (number of hires, D47); null = not stated; never scored")
 
 
 class JobListItem(BaseModel):
@@ -62,6 +72,8 @@ class JobListItem(BaseModel):
     expired: bool
     criteria_count: int
     published_at: datetime | None
+    category: JobCategory | None
+    tags: list[str]
 
 
 class JobPage(BaseModel):
