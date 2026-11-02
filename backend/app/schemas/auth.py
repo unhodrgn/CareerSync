@@ -91,6 +91,22 @@ class UserOut(BaseModel):
         return self.consent_ai_at is None or self.consent_version != settings.CONSENT_VERSION
 
 
+class UserUpdate(BaseModel):
+    """PATCH /api/users/me. Only the display name changes; the email is the login and stays read-only (D36)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str = Field(min_length=1, max_length=50)
+
+    @field_validator("display_name")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("이름을 입력해야 합니다.")
+        return v
+
+
 class ConsentIn(BaseModel):
     version: str = Field(max_length=20, description="Version of the consent text shown to the user; must be the current one")
     consent_privacy: bool

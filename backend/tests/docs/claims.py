@@ -49,7 +49,15 @@ CLAIMS = (
         _bands,
         f"{CONFIG} RECO_BAND_HIGH, RECO_BAND_MID; the lowest Final from RECO_*_WEIGHT and RECO_MIN_*",
     ),
-    Claim("match-bands-short", r"Final ≥ (\d+) / (\d+)–(\d+) / (\d+)–(\d+)", _bands, f"{CONFIG} RECO_BAND_HIGH, RECO_BAND_MID"),
+    Claim(
+        "match-bands-short", r"(?:Final|match score) ≥ (\d+) / (\d+)–(\d+) / (\d+)–(\d+)", _bands, f"{CONFIG} RECO_BAND_HIGH, RECO_BAND_MID"
+    ),
+    Claim(
+        "reco-skill-items-d43",
+        r"at most (\d+) strengths and (\d+) gaps",
+        lambda: (s.RECO_MAX_SKILL_ITEMS, s.RECO_MAX_SKILL_ITEMS),
+        f"{CONFIG} RECO_MAX_SKILL_ITEMS",
+    ),
     Claim("token-hours", r"(\d+) h access token", lambda: (s.JWT_EXPIRE_MINUTES / 60,), f"{CONFIG} JWT_EXPIRE_MINUTES"),
     Claim("token-expired-hours", r"expired after (\d+) hours", lambda: (s.JWT_EXPIRE_MINUTES / 60,), f"{CONFIG} JWT_EXPIRE_MINUTES"),
     Claim(

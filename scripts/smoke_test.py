@@ -64,6 +64,7 @@ JOB = {
     "min_experience_years": 2,
     "location": "서울 강남구",
     "salary_note": "회사 내규에 따름",
+    "category": "dev",
 }
 
 

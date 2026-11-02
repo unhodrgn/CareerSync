@@ -90,8 +90,8 @@ def _store(db: Session, seeker_id: int, job_id: int, cv_id: int, kind: str, meth
 
 def _context(db: Session, job: JobPosting, profile: CvProfile) -> tuple[list[str], str, str]:
     """(criteria lines, JD text, masked CV text); criteria without weights, blocked ones left out."""
-    criteria = [f"{c.name} ({c.category}): {c.description}".strip() for c in criteria_service.load_for_scoring(db, job.id).items]
-    return criteria, f"{job.title}\n{job.description}", profile.document.masked_text
+    criteria, job_text = recommendation_service.job_skill_texts(criteria_service.load_for_scoring(db, job.id).items, job)
+    return criteria, job_text, profile.document.masked_text
 
 
 # ── Roadmap ──

@@ -8,12 +8,15 @@ are recruiter actions.
 from datetime import UTC, date, datetime
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from ai.jd.tags import job_tags, matches_tag
+from app.core.config import settings
 from app.core.errors import AppError
 from app.models import JobCriterion, JobPosting, User
 from app.models.job import EDITABLE_AFTER_PUBLISH, JobStatus
 from app.schemas.job import JobCreate, JobUpdate
+from app.services import ai_runtime
 
 
 def _not_found() -> AppError:
@@ -109,6 +112,8 @@ def publish(db: Session, job: JobPosting) -> JobPosting:
         raise AppError(409, "JOB_NOT_DRAFT", "작성 중인 공고만 게시할 수 있습니다.")
     if not job.description.strip():
         raise AppError(422, "JOB_INCOMPLETE", "공고 내용(직무 설명)을 입력해야 게시할 수 있습니다.", fields=["description"])
+    if job.category is None:
+        raise AppError(422, "FIELD_REQUIRED", "직무 분야를 선택해야 게시할 수 있습니다.", fields=["category"])
     _check_deadline(job.deadline)
     assert_publishable(job)
     job.status = JobStatus.PUBLISHED
@@ -135,22 +140,56 @@ def delete(db: Session, job: JobPosting) -> None:
     db.commit()
 
 
+# ── Tags (D45) ──
+
+
+def tags(job: JobPosting) -> list[str]:
+    """Skills the job's criteria and JD name, computed on read (not stored); display and search only, never scored."""
+    criteria = [f"{c.name}: {c.description}".strip() for c in job.criteria]
+    return job_tags(criteria, f"{job.title}\n{job.description}", ai_runtime.skills(), settings.JOB_TAGS_MAX)
+
+
 # ── Lists ──
 
 
-def list_public(db: Session, q: str | None, limit: int, offset: int) -> tuple[list[JobPosting], int]:
-    """Published jobs whose deadline has not passed, newest first."""
+def _region_filter(region: str):
+    prefixes = settings.JOB_REGIONS.get(region)
+    if prefixes is None:
+        raise AppError(422, "REGION_INVALID", "지원하지 않는 지역입니다.", regions=list(settings.JOB_REGIONS))
+    return or_(*(func.ltrim(JobPosting.location).like(f"{p}%") for p in prefixes))
+
+
+def list_public(
+    db: Session, q: str | None, category: str | None, region: str | None, limit: int, offset: int
+) -> tuple[list[JobPosting], int]:
+    """Published jobs whose deadline has not passed, newest first, filtered by category and region (D45).
+
+    `q` matches the title, the company name or a tag. Tags are computed, not stored, so with `q` the matching jobs
+    are filtered in Python and paged there; that reads every job passing the other filters (fine at demo scale).
+    """
     where = [
         JobPosting.status == JobStatus.PUBLISHED,
         or_(JobPosting.deadline.is_(None), JobPosting.deadline >= date.today()),
     ]
-    if q and q.strip():
-        where.append(JobPosting.title.ilike(f"%{q.strip()}%"))
-    total = db.scalar(select(func.count()).select_from(JobPosting).where(*where))
-    jobs = db.scalars(
-        select(JobPosting).where(*where).order_by(JobPosting.published_at.desc(), JobPosting.id.desc()).limit(limit).offset(offset)
+    if category:
+        where.append(JobPosting.category == category)
+    if region:
+        where.append(_region_filter(region))
+    newest = (JobPosting.published_at.desc(), JobPosting.id.desc())
+    text = (q or "").strip()
+    if not text:
+        total = db.scalar(select(func.count()).select_from(JobPosting).where(*where))
+        jobs = db.scalars(select(JobPosting).where(*where).order_by(*newest).limit(limit).offset(offset)).all()
+        return list(jobs), total
+    candidates = db.scalars(
+        select(JobPosting).where(*where).options(selectinload(JobPosting.criteria), selectinload(JobPosting.company)).order_by(*newest)
     ).all()
-    return list(jobs), total
+    needle, skills = text.casefold(), ai_runtime.skills()
+    hits = [
+        j for j in candidates
+        if needle in j.title.casefold() or needle in j.company.name.casefold() or matches_tag(text, tags(j), skills)
+    ]
+    return hits[offset:offset + limit], len(hits)
 
 
 def list_mine(db: Session, user: User) -> list[JobPosting]:
