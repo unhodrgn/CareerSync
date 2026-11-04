@@ -25,9 +25,6 @@ class SeekerPreference(Base):
     profile_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Audit timestamp for the most recent opt-in; null when never opted in / currently off.
     profile_public_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Self-declared 경력 수준 (experience level): new | junior | mid | senior. Display only (D46): never read by
-    # Fit, Pref or any scorer (they get preferences through preference_service.to_preferences only)
-    experience_level: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -42,9 +39,6 @@ class SeekerPreference(Base):
     )
     job_keywords: Mapped[list["SeekerJobKeyword"]] = relationship(
         back_populates="preference", cascade="all, delete-orphan", order_by="SeekerJobKeyword.id"
-    )
-    profile_skills: Mapped[list["SeekerProfileSkill"]] = relationship(
-        back_populates="preference", cascade="all, delete-orphan", order_by="SeekerProfileSkill.id"
     )
 
 
@@ -95,22 +89,6 @@ class SeekerJobKeyword(Base):
     keyword: Mapped[str] = mapped_column(String(100))
 
     preference: Mapped[SeekerPreference] = relationship(back_populates="job_keywords")
-
-
-class SeekerProfileSkill(Base):
-    """Self-declared 보유 기술 스택 (tech stack), normalized with data/skills.yaml. Display only (D46, AI rule 14):
-    scoring gives points only for what the masked CV text shows."""
-
-    __tablename__ = "seeker_profile_skills"
-    __table_args__ = (UniqueConstraint("preference_id", "skill", name="uq_seeker_profile_skills_value"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    preference_id: Mapped[int] = mapped_column(
-        ForeignKey("seeker_preferences.id", ondelete="CASCADE"), index=True
-    )
-    skill: Mapped[str] = mapped_column(String(100))
-
-    preference: Mapped[SeekerPreference] = relationship(back_populates="profile_skills")
 
 
 class TalentOfferStatus:

@@ -9,8 +9,6 @@ NEW_JOB = {
     "min_experience_years": 2,
     "location": "서울 강남구",
     "salary_note": "회사 내규",
-    "category": "dev",
-    "headcount": 2,
 }
 
 

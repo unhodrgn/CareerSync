@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
-from app.schemas.job import JobCategory, JobCreate, JobListItem, JobOut, JobPage, JobUpdate
+from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
 from app.schemas.cv import JdAnalysisOut, JdDraftIn, JdDraftOut
 from app.services import jd_service, job_service
 
@@ -36,9 +36,6 @@ def _out(job: JobPosting) -> JobOut:
         closed_at=job.closed_at,
         created_at=job.created_at,
         updated_at=job.updated_at,
-        category=job.category,
-        tags=job_service.tags(job),
-        headcount=job.headcount,
     )
 
 
@@ -58,8 +55,6 @@ def _items(db, jobs: list[JobPosting]) -> list[JobListItem]:
             expired=_expired(j),
             criteria_count=counts.get(j.id, 0),
             published_at=j.published_at,
-            category=j.category,
-            tags=job_service.tags(j),
         )
         for j in jobs
     ]
@@ -74,13 +69,11 @@ def create_job(body: JobCreate, db: DbSession, user: CompanyUser):
 def list_jobs(
     db: DbSession,
     user: OptionalUser,
-    q: Annotated[str | None, Query(max_length=100, description="Search in title, company name and tags")] = None,
-    category: Annotated[JobCategory | None, Query(description="Job field (D45)")] = None,
-    region: Annotated[str | None, Query(max_length=20, description="A JOB_REGIONS name, e.g. 서울 (D45)")] = None,
+    q: Annotated[str | None, Query(max_length=100, description="Search in title")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    jobs, total = job_service.list_public(db, q, category, region, limit, offset)
+    jobs, total = job_service.list_public(db, q, limit, offset)
     return JobPage(items=_items(db, jobs), total=total, limit=limit, offset=offset)
 
 

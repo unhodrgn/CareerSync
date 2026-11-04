@@ -53,8 +53,6 @@ COMPANIES = [
                     min_experience_years=2,
                     location="서울 강남구",
                     salary_note="회사 내규에 따름",
-                    category="dev",
-                    headcount=2,
                 ),
                 [
                     CriterionIn(name="Java 활용 능력", category="skill", weight=30, description="Java 17, 컬렉션·동시성 이해"),
@@ -71,7 +69,6 @@ COMPANIES = [
                     description="React/TypeScript로 ERP 관리 화면 개발.",
                     employment_type="contract",
                     location="서울 강남구",
-                    category="dev",
                 ),
                 [
                     CriterionIn(name="React 경험", category="skill", weight=50),
@@ -98,8 +95,6 @@ COMPANIES = [
                     min_experience_years=None,
                     location="경기 성남시 판교",
                     salary_note="협의",
-                    category="data_ai",
-                    headcount=1,
                 ),
                 [
                     CriterionIn(name="Python 활용 능력", category="skill", weight=30),
