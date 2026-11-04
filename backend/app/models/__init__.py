@@ -11,7 +11,7 @@ from app.models.cv import (
     CvProjectTech,
     CvSkill,
 )
-from app.models.job import JobPosting, SavedJob
+from app.models.job import JobPosting
 from app.models.matching import (
     CompanyProject,
     CompanyProjectTech,
@@ -19,7 +19,6 @@ from app.models.matching import (
     SeekerPreference,
     SeekerPreferredEmploymentType,
     SeekerPreferredLocation,
-    SeekerProfileSkill,
     TalentOffer,
 )
 from app.models.user import Company, User
@@ -44,12 +43,10 @@ __all__ = [
     "Evaluation",
     "JobCriterion",
     "JobPosting",
-    "SavedJob",
     "SeekerJobKeyword",
     "SeekerPreference",
     "SeekerPreferredEmploymentType",
     "SeekerPreferredLocation",
-    "SeekerProfileSkill",
     "TalentOffer",
     "User",
 ]

@@ -1,10 +1,7 @@
-"""Seeker preferences: desired locations, employment types, role keywords, and the talent-pool opt-in; plus the
-self-declared experience level and skills (D46).
+"""Seeker preferences: desired locations, employment types, role keywords, and the talent-pool opt-in.
 
-One row per seeker (`seeker_preferences`, unique `seeker_id`) with child tables. PUT replaces the whole set,
-except the optional `experience_level` and `skills`, which stay unchanged when left out. Pref itself is computed by
-`ai.scoring.pref.pref_score` (docs/DECISIONS.md D15) from `to_preferences` only, which never carries the
-self-declared fields: they are display only (D46, AI rule 14).
+One row per seeker (`seeker_preferences`, unique `seeker_id`) with three child tables. PUT replaces
+the whole set. Pref itself is computed by `ai.scoring.pref.pref_score` (docs/DECISIONS.md D15).
 """
 from datetime import UTC, datetime
 
@@ -19,11 +16,9 @@ from app.models import (
     SeekerPreference,
     SeekerPreferredEmploymentType,
     SeekerPreferredLocation,
-    SeekerProfileSkill,
     User,
 )
-from app.schemas.preference import MAX_PROFILE_SKILLS, PreferenceIn, PreferenceOut
-from app.services import ai_runtime
+from app.schemas.preference import PreferenceIn, PreferenceOut
 
 
 def _seeker_only(user: User) -> None:
@@ -47,14 +42,11 @@ def to_out(pref: SeekerPreference | None) -> PreferenceOut:
         profile_public=pref.profile_public,
         profile_public_at=pref.profile_public_at,
         updated_at=pref.updated_at,
-        experience_level=pref.experience_level,
-        skills=[x.skill for x in pref.profile_skills],
     )
 
 
 def to_preferences(pref: SeekerPreference | None) -> Preferences:
-    """Plain object for `ai.scoring.pref.pref_score`; no row means no preferences. The only way scoring sees
-    preferences; it never includes the display-only `experience_level` or `profile_skills` (D46)."""
+    """Plain object for `ai.scoring.pref.pref_score`; no row means no preferences."""
     if pref is None:
         return Preferences()
     return Preferences(
@@ -92,14 +84,6 @@ def replace_mine(db: Session, user: User, data: PreferenceIn) -> SeekerPreferenc
     pref.locations.extend(SeekerPreferredLocation(location=v) for v in data.locations)
     pref.employment_types.extend(SeekerPreferredEmploymentType(employment_type=v) for v in data.employment_types)
     pref.job_keywords.extend(SeekerJobKeyword(keyword=v) for v in data.job_keywords)
-    sent = data.model_fields_set
-    if "experience_level" in sent:
-        pref.experience_level = data.experience_level
-    if "skills" in sent:
-        pref.profile_skills.clear()
-        db.flush()
-        skills = ai_runtime.skills().normalize_list(data.skills)[:MAX_PROFILE_SKILLS]
-        pref.profile_skills.extend(SeekerProfileSkill(skill=v) for v in skills)
     if data.profile_public and not pref.profile_public:
         pref.profile_public_at = datetime.now(UTC)
     elif not data.profile_public:

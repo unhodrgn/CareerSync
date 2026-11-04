@@ -26,7 +26,7 @@ from app.models import (
     User,
 )
 from app.schemas.cv import CvOut
-from app.services import account_service, ai_runtime
+from app.services import ai_runtime
 
 
 def _seeker_only(user: User) -> None:
@@ -164,14 +164,8 @@ def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
         pdf = extract_text(data)
     except PdfError as e:
         raise AppError(422, e.code, e.message) from e
-    name = user.display_name
-    masked = mask_pii(pdf.text, [name] if name else [], ai_runtime.skills())
+    masked = mask_pii(pdf.text, [user.display_name] if user.display_name else [], ai_runtime.skills())
     profile, method = structure_cv(masked.text, ai_runtime.skills(), ai_runtime.llm())
-    # The name lock (D46): take the user row lock that renames take, and store the CV only if the name used for
-    # masking is still the name. Held only from here to the commit, not during the analysis above
-    if account_service.lock_user_row(db, user.id) != name:
-        db.rollback()
-        raise AppError(409, "NAME_CHANGED", "분석하는 동안 이름이 바뀌었습니다. 이력서를 다시 올려 주세요.")
     doc = CvDocument(
         seeker_id=user.id,
         file_name=file_name[:255] or "cv.pdf",

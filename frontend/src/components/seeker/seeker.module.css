@@ -1,0 +1,1104 @@
+/* Seeker pages (and the public job pages). Navy is the tone; the only meaning-carrying colours are the band pill
+   and the amber gap. */
+
+/* Job list */
+
+.toolbar {
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbarCount {
+  margin: 0;
+  justify-self: end;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.search {
+  position: relative;
+}
+
+.search svg {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  color: var(--color-ink-muted);
+  pointer-events: none;
+}
+
+.search input {
+  padding-left: 38px;
+}
+
+/* The job list's panel: no head, so it pads like a list (rows carry their own 16px) */
+.jobPanel {
+  padding: 4px 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.jobList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jobItem + .jobItem {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.jobLink {
+  margin: 0 -12px;
+  padding: 18px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  border-radius: var(--radius-md);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 160ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.jobLink:active {
+  transform: scale(0.995);
+}
+
+.jobLink:hover {
+  background: var(--color-sunken);
+}
+
+.jobLink[data-expired] {
+  opacity: 0.6;
+}
+
+/* A job row: the title leads, the company and meta line sits under it */
+.jobMain {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.jobTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.jobSide {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.chevron {
+  color: var(--color-axis);
+  transition: color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+.jobLink:hover .chevron {
+  color: var(--color-ink);
+  transform: translateX(2px);
+}
+
+.guestBanner {
+  margin-bottom: 20px;
+  padding: 10px 10px 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-radius: var(--radius-lg);
+  background: var(--color-seeker);
+  color: var(--color-paper);
+  --focus-color: var(--color-paper);
+}
+
+.guestBanner p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 0.86);
+}
+
+.onField {
+  background: var(--color-paper);
+  color: var(--color-seeker);
+}
+
+.onField:hover {
+  background: var(--color-canvas);
+}
+
+/* Job detail */
+
+.detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 352px;
+  align-items: start;
+  gap: 24px;
+}
+
+.aside {
+  position: sticky;
+  /* Below the guest header (--shell-top is 0 beside the rail) */
+  top: calc(var(--shell-top, 0px) + 24px);
+  display: grid;
+  gap: 16px;
+}
+
+.detailMain {
+  min-width: 0;
+}
+
+.jobHead {
+  margin-bottom: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+/* The job is the page's subject: Field Title (34px) */
+.jobHeadTitle {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.facts {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 32px;
+  font-size: 14px;
+}
+
+.facts div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.facts dt {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.jd {
+  margin-top: 24px;
+  max-width: 44em;
+}
+
+.jd h3 {
+  margin: 20px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.jd p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--color-ink-soft);
+}
+
+.jd ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--color-ink-soft);
+}
+
+.companyBlock {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line-soft);
+  display: grid;
+  gap: 16px;
+}
+
+.projectList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project {
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-chip);
+  background: var(--color-sunken);
+}
+
+.projectName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.publicProject {
+  padding: 12px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.publicProject + .publicProject {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.asideTitle {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.asideBlock {
+  display: grid;
+  gap: 12px;
+}
+
+.prepLink {
+  padding-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--tone);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.prepLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.appliedLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Recommendations */
+
+.resultHead {
+  display: grid;
+  gap: 2px;
+}
+
+/* One bordered panel; each band is a group with the band in a left column, level with its first job's title */
+.recoPanel {
+  margin-top: 20px;
+  padding: 0 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.group {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.group + .group {
+  border-top: 1px solid var(--color-line);
+}
+
+.groupHead {
+  margin: 0;
+  /* The pill's centre on the first title's centre (row padding 18px + half a 24px title line) */
+  padding-top: 13px;
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 6px;
+}
+
+.groupCount {
+  padding-left: 16px;
+}
+
+.recoList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recoRow {
+  position: relative;
+  padding: 18px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.recoRow + .recoRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.recoRow {
+  transition: transform 150ms var(--ease-out);
+}
+
+/* Pressing the row (its title link covers it), not the 준비하기 link above it */
+.recoRow:has(.stretched:active) {
+  transform: scale(0.995);
+}
+
+.recoRow:hover .jobTitle {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.recoRow:hover .chevron {
+  color: var(--color-ink);
+  transform: translateX(2px);
+}
+
+/* A link whose hit area is the whole row (position: relative on the row) */
+.stretched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.aboveStretch {
+  position: relative;
+  z-index: 1;
+}
+
+/* One line under the 추천 공고 lead while the talent opt-in is off */
+.talentHint {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-soft);
+}
+
+.pendingLine {
+  margin: 16px 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.pendingLine svg {
+  color: var(--color-seeker-dot);
+}
+
+/* CV */
+
+/* One column at a reading width: the CV is a document, not a dashboard */
+.cvColumn {
+  max-width: 920px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.cvHead {
+  padding-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cvHeadText {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+/* Bottom bar while editing: the save action stays in reach on a long form (flat, on the canvas) */
+.saveBar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  padding: 10px 12px 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-hub);
+  background: var(--color-paper);
+}
+
+.saveBarText {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.dropzone {
+  padding: 56px 32px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  text-align: center;
+}
+
+.dropIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-hub);
+  background: var(--color-seeker-soft);
+  color: var(--color-seeker);
+}
+
+.fileIcon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-seeker-soft);
+  color: var(--color-seeker);
+}
+
+.fileName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section + .section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.sectionHead {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.entry + .entry {
+  margin-top: 16px;
+}
+
+.entryPeriod {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entryBody {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.entryTitle {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.sourceLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+}
+
+/* The word 원문 leading the evidence line: text, not a chip */
+.sourceLabel {
+  flex: none;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.skillChip {
+  height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-sunken);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.skillChip button {
+  width: 22px;
+  height: 22px;
+  margin-right: -8px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.skillChip button:hover {
+  background: var(--color-line-soft);
+  color: var(--color-ink);
+}
+
+.ruleCard {
+  padding: 18px 20px;
+  display: grid;
+  gap: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--color-seeker);
+  color: var(--color-paper);
+}
+
+.ruleCard h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ruleCard p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgb(255 255 255 / 0.82);
+}
+
+/* Job prep */
+
+.prepGrid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-chip);
+  background: var(--color-paper);
+}
+
+/* Neutral: amber is kept for the missing items themselves (Amber Is Absence) */
+.stepIndex {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stepBody {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stepCols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.plainList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+
+.resource {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-seeker);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--color-seeker) 30%, transparent);
+}
+
+/* Interview questions: one list in one panel, rows split by soft lines */
+.questions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question {
+  padding: 20px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.question + .question {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.question:last-child {
+  padding-bottom: 4px;
+}
+
+.questionText {
+  margin: 0;
+  display: flex;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+}
+
+.questionIndex {
+  flex: none;
+  width: 22px;
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.questionBody {
+  max-width: 52em;
+  padding-left: 34px;
+  display: grid;
+  gap: 10px;
+}
+
+.inlineLabel {
+  margin-right: 8px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+/* Answer tips on demand */
+.tips summary {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tone);
+  font-size: 13.5px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.tips summary::-webkit-details-marker {
+  display: none;
+}
+
+.tips summary svg {
+  transition: transform 200ms var(--ease-out);
+}
+
+.tips[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.tips ul {
+  margin-top: 8px;
+}
+
+.reviewCols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+}
+
+/* The second column is set off by a 1px rule, not a box */
+.reviewCol + .reviewCol {
+  padding-left: 32px;
+  border-left: 1px solid var(--color-line-soft);
+}
+
+.reviewColTitle {
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.reviewItem {
+  display: grid;
+  gap: 8px;
+}
+
+.reviewItem + .reviewItem {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.reviewTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+/* Offers */
+
+.offer {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px 24px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.offer + .offer {
+  margin-top: 12px;
+}
+
+/* Past offers: compact rows in one list */
+.pastSection {
+  margin-top: 32px;
+}
+
+.pastList {
+  padding: 0 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.offerPast {
+  padding: 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+.offerPast + .offerPast {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.offerPast .offerMain {
+  gap: 4px;
+}
+
+.offerPastTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.offerPastTitle .jobTitle {
+  font-size: inherit;
+}
+
+.offersNotice {
+  margin-bottom: 16px;
+}
+
+.offersNotice:focus {
+  outline: none;
+}
+
+.offerMain {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.offerCompany {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.offerCompany strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.offerTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.offerMessage {
+  margin: 4px 0 0;
+  max-width: 48em;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+
+.offerSide {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.offerActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.offerConfirm {
+  grid-column: 1 / -1;
+}
+
+.publicLine {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--color-ink-soft);
+}
+
+.publicDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-seeker-dot);
+}
+
+/* Preferences and account */
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  align-items: start;
+  gap: 24px;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* What companies see and do not see: two rows under a soft line, no boxes */
+.visibility {
+  margin: 16px 0 0;
+  padding-top: 16px;
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.visibility dt {
+  margin-bottom: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.visibility dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+
+.dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px 16px;
+  font-size: 14px;
+}
+
+.dl dt {
+  color: var(--color-ink-muted);
+}
+
+.dl dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.saveRow {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+a.jobTitle:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ── Motion (DESIGN.md, App pages · Motion) ── */
+
+/* The focal moment on 추천 공고: each band pill settles in, then its jobs follow. Groups start 40ms apart and
+   everything has arrived within 380ms. */
+@keyframes bandIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.group {
+  --group-delay: 0ms;
+}
+
+.group:nth-of-type(2) {
+  --group-delay: 40ms;
+}
+
+.group:nth-of-type(n + 3) {
+  --group-delay: 80ms;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .groupHead > [data-band] {
+    transform-origin: left center;
+    animation: bandIn 260ms var(--ease-out) backwards;
+    animation-delay: var(--group-delay);
+  }
+
+  .recoRow {
+    animation: rowIn 220ms var(--ease-out) backwards;
+    animation-delay: calc(var(--group-delay) + 40ms);
+  }
+
+  .recoRow:nth-child(2) {
+    animation-delay: calc(var(--group-delay) + 60ms);
+  }
+
+  .recoRow:nth-child(n + 3) {
+    animation-delay: calc(var(--group-delay) + 80ms);
+  }
+
+  /* Answer tips opening under a question (closing is immediate) */
+  .tips[open] > ul {
+    animation: open 200ms var(--ease-out) backwards;
+  }
+}

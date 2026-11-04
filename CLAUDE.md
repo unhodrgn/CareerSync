@@ -11,7 +11,7 @@ Read the relevant part of PROJECT_DOCUMENTATION.md before making a plan. Priorit
 
 1. **Plan first, then wait.** Before editing any file, reply with: files you will change, the main logic, anything you will not do, and open decisions. Wait for the user's OK. For a one-line fix a short plan is enough, but still wait.
 2. **Stay in scope.** Change only what the task asks. No drive-by refactors, renames, formatting passes or new dependencies unless asked.
-3. **Find callers first.** Before changing a function, schema or endpoint, search its callers in `backend/`, `ai/` and `frontend/src/services/apiService.ts`.
+3. **Find callers first.** Before changing a function, schema or endpoint, search its callers in `backend/`, `ai/` and `frontend/src/api/client.ts`.
 4. **No git.** Do not run `git commit`, `push`, `merge`, `rebase`, `checkout`/`switch`, `reset` or `stash`. Read-only git (`status`, `diff`, `log`, `branch`) is fine. The user commits. If the branch looks wrong for the task (e.g. missing migrations), stop and say so.
 5. **Test.** Run `pytest` from the repo root after every change; it must pass. For frontend changes also run `npm run build` in `frontend/`. Report results, including anything you could not run.
 6. **Keep the docs current.** Decisions go into `docs/DECISIONS.md`; `PROJECT_DOCUMENTATION.md` records only technical content. If a task adds or changes a table, endpoint, page, env variable or constant, update the matching section of `PROJECT_DOCUMENTATION.md` in the same change (see its "Keeping this document current"). Do not change the header commit line.
@@ -42,7 +42,7 @@ Read the relevant part of PROJECT_DOCUMENTATION.md before making a plan. Priorit
 | 6 | Responses that carry AI results include `AI_NOTICE`. | By design in today's schemas (applicant, evaluation, `CvOut`, `JdAnalysisOut`, recommendation, talent and career responses have a `notice` field). New AI responses must include it. |
 | 7 | Scoring reads criteria only through `criteria_service.load_for_scoring()`. | By convention. |
 | 8 | `ai/` never imports `app.*`; services reach AI only through `services/ai_runtime.py`. | By convention — currently true. Keep `ai/` DB-free, pass plain objects (`Candidate`, `Criterion`, `JobContext`). |
-| 9 | Weights are never stored in `criterion_scores` and never shown to seekers. Seekers see importance labels and, per D42, only the match score (Final rounded to an integer) with its band — never Fit, Pref, per-criterion scores or weights. | By design; keep it in any new seeker-facing response (the recommendation and `/match` tests pin their exact key sets). |
+| 9 | Weights are never stored in `criterion_scores` and never shown to seekers (seekers see importance / match bands only). | By design; keep it in any new seeker-facing response. |
 | 10 | Criteria pass the legal guardrail (`data/blocklist.yaml`) on save. | Guaranteed on save, and JD suggestions that would be blocked are left out (D24). |
 | 11 | Prompts live in `ai/prompts/vN/`; changing a prompt's meaning bumps `PROMPT_VERSION`. Evaluations record model, embedding, prompt and skills versions. | By convention. |
 | 12 | Pretrained models only; nothing is trained. | By convention. |

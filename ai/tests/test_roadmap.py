@@ -1,7 +1,7 @@
-"""Skill roadmap (D21): gaps (and D43 strengths) from public job info vs the CV text, LLM output validated, resources only from YAML."""
+"""Skill roadmap (D21): gaps from public job info vs the CV text, LLM output validated, resources only from YAML."""
 import pytest
 
-from ai.career.gaps import Gap, find_gaps, match_skills
+from ai.career.gaps import Gap, find_gaps
 from ai.career.resources import load_resources
 from ai.career.roadmap import MAX_STEPS, make_roadmap, roadmap_rules
 from ai.llm.client import LLMError
@@ -24,14 +24,6 @@ def test_gaps_are_named_by_the_job_and_missing_from_the_cv_text():
     gaps = find_gaps(CRITERIA, JD, SAMPLE_CV, SKILLS)
     # Criteria first, then the JD; Java, AWS, Docker and 정보처리기사 are in the CV
     assert gaps == [Gap("Kubernetes", "skill"), Gap("Kafka", "skill"), Gap("SQLP", "certificate")]
-
-
-def test_strengths_are_what_the_job_names_and_the_cv_text_shows():
-    # D43: the same scan as the gaps, split by what the masked CV text shows
-    strengths, gaps = match_skills(CRITERIA, JD, SAMPLE_CV, SKILLS)
-    assert strengths == [Gap("Java", "skill"), Gap("AWS", "skill"), Gap("Docker", "skill"), Gap("정보처리기사", "certificate")]
-    assert gaps == find_gaps(CRITERIA, JD, SAMPLE_CV, SKILLS)
-    assert match_skills([], "", SAMPLE_CV, SKILLS) == ([], [])  # a job naming no known skill has neither
 
 
 def test_no_gaps_when_the_cv_has_everything():

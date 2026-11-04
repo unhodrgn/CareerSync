@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from ai.embedding.model import configured_model, get_embedder
 from ai.llm.client import check_llm_config, llm_model
-from app.api.v1 import applications, auth, career, companies, criteria, cv, jobs, preferences, recommendations, saved_jobs, talent, users
+from app.api.v1 import applications, auth, career, companies, criteria, cv, jobs, preferences, recommendations, talent, users
 from app.core.config import dev_secrets_in_use
 from app.core.errors import AppError
 
@@ -63,7 +63,6 @@ app.include_router(preferences.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
 app.include_router(talent.router, prefix="/api")
 app.include_router(career.router, prefix="/api")
-app.include_router(saved_jobs.router, prefix="/api")
 
 
 @app.exception_handler(AppError)

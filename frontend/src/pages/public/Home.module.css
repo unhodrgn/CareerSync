@@ -1,0 +1,1174 @@
+/* Landing: navy seeker panel | off-white criteria spine | green employer panel.
+   Every column stacks the same fixed zones (256 / 68 / 20 + 360) so their rows line up. */
+
+.page {
+  --zone-top: 256px;
+  --zone-trail: 68px;
+  --zone-card: 360px;
+  --zone-gap: 20px;
+  --spine-width: 324px;
+  --spine-pad: 16px;
+  --card-pad: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+:where(.page) p,
+:where(.page) figure {
+  margin: 0;
+}
+
+:where(.page) ol,
+:where(.page) ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Press feedback shared by the solid buttons */
+.press {
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
+}
+
+.press:active {
+  transform: scale(0.95);
+}
+
+/* Header */
+
+.header {
+  height: 64px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.headerEnd {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.tagline {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.loginButton {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.loginButton:hover {
+  background: var(--color-ink-soft);
+}
+
+/* Split stage */
+
+.split {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--spine-width) minmax(0, 1fr);
+}
+
+/* The side under the pointer, or holding keyboard focus, widens to 1.12fr and the other side dims.
+   Expanding waits 80ms so a pointer sweeping across does not flicker; collapsing is immediate.
+   The pointer wins over focus left behind in the other panel; the pointer on the spine keeps the default. */
+@media (prefers-reduced-motion: no-preference) {
+  .split {
+    transition: grid-template-columns 400ms var(--ease-out);
+  }
+
+  .split:has(> .seeker:hover),
+  .split:has(> .seeker :focus-visible):not(:has(> .employer:hover)) {
+    grid-template-columns: minmax(0, 1.12fr) var(--spine-width) minmax(0, 0.88fr);
+    transition-delay: 80ms;
+  }
+
+  .split:has(> .employer:hover),
+  .split:has(> .employer :focus-visible):not(:has(> .seeker:hover)) {
+    grid-template-columns: minmax(0, 0.88fr) var(--spine-width) minmax(0, 1.12fr);
+    transition-delay: 80ms;
+  }
+}
+
+.panel {
+  --focus-color: var(--color-paper);
+  position: relative;
+  overflow: hidden;
+  padding: 40px 32px 40px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--color-paper);
+  cursor: pointer;
+  transition:
+    opacity 320ms var(--ease-out),
+    filter 320ms var(--ease-out);
+}
+
+.seeker {
+  --side: var(--color-seeker);
+  --side-badge: var(--color-seeker-badge);
+  --side-accent: var(--color-seeker-accent);
+  --side-dot: var(--color-seeker-dot);
+  background: var(--color-seeker);
+}
+
+.employer {
+  --side: var(--color-employer);
+  --side-badge: var(--color-employer-badge);
+  --side-accent: var(--color-employer-accent);
+  --side-dot: var(--color-employer-dot);
+  padding: 40px 48px 40px 32px;
+  background: var(--color-employer);
+}
+
+/* The other side recedes while one is active */
+.split:has(> .seeker:hover) > .employer,
+.split:has(> .seeker :focus-visible):not(:has(> .employer:hover)) > .employer,
+.split:has(> .employer:hover) > .seeker,
+.split:has(> .employer :focus-visible):not(:has(> .seeker:hover)) > .seeker {
+  opacity: 0.72;
+  filter: saturate(0.75) brightness(0.94);
+  transition-delay: 80ms;
+}
+
+/* ...and the active side's input chip lights up */
+.split:has(> .seeker:hover) > .seeker .inputChip,
+.split:has(> .seeker :focus-visible):not(:has(> .employer:hover)) > .seeker .inputChip,
+.split:has(> .employer:hover) > .employer .inputChip,
+.split:has(> .employer :focus-visible):not(:has(> .seeker:hover)) > .employer .inputChip {
+  border-color: var(--side-accent);
+  background: rgb(255 255 255 / 0.14);
+  transition-delay: 80ms;
+}
+
+.numeral {
+  position: absolute;
+  top: 12px;
+  right: 32px;
+  font-size: 116px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: rgb(255 255 255 / 0.045);
+  pointer-events: none;
+}
+
+/* Zone 1: role, headline, actions */
+
+.zoneTop {
+  position: relative;
+  height: var(--zone-top);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.roleRow {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.roleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--side-accent);
+}
+
+.roleDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--side-dot);
+}
+
+.panelHint {
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.title {
+  margin: 0;
+  max-width: 490px;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  white-space: pre-line;
+}
+
+.lead {
+  margin-top: 12px;
+  /* Narrower than the narrowest panel (about 340px at 1280), so the lines break the same at every panel width */
+  max-width: 19.5em;
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.015em;
+  color: rgb(255 255 255 / 0.8);
+}
+
+.actions {
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  white-space: nowrap;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--side);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.primary:hover {
+  background: var(--color-canvas);
+}
+
+.textLink {
+  font-size: 15px;
+  color: var(--side-accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--side-accent) 50%, transparent);
+  text-underline-offset: 4px;
+}
+
+.textLink:hover {
+  color: var(--color-paper);
+  text-decoration-color: var(--color-paper);
+}
+
+/* Zone 2: the input trail into the spine */
+
+.zoneTrail {
+  position: relative;
+  height: var(--zone-trail);
+  margin: var(--zone-gap) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
+  border-bottom: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.inputChip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: var(--radius-chip);
+  background: rgb(255 255 255 / 0.08);
+  transition:
+    border-color 220ms var(--ease-out),
+    background-color 220ms var(--ease-out);
+}
+
+.inputIcon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--side-badge);
+  color: var(--side-accent);
+}
+
+.inputText {
+  min-width: 0;
+}
+
+.inputHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inputTitle {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inputMeta,
+.inputDetail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.inputMeta {
+  color: var(--side-accent);
+}
+
+.inputDetail {
+  display: block;
+  color: rgb(255 255 255 / 0.68);
+}
+
+.feed {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--side-accent);
+}
+
+.feedLine {
+  width: 28px;
+  height: 2px;
+  background: var(--side-dot);
+}
+
+/* Zone 3: outcome head + 360px card */
+
+.zoneResult {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.resultHead {
+  height: 20px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.resultLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--side-accent);
+}
+
+.resultNote {
+  font-size: 12px;
+  color: rgb(255 255 255 / 0.62);
+}
+
+.card {
+  --focus-color: var(--color-seeker);
+  height: var(--zone-card);
+  padding: var(--card-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-card);
+  cursor: default;
+}
+
+.cardHead {
+  padding-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.cardMeta strong {
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.exampleTag {
+  padding: 0 6px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.cardTitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.band {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-seeker);
+  color: var(--color-paper);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.bandDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-seeker-dot);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Seeker card rows: criteria names, neutral except the one whose skill the CV lacks */
+.seekerRow {
+  height: 44px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-sunken);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.rowName {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.rowMark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: 0 4px;
+  border-radius: 50%;
+  background: var(--color-axis);
+}
+
+.rowIcon {
+  flex: none;
+  color: var(--color-gap);
+}
+
+.rowBadge {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-seeker-soft);
+  color: var(--color-seeker);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.seekerRow[data-gap] {
+  border: 1px dashed var(--color-gap-line);
+  background: var(--color-gap-soft);
+}
+
+.seekerRow[data-gap] .rowName {
+  color: var(--color-gap-strong);
+}
+
+.seekerRow[data-gap] .rowBadge {
+  background: var(--color-gap-badge);
+  color: var(--color-gap);
+}
+
+.cardFoot {
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-line-soft);
+  font-size: 12px;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.withIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.seekerStrong {
+  font-weight: 600;
+  color: var(--color-seeker);
+}
+
+.employerStrong {
+  font-weight: 600;
+  color: var(--color-employer);
+}
+
+.mutedStrong {
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.gapStrong {
+  font-weight: 600;
+  color: var(--color-gap);
+}
+
+/* Spine */
+
+.spine {
+  position: relative;
+  z-index: 2;
+  padding: 40px var(--spine-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-left: 1px solid var(--color-line);
+  border-right: 1px solid var(--color-line);
+  background: var(--color-canvas);
+}
+
+.axis {
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--color-axis);
+  pointer-events: none;
+}
+
+.identity {
+  position: relative;
+  height: var(--zone-top);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  text-align: center;
+}
+
+.pillRow {
+  display: flex;
+  justify-content: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-canvas);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.pillDotSeeker,
+.pillDotEmployer {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-seeker);
+}
+
+.pillDotEmployer {
+  background: var(--color-employer);
+}
+
+.identityTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  white-space: pre-line;
+}
+
+.identityLead {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+
+.directions {
+  padding-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-top: 1px solid var(--color-line-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.toSeeker,
+.toEmployer {
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-seeker-soft);
+  color: var(--color-seeker);
+}
+
+.toEmployer {
+  background: var(--color-employer-soft);
+  color: var(--color-employer);
+}
+
+/* Zone 2 in the spine: where both input trails meet */
+.hub {
+  position: relative;
+  height: var(--zone-trail);
+  margin: var(--zone-gap) 0;
+  padding: 0 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: var(--radius-hub);
+  background: var(--color-hub);
+  color: var(--color-paper);
+}
+
+.tickSeeker,
+.tickEmployer {
+  position: absolute;
+  top: 50%;
+  width: var(--spine-pad);
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+}
+
+.tickSeeker {
+  right: 100%;
+  background: var(--color-seeker-dot);
+}
+
+.tickEmployer {
+  left: 100%;
+  background: var(--color-employer-dot);
+}
+
+.hubRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hubSeeker,
+.hubEmployer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hubSeeker {
+  color: var(--color-seeker-accent);
+}
+
+.hubEmployer {
+  color: var(--color-employer-accent);
+}
+
+.hubShared {
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: rgb(255 255 255 / 0.15);
+  font-size: 11.5px;
+}
+
+.hubCaption {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-hub-text);
+}
+
+.listHead {
+  padding: 0 4px;
+}
+
+.listTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.listHint {
+  font-size: 11.5px;
+  color: var(--color-ink-muted);
+}
+
+.rubric {
+  height: var(--zone-card);
+  padding: var(--card-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+}
+
+.rubricHead {
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.rubricCaption {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-ink-muted);
+}
+
+.rubricTitle {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.countBadge {
+  padding: 4px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-canvas);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.critItem {
+  display: flex;
+}
+
+.critButton {
+  position: relative;
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-sunken);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.categoryTag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Wires from each criterion out to both panel edges (card padding + spine padding + border), dot at the edge */
+.wireSeeker,
+.wireEmployer {
+  --wire: var(--color-seeker);
+  position: absolute;
+  top: 50%;
+  width: calc(var(--card-pad) + var(--spine-pad) + 1px);
+  height: 2px;
+  margin-top: -1px;
+  background: var(--wire);
+  pointer-events: none;
+}
+
+.wireSeeker {
+  right: calc(100% + 1px);
+}
+
+.wireEmployer {
+  --wire: var(--color-employer);
+  left: calc(100% + 1px);
+}
+
+.critButton[data-gap] .wireSeeker {
+  --wire: var(--color-gap-line);
+}
+
+.wireSeeker::before,
+.wireEmployer::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--wire);
+}
+
+.wireSeeker::before {
+  left: 0;
+}
+
+.wireEmployer::before {
+  right: 0;
+}
+
+.rubricFoot {
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-line-soft);
+  font-size: 11.5px;
+}
+
+/* Employer card */
+
+.employer .card {
+  --focus-color: var(--color-employer);
+}
+
+.countTag {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-employer-soft);
+  color: var(--color-employer);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tags {
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag {
+  padding: 4px 10px;
+  border: 1px solid var(--color-employer-tag-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-employer-soft);
+  color: var(--color-employer);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.applicants {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.applicant {
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-chip);
+  background: var(--color-sunken);
+}
+
+.applicantHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.applicantId {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.rank {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--color-employer);
+  color: var(--color-paper);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.applicant + .applicant .rank {
+  background: var(--color-line);
+  color: var(--color-ink);
+}
+
+.applicantName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.metBadge[data-all] {
+  background: var(--color-employer-soft);
+  color: var(--color-employer);
+}
+
+.squares {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.square {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-employer);
+}
+
+.square[data-missing] {
+  border: 1px solid var(--color-gap-line);
+  background: var(--color-gap-badge);
+}
+
+/* One fixed line each, so the note never reflows when the panel changes width */
+.note {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--color-ink-soft);
+}
+
+.note + .note {
+  margin-top: 0;
+}
+
+/* Criterion trail: one criterion lights across the seeker card, the spine and the employer tags */
+.seekerRow,
+.critButton,
+.tag {
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 220ms var(--ease-out),
+    background-color 220ms var(--ease-out),
+    border-color 220ms var(--ease-out),
+    color 220ms var(--ease-out);
+}
+
+.split[data-active] [data-dim-target]:not([data-lit]) {
+  opacity: 0.38;
+}
+
+.critButton[data-lit] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.critButton[data-lit] .categoryTag {
+  background: rgb(255 255 255 / 0.2);
+  color: var(--color-paper);
+}
+
+.critButton[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-ink);
+}
+
+.seekerRow[data-lit] {
+  border-color: var(--color-seeker-lit-line);
+  background: var(--color-seeker-lit);
+}
+
+.seekerRow[data-gap][data-lit] {
+  border-style: solid;
+  border-color: var(--color-gap-line);
+  background: var(--color-gap-soft);
+  box-shadow: 0 0 0 3px rgb(217 119 6 / 0.2);
+}
+
+/* The lit criterion's indicator on each applicant: ringed in the employer hue, or amber where it is missing */
+.square {
+  transition:
+    opacity 220ms var(--ease-out),
+    box-shadow 220ms var(--ease-out);
+}
+
+.square[data-lit] {
+  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 3.5px var(--color-employer);
+}
+
+.square[data-missing][data-lit] {
+  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 3.5px var(--color-gap-line);
+}
+
+.tag[data-lit] {
+  border-color: var(--color-employer);
+  background: var(--color-employer);
+  color: var(--color-paper);
+  transform: translateY(-1px);
+}
+
+/* Trust note and footer */
+
+.below {
+  border-top: 1px solid var(--color-line);
+  background: var(--color-canvas);
+}
+
+.trust,
+.footer {
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.trust {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.trustText {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--color-ink-soft);
+}
+
+.trustText strong {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.trustIcon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.trustDecision {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--color-ink-muted);
+}
+
+.footer {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.legal {
+  display: flex;
+  gap: 24px;
+  color: var(--color-ink-soft);
+}
