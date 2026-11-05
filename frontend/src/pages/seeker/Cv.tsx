@@ -4,6 +4,7 @@ import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
 import { consentPath } from '@/auth/AuthContext';
+import { AiBox, AiBusy } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate, monthsLabel } from '@/components/common/format';
 import { CheckIcon, ClipboardCheckIcon, DocumentIcon, InfoIcon, PlusIcon, UploadIcon, XIcon } from '@/components/common/icons';
@@ -88,7 +89,7 @@ export default function Cv() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('cv.title')} lead={t('cv.lead')} />
+      <PageHead title={t('cv.title')} lead={t('cv.lead')} tabTitle />
       <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={onFile} />
       {content}
     </div>
@@ -130,7 +131,7 @@ function Upload({ onPick, error }: { onPick: () => void; error: unknown }) {
 function Processing() {
   return (
     <section className={cx(ui.panel, s.cvColumn)} aria-busy="true">
-      <p className={ui.caption}>{t('cv.processing')}</p>
+      <AiBusy>{t('cv.processing')}</AiBusy>
       <div style={{ marginTop: 16 }}>
         <Loading rows={5} panel={false} />
       </div>
@@ -204,7 +205,7 @@ function CvView({
   return (
     <div className={s.cvColumn}>
       {/* One header for the file and its version; the page's actions sit on its right */}
-      <header className={s.cvHead}>
+      <header className={cx(ui.panel, s.cvHead)}>
         <span className={s.fileIcon}>
           <DocumentIcon width={20} height={20} />
         </span>
@@ -262,17 +263,36 @@ function CvView({
       )}
       {editing && <RuleCard />}
 
-      <section className={ui.panel} aria-label={t('cv.title')}>
-        <AiNotice notice={cv.notice} method={cv.method} />
-        <div style={{ marginTop: 20 }}>
-          <ProfileView
-            profile={editing ? draft : cv.profile}
-            editing={editing}
-            update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
-            firstFieldRef={focus.regionRef}
-          />
-        </div>
-      </section>
+      {editing ? (
+        // While editing it is the seeker's own form: a plain card
+        <section className={ui.panel} aria-label={t('cv.title')}>
+          <AiNotice notice={cv.notice} method={cv.method} />
+          <div style={{ marginTop: 20 }}>
+            <ProfileView
+              profile={draft}
+              editing
+              update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
+              firstFieldRef={focus.regionRef}
+            />
+          </div>
+        </section>
+      ) : cv.method === 'seeker' ? (
+        // A version the seeker edited is their own content: a plain card (the notice names the method, 직접 수정)
+        <section className={ui.panel} aria-label={t('cv.title')}>
+          <AiNotice notice={cv.notice} method={cv.method} />
+          <div style={{ marginTop: 20 }}>
+            <ProfileView profile={cv.profile} editing={false} update={() => undefined} firstFieldRef={focus.regionRef} />
+          </div>
+        </section>
+      ) : (
+        // What the AI read from the PDF: the AI box (AI 분석)
+        <section aria-label={t('cv.title')}>
+          <AiBox card>
+            <AiNotice notice={cv.notice} method={cv.method} inBox />
+            <ProfileView profile={cv.profile} editing={false} update={() => undefined} firstFieldRef={focus.regionRef} />
+          </AiBox>
+        </section>
+      )}
 
       {editing ? (
         // Stays in view at the bottom while scrolling through a long form
@@ -331,7 +351,12 @@ function CheckPanel({ cv }: { cv: CvOut }) {
           </button>
         )}
       </div>
-      {busy && <Loading rows={4} panel={false} />}
+      {busy && (
+        <div className={ui.stack}>
+          <AiBusy>{t('cv.check.running')}</AiBusy>
+          <Loading rows={4} panel={false} />
+        </div>
+      )}
       {error != null && (
         <InlineError>
           {errorText(error)}{' '}

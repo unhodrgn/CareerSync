@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
+import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate, monthsLabel } from '@/components/common/format';
 import { RefreshIcon } from '@/components/common/icons';
@@ -12,6 +13,7 @@ import ui from '@/components/common/ui.module.css';
 import ApplicantDetail from '@/components/company/ApplicantDetail';
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
+import CandidateAvatar from '@/components/company/CandidateAvatar';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import { APPLICATION_STATUSES, type ApplicantList, type ApplicationStatus, type EvaluationStatus } from '@/types/application';
@@ -56,7 +58,7 @@ export default function Applicants() {
 
   const filtered = statusFilter.length > 0 || minFit !== undefined || evalFilter !== undefined;
   return (
-    <div className={ui.page} style={{ maxWidth: 1360 }}>
+    <div className={ui.page}>
       <JobHeader job={job.state.data} />
       <div className={s.filters}>
         <span className={s.filterGroup} role="group" aria-label={t('apl.filter.status')}>
@@ -165,7 +167,12 @@ function Board({
                 <th>{t('apl.col.rank')}</th>
                 <th>{t('apl.col.name')}</th>
                 {/* Fit sits by the name: rank, applicant and fit read as one; the criteria after it are the evidence */}
-                <th className={s.fitHead}>{t('apl.col.fit')}</th>
+                <th className={s.fitHead}>
+                  <span className={s.aiHead}>
+                    <AiMark size="sm" />
+                    {t('apl.col.fit')}
+                  </span>
+                </th>
                 {data.criteria.map((c) => (
                   <th key={c.id} className={s.critHead} title={c.name}>
                     <span className={s.critHeadName}>{c.name}</span>
@@ -186,21 +193,31 @@ function Board({
                 >
                   <td>{a.rank ? <span className={s.rank} data-top={a.rank === 1 || undefined}>{a.rank}</span> : <span className={ui.muted}>—</span>}</td>
                   <td>
-                    <span className={s.nameCell}>
-                      <strong>{a.name}</strong>
-                      {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
-                      <span className={cx(ui.caption, s.nameFacts)}>
-                        <ApplicationStatusTag status={a.status} />
-                        <span>
-                          {a.evaluation_status === 'done'
-                            ? t('apl.experience', { value: monthsLabel(a.experience_months) })
-                            : t('apl.applied', { date: formatDate(a.applied_at) })}
+                    <span className={s.person}>
+                      {/* Seeded by the application, never by the name or email; kept apart from the talent seed */}
+                      <CandidateAvatar seed={`A-${a.application_id}`} />
+                      <span className={s.nameCell}>
+                        <strong>{a.name}</strong>
+                        {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
+                        <span className={cx(ui.caption, s.nameFacts)}>
+                          <ApplicationStatusTag status={a.status} />
+                          <span>
+                            {a.evaluation_status === 'done'
+                              ? t('apl.experience', { value: monthsLabel(a.experience_months) })
+                              : t('apl.applied', { date: formatDate(a.applied_at) })}
+                          </span>
                         </span>
                       </span>
                     </span>
                   </td>
                   <td className={s.fitCell}>
-                    {a.fit !== null ? <span className={s.fit}>{a.fit.toFixed(1)}</span> : <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>}
+                    {a.fit !== null ? (
+                      <span className={s.fit}>{a.fit.toFixed(1)}</span>
+                    ) : a.evaluation_status === 'pending' ? (
+                      <AiBusy as="span">{t('evalStatus.pending')}</AiBusy>
+                    ) : (
+                      <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>
+                    )}
                   </td>
                   {data.criteria.map((c) => {
                     const sc = a.scores.find((x) => x.criterion_id === c.id);

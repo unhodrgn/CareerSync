@@ -1,118 +1,133 @@
-/* Shared building blocks of the app screens, in the landing's world: canvas ground, flat paper panels with a 1px
-   line (no shadow on the canvas), Pretendard at 400/600, accents from the page's --tone (set by the shell). */
+/* Shared building blocks of the app screens (DESIGN.md): white cards on the gray content panel, nearly flat,
+   Pretendard at 400/500/700, one mint accent for the primary action, black for selected states. The shell sets
+   --tone (ink) and --focus-color; everything here reads the --ds-* tokens. */
 
 .page {
-  margin: 0 auto;
-  padding: 32px 40px 80px;
-  max-width: 1240px;
+  /* One content width on every page: the whole content panel, close to its edge */
+  padding: var(--ds-space-6) var(--ds-space-6) 40px;
+  min-width: 0;
 }
 
 .head {
-  margin-bottom: 24px;
+  margin-bottom: 14px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--ds-space-6);
 }
 
 .back {
-  margin-bottom: 12px;
+  margin-bottom: var(--ds-space-3);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-muted);
   text-decoration: none;
 }
 
 .back:hover {
-  color: var(--color-ink);
+  color: var(--ds-ink);
 }
 
 .title {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 26px;
-  font-weight: 600;
+  gap: var(--ds-space-3);
+  font-size: var(--ds-text-title);
+  font-weight: var(--ds-weight-bold);
   line-height: 1.25;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
+  color: var(--ds-ink);
 }
 
 .lead {
-  margin: 6px 0 0;
+  margin: var(--ds-space-2) 0 0;
   max-width: 46em;
-  font-size: 14px;
+  font-size: var(--ds-text-meta);
   line-height: 1.6;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
+}
+
+/* The shell's header carries the title: only the lead and actions are left */
+.headCompact {
+  align-items: center;
+  margin-bottom: var(--ds-space-4);
+}
+
+.leadFirst {
+  margin-top: 0;
 }
 
 .actions {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-2);
 }
 
 .stack {
   display: grid;
-  gap: 20px;
+  gap: var(--ds-space-3);
   align-content: start;
   min-width: 0;
 }
 
+/* A white card on the gray panel; nearly flat (one hairline shadow), no border */
 .panel {
   min-width: 0;
-  padding: 20px 24px 24px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
+  padding: var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .panelHead {
-  margin-bottom: 16px;
-  padding-bottom: 14px;
+  margin-bottom: var(--ds-space-4);
+  padding-bottom: var(--ds-space-4);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--color-line-soft);
+  gap: var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-line);
 }
 
 .panelTitle {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .sectionTitle {
   margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .muted {
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .caption {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--ds-text-caption);
   line-height: 1.5;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .body {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--ds-text-body);
   line-height: 1.65;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .num {
@@ -131,35 +146,36 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-meta);
+  color: var(--ds-muted);
 }
 
-/* The company leads the meta line in a darker gray, not in weight: the title above it carries the weight */
+/* The company leads the meta line in ink, then "/" and the rest in gray (the reference's "Google / ...") */
 .meta strong {
-  font-weight: 400;
-  color: var(--color-ink-soft);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-ink);
 }
 
 .sep {
-  color: var(--color-axis);
+  color: var(--ds-line-strong);
 }
 
-/* Buttons */
+/* ── Buttons: pills. Primary is mint with ink text; secondary is outlined ink; quiet has no fill ── */
 
 .btn {
-  height: 38px;
-  padding: 0 14px;
+  height: 40px;
+  padding: 0 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  gap: var(--ds-space-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--ds-radius-pill);
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
   line-height: 1;
+  letter-spacing: -0.01em;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -167,54 +183,59 @@
     transform 150ms var(--ease-out),
     background-color 150ms var(--ease-out),
     border-color 150ms var(--ease-out),
-    color 150ms var(--ease-out),
-    filter 150ms var(--ease-out);
+    color 150ms var(--ease-out);
 }
 
 .btn:active:not(:disabled) {
   transform: scale(0.95);
 }
 
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
 .primary {
-  background: var(--tone);
-  color: var(--color-paper);
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
 }
 
 .primary:hover:not(:disabled) {
-  filter: brightness(1.15);
+  background: var(--ds-accent-hover);
 }
 
 .secondary {
-  border-color: var(--color-line);
-  background: var(--color-paper);
-  color: var(--color-ink);
+  border-color: var(--ds-ink);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+}
+
+/* Disabled, every variant: a gray fill and muted text, never a faded copy of the enabled colour */
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  border-color: transparent;
+  background: var(--ds-disabled);
+  color: var(--ds-on-disabled);
+  cursor: not-allowed;
+}
+
+.quiet:disabled {
+  background: transparent;
 }
 
 .secondary:hover:not(:disabled) {
-  border-color: var(--color-axis);
-  background: var(--color-sunken);
+  background: var(--ds-sunken);
 }
 
 .quiet {
-  padding: 0 10px;
+  padding: 0 14px;
   background: transparent;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink);
 }
 
 .quiet:hover:not(:disabled) {
-  background: var(--color-line-soft);
-  color: var(--color-ink);
+  background: var(--ds-chip);
 }
 
 .small {
   height: 32px;
-  padding: 0 12px;
-  font-size: 13px;
+  padding: 0 16px;
+  font-size: var(--ds-text-meta);
 }
 
 .iconOnly {
@@ -226,14 +247,18 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--tone);
+  color: var(--ds-accent-text);
   font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--tone) 35%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--ds-accent-text) 35%, transparent);
   cursor: pointer;
+}
+
+.linkTone:hover {
+  text-decoration-color: currentColor;
 }
 
 .withIcon {
@@ -242,46 +267,47 @@
   gap: 4px;
 }
 
-/* Tags and pills */
+/* ── Tags and pills ── */
 
 .tag {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 8px;
-  border-radius: var(--radius-xs);
-  background: var(--color-line-soft);
-  color: var(--color-ink-soft);
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 18px;
+  padding: 2px 10px;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-chip);
+  color: var(--ds-ink-2);
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-medium);
+  line-height: 20px;
   white-space: nowrap;
 }
 
 .tagTone {
-  background: var(--tone-soft);
-  color: var(--tone);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent-text);
 }
 
 .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-axis);
+  background: var(--ds-line-strong);
 }
 
+/* The band as a pill: 매우 적합 black with a mint dot, 적합 on mint, 참고 outlined */
 .band {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  background: var(--color-seeker);
-  color: var(--color-paper);
-  font-size: 12.5px;
-  font-weight: 600;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -291,78 +317,163 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--color-seeker-dot);
+  background: var(--ds-accent);
 }
 
 .band[data-size='lg'] {
   gap: 8px;
   padding: 8px 16px;
-  font-size: 15px;
+  font-size: var(--ds-text-body);
 }
 
 .band[data-band='good'] {
-  background: var(--color-seeker-soft);
-  color: var(--color-seeker);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent-text);
 }
 
 .band[data-band='good']::before {
-  background: var(--color-seeker);
+  background: var(--ds-accent-text);
 }
 
 .band[data-band='ref'] {
-  background: var(--color-paper);
-  color: var(--color-ink-soft);
-  box-shadow: inset 0 0 0 1px var(--color-line);
+  background: var(--ds-surface);
+  color: var(--ds-ink-2);
+  box-shadow: inset 0 0 0 1px var(--ds-line-strong);
 }
 
 .band[data-band='ref']::before {
-  background: var(--color-axis);
+  background: var(--ds-line-strong);
 }
 
+/* The count next to a title: a black pill, like the header tabs' counts */
 .count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
   display: inline-grid;
   place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-line-soft);
-  color: var(--color-ink-soft);
-  font-size: 11.5px;
-  font-weight: 600;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 
-/* AI notice (AI rule 6): a caption line placed right by the AI result it belongs to. Quiet, never hidden:
-   12.5px Soft Ink (11.6:1 on the canvas, 12.6:1 on paper); the method in Muted Gray (4.7:1 / 5.1:1). */
+/* ── AI (DESIGN.md AI markers): blue marks AI only, never decoration ── */
 
+/* AI notice (AI rule 6): a caption line right by the AI result it belongs to, led by the blue AI pill. Never hidden:
+   12.5px ink-2 (11:1 on white, 10:1 on ai-soft); the method in muted gray. */
 .aiNotice {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-2);
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--color-ink-soft);
-}
-
-.aiBadge {
-  flex: none;
-  padding: 0 5px;
-  border-radius: var(--radius-xs);
-  background: var(--color-ink);
-  color: var(--color-paper);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 17px;
-  letter-spacing: 0.02em;
+  color: var(--ds-ink-2);
 }
 
 .aiMethod {
   margin-left: auto;
   flex: none;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
   white-space: nowrap;
+}
+
+/* The AI marker: one small blue pill with "AI" (or an AI label such as "AI 분석"), white on AI blue (5.2:1),
+   placed right before an AI feature's name; the same on white, on the black selected tab and on the dark panel */
+.aiPill {
+  flex: none;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ai);
+  color: #fff;
+  font-size: 11px;
+  font-weight: var(--ds-weight-bold);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.aiPill[data-size='sm'] {
+  height: 15px;
+  padding: 0 4px;
+  font-size: 9.5px;
+}
+
+/* On a rail icon: the top-right corner, ringed in the rail's white so it reads over the icon */
+.aiRailBadge {
+  position: absolute;
+  top: -6px;
+  right: -15px;
+  box-shadow: 0 0 0 2px var(--ds-bg);
+}
+
+/* AI-made content: a blue-soft box with its label (AI 분석 / AI 생성), apart from what people typed */
+.aiBox {
+  min-width: 0;
+  padding: var(--ds-space-5);
+  display: grid;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-ai-line);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-ai-soft);
+}
+
+/* An AI box that is itself the page's card */
+.aiBoxCard {
+  padding: var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+}
+
+.aiLabel {
+  margin: 0;
+  display: flex;
+  justify-self: start;
+}
+
+/* AI at work: the blue spark pulses and turns, the text breathes (solid blue; still under reduced motion) */
+.aiBusy {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-ai-text);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+}
+
+.aiBusyIcon {
+  flex: none;
+  color: var(--ds-ai);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aiBusyIcon {
+    animation: aiPulse 1.4s var(--ease-out) infinite;
+  }
+
+  .aiBusyText {
+    animation: aiBreathe 1.8s var(--ease-out) infinite;
+  }
+}
+
+@keyframes aiPulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82) rotate(12deg);
+  }
+}
+
+@keyframes aiBreathe {
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* A status or guidance line that is not AI output (kept apart from the AI notice) */
@@ -370,38 +481,38 @@
   margin: 0;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 13.5px;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-meta);
   line-height: 1.55;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .notice svg {
   flex: none;
   margin-top: 2px;
-  color: var(--tone);
+  color: var(--ds-accent-text);
 }
 
-/* Form controls (the auth pages' look at app density) */
+/* ── Form controls (DESIGN.md Inputs) ── */
 
 .field {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: var(--ds-space-2);
   align-content: start;
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--ds-text-tiny);
   line-height: 1.5;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .input,
@@ -409,33 +520,33 @@
 .textarea {
   width: 100%;
   height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
-  color: var(--color-ink);
+  padding: 0 14px;
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
   font: inherit;
-  font-size: 14.5px;
-  caret-color: var(--tone);
+  font-size: var(--ds-text-body);
+  caret-color: var(--ds-ink);
   transition:
     border-color 160ms var(--ease-out),
-    box-shadow 160ms var(--ease-out),
-    background-color 160ms var(--ease-out);
+    box-shadow 160ms var(--ease-out);
 }
 
 .select {
-  padding-right: 34px;
+  padding-right: 38px;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-position: right 12px center;
   background-size: 16px;
+  font-weight: var(--ds-weight-medium);
   cursor: pointer;
 }
 
 .textarea {
   height: auto;
-  padding: 10px 12px;
+  padding: 12px 14px;
   line-height: 1.65;
   resize: vertical;
 }
@@ -443,31 +554,42 @@
 .input:hover,
 .select:hover,
 .textarea:hover {
-  border-color: var(--color-axis);
+  border-color: var(--ds-muted);
 }
 
 .input:focus,
 .select:focus,
 .textarea:focus {
   outline: none;
-  border-color: var(--tone);
-  background-color: var(--color-paper);
-  box-shadow: 0 0 0 3px var(--tone-soft);
+  border-color: var(--ds-focus);
+  box-shadow: var(--ds-halo);
 }
 
 .input[aria-invalid='true'],
 .textarea[aria-invalid='true'] {
   border-color: var(--color-danger-line);
-  background-color: var(--color-paper);
 }
 
-.input[aria-invalid='true']:focus {
-  box-shadow: 0 0 0 3px var(--color-danger-soft);
+.input[aria-invalid='true']:focus,
+.textarea[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 4px var(--color-danger-soft);
+}
+
+/* Autofill keeps the white field and ink text (the browser's blue would otherwise cover it); with focus, the halo too */
+.input:-webkit-autofill,
+.input:autofill {
+  -webkit-text-fill-color: var(--ds-ink);
+  box-shadow: inset 0 0 0 1000px var(--ds-surface);
+}
+
+.input:-webkit-autofill:focus,
+.input:autofill:focus {
+  box-shadow: inset 0 0 0 1000px var(--ds-surface), var(--ds-halo);
 }
 
 .input::placeholder,
 .textarea::placeholder {
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .error {
@@ -485,44 +607,39 @@
   margin-top: 1px;
 }
 
-/* A link inside an error keeps the error's red (DESIGN.md Inputs / Fields) */
+/* A link inside an error keeps the error's red (DESIGN.md Inputs) */
 .error a {
   color: inherit;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
 }
 
-/* A failed request in place of a page's data */
+/* A failed request in place of a page's data: the red is on the icon above it */
 .errorLead {
   max-width: 32em;
-  font-size: 14px;
-  text-align: left;
+  font-size: var(--ds-text-body);
+  color: var(--ds-ink-2);
 }
 
 .checkLine {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--ds-text-body);
   cursor: pointer;
 }
 
 .checkLine input {
   flex: none;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--tone);
-  cursor: pointer;
 }
 
 .switch {
   position: relative;
   flex: none;
-  width: 40px;
-  height: 24px;
+  width: 44px;
+  height: 26px;
   margin: 0;
-  border-radius: var(--radius-pill);
-  background: var(--color-axis);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-line-strong);
   appearance: none;
   cursor: pointer;
   transition: background-color 200ms var(--ease-out);
@@ -533,132 +650,123 @@
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--color-paper);
+  background: var(--ds-surface);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.2);
   transition: transform 200ms var(--ease-out);
 }
 
 .switch:checked {
-  background: var(--tone);
+  background: var(--ds-focus);
 }
 
 .switch:checked::after {
-  transform: translateX(16px);
+  transform: translateX(18px);
 }
 
-/* Chip lists (preferences, keywords, techs) */
+/* ── Chips (preferences, keywords, techs): the reference's gray filter chips ── */
 
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--ds-space-2);
 }
 
 .chip {
-  height: 30px;
-  padding: 0 4px 0 12px;
+  height: 38px;
+  padding: 0 6px 0 14px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  border-radius: var(--radius-pill);
-  background: var(--tone-soft);
-  color: var(--tone);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-chip);
+  color: var(--ds-ink);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-medium);
 }
 
 .chip button {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: inherit;
+  color: var(--ds-ink-2);
   cursor: pointer;
 }
 
 .chip button:hover {
-  background: rgb(0 0 0 / 0.06);
+  background: var(--ds-chip-hover);
+  color: var(--ds-ink);
 }
 
 .chipInput {
   display: flex;
-  gap: 8px;
+  gap: var(--ds-space-2);
 }
 
-/* Tabs */
+/* ── Tabs inside a page: segmented pills like the shell header; the selected one is black ── */
 
 .tabs {
-  margin-bottom: 24px;
+  margin-bottom: var(--ds-space-6);
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--color-line);
+  flex-wrap: wrap;
+  gap: var(--ds-space-1);
 }
 
 .tab {
   position: relative;
-  height: 44px;
-  padding: 0 14px;
+  height: 36px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-2);
   border: 0;
+  border-radius: var(--ds-radius-pill);
   background: transparent;
-  color: var(--color-ink-muted);
+  color: var(--ds-ink);
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
 }
 
 .tab:hover {
-  color: var(--color-ink);
+  background: var(--ds-chip);
 }
 
 .tab[aria-selected='true'],
 .tab[aria-current='page'] {
-  color: var(--color-ink);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
 }
 
-/* The indicator is always there and grows in under the selected tab (transform + opacity only) */
-.tab::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -1px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--tone);
-  opacity: 0;
-  transform: scaleX(0.4);
-  transition:
-    transform 220ms var(--ease-out),
-    opacity 220ms var(--ease-out);
+.tab[aria-selected='true'] .count,
+.tab[aria-current='page'] .count {
+  background: var(--ds-bg);
+  color: var(--ds-ink);
 }
 
-.tab[aria-selected='true']::after,
-.tab[aria-current='page']::after {
-  opacity: 1;
-  transform: scaleX(1);
-}
-
-/* Rows: neutral criterion rows, and the amber row for a skill the CV lacks (the only amber) */
+/* ── Rows: neutral criterion rows, and the amber row for a skill the CV lacks (the only amber) ── */
 
 .rows {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 8px;
+  gap: var(--ds-space-2);
 }
 
-/* Read-only list: rows split by soft dividers, no box per row (rows that look like buttons should be buttons) */
+/* Read-only list: rows split by hairlines, no box per row (rows that look like buttons should be buttons) */
 .list {
   margin: 0;
   padding: 0;
@@ -666,22 +774,23 @@
 }
 
 .listRow {
-  min-height: 40px;
-  padding: 8px 0;
+  min-height: 42px;
+  padding: 10px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 13.5px;
+  gap: var(--ds-space-3);
+  font-size: var(--ds-text-meta);
 }
 
 .listRow + .listRow {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
 }
 
 .listName {
   min-width: 0;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -691,68 +800,66 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-3);
 }
 
 /* A category named next to another label: text, not a chip */
 .categoryText {
-  font-size: 12px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-tiny);
+  color: var(--ds-muted);
   white-space: nowrap;
 }
 
-/* Deadline of a job row: D-n carries weight, 상시 채용 does not */
+/* Deadline: D-n carries weight, 상시 채용 does not */
 .deadline {
-  min-width: 64px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
-  text-align: right;
+  font-size: inherit;
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .deadline[data-open] {
-  font-weight: 400;
-  color: var(--color-ink-muted);
+  font-weight: var(--ds-weight-regular);
+  color: var(--ds-muted);
 }
 
-/* Criterion importance (D30): plain text, so it never reads as a match band */
+/* Criterion importance (D30): plain text, so it never reads as a band */
 .importance {
   min-width: 2.5em;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
   text-align: right;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .importance[data-level='core'] {
-  color: var(--color-seeker);
+  color: var(--ds-accent-text);
 }
 
 .importance[data-level='important'] {
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .gapRow {
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 42px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   border: 1px dashed var(--color-gap-line);
-  border-radius: var(--radius-md);
+  border-radius: var(--ds-radius-md);
   background: var(--color-gap-soft);
-  font-size: 13.5px;
+  font-size: var(--ds-text-meta);
 }
 
 .gapName {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-weight: var(--ds-weight-bold);
   color: var(--color-gap-strong);
 }
 
@@ -764,24 +871,23 @@
 .gapBadge {
   flex: none;
   padding: 2px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--ds-radius-pill);
   background: var(--color-gap-badge);
   color: var(--color-gap);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
   white-space: nowrap;
 }
 
 /* A line quoted from the PII-masked CV */
 .quote {
   margin: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
-  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-sunken);
+  font-size: var(--ds-text-caption);
   line-height: 1.55;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .quote::before {
@@ -792,27 +898,27 @@
   content: '”';
 }
 
-/* Tables */
+/* ── Tables ── */
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--ds-text-meta);
 }
 
 .table th {
-  padding: 0 12px 10px;
-  border-bottom: 1px solid var(--color-line);
-  color: var(--color-ink-muted);
-  font-size: 12px;
-  font-weight: 600;
+  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--ds-line);
+  color: var(--ds-muted);
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
   text-align: left;
   white-space: nowrap;
 }
 
 .table td {
-  padding: 14px 12px;
-  border-bottom: 1px solid var(--color-line-soft);
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--ds-line);
   vertical-align: middle;
 }
 
@@ -830,56 +936,90 @@
   padding-right: 0;
 }
 
-/* Misc */
+/* ── Misc ── */
 
 .status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink-2);
   white-space: nowrap;
 }
 
 .status::before {
   content: '';
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--status-dot, var(--color-axis));
+  background: var(--status-dot, var(--ds-line-strong));
 }
 
+/* Empty, blocked and failed states: centered in their card */
 .empty {
-  padding: 40px 24px;
+  padding: 36px 24px;
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: var(--ds-space-3);
   text-align: center;
 }
 
 .emptyTitle {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .emptyBody {
   margin: 0;
   max-width: 30em;
-  font-size: 13.5px;
+  font-size: var(--ds-text-meta);
   line-height: 1.6;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
-/* A confirm or result that replaces its trigger inside a panel or card: separated by a soft line, never a box
-   inside the box. It takes focus when it opens (useConfirmFocus). */
-.inlineConfirm {
-  padding-top: 14px;
+/* The icon above an empty state: a mint-wash circle */
+.emptyIcon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--ds-space-1);
   display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--color-line-soft);
-  font-size: 13.5px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ds-accent-wash);
+  color: var(--ds-accent-text);
+}
+
+.emptyIcon[data-tone='error'] {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* A page outside every shell (not found): the gray ground with one card in the middle */
+.standalone {
+  min-height: 100vh;
+  padding: var(--ds-space-7);
+  display: grid;
+  place-items: center;
+  background: var(--ds-panel);
+  color: var(--ds-ink);
+}
+
+.standaloneCard {
+  width: min(480px, 100%);
+}
+
+/* A confirm or result that replaces its trigger inside a card: separated by a hairline, never a box inside the
+   box. It takes focus when it opens (useConfirmFocus). */
+.inlineConfirm {
+  padding-top: var(--ds-space-4);
+  display: grid;
+  gap: var(--ds-space-3);
+  border-top: 1px solid var(--ds-line);
+  font-size: var(--ds-text-meta);
   line-height: 1.55;
 }
 
@@ -895,18 +1035,18 @@
 .done {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--tone);
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-accent-text);
 }
 
 .skeleton {
   position: relative;
   height: 14px;
   overflow: hidden;
-  border-radius: 6px;
-  background: var(--color-line-soft);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-chip);
 }
 
 /* Shimmer: a light band moved with transform across the bar; only while something is loading */
@@ -939,54 +1079,54 @@
 .status[data-status='pending'],
 .status[data-status='submitted'],
 .status[data-status='reviewing'] {
-  --status-dot: var(--tone-dot);
+  --status-dot: var(--ds-ring);
 }
 
 .status[data-status='accepted'],
 .status[data-status='interview'],
 .status[data-status='passed'] {
-  --status-dot: var(--tone);
+  --status-dot: var(--ds-accent-text);
 }
 
-/* Job status: published in the tone, draft lighter, closed neutral */
+/* Job status: published in mint, draft gray outline, closed neutral */
 .status[data-status='published'] {
-  --status-dot: var(--tone);
+  --status-dot: var(--ds-accent);
 }
 
 .status[data-status='draft'] {
-  --status-dot: var(--tone-dot);
+  --status-dot: var(--ds-line-strong);
 }
 
-/* ── Record lists (DESIGN.md, App pages): one bordered Paper list, rows split by Line Soft ── */
+/* ── Record lists: one white card, rows split by hairlines ── */
 
 .recordList {
   margin: 0;
-  padding: 0 20px;
+  padding: 0 var(--ds-space-6);
   list-style: none;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .recordRow {
   position: relative;
-  padding: 16px 0;
+  padding: var(--ds-space-5) 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: var(--ds-space-4);
   transition: transform 150ms var(--ease-out);
 }
 
 .recordRow + .recordRow {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
 }
 
 .recordTitle {
-  color: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  color: var(--ds-ink);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
   text-decoration: none;
 }
 
@@ -1005,6 +1145,7 @@
 
 .recordRow:hover .recordTitle {
   text-decoration: underline;
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
 
@@ -1013,28 +1154,46 @@
 }
 
 .rowChevron {
-  color: var(--color-axis);
+  color: var(--ds-line-strong);
   transition: transform 160ms var(--ease-out);
 }
 
 .recordRow:hover .rowChevron {
-  color: var(--color-ink);
+  color: var(--ds-ink);
   transform: translateX(2px);
 }
 
-/* ── Score indicator squares (company side only; seekers never see scores, D1) ──
+/* ── Job icon tile: the same rounded mint square for every job type (JobIconTile) ── */
+.jobTile {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-accent-wash);
+  color: var(--ds-accent-text);
+}
+
+.jobTile[data-size='lg'] {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--ds-radius-card);
+}
+
+/* ── Score indicator squares (company side; seekers see rings, D42) ──
    met ≥ 75 (the strong level), partial 25–74, missing below 25 (amber ring: nothing found in the CV) */
 .square {
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
-  background: var(--color-employer);
+  border-radius: 3px;
+  background: var(--ds-accent-text);
 }
 
 .square[data-level='partial'] {
-  background: var(--color-employer-soft);
-  box-shadow: inset 0 0 0 1.5px var(--color-employer);
+  background: var(--ds-accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--ds-accent-text);
 }
 
 .square[data-level='missing'] {
@@ -1042,55 +1201,55 @@
   box-shadow: inset 0 0 0 1.5px var(--color-gap-line);
 }
 
-/* ── A labelled facts list (term above or beside its value) ── */
+/* ── A labelled facts list (term beside its value) ── */
 .facts {
   margin: 0;
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
-  gap: 8px 16px;
-  font-size: 13px;
+  gap: 10px 16px;
+  font-size: var(--ds-text-meta);
 }
 
 .facts dt {
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .facts dd {
   margin: 0;
   min-width: 0;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink);
 }
 
 /* ── Action bar: the page's save / publish actions, kept in view at the bottom of a long form ── */
 .actionBar {
   position: sticky;
-  bottom: 16px;
+  bottom: var(--ds-space-4);
   z-index: 10;
-  padding: 10px 12px 10px 20px;
+  padding: 10px 10px 10px 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-hub);
-  background: var(--color-paper);
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-pop), 0 0 0 1px var(--ds-line);
 }
 
 .actionBarText {
   min-width: 0;
   flex: 1;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
 }
 
 /* A criterion the legal guardrail blocks: input that cannot be saved, so Form Error Red */
 .blocked {
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: grid;
   gap: 4px;
   border: 1px solid var(--color-danger-line);
-  border-radius: var(--radius-md);
+  border-radius: var(--ds-radius-md);
   background: var(--color-danger-soft);
-  font-size: 13px;
+  font-size: var(--ds-text-caption);
   line-height: 1.55;
   color: var(--color-danger);
 }
@@ -1099,14 +1258,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
 }
 
 .blockedLaw {
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
-/* ── Motion (DESIGN.md, App pages · Motion) ──
+/* ── Motion (DESIGN.md Motion) ──
    State feedback and continuity only: transform and opacity, the system ease, 150–300ms, entrances under 400ms.
    Fill mode is `backwards`, so nothing stays transformed after it arrives, and content is never held back longer
    than a short capped stagger. All of it is off under prefers-reduced-motion (the shell also stops transitions). */

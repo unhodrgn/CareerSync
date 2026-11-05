@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '@/api/client';
 import { errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
+import { AiBox, AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { PlusIcon, XIcon } from '@/components/common/icons';
 import { cx } from '@/components/common/Page';
@@ -53,7 +54,7 @@ export default function JdDraftPanel({ jobId, onApply, onClose }: { jobId: numbe
       <div className={s.sectionHead} style={{ marginBottom: 0 }}>
         <div>
           <h3 id="jd-draft-title" className={ui.panelTitle}>
-            <span className={ui.aiBadge}>{t('common.ai')}</span>
+            <AiMark />
             {t('editor.draft.title')}
           </h3>
           <p className={ui.caption} style={{ marginTop: 4 }}>
@@ -140,11 +141,16 @@ export default function JdDraftPanel({ jobId, onApply, onClose }: { jobId: numbe
         </button>
       </div>
       {error != null && <InlineError>{errorText(error)}</InlineError>}
-      {busy && <Loading rows={4} panel={false} />}
+      {busy && (
+        <div className={ui.stack}>
+          <AiBusy>{t('ai.working.draft')}</AiBusy>
+          <Loading rows={4} panel={false} />
+        </div>
+      )}
 
       {draft && !busy && (
-        <div className={cx(s.draftOut, ui.reveal)}>
-          <AiNotice notice={draft.notice} method={draft.method} />
+        <AiBox kind="generated" className={cx(s.draftOut, ui.reveal)}>
+          <AiNotice notice={draft.notice} method={draft.method} inBox />
           {draft.limited && <p className={ui.caption}>{t('common.limited')}</p>}
           {draft.sections.intro && (
             <div>
@@ -188,7 +194,7 @@ export default function JdDraftPanel({ jobId, onApply, onClose }: { jobId: numbe
               {t('editor.draft.apply')}
             </button>
           </div>
-        </div>
+        </AiBox>
       )}
     </section>
   );

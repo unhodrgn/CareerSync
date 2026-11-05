@@ -1,3 +1,4 @@
+import { AiBox } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { cx } from '@/components/common/Page';
 import ui from '@/components/common/ui.module.css';
@@ -26,14 +27,14 @@ function ReviewList({ items }: { items: CvReviewItem[] }) {
 }
 
 /**
- * CV self-check result (D25): strengths and improvements, no score. Two flat columns (it always sits inside a
- * panel, so no panels of its own). Used on 내 이력서 and on the prep page.
+ * CV self-check result (D25): strengths and improvements, no score, in the AI box (AI 분석). Two flat columns.
+ * Used on 내 이력서 and on the prep page.
  */
 export default function ReviewResult({ review }: { review: CvReviewOut }) {
   const affects = review.improvements.some((x) => x.affects_scoring);
   return (
-    <div className={cx(ui.stack, ui.reveal)} style={{ gap: 16 }}>
-      <AiNotice notice={review.notice} method={review.method} />
+    <AiBox className={ui.reveal}>
+      <AiNotice notice={review.notice} method={review.method} inBox />
       {review.limited && <p className={ui.caption}>{t('common.limited')}</p>}
       <div className={s.reviewCols}>
         <section className={s.reviewCol} aria-labelledby="review-strengths">
@@ -56,6 +57,6 @@ export default function ReviewResult({ review }: { review: CvReviewOut }) {
           )}
         </section>
       </div>
-    </div>
+    </AiBox>
   );
 }

@@ -1,4 +1,5 @@
-"""GET /api/recommendations/jobs: Pref first, Fit from done evaluations, caps, band only (D1, D2, D15, D16)."""
+"""GET /api/recommendations/jobs: Pref first, Fit from done evaluations, caps, scores without weights (D2, D15, D16,
+D42). The read-only score endpoints GET /api/recommendations/matches and GET /api/jobs/{job_id}/match (D43)."""
 import os
 import threading
 from datetime import UTC, date, datetime, timedelta
@@ -16,7 +17,14 @@ from .test_applications_api import ready_seeker
 from .test_jobs_api import make_published
 
 URL = "/api/recommendations/jobs"
-ITEM_KEYS = {"job_id", "title", "company_name", "location", "employment_type", "deadline", "match_level"}
+ITEM_KEYS = {
+    "job_id", "title", "company_name", "location", "employment_type", "deadline",
+    "match_score", "match_level", "preference_score", "categories",
+}
+SCORE_KEYS = {"job_id", "match_score", "match_level", "preference_score", "categories"}
+CRITERION_KEYS = {"criterion_id", "name", "category", "importance", "score"}
+# Filled 2 of 3 preference fields: a job in 서울 has Pref 100 when it is a contract job, 50 when it is full-time
+PREFS = {"locations": ["서울"], "employment_types": ["contract"]}
 
 
 @pytest.fixture
@@ -124,12 +132,168 @@ def test_band_thresholds(final, band):
     assert recommendation_service.match_level(final) == band
 
 
-def test_response_shows_the_band_only(client, db, world, queued):
+def test_response_shows_scores_but_no_weights(client, db, world, queued):
     _, h = _seeker(client, db)
     _done(db, _job(client, world), _cv_id(client, h), 80)
     body = client.get(URL, headers=h).json()
     assert set(body) == {"items", "pending_count", "notice"} and body["notice"].startswith("AI 분석은 참고용")
-    assert set(body["items"][0]) == ITEM_KEYS  # no fit, pref, final, scores or weights
+    item = body["items"][0]
+    assert set(item) == ITEM_KEYS  # no fit, final, weights, reasons or evidence
+    # No preferences: Pref 100, Final = 0.5·80 + 0.5·100
+    assert (item["match_score"], item["match_level"], item["preference_score"]) == (90, "매우 적합", 100)
+    assert item["categories"] == [
+        {"category": "skill", "score": 80},
+        {"category": "certificate", "score": 80},
+        {"category": "project", "score": 80},
+    ]
+
+
+def _scored(db, job_id: int, cv_id: int, by_name: dict[str, int]) -> None:
+    """A done evaluation with a score per criterion name (PLAN_EXAMPLE: three skills, a project, a certificate)."""
+    ev = Evaluation(job_id=job_id, cv_profile_id=cv_id, status=EvaluationStatus.DONE, queued_at=datetime.now(UTC), attempts=1)
+    ev.scores = [
+        CriterionScore(job_criteria_id=c.id, score=by_name[c.name], level=0, reason="", evidence=[], method="rule:test")
+        for c in db.scalars(select(JobCriterion).where(JobCriterion.job_id == job_id))
+    ]
+    db.add(ev)
+    db.commit()
+
+
+# Weights 30/25/20/15/10 → Fit (2700 + 1750 + 1020 + 600 + 0) / 100 = 60.7
+UNEVEN = {"Java 활용 능력": 90, "Spring 경험": 70, "DB 경험": 51, "프로젝트 경험": 40, "관련 자격증": 0}
+
+
+def test_scores_round_down_and_category_means_ignore_weights(client, db, world, queued):
+    _, h = _seeker(client, db, prefs=PREFS)
+    _scored(db, _job(client, world), _cv_id(client, h), UNEVEN)
+    item = client.get(URL, headers=h).json()["items"][0]
+    # Final = 0.5·60.7 + 0.5·50 = 55.35 → 55; skill mean (90 + 70 + 51) / 3 = 70.3 → 70, not weighted
+    assert (item["match_score"], item["match_level"], item["preference_score"]) == (55, "참고", 50)
+    assert item["categories"] == [
+        {"category": "skill", "score": 70},
+        {"category": "certificate", "score": 0},
+        {"category": "project", "score": 40},
+    ]
+
+
+@pytest.mark.parametrize(
+    "final, score, band",
+    [(100, 100, "매우 적합"), (80, 80, "매우 적합"), (79.99, 79, "적합"), (60, 60, "적합"), (59.9, 59, "참고"),
+     (40, 40, "참고"), (39.9, 39, None), (0, 0, None)],
+)
+def test_score_is_rounded_down_and_never_changes_the_band(final, score, band):
+    assert recommendation_service.match_score(final) == score
+    assert recommendation_service.band_or_none(final) == band
+    if band:
+        assert recommendation_service.match_level(final) == band
+
+
+def test_float_noise_cannot_split_the_number_from_its_band():
+    final = recommendation_service.final_of(60.2, 99.8)  # 80 exactly, whatever the float sum gives
+    assert (recommendation_service.match_score(final), recommendation_service.match_level(final)) == (80, "매우 적합")
+
+
+# ── Read-only scores: job list and job detail (D43) ──
+
+MATCHES = "/api/recommendations/matches"
+
+
+def test_matches_reads_existing_scores_only(client, db, world, queued):
+    _, h = _seeker(client, db, prefs=PREFS)
+    cv = _cv_id(client, h)
+    good = _job(client, world, title="좋음", employment_type="contract")
+    low = _job(client, world, title="낮음")
+    waiting = _job(client, world, title="분석 전")
+    applied = _job(client, world, title="지원함", employment_type="contract")
+    _done(db, good, cv, 90)
+    _done(db, low, cv, 20)
+    _done(db, applied, cv, 90)
+    assert client.post(f"/api/jobs/{applied}/applications", headers=h).status_code == 201
+    before = len(_evaluations(db))
+
+    r = client.get(f"{MATCHES}?job_ids={low},{waiting},{applied},{good},{low},99999", headers=h)
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"items", "notice"} and body["notice"].startswith("AI 분석은 참고용")
+    assert all(set(i) == SCORE_KEYS for i in body["items"])
+    # In the order asked, duplicates once; no evaluation → left out; applied → left out; unknown id → left out
+    assert [(i["job_id"], i["match_score"], i["match_level"]) for i in body["items"]] == [
+        (low, 35, None),  # 0.5·20 + 0.5·50 = 35: the number without a band
+        (good, 95, "매우 적합"),
+    ]
+    assert len(_evaluations(db)) == before and queued == []  # reads only
+
+
+def test_matches_needs_a_seeker_and_valid_ids(client, db, world):
+    from .test_applications_api import seeker
+
+    _, h = _seeker(client, db)
+    for bad in ("", "a", "1,,2", "1,-2", ",".join(["1"] * 101)):
+        assert client.get(f"{MATCHES}?job_ids={bad}", headers=h).status_code == 422, bad
+    assert client.get(MATCHES, headers=h).status_code == 422
+    assert client.get(f"{MATCHES}?job_ids={','.join(['1'] * 100)}", headers=h).status_code == 200
+
+    no_cv = seeker(db, "nocv@seeker.test", "이수진")
+    assert client.get(f"{MATCHES}?job_ids=1", headers=no_cv).json()["items"] == []
+    r = client.get(f"{MATCHES}?job_ids=1", headers=world["recruiter"])
+    assert (r.status_code, r.json()["code"]) == (403, "SEEKER_ONLY")
+    assert client.get(f"{MATCHES}?job_ids=1").status_code == 401
+
+
+def test_matches_is_empty_without_current_consent(client, db, world, queued):
+    user, h = _seeker(client, db)
+    job = _job(client, world)
+    _done(db, job, _cv_id(client, h), 90)
+    user.consent_version = "2026-10-01"
+    db.commit()
+    assert client.get(f"{MATCHES}?job_ids={job}", headers=h).json()["items"] == []
+    user.consent_version = settings.CONSENT_VERSION
+    user.consent_ai_at = None  # withdrawn
+    db.commit()
+    assert client.get(f"{MATCHES}?job_ids={job}", headers=h).json()["items"] == []
+    assert client.get(f"/api/jobs/{job}/match", headers=h).json()["status"] == "none"
+
+
+def test_job_match_lists_each_criterion_without_weights(client, db, world, queued):
+    _, h = _seeker(client, db, prefs=PREFS)
+    job = _job(client, world)
+    _scored(db, job, _cv_id(client, h), UNEVEN)
+    before = len(_evaluations(db))
+    body = client.get(f"/api/jobs/{job}/match", headers=h).json()
+    assert set(body) == SCORE_KEYS | {"status", "criteria", "notice"}
+    assert (body["status"], body["match_score"], body["match_level"], body["preference_score"]) == ("done", 55, "참고", 50)
+    assert all(set(c) == CRITERION_KEYS for c in body["criteria"])  # no weight, reason or evidence
+    assert {c["name"]: (c["category"], c["importance"], c["score"]) for c in body["criteria"]} == {
+        "Java 활용 능력": ("skill", "핵심", 90),
+        "Spring 경험": ("skill", "핵심", 70),
+        "DB 경험": ("skill", "중요", 51),
+        "프로젝트 경험": ("project", "중요", 40),
+        "관련 자격증": ("certificate", "중요", 0),  # weight 10 = IMPORTANCE_MID
+    }
+    assert len(_evaluations(db)) == before and queued == []
+
+
+def test_job_match_statuses(client, db, world, queued):
+    _, h = _seeker(client, db)
+    cv = _cv_id(client, h)
+    nothing, waiting, failed, applied = (_job(client, world, title=t) for t in ("없음", "대기", "실패", "지원"))
+    for job_id, status in ((waiting, EvaluationStatus.PENDING), (failed, EvaluationStatus.FAILED)):
+        db.add(Evaluation(job_id=job_id, cv_profile_id=cv, status=status, queued_at=datetime.now(UTC), attempts=1))
+    db.commit()
+    _done(db, applied, cv, 90)
+    assert client.post(f"/api/jobs/{applied}/applications", headers=h).status_code == 201
+    before = len(_evaluations(db))
+
+    expected = {nothing: "none", waiting: "pending", failed: "none", applied: "none"}
+    for job_id, status in expected.items():
+        body = client.get(f"/api/jobs/{job_id}/match", headers=h).json()
+        assert (body["status"], body["match_score"], body["criteria"]) == (status, None, []), job_id
+    assert len(_evaluations(db)) == before and queued == []
+
+    assert client.get("/api/jobs/99999/match", headers=h).json()["code"] == "JOB_NOT_FOUND"
+    r = client.get(f"/api/jobs/{nothing}/match", headers=world["recruiter"])
+    assert (r.status_code, r.json()["code"]) == (403, "SEEKER_ONLY")
+    assert client.get(f"/api/jobs/{nothing}/match").status_code == 401
 
 
 # ── Caps and re-queues ──

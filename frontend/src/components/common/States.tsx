@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ApiError } from '@/api/client';
 import { errorText } from '@/api/errors';
-import { AlertIcon, InfoIcon, RefreshIcon } from '@/components/common/icons';
+import { AlertIcon, InboxIcon, InfoIcon, RefreshIcon } from '@/components/common/icons';
 import { t } from '@/i18n';
 import { cx } from './Page';
 import ui from './ui.module.css';
@@ -24,9 +24,25 @@ export function Loading({ rows = 4, panel = true }: { rows?: number; panel?: boo
 }
 
 /** Nothing to show; optionally one way forward. */
-export function Empty({ title, body, action, panel = true }: { title: ReactNode; body?: ReactNode; action?: ReactNode; panel?: boolean }) {
+export function Empty({
+  title,
+  body,
+  action,
+  panel = true,
+  icon = 'empty',
+}: {
+  title: ReactNode;
+  body?: ReactNode;
+  action?: ReactNode;
+  panel?: boolean;
+  /** `blocked`: a precondition is missing (info icon) rather than nothing to show. */
+  icon?: 'empty' | 'blocked';
+}) {
   const content = (
     <div className={ui.empty}>
+      <span className={ui.emptyIcon} aria-hidden="true">
+        {icon === 'blocked' ? <InfoIcon width={24} height={24} /> : <InboxIcon width={24} height={24} />}
+      </span>
       <p className={ui.emptyTitle}>{title}</p>
       {body && <p className={ui.emptyBody}>{body}</p>}
       {action}
@@ -39,6 +55,7 @@ export function Empty({ title, body, action, panel = true }: { title: ReactNode;
 export function Blocked({ title, body, to, action }: { title: string; body: string; to: string; action: string }) {
   return (
     <Empty
+      icon="blocked"
       title={title}
       body={body}
       action={
@@ -58,10 +75,10 @@ export function ErrorPanel({ error, onRetry, panel = true }: { error: unknown; o
   if (error instanceof ApiError && error.status === 401) return null;
   const content = (
     <div className={ui.empty} role="alert">
-      <p className={cx(ui.error, ui.errorLead)}>
-        <AlertIcon width={16} height={16} />
-        {errorText(error)}
-      </p>
+      <span className={ui.emptyIcon} data-tone="error" aria-hidden="true">
+        <AlertIcon width={24} height={24} />
+      </span>
+      <p className={cx(ui.emptyBody, ui.errorLead)}>{errorText(error)}</p>
       {onRetry && (
         <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} onClick={onRetry}>
           <RefreshIcon width={15} height={15} />

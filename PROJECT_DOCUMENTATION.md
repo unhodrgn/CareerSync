@@ -48,7 +48,7 @@
 | Seeker preferences (input for Pref) | [Current] | `GET`/`PUT /api/preferences/me`; Pref in `ai/scoring/pref.py`, used by job recommendation and talent recommendation |
 | AI self-check of a CV version (strengths / improvements, no score) | [Current] | `POST /api/cv/{profile_id}/review` (D25) |
 | Skill roadmap and interview practice questions for a job | [Current] | `POST /api/jobs/{job_id}/roadmap`, `POST /api/jobs/{job_id}/interview-questions` (D21) |
-| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); seeker page 추천 공고 (Recommended jobs) shows match bands only (매우 적합 / 적합 / 참고: very good / good / reference) |
+| Job recommendation (Fit + Pref) | [Current] | `GET /api/recommendations/jobs` ([§6.1](#61-recommendation)); seeker page 추천 공고 (Recommended jobs) shows the match score with its band (매우 적합 / 적합 / 참고: very good / good / reference), category scores and the preference score (D42); the job list and job detail show existing scores read-only (D43) |
 | Talent recommendation (opt-in, anonymous, offers) | [Current] | `GET /api/jobs/{job_id}/talent` (D19), `/api/talent-offers*` (D20) ([§6.1](#61-recommendation)) |
 | Bias audit, AI cache | [Planned] | No code yet |
 | Delete CV / account | Deferred | Later phase, not rejected (docs/DECISIONS.md D34) |
@@ -243,7 +243,9 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/applications/{application_id}/evaluation/retry` | Re-run a `failed` evaluation, or a `pending` one queued more than `EVALUATION_STALE_MINUTES` ago | Company | 409 `EVALUATION_DONE`, `EVALUATION_IN_PROGRESS` (still running), `AI_CONSENT_WITHDRAWN` (the applicant withdrew AI consent) | `application_service.retry` | **scoring** |
 | PUT | `/api/applications/{application_id}/status` | Recruiter changes status | Company | 404, 422 | `application_service.set_status` | — |
 | GET / PUT | `/api/preferences/me` | Read / replace own preferences (`locations`, `employment_types`, `job_keywords`, `profile_public`). GET returns empty lists before the first save. PUT trims, collapses whitespace and merges duplicates; `profile_public_at` is set when the opt-in turns on and cleared when it turns off | Seeker | 403 `SEEKER_ONLY`; 422 (over 10 items, item not 2–100 characters, unknown employment type) | `preference_service` | — |
-| GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref, band only (`limit` 1–50, no offset). Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
+| GET | `/api/recommendations/jobs?limit=20` | Jobs ranked by Final = 0.5·Fit + 0.5·Pref (`limit` 1–50, no offset). Each item adds `match_score` (Final rounded down), `match_level` (band), `preference_score` (Pref rounded down) and `categories` (`category`, `score`: plain mean of the job's criterion scores in that category, rounded down); no weights (D42). Queues missing/failed/stale evaluations in the background within the caps; jobs not scored yet are only counted in `pending_count` | Seeker | 403 `SEEKER_ONLY`; 409 `AI_CONSENT_REQUIRED` (no consent or `consent_version` older than `RECO_MIN_CONSENT_VERSION`), `CV_NOT_CONFIRMED` | `recommendation_service.recommend` | Pref, Fit, **scoring** |
+| GET | `/api/recommendations/matches?job_ids=1,2` | Scores of the listed jobs for the job list (1–100 ids, comma-separated): `items` (`job_id`, `match_score`, `match_level` — null below 40, `preference_score`, `categories`), `notice`. Only jobs the seeker can see that have a `done` evaluation for (job × newest confirmed CV version) and that the seeker has not applied to; empty without a confirmed CV or AI consent at `RECO_MIN_CONSENT_VERSION`. Reads only: never creates or queues an evaluation (D43) | Seeker | 403 `SEEKER_ONLY`; 422 (no id, more than 100, not a number) | `recommendation_service.matches` | Pref, Fit |
+| GET | `/api/jobs/{job_id}/match` | Score of one job for the job detail page: `status` (`done` \| `pending` — evaluation queued or running \| `none` — no evaluation, failed, applied, no confirmed CV or no current AI consent), the fields of `/matches` (null unless `done`), `criteria` (`criterion_id`, `name`, `category`, `importance`, `score`; no weight, reason or evidence), `notice`. Reads only (D43) | Seeker | 403 `SEEKER_ONLY`; 404 `JOB_NOT_FOUND` | `recommendation_service.job_match` | Pref, Fit |
 | GET | `/api/jobs/{job_id}/talent?limit=20` | Anonymous opted-in seekers for one of the company's published jobs, ranked by Fit (Pref ≥ 40, Fit ≥ 40). Queues missing/failed/stale evaluations in the background within the caps; not-yet-scored candidates are only counted in `pending_count` | Company (own job) | 404 `JOB_NOT_FOUND` (other company's or not published) | `talent_service.recommend` | Pref, Fit, **scoring** |
 | POST | `/api/talent-offers` | Send an offer: `job_id` (own published job), `anonymous_id` (from the talent list), `message` (optional, ≤ 1000) | Company | 404 `JOB_NOT_FOUND`, `TALENT_NOT_FOUND` (not in the pool or not passing Pref/Fit); 409 `OFFER_EXISTS` (+ `offer_id`), `OFFER_REJECTED`; 429 `OFFER_DAILY_LIMIT`; 422 | `offer_service.create` | — |
 | GET | `/api/talent-offers/sent?job_id=` | Offers the company sent: status (`expired` computed), `candidate` (anonymous profile, null while the seeker is not public), `contact` (`display_name`, email) only after `accepted` | Company | — | `offer_service.sent` | — |
@@ -254,7 +256,7 @@ Base URL `http://localhost:8000`. Swagger at `/docs` shows the request/response 
 | POST | `/api/jobs/{job_id}/interview-questions` | 3–10 practice questions from the posting, its criteria and up to 4 masked CV excerpts: `question`, `criterion_id`/`criterion_name` (a real criterion or null), `kind` (`technical`\|`experience`\|`behavioral`), `intent`, `answer_tips`, `cv_quote` (verified against the masked CV, or null); `method`, `limited`, `notice`. Cached per CV version; shares the daily LLM limit with the roadmap | Seeker | 404 `JOB_NOT_FOUND`; 409 `AI_CONSENT_REQUIRED`, `CV_NOT_CONFIRMED`; 403 `SEEKER_ONLY` | `career_service.interview_questions` | **LLM** / template |
 | GET | `/health` | Health check | Anyone | — | — | — |
 
-Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다." — "AI analysis is for reference only. The company makes the final hiring decision."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`), `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft` and `POST /api/cv/{profile_id}/review`.
+Responses with AI results carry `notice` = `AI_NOTICE` ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다." — "AI analysis is for reference only. The company makes the final hiring decision."; `schemas/application.py`): applicant list, evaluation, CV (`CvOut`: `POST /api/cv`, `GET /api/cv/me`, `GET`/`PUT /api/cv/{profile_id}`), `POST /api/jobs/{job_id}/analyze`, `POST /api/jobs/{job_id}/jd-draft`, `POST /api/cv/{profile_id}/review`, `GET /api/recommendations/jobs`, `GET /api/recommendations/matches` and `GET /api/jobs/{job_id}/match`.
 
 ### 4.2 Planned endpoints — do NOT exist
 Paths are working names (design doc 상세 (detailed design) §3.1); field-level request/response shapes are `TBD`, added here when designed.
@@ -282,8 +284,8 @@ Routes from `frontend/src/routes/router.tsx` (paths in `routes/paths.ts`); every
 | `/login` | `public/Login` | — | `login`, `me` (via `AuthContext`) |
 | `/register` | `public/Register` | — | `register` |
 | `/consent` | `public/Consent` (re-consent) | any signed-in | `me`, `consent` |
-| `/jobs` | `public/JobList` | guest or signed-in | `jobs` |
-| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply` |
+| `/jobs` | `public/JobList` | guest or signed-in | `jobs`; seeker: `recommendationMatches` |
+| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply`, `jobMatch` |
 | `/companies/:companyId` | `public/CompanyPublic` | any signed-in | `company` |
 | `/seeker` | `seeker/RecommendedJobs` (추천 공고) | seeker | `recommendations`, `myPreferences` |
 | `/seeker/cv` | `seeker/Cv` (내 이력서: My CV) | seeker | `myCv`, `uploadCv`, `updateCv`, `reviewCv` |
@@ -347,7 +349,7 @@ Rule scorers give points only for what is found in the masked CV text (`cv_docum
 **Config locations.** Mode: `AI_MODE`. Model: `LLM_MODEL` (default in `ai/llm/client.py`). Embedding: `EMBEDDING_MODEL`. Prompts: `ai/prompts/v1/`, `PROMPT_VERSION` in `ai/parsing/extract.py`. Data: `data/blocklist.yaml` (`grep -c "^  - id:" data/blocklist.yaml` = number of rules), `data/skills.yaml`.
 
 ### 6.1 Recommendation
-Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendation (`services/recommendation_service.py`) and talent recommendation with offers (`services/talent_service.py`, `services/offer_service.py`) are implemented. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
+Decided parts: docs/DECISIONS.md D1–D3 (D1 replaced by D42), D15, D16, D42, D43, D18–D20. Job recommendation (`services/recommendation_service.py`) and talent recommendation with offers (`services/talent_service.py`, `services/offer_service.py`) are implemented. Core rule: the company's `job_criteria` are used **the same way** for applicant scoring and for recommendation, and `evaluations` (keyed by job × CV version) are reused.
 
 **Job recommendation (seeker → jobs)**
 - Candidates: published, unexpired jobs. Excluded: jobs already applied to; seekers with no confirmed CV or no AI consent.
@@ -365,7 +367,7 @@ Decided parts: docs/DECISIONS.md D1–D3, D15, D16, D18–D20. Job recommendatio
 - **Sync vs background**: new evaluations run in the **background** (same `evaluation_service.run_in_background` as applying); the call never waits for scoring. The response lists only jobs whose evaluation is `done`, plus `"pending_count"` so the page can show "분석 중 N건" ("N being analyzed"). **Retry of `pending`:** nobody clicks 다시 분석 on the seeker side, so the next recommendation call re-queues its own `pending` evaluations older than `EVALUATION_STALE_MINUTES` (10, same rule as issue 2) and `failed` ones, still within the cap. Evaluations shared with an application keep the company's 다시 분석 path too.
 - **Final** = 0.5·Fit + 0.5·Pref; recommend only when Fit ≥ 40 **and** Pref ≥ 40.
 - Order: ① filter candidates → ② Pref, drop < 40 → ③ load `done` evaluations; queue missing/stale ones up to the cap → ④ Fit with current weights, drop < 40 → ⑤ Final → ⑥ sort by Final ↓, then Fit ↓, then newest `published_at`, top `limit`.
-- Seekers see **bands only** (D16): 매우 적합 Final ≥ 80 · 적합 60–79 · 참고 40–59. No Fit, Pref or Final numbers, no per-criterion scores, no weights, and no matched/missing criterion names by score (D21: only skills/certificates the CV text lacks, via the roadmap).
+- What seekers see (D42, D43): the **match score** = Final rounded down to an integer, with the band 매우 적합 ≥ 80 · 적합 60–79 · 참고 40–59 (rounding down never changes a band; below 40, possible only on the job list and detail, the number has no band); the **preference score** (Pref rounded down); one score per criterion **category** = plain mean (no weights) of the job's criterion scores in it, rounded down; on the job detail page each criterion's score. Never weights, Fit as its own number, `reason` or `evidence`, and never a score for a job the seeker applied to. `GET /api/recommendations/matches` and `GET /api/jobs/{job_id}/match` read existing `done` evaluations only and never queue one. Matched/missing skills come only from the roadmap (D21).
 
 **Talent recommendation (company → seekers)**
 - **Prerequisites (D18):** [issue 3](#11-known-issues-and-risks) fixed (rule scores and what companies see come from the masked text); [issue 6](#11-known-issues-and-risks) mitigated for the demo by re-queuing stale `pending` evaluations (a separate worker comes after the demo); [issue 26](#11-known-issues-and-risks) handled by the caps below; [issue 24](#11-known-issues-and-risks) reduced (see the anonymous profile).
@@ -637,7 +639,7 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | 다시 분석 | Re-analyze | Button that calls `/evaluation/retry` |
 | 검토 전 / 서류 검토 / 면접 예정 / 보류 / 합격 / 불합격 | submitted / reviewing / interview / on_hold / passed / rejected | `applications.status` |
 | 중요도 핵심 / 중요 / 일반 | Importance core / important / general | What signed-in seekers see instead of weights (`IMPORTANCE_HIGH`, `IMPORTANCE_MID`; docs/DECISIONS.md D30) |
-| 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | What seekers see in job recommendation instead of scores: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16) |
+| 적합도 구간 매우 적합 / 적합 / 참고 | Match band very good / good / reference | Shown to seekers with the match score: Final ≥ 80 / 60–79 / 40–59 (docs/DECISIONS.md D16, D42) |
 | 인재풀 공개 | Talent-pool opt-in | `seeker_preferences.profile_public` |
 | 기본설계서 / 상세설계서 | Basic / detailed design document | Course design doc, v1.0 dated 2026-10-11; the PDF in the repo is `docs/reference/CareerSync_설계서.pdf` |
 | 시장조사 보고서 | Market research report | `docs/reference/CareerSync 시장조사 보고서.pdf` (source of the figures in the README overview) |
@@ -655,8 +657,8 @@ Recorded only; fix when a task covers it. Status: **Open** not decided or not st
 | Job posting | **job**; its text is the **JD** | posting, vacancy |
 | Company-defined item | **criterion / criteria**, **weight** | standard, factor |
 | Label seekers see instead of a weight | **importance** (핵심 / 중요 / 일반 = core / important / general) | |
-| Scores | **Fit**, **Pref**, **Final** (capitalized) | match score |
-| What seekers see instead of scores | **match band** (매우 적합 / 적합 / 참고 = very good / good / reference) | grade, level |
+| Scores | **Fit**, **Pref**, **Final** (capitalized) | |
+| What seekers see | **match score** (Final rounded down) with its **match band** (매우 적합 / 적합 / 참고 = very good / good / reference), **category scores**, **preference score** | grade, level |
 | Stored result of scoring one CV version for one job | **evaluation**; the act is **scoring** | assessment |
 | Consent | **privacy consent**, **AI consent**, **re-consent**, **withdraw AI consent** | agreement |
 | CV | **CV**, **CV version**, **confirmed CV**, **masked text** | résumé, profile (except `cv_profiles`) |

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
+import { AiBox, AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate, monthsLabel } from '@/components/common/format';
 import { CheckIcon, RefreshIcon } from '@/components/common/icons';
@@ -9,6 +10,7 @@ import { CategoryTag, ScoreSquare } from '@/components/common/Labels';
 import { cx } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
+import CandidateAvatar from './CandidateAvatar';
 import { t } from '@/i18n';
 import { APPLICATION_STATUSES, type ApplicantRow, type ApplicationStatus } from '@/types/application';
 import { CATEGORIES, type Category } from '@/types/criteria';
@@ -73,17 +75,23 @@ export default function ApplicantDetail({
   return (
     <aside className={cx(ui.panel, s.detail, ui.reveal)} aria-label={row.name}>
       <div className={s.detailHead}>
-        <div>
-          <h2 className={s.detailName}>{row.name}</h2>
-          <p className={ui.caption}>{row.email}</p>
-          <p className={ui.caption}>
-            {t('apl.applied', { date: formatDate(row.applied_at) })}
-            {row.evaluation_status === 'done' && ` · ${t('apl.experience', { value: monthsLabel(row.experience_months) })}`}
-          </p>
+        <div className={s.person}>
+          <CandidateAvatar seed={`A-${row.application_id}`} size={48} />
+          <div>
+            <h2 className={s.detailName}>{row.name}</h2>
+            <p className={ui.caption}>{row.email}</p>
+            <p className={ui.caption}>
+              {t('apl.applied', { date: formatDate(row.applied_at) })}
+              {row.evaluation_status === 'done' && ` · ${t('apl.experience', { value: monthsLabel(row.experience_months) })}`}
+            </p>
+          </div>
         </div>
         {row.fit !== null && (
           <div className={s.fitBlock}>
-            <span className={ui.caption}>{t('apl.col.fit')}</span>
+            <span className={cx(ui.caption, s.aiHead)}>
+              <AiMark size="sm" />
+              {t('apl.col.fit')}
+            </span>
             <span className={s.fitBig}>{row.fit.toFixed(1)}</span>
             <span className={ui.caption}>{t('apl.detail.met', { total: criteriaCount, n: row.strong_count })}</span>
           </div>
@@ -129,7 +137,7 @@ export default function ApplicantDetail({
 
         {row.evaluation_status !== 'done' ? (
           <div className={ui.stack} style={{ gap: 10 }}>
-            <Notice>{row.evaluation_status === 'pending' ? t('apl.detail.pending') : t('apl.detail.failed')}</Notice>
+            {row.evaluation_status === 'pending' ? <AiBusy>{t('apl.detail.pending')}</AiBusy> : <Notice>{t('apl.detail.failed')}</Notice>}
             {retried && !retryNote ? (
               <span className={ui.done} role="status">
                 <CheckIcon width={14} height={14} />
@@ -148,8 +156,8 @@ export default function ApplicantDetail({
         ) : evaluation.state.status === 'error' ? (
           <ErrorPanel error={evaluation.state.error} onRetry={evaluation.reload} panel={false} />
         ) : (
-          <div className={ui.stack} style={{ gap: 10 }}>
-            <AiNotice notice={evaluation.state.data.notice} method={evaluation.state.data.items[0]?.method} />
+          <AiBox>
+            <AiNotice notice={evaluation.state.data.notice} method={evaluation.state.data.items[0]?.method} inBox />
             {evaluation.state.data.summary && <p className={ui.body}>{evaluation.state.data.summary}</p>}
             {evaluation.state.data.excluded_criteria.length > 0 && (
               <p className={ui.caption}>{t('apl.detail.excluded', { names: evaluation.state.data.excluded_criteria.map((c) => c.name).join(', ') })}</p>
@@ -185,7 +193,7 @@ export default function ApplicantDetail({
                 </div>
               ))}
             </div>
-          </div>
+          </AiBox>
         )}
       </section>
     </aside>

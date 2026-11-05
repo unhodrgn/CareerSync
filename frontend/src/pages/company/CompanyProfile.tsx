@@ -21,6 +21,7 @@ export default function CompanyProfile() {
   return (
     <div className={ui.page}>
       <PageHead
+        tabTitle
         title={t('page.company.companyProfile.title')}
         lead={t('cprof.lead')}
         actions={

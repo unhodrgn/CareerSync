@@ -1,4 +1,4 @@
-/* Form controls: 44px fields on the sunken fill, 8px corners, the page's tone for focus and checks, red for errors. */
+/* Form controls (DESIGN.md Inputs): 48px white fields, 12px corners, the focus green and a mint halo, red for errors. */
 
 .field {
   display: grid;
@@ -7,17 +7,17 @@
 
 .label {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .control {
   display: flex;
   align-items: center;
   height: 44px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface);
   transition:
     border-color 160ms var(--ease-out),
     box-shadow 160ms var(--ease-out),
@@ -25,35 +25,37 @@
 }
 
 .control:hover {
-  border-color: var(--color-axis);
+  border-color: var(--ds-muted);
 }
 
 .control:focus-within {
-  border-color: var(--tone);
-  background: var(--color-paper);
-  box-shadow: 0 0 0 3px var(--tone-soft);
+  border-color: var(--ds-focus);
+  box-shadow: var(--ds-halo);
 }
 
 .control[data-invalid] {
   border-color: var(--color-danger-line);
-  background: var(--color-paper);
+  background: var(--ds-surface);
 }
 
 .control[data-invalid]:focus-within {
   box-shadow: 0 0 0 3px var(--color-danger-soft);
 }
 
+/* The field inside the bordered .control. It follows the control's inner radius: a square input would paint its
+   corners (e.g. the autofill fill) over the control's rounded border. */
 .input {
   flex: 1;
   min-width: 0;
   height: 100%;
   padding: 0 14px;
   border: 0;
+  border-radius: calc(var(--ds-radius-md) - 1px);
   background: transparent;
-  color: var(--color-ink);
+  color: var(--ds-ink);
   font: inherit;
-  font-size: 15px;
-  caret-color: var(--tone);
+  font-size: var(--ds-text-body);
+  caret-color: var(--ds-ink);
 }
 
 .input:focus {
@@ -68,21 +70,21 @@
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--ds-radius-sm);
   background: transparent;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
   cursor: pointer;
 }
 
 .reveal:hover {
-  color: var(--color-ink);
-  background: var(--color-line-soft);
+  color: var(--ds-ink);
+  background: var(--ds-line);
 }
 
 .hint {
   margin: 0;
   font-size: 12px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .error {
@@ -102,7 +104,7 @@
 
 .error a {
   color: inherit;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
 }
 
 /* Consent group */
@@ -110,9 +112,9 @@
 .consent {
   margin: 0;
   padding: 0;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-paper);
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
   min-width: 0;
 }
 
@@ -143,17 +145,12 @@
 
 .check input {
   flex: none;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--tone);
-  cursor: pointer;
 }
 
 .checkAll {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--color-line-soft);
-  font-weight: 600;
+  border-bottom: 1px solid var(--ds-line);
+  font-weight: var(--ds-weight-bold);
 }
 
 .consentList {
@@ -176,8 +173,8 @@
 .requiredTag {
   margin-left: 4px;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--tone);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-accent-text);
 }
 
 .disclose {
@@ -187,16 +184,16 @@
   gap: 4px;
   padding: 4px 6px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--ds-radius-sm);
   background: transparent;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
   font-size: 12.5px;
   cursor: pointer;
 }
 
 .disclose:hover {
-  color: var(--color-ink);
-  background: var(--color-line-soft);
+  color: var(--ds-ink);
+  background: var(--ds-line);
 }
 
 .disclose svg {
@@ -210,9 +207,9 @@
 .consentBody {
   margin: 10px 0 4px 28px;
   padding: 12px 14px;
-  border-radius: var(--radius-md);
-  background: var(--color-sunken);
-  border: 1px solid var(--color-line-soft);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-sunken);
+  border: 1px solid var(--ds-line);
 }
 
 .draft {
@@ -221,24 +218,24 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .draftTag {
   padding: 1px 7px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: var(--color-paper);
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
   font-size: 11px;
-  font-weight: 600;
-  color: var(--color-ink-soft);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink-2);
 }
 
 .consentText {
   margin: 0;
   font-size: 13px;
   line-height: 1.65;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
   white-space: pre-line;
 }
 
@@ -249,7 +246,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--ds-radius-md);
   font-size: 13.5px;
   line-height: 1.5;
 }
@@ -266,9 +263,9 @@
 }
 
 .alert[data-tone='notice'] {
-  border: 1px solid var(--color-line);
-  background: var(--color-sunken);
-  color: var(--color-ink-soft);
+  border: 1px solid var(--ds-line-strong);
+  background: var(--ds-sunken);
+  color: var(--ds-ink-2);
 }
 
 .alert ul {
@@ -285,20 +282,20 @@
   justify-content: center;
   gap: 10px;
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--tone);
-  color: var(--color-paper);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
   font: inherit;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: var(--ds-weight-bold);
   cursor: pointer;
   transition:
     transform 150ms var(--ease-out),
-    filter 150ms var(--ease-out);
+    background-color 150ms var(--ease-out);
 }
 
 .submit:hover {
-  filter: brightness(1.12);
+  background: var(--ds-accent-hover);
 }
 
 .submit:active {
@@ -306,15 +303,16 @@
 }
 
 .submit:disabled {
+  background: var(--ds-disabled);
+  color: var(--ds-on-disabled);
   cursor: progress;
-  filter: saturate(0.6) brightness(1.1);
 }
 
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgb(255 255 255 / 0.35);
-  border-top-color: var(--color-paper);
+  border: 2px solid rgb(0 0 0 / 0.15);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 800ms linear infinite;
 }

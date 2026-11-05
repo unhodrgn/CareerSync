@@ -43,8 +43,8 @@ export default function Account() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('account.title')} lead={t('account.lead')} />
-      <div className={ui.stack} style={{ maxWidth: 760 }}>
+      <PageHead title={t('account.title')} tabTitle />
+      <div className={ui.stack}>
         <section className={ui.panel}>
           <div className={ui.panelHead}>
             <h2 className={ui.panelTitle}>{t('account.profile')}</h2>

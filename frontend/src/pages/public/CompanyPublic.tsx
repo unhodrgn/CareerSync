@@ -40,7 +40,7 @@ export default function CompanyPublic() {
   return (
     <div className={ui.page}>
       <PageHead title={c.name} back={back} />
-      <article className={ui.panel} style={{ maxWidth: 920 }}>
+      <article className={ui.panel}>
         <div className={ui.stack} style={{ gap: 18 }}>
           <section>
             <h2 className={ui.sectionTitle}>{t('job.company')}</h2>

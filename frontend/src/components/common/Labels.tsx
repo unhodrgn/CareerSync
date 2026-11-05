@@ -16,11 +16,16 @@ const BAND: Record<MatchLevel, { key: MessageKey; data: string }> = {
   참고: { key: 'band.ref', data: 'ref' },
 };
 
-export function bandLabel(level: MatchLevel): string {
-  return t(BAND[level].key);
+/** A band the frontend knows; anything else (missing, null, a value from another backend version) is not shown. */
+export function isMatchLevel(value: unknown): value is MatchLevel {
+  return typeof value === 'string' && Object.hasOwn(BAND, value);
 }
 
-/** The seeker's match band (D16). Only the recommendation list shows it (D31); never a number. */
+export function bandLabel(level: MatchLevel): string {
+  return isMatchLevel(level) ? t(BAND[level].key) : '';
+}
+
+/** The seeker's match band as a pill (D16). Score displays use the match panel in components/seeker/Match. */
 export function Band({ level, size }: { level: MatchLevel; size?: 'lg' }) {
   return (
     <span className={ui.band} data-band={BAND[level].data} data-size={size}>
@@ -120,7 +125,7 @@ export function JobStatusTag({ status }: { status: JobStatusName }) {
   );
 }
 
-/** Indicator square for one criterion score (company side only, D1). Levels follow the scorer: strong is 75. */
+/** Indicator square for one criterion score (company side; seekers see score rings, D42). Strong is 75. */
 export function scoreLevel(score: number): 'met' | 'partial' | 'missing' {
   return score >= 75 ? 'met' : score >= 25 ? 'partial' : 'missing';
 }

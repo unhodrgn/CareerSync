@@ -1,3 +1,4 @@
+import { AiBox, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { XIcon } from '@/components/common/icons';
 import { cx } from '@/components/common/Page';
@@ -32,48 +33,50 @@ export default function CriteriaSuggestions({
     <section className={s.aiSection} aria-labelledby="suggest-title">
       <div className={s.sectionHead} style={{ marginBottom: 0 }}>
         <h3 id="suggest-title" className={ui.panelTitle}>
-          <span className={ui.aiBadge}>{t('common.ai')}</span>
+          <AiMark />
           {t('editor.suggest.title')}
         </h3>
         <button type="button" className={cx(ui.btn, ui.quiet, ui.small, ui.iconOnly)} aria-label={t('common.close')} onClick={onClose}>
           <XIcon width={16} height={16} />
         </button>
       </div>
-      <AiNotice notice={result.notice} method={result.method} />
-      {result.analysis.criteria.length === 0 ? (
-        <p className={ui.caption}>{t('editor.suggest.none')}</p>
-      ) : (
-        <div className={ui.stagger}>
-          {result.analysis.criteria.map((c) => (
-            <div key={c.name} className={s.suggestRow}>
-              <span className={s.suggestName}>{c.name}</span>
-              <span className={ui.categoryText}>{t(`category.${asCategory(c.category)}`)}</span>
-              <span className={s.weightText}>{c.weight}%</span>
-              <button
-                type="button"
-                className={cx(ui.btn, ui.secondary, ui.small)}
-                disabled={has(c) || full}
-                onClick={() => onAdd({ name: c.name, description: c.description, category: asCategory(c.category), weight: c.weight })}
-              >
-                {has(c) ? t('editor.suggest.added') : t('editor.suggest.add')}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {result.blocked.length > 0 && (
-        <div>
-          <h4 className={ui.sectionTitle}>{t('editor.suggest.blocked')}</h4>
-          <ul className={ui.list}>
-            {result.blocked.map((b) => (
-              <li key={b.name} className={ui.listRow}>
-                <span className={ui.listName}>{b.name}</span>
-                <span className={ui.categoryText}>{b.reason}</span>
-              </li>
+      <AiBox kind="generated">
+        <AiNotice notice={result.notice} method={result.method} inBox />
+        {result.analysis.criteria.length === 0 ? (
+          <p className={ui.caption}>{t('editor.suggest.none')}</p>
+        ) : (
+          <div className={ui.stagger}>
+            {result.analysis.criteria.map((c) => (
+              <div key={c.name} className={s.suggestRow}>
+                <span className={s.suggestName}>{c.name}</span>
+                <span className={ui.categoryText}>{t(`category.${asCategory(c.category)}`)}</span>
+                <span className={s.weightText}>{c.weight}%</span>
+                <button
+                  type="button"
+                  className={cx(ui.btn, ui.secondary, ui.small)}
+                  disabled={has(c) || full}
+                  onClick={() => onAdd({ name: c.name, description: c.description, category: asCategory(c.category), weight: c.weight })}
+                >
+                  {has(c) ? t('editor.suggest.added') : t('editor.suggest.add')}
+                </button>
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
+        {result.blocked.length > 0 && (
+          <div>
+            <h4 className={ui.sectionTitle}>{t('editor.suggest.blocked')}</h4>
+            <ul className={ui.list}>
+              {result.blocked.map((b) => (
+                <li key={b.name} className={ui.listRow}>
+                  <span className={ui.listName}>{b.name}</span>
+                  <span className={ui.categoryText}>{b.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </AiBox>
     </section>
   );
 }

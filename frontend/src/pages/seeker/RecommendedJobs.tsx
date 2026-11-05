@@ -2,12 +2,14 @@ import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, useAuth } from '@/auth/AuthContext';
+import { AiBusy } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
-import { ArrowRightIcon, ClockIcon, RefreshIcon } from '@/components/common/icons';
-import { Band, BAND_ORDER, bandLabel, Deadline, JobMeta } from '@/components/common/Labels';
+import { RefreshIcon } from '@/components/common/icons';
 import { cx, PageHead } from '@/components/common/Page';
 import { Blocked, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
+import JobCard, { JobCardList } from '@/components/seeker/JobCard';
+import { ScoreNote } from '@/components/seeker/Match';
 import SeekerGate from '@/components/seeker/SeekerGate';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
@@ -15,15 +17,15 @@ import { paths } from '@/routes/paths';
 import type { RecommendationList } from '@/types/recommendation';
 
 /**
- * GET /api/recommendations/jobs: the only place a seeker sees a band (D16, D31), never a number (D1). Jobs still
- * being analyzed are only counted; 새로고침 asks again (no polling).
+ * GET /api/recommendations/jobs: recommended jobs with the match score, band, category and preference scores
+ * (D42). Jobs still being analyzed are only counted; 새로고침 asks again (no polling).
  */
 export default function RecommendedJobs() {
   const { state, reload } = useApi(() => api.recommendations(), []);
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('reco.title')} lead={t('reco.lead')} extra={state.status === 'ok' && <TalentHint />} />
+      <PageHead tabTitle title={t('reco.title')} lead={t('reco.lead')} extra={state.status === 'ok' && <TalentHint />} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && (
         <SeekerGate
@@ -59,8 +61,7 @@ function PendingLine({ count, onRefresh }: { count: number; onRefresh: () => voi
   if (count === 0) return null;
   return (
     <div className={s.pendingLine}>
-      <ClockIcon width={16} height={16} />
-      {t('reco.pending', { n: count })}
+      <AiBusy as="span">{t('reco.pending', { n: count })}</AiBusy>
       <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={onRefresh}>
         <RefreshIcon width={15} height={15} />
         {t('common.refresh')}
@@ -76,10 +77,10 @@ function Result({ data, onRefresh }: { data: RecommendationList; onRefresh: () =
 
   return (
     <>
-      {/* The AI notice and the band legend: captions above the result, no box and no pill legend */}
+      {/* The AI notice and what the score is not: captions above the result, no box */}
       <div className={s.resultHead}>
         <AiNotice notice={data.notice} />
-        {data.items.length > 0 && <p className={ui.caption}>{t('reco.legend')}</p>}
+        {data.items.length > 0 && <ScoreNote />}
       </div>
       <PendingLine count={data.pending_count} onRefresh={onRefresh} />
       {data.items.length === 0 ? (
@@ -90,43 +91,23 @@ function Result({ data, onRefresh }: { data: RecommendationList; onRefresh: () =
           </div>
         </section>
       ) : (
-        // One panel; the band leads each group, level with its first job: how well I fit, then which job
-        <div className={s.recoPanel}>
-          {BAND_ORDER.map((level) => {
-            const items = data.items.filter((r) => r.match_level === level);
-            if (!items.length) return null;
-            return (
-              <section key={level} className={s.group} aria-label={bandLabel(level)}>
-                <h2 className={s.groupHead}>
-                  <Band level={level} size="lg" />
-                  <span className={cx(ui.caption, s.groupCount)}>{t('reco.groupCount', { n: items.length })}</span>
-                </h2>
-                <ul className={s.recoList}>
-                  {items.map((r) => (
-                    <li key={r.job_id} className={s.recoRow}>
-                      <div className={s.jobMain}>
-                        {/* The title link covers the whole row; 준비하기 sits above it */}
-                        <Link to={generatePath(paths.jobDetail, { jobId: String(r.job_id) })} className={cx(s.jobTitle, s.stretched)}>
-                          {r.title}
-                        </Link>
-                        {/* RecommendedJob has no experience field, so the meta line leaves it out */}
-                        <JobMeta company={r.company_name} location={r.location} employmentType={r.employment_type} />
-                      </div>
-                      <Deadline job={r} />
-                      <Link
-                        to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })}
-                        className={cx(ui.btn, ui.quiet, ui.small, s.aboveStretch)}
-                      >
-                        {t('reco.prep')}
-                      </Link>
-                      <ArrowRightIcon className={s.chevron} width={16} height={16} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
+        // In the server's order (Final, highest first); each card carries its score, band and breakdown (D42)
+        <JobCardList label={t('reco.title')}>
+          {data.items.map((r) => (
+            <JobCard
+              key={r.job_id}
+              to={generatePath(paths.jobDetail, { jobId: String(r.job_id) })}
+              // RecommendedJob has no experience field, so the facts leave it out
+              job={r}
+              scores={r}
+              actions={
+                <Link to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })} className={cx(ui.btn, ui.secondary, ui.small)}>
+                  {t('reco.prep')}
+                </Link>
+              }
+            />
+          ))}
+        </JobCardList>
       )}
     </>
   );

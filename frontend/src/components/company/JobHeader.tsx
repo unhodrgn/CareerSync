@@ -1,4 +1,5 @@
 import { generatePath, Link, NavLink } from 'react-router';
+import { AiMark } from '@/components/common/Ai';
 import { ArrowLeftIcon } from '@/components/common/icons';
 import { JobMeta, JobStatusTag } from '@/components/common/Labels';
 import { cx } from '@/components/common/Page';
@@ -15,9 +16,10 @@ import s from './company.module.css';
 export default function JobHeader({ job }: { job: JobOut }) {
   const id = String(job.id);
   const tabs = [
-    { to: generatePath(paths.company.jobEdit, { jobId: id }), label: t('jobTabs.edit'), enabled: true },
-    { to: generatePath(paths.company.applicants, { jobId: id }), label: t('jobTabs.applicants'), enabled: job.status !== 'draft' },
-    { to: generatePath(paths.company.talent, { jobId: id }), label: t('jobTabs.talent'), enabled: job.status === 'published' },
+    // 공고 수정 mixes the company's own form with AI help (marked inside the page); the other two are AI features
+    { to: generatePath(paths.company.jobEdit, { jobId: id }), label: t('jobTabs.edit'), enabled: true, ai: false },
+    { to: generatePath(paths.company.applicants, { jobId: id }), label: t('jobTabs.applicants'), enabled: job.status !== 'draft', ai: true },
+    { to: generatePath(paths.company.talent, { jobId: id }), label: t('jobTabs.talent'), enabled: job.status === 'published', ai: true },
   ];
   return (
     <header className={s.jobHeader}>
@@ -36,10 +38,12 @@ export default function JobHeader({ job }: { job: JobOut }) {
         {tabs.map((x) =>
           x.enabled ? (
             <NavLink key={x.to} to={x.to} className={ui.tab} end>
+              {x.ai && <AiMark />}
               {x.label}
             </NavLink>
           ) : (
             <span key={x.to} className={cx(ui.tab, s.tabDisabled)} aria-disabled="true" title={t('jobTabs.draftOnly')}>
+              {x.ai && <AiMark />}
               {x.label}
             </span>
           ),

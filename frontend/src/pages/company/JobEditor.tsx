@@ -8,6 +8,7 @@ import { cx, PageHead } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
+import { AiBusy, AiMark } from '@/components/common/Ai';
 import CriteriaSuggestions from '@/components/company/CriteriaSuggestions';
 import JdDraftPanel from '@/components/company/JdDraftPanel';
 import JobHeader from '@/components/company/JobHeader';
@@ -511,6 +512,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
               </h2>
               {!basicsLocked && !draftOpen && (
                 <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} disabled={busy !== null} onClick={async () => (job ? setDraftOpen(true) : ensureSaved('draft'))}>
+                  <AiMark />
                   {t('editor.aiDraft')}
                 </button>
               )}
@@ -557,10 +559,17 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
               </div>
               {!basicsLocked && !analysis && (
                 <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} disabled={busy !== null} onClick={onAnalyze}>
+                  {/* The button asks the AI for criteria */}
+                  <AiMark />
                   {busy === 'analyze' ? t('editor.suggest.running') : t('editor.suggest')}
                 </button>
               )}
             </div>
+            {busy === 'analyze' && (
+              <div style={{ marginBottom: 12 }}>
+                <AiBusy>{t('ai.working.suggest')}</AiBusy>
+              </div>
+            )}
 
             {rows.length === 0 ? (
               <p className={ui.caption}>{t('editor.criteriaEmpty')}</p>
@@ -825,7 +834,7 @@ function CriterionRow({
 }
 
 /**
- * One criteria set, two directions: what signed-in seekers read (name, category, importance; no weights, D1, D30)
+ * One criteria set, two directions: what signed-in seekers read (name, category, importance; no weights, D30, D42)
  * and what the applicant ranking uses (weights). Importance comes from the last saved set.
  */
 function TwoWayPreview({ rows, importance }: { rows: Row[]; importance: (r: Row) => Importance | undefined }) {

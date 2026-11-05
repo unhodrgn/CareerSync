@@ -2,7 +2,7 @@
 
 export type GapKind = 'skill' | 'certificate';
 
-/** A skill or certificate the job names that the CV text does not show (no scores, D1, D21). */
+/** A skill or certificate the job names that the CV text does not show (no scores, D21). */
 export interface CareerGap {
   name: string;
   kind: GapKind;

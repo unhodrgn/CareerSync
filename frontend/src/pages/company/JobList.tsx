@@ -33,6 +33,7 @@ export default function CompanyJobList() {
   return (
     <div className={ui.page}>
       <PageHead
+        tabTitle
         title={t('page.company.jobList.title')}
         count={jobs.length || undefined}
         lead={t('cjobs.lead')}

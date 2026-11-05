@@ -12,14 +12,14 @@ import { paths } from '@/routes/paths';
 
 /**
  * The seeker's applications and their status, read-only. Status is the recruiter's decision (AI rule 5); the
- * evaluation status and any score stay on the company side (D1).
+ * evaluation status and any score stay on the company side (no score for applied jobs, D43).
  */
 export default function Applications() {
   const { state, reload } = useApi(() => api.myApplications(), []);
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
+      <PageHead tabTitle title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' &&

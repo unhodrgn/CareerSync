@@ -6,30 +6,39 @@ import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, consentPath, useAuth } from '@/auth/AuthContext';
 import { deadlineLabel, formatDate } from '@/components/common/format';
 import { ArrowRightIcon, CheckIcon } from '@/components/common/icons';
+import { JobIconTile } from '@/components/common/JobIconTile';
 import { ApplicationStatusTag, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
+import { AiBusy, AiMark } from '@/components/common/Ai';
+import { AiNotice } from '@/components/common/AiNotice';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import CompanyBlock from '@/components/seeker/CompanyBlock';
 import CriteriaPanel from '@/components/seeker/CriteriaPanel';
 import JdText from '@/components/seeker/JdText';
+import { isScore, MatchPanel, ScoreBreakdown, ScoreNote } from '@/components/seeker/Match';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import type { ApplicationOut } from '@/types/application';
 import type { CvOut } from '@/types/cv';
 import type { JobOut } from '@/types/job';
+import type { JobMatch } from '@/types/recommendation';
 
 /**
- * Job detail (D4). No band here, whoever looks (D31). The aside depends on the viewer: a guest gets the way to log
- * in, a seeker the apply panel and job prep, a company user only the criteria names.
+ * Job detail (D4). The aside depends on the viewer: a guest gets the way to log in, a seeker the match score when
+ * the job already has one (D42, D43), the apply panel and job prep, a company user only the criteria names.
  */
 export default function JobDetail() {
   const { jobId } = useParams();
   const id = Number(jobId);
   const { user } = useAuth();
   const job = useApi(() => api.job(id), [id, user?.id]);
+  const seeker = user?.role === 'seeker';
+  // Read only: the score of an evaluation that already exists; a failure only leaves the section out
+  const match = useApi(() => (seeker ? loadMatch(id) : Promise.resolve(null)), [id, user?.id]);
+  const matchData = match.state.status === 'ok' ? match.state.data : null;
 
   const back = { to: paths.jobs, label: t('job.backToList') };
   if (job.state.status === 'loading') {
@@ -59,8 +68,11 @@ export default function JobDetail() {
         <div className={s.detailMain}>
           {/* The title leads on the canvas, level with the apply panel; the company and meta line under it */}
           <header className={s.jobHead}>
-            <h1 className={s.jobHeadTitle}>{data.title}</h1>
-            <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
+            <JobIconTile title={data.title} size="lg" />
+            <div className={s.jobHeadText}>
+              <h1 className={s.jobHeadTitle}>{data.title}</h1>
+              <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
+            </div>
           </header>
 
           <article className={ui.panel}>
@@ -88,8 +100,9 @@ export default function JobDetail() {
         {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
           {!user && <GuestApply />}
-          {user?.role === 'seeker' && <ApplyPanel job={data} />}
-          <CriteriaSection jobId={data.id} />
+          {seeker && matchData && <MatchSection data={matchData} />}
+          {seeker && <ApplyPanel job={data} />}
+          <CriteriaSection jobId={data.id} scores={matchData?.match?.criteria} />
         </aside>
       </div>
     </div>
@@ -102,11 +115,52 @@ function CompanySection({ companyId }: { companyId: number }) {
   return state.status === 'ok' ? <CompanyBlock company={state.data} /> : null;
 }
 
-function CriteriaSection({ jobId }: { jobId: number }) {
+function CriteriaSection({ jobId, scores }: { jobId: number; scores?: JobMatch['criteria'] | null }) {
   const { user } = useAuth();
   const { state } = useApi(() => api.jobCriteria(jobId), [jobId, user?.id]);
   // A company account reading another company's job gets 404 (criteria are the owner's): no panel then
-  return state.status === 'ok' ? <CriteriaPanel view={state.data} /> : null;
+  return state.status === 'ok' ? <CriteriaPanel view={state.data} scores={scores} /> : null;
+}
+
+interface MatchContext {
+  match: JobMatch;
+  /** The seeker applied to this job: no score is shown for it (D43). */
+  applied: boolean;
+}
+
+async function loadMatch(jobId: number): Promise<MatchContext> {
+  const [match, mine] = await Promise.all([api.jobMatch(jobId), api.myApplications()]);
+  return { match, applied: Array.isArray(mine) && mine.some((a) => a.job_id === jobId) };
+}
+
+/**
+ * The seeker's score for this job (D42): the dark panel, the breakdown, the AI notice and what a score is not.
+ * Scores show only for a `done` result with a valid match score; anything missing falls back to the status line.
+ */
+function MatchSection({ data }: { data: MatchContext }) {
+  const { match, applied } = data;
+  const done = match?.status === 'done' && isScore(match.match_score);
+  return (
+    // AI-made content: the AI box (blue-soft) around the mint panel and rings
+    <section className={cx(ui.aiBox, ui.aiBoxCard, s.asideBlock)}>
+      <h2 className={cx(s.asideTitle, s.aiTitle)}>
+        <AiMark />
+        {t('match.heading')}
+      </h2>
+      {done ? (
+        <>
+          <MatchPanel score={match.match_score} level={match.match_level} titled={false} compact />
+          <ScoreBreakdown categories={match.categories} preference={match.preference_score} />
+          {match.notice && <AiNotice notice={match.notice} inBox />}
+          <ScoreNote />
+        </>
+      ) : match?.status === 'pending' && !applied ? (
+        <AiBusy>{t('match.pending')}</AiBusy>
+      ) : (
+        <p className={ui.caption}>{applied ? t('match.applied') : t('match.none')}</p>
+      )}
+    </section>
+  );
 }
 
 function GuestApply() {

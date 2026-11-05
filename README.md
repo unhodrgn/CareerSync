@@ -6,7 +6,7 @@
 
 A working prototype for a local demo, built as a Soongsil University Capstone project. [Status](#status) lists what works today and what is partial; [Known limitations](#known-limitations) lists what to keep in mind before showing it to anyone.
 
-<!-- Screenshot: seeker view — 추천 공고 (Recommended jobs) with match bands. Add docs/images/seeker-recommended.png, then replace this comment with the image. -->
+<!-- Screenshot: seeker view — 추천 공고 (Recommended jobs) with match scores. Add docs/images/seeker-recommended.png, then replace this comment with the image. -->
 <!-- Screenshot: company view — 지원자 순위 (Applicant ranking) with per-criterion scores and evidence. Add docs/images/company-applicants.png. -->
 <!-- GIF: 30-second demo — upload a CV, apply, see the ranked applicant. Add docs/images/demo.gif. -->
 
@@ -27,7 +27,7 @@ CareerSync는 기업이 직접 정한 평가 기준 하나로 지원자 평가�
 One set of company-defined criteria powers two things on one platform: **scoring the applicants** of a job and **recommending that job** to seekers who have not applied.
 
 - **Companies** define criteria and weights per job and see applicants ranked by Fit, with a score, evidence quoted from the CV and a comment for every criterion.
-- **Seekers** upload a CV and set preferences, then get recommended jobs with a match band instead of a score, plus help preparing for a job (missing skills, interview questions, a CV self-check).
+- **Seekers** upload a CV and set preferences, then get recommended jobs with a match score and band (never the company's weights), plus help preparing for a job (missing skills, interview questions, a CV self-check).
 
 Why: in a 잡코리아 (JobKorea) survey of 1,286 recruiters (February–March 2026), the most burdensome tasks were finding suitable candidates (44.5%) and reviewing applications (41.0%); seekers, in turn, cannot tell what a company actually values. Source: the market research report and the project proposal in [docs/reference/](docs/reference/).
 
@@ -56,7 +56,7 @@ Demo accounts (password `demo1234` for all):
 A typical demo:
 
 1. Log in as `seeker@demo.test`, open 내 이력서 (My CV), upload `data/demo/demo_cv.pdf` and confirm the extracted profile.
-2. Open 추천 공고 (Recommended jobs). The first visit only starts scoring ("분석 중", analyzing); press 새로고침 (refresh) after a few seconds to see the jobs with their match band. Open the 넥스트코드 backend job and press 지원하기 (Apply).
+2. Open 추천 공고 (Recommended jobs). The first visit only starts scoring ("분석 중", analyzing); press 새로고침 (refresh) after a few seconds to see the jobs with their match score and band. Open the 넥스트코드 backend job and press 지원하기 (Apply).
 3. Log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 tab: the applicant is ranked by Fit with a score, evidence and comment per criterion.
 4. In the job's 공고 수정 (Edit job) tab, move weight from one criterion to another (the total must stay 100) and save: the Fit is recomputed without new AI calls. To see the guardrail, open the draft 프론트엔드 개발자 (React) job instead, add a criterion such as "키 175cm 이상" (height of at least 175 cm) and leave the field: it is blocked with the law that forbids it. A published job's criteria are fixed, so this only works on a draft.
 5. Open the backend job's 인재 추천 tab; after 새로고침, `seeker2@demo.test` appears as an anonymous seeker. Send an offer, then log in as that seeker and accept it in 받은 제안 (Received offers).
@@ -78,7 +78,7 @@ To run the backend and frontend on your machine instead, see [Run locally](docs/
 | Applicant evaluation | Done | Apply → background scoring → recruiter sees applicants ranked by Fit with per-criterion score, evidence and comment, with quick filters. Weight edits re-rank without new AI calls |
 | Recruiter workflow | Done | Status changes (검토 전 submitted, 서류 검토 reviewing, 면접 예정 interview, 보류 on hold, 합격 passed, 불합격 rejected) happen only when the recruiter clicks |
 | Preferences and talent-pool opt-in | Done | Seeker sets desired locations, employment types and role keywords (희망 조건, preferences) and can opt in to the talent pool (D15) |
-| Job recommendation | Partial | 추천 공고 (Recommended jobs): jobs that match the seeker's preferences and the job's criteria, shown with a match band (매우 적합 / 적합 / 참고: very good / good / reference), no scores. Gap: no prompt yet asking a seeker with empty preferences to fill them in |
+| Job recommendation | Partial | 추천 공고 (Recommended jobs): jobs that match the seeker's preferences and the job's criteria, shown with a match score and band (매우 적합 / 적합 / 참고: very good / good / reference), category scores and the preference score; the job list and job detail show scores that already exist. Gap: no prompt yet asking a seeker with empty preferences to fill them in |
 | Job preparation | Done | 취업 준비 (Job preparation): skills the job asks for that the CV lacks, with a learning plan, and interview practice questions |
 | Talent recommendation | Done | Companies see anonymous opted-in seekers per published job and send offers; contact details only after the seeker accepts |
 | `docker compose up` | Done | Starts the database, migrations + demo seed, backend and frontend |

@@ -3,6 +3,9 @@ import { cx } from '@/components/common/Page';
 import ui from '@/components/common/ui.module.css';
 import { t, type MessageKey } from '@/i18n';
 import type { CriteriaView, SeekerCriteriaSetOut } from '@/types/criteria';
+import type { CriterionMatch } from '@/types/recommendation';
+import { AiLabel } from '@/components/common/Ai';
+import { ScoreRing, validCriteria } from './Match';
 import s from './seeker.module.css';
 
 function isSeekerView(view: CriteriaView): view is SeekerCriteriaSetOut {
@@ -13,8 +16,11 @@ function isSeekerView(view: CriteriaView): view is SeekerCriteriaSetOut {
  * A job's criteria on the public job page, as a quiet read-only list. What shows follows what the API returned
  * for this viewer: a guest gets names only (D35), a signed-in seeker name + category + importance (D30). The
  * owner company's full rows carry weights; this page never shows them, so the owner sees names only here.
+ * `scores`: each criterion's score for this seeker, when the job already has a done evaluation (D42, D43).
  */
-export default function CriteriaPanel({ view }: { view: CriteriaView }) {
+export default function CriteriaPanel({ view, scores }: { view: CriteriaView; scores?: CriterionMatch[] | null }) {
+  // Criterion names are unique within a job; missing or malformed scores just leave the rings out
+  const scoreOf = new Map(validCriteria(scores).map((sc) => [sc.name, sc.score]));
   const seeker = isSeekerView(view);
   // The owner company reads its own names here; the caption speaks to seekers and guests only
   const owner = view.items.length > 0 && 'weight' in view.items[0];
@@ -22,6 +28,8 @@ export default function CriteriaPanel({ view }: { view: CriteriaView }) {
   return (
     <section className={cx(ui.panel, s.asideBlock)}>
       <h2 className={s.asideTitle}>{t('job.criteria')}</h2>
+      {/* The criteria are the company's; only the score rings are AI-made */}
+      {scoreOf.size > 0 && <AiLabel />}
       {view.items.length === 0 ? (
         <p className={ui.caption}>{t('job.criteriaNone')}</p>
       ) : (
@@ -33,6 +41,7 @@ export default function CriteriaPanel({ view }: { view: CriteriaView }) {
                   <span className={ui.listEnd}>
                     <CategoryTag category={c.category} quiet />
                     <ImportanceTag level={c.importance} />
+                    <ScoreRing score={scoreOf.get(c.name)} size={44} />
                   </span>
                 </li>
               ))

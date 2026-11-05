@@ -9,7 +9,7 @@ One set of company-defined criteria powers two things: scoring the people who ap
 ### Flow A: Job seeker
 
 ```
-Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match band)
+Register → Upload CV → AI analysis → Edit & confirm → Set preferences → Recommended jobs (match score)
         → Prepare for a job (skill gaps, interview questions) → Apply → Track status in 지원 현황 (My applications)
         → (opted in) Answer anonymous offers from companies in 받은 제안 (Received offers)
 ```
@@ -55,4 +55,4 @@ Pretrained models only; nothing is trained from scratch. The LLM is always calle
 | Seeker visibility of weights | Criterion name + category + importance (핵심 ≥ 25, 중요 ≥ 10, else 일반), no raw numbers; guests see names only. D30 defines the three labels and D35 the guest view; the thresholds are `IMPORTANCE_HIGH` and `IMPORTANCE_MID` in `backend/app/core/config.py` |
 | Final score (job recommendation) | `0.5 × Fit + 0.5 × Pref`, recommend only when Fit ≥ 40 and Pref ≥ 40 |
 
-The importance labels 핵심 / 중요 / 일반 mean core / important / general. Coefficients live in `backend/app/core/config.py`. Seekers never see a score: job recommendation shows only a match band (D16), and a seeker's own application shows its status, not its evaluation.
+The importance labels 핵심 / 중요 / 일반 mean core / important / general. Coefficients live in `backend/app/core/config.py`. Seekers see the match score (Final rounded down) with its band, unweighted category scores and the preference score, and each criterion's score on the job detail page, but never the weights (D42, D43); a seeker's own application shows its status, not its evaluation.
