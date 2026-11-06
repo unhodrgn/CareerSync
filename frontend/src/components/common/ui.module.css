@@ -94,6 +94,13 @@
   border-bottom: 1px solid var(--ds-line);
 }
 
+/* Opt-in: the head of a panel whose content has not appeared yet (e.g. 이력서 점검 before it is run) */
+.panelHeadAlone {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .panelTitle {
   margin: 0;
   display: flex;
@@ -551,6 +558,14 @@
   resize: vertical;
 }
 
+/* Grows with its text, so an edited description is read in full instead of scrolled (CV edit); a plain
+   resizable textarea where field-sizing is not supported */
+.autoGrow {
+  field-sizing: content;
+  min-height: 76px;
+  max-height: 480px;
+}
+
 .input:hover,
 .select:hover,
 .textarea:hover {
@@ -563,6 +578,64 @@
   outline: none;
   border-color: var(--ds-focus);
   box-shadow: var(--ds-halo);
+}
+
+/* Read-only (a published or closed job, a CV field taken from the PDF): sunken and quiet, no hover, no caret and
+   no picker or spinner, so it no longer looks like it takes input; still focusable and readable by keyboard */
+.input[readonly],
+.textarea[readonly],
+.select:disabled {
+  padding-right: 38px;
+  border-color: var(--ds-line);
+  background-color: var(--ds-sunken);
+  /* The lock sits where a select's chevron would be (the icon set's padlock, muted) */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23646b78' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='10.5' width='14' height='10' rx='2.5'/%3E%3Cpath d='M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 15px;
+  color: var(--ds-ink-2);
+  caret-color: transparent;
+  cursor: default;
+}
+
+.textarea[readonly] {
+  background-position: right 12px top 13px;
+}
+
+.input[readonly]:hover,
+.textarea[readonly]:hover,
+.select:disabled:hover {
+  border-color: var(--ds-line);
+}
+
+.input[readonly]:focus,
+.textarea[readonly]:focus {
+  border-color: var(--ds-line);
+  box-shadow: none;
+}
+
+.input[readonly]:focus-visible,
+.textarea[readonly]:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+.textarea[readonly] {
+  resize: none;
+}
+
+.select:disabled {
+  opacity: 1;
+}
+
+.input[readonly]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.input[readonly]::-webkit-inner-spin-button,
+.input[readonly]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .input[aria-invalid='true'],
@@ -664,6 +737,15 @@
 
 .switch:checked::after {
   transform: translateX(18px);
+}
+
+/* Waiting for a confirm (disabled) or for its own save (aria-disabled, kept focusable) */
+.switch:disabled {
+  cursor: default;
+}
+
+.switch[aria-disabled='true'] {
+  cursor: progress;
 }
 
 /* ── Chips (preferences, keywords, techs): the reference's gray filter chips ── */
@@ -1076,16 +1158,38 @@
   white-space: nowrap;
 }
 
+/* Application and offer status: solid = in progress or decided, hollow = not started or paused; the label always
+   says which, so the dot never carries the meaning alone. The same tags serve 지원 현황 and 지원자 순위. */
 .status[data-status='pending'],
-.status[data-status='submitted'],
-.status[data-status='reviewing'] {
+.status[data-status='reviewing'],
+.status[data-status='interview'] {
   --status-dot: var(--ds-ring);
 }
 
 .status[data-status='accepted'],
-.status[data-status='interview'],
 .status[data-status='passed'] {
   --status-dot: var(--ds-accent-text);
+}
+
+.status[data-status='rejected'] {
+  --status-dot: var(--ds-muted);
+}
+
+/* 검토 전 (not started) and 보류 (paused): an empty ring instead of a filled dot */
+.status[data-status='submitted']::before,
+.status[data-status='on_hold']::before {
+  box-sizing: border-box;
+  border: 1.5px solid var(--status-ring);
+  background: transparent;
+}
+
+/* The disabled-text gray (3.3:1 on white): a line-strong ring would all but vanish */
+.status[data-status='submitted'] {
+  --status-ring: var(--ds-on-disabled);
+}
+
+.status[data-status='on_hold'] {
+  --status-ring: var(--ds-muted);
 }
 
 /* Job status: published in mint, draft gray outline, closed neutral */
@@ -1181,6 +1285,12 @@
   border-radius: var(--ds-radius-card);
 }
 
+/* Leads a job row in a list (지원 현황, 공고 관리) */
+.jobTile[data-size='sm'] {
+  width: 40px;
+  height: 40px;
+}
+
 /* ── Score indicator squares (company side; seekers see rings, D42) ──
    met ≥ 75 (the strong level), partial 25–74, missing below 25 (amber ring: nothing found in the CV) */
 .square {
@@ -1196,9 +1306,10 @@
   box-shadow: inset 0 0 0 1.5px var(--ds-accent-text);
 }
 
+/* Under 25: an empty square, not amber (amber marks only a skill or certificate the CV lacks, DESIGN.md) */
 .square[data-level='missing'] {
-  background: var(--color-gap-badge);
-  box-shadow: inset 0 0 0 1.5px var(--color-gap-line);
+  background: var(--ds-surface);
+  box-shadow: inset 0 0 0 1.5px var(--ds-on-disabled);
 }
 
 /* ── A labelled facts list (term beside its value) ── */

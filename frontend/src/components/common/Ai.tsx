@@ -18,16 +18,18 @@ export function AiMark({ size = 'md' }: { size?: 'sm' | 'md' }) {
   );
 }
 
-/** The "AI" badge on a rail icon: the section has AI features. Read out by the visually hidden line beside it. */
+/** The "AI" badge on a rail icon: the section has AI features. Screen readers get `AiSectionLabel` instead. */
 export function AiRailBadge() {
   return (
-    <>
-      <span className={cx(ui.aiPill, ui.aiRailBadge)} data-size="sm" aria-hidden="true">
-        {t('common.ai')}
-      </span>
-      <span className={ui.visuallyHidden}>{t('ai.section')}</span>
-    </>
+    <span className={cx(ui.aiPill, ui.aiRailBadge)} data-size="sm" aria-hidden="true">
+      {t('common.ai')}
+    </span>
   );
+}
+
+/** What the rail badge means, for screen readers only; placed after the item's label (", AI 기능이 있는 메뉴"). */
+export function AiSectionLabel() {
+  return <span className={ui.visuallyHidden}>{t('ai.section')}</span>;
 }
 
 /** "AI 분석" (the AI read or scored something) or "AI 생성" (the AI wrote something), in the pill style. */

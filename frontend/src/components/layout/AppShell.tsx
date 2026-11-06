@@ -12,12 +12,32 @@ import {
   UserIcon,
 } from '@/components/common/icons';
 import { ShellHeaderContext } from '@/components/common/Page';
-import { AiMark, AiRailBadge } from '@/components/common/Ai';
+import { AiMark, AiRailBadge, AiSectionLabel } from '@/components/common/Ai';
 import ui from '@/components/common/ui.module.css';
 import { t, type MessageKey } from '@/i18n';
 import { paths } from '@/routes/paths';
 import type { Role } from '@/types/common';
 import s from './AppShell.module.css';
+import { useRouteFocus } from './useRouteFocus';
+
+// The target of the skip link; one shell is mounted at a time, so the id is never repeated
+const MAIN_ID = 'main-content';
+
+/**
+ * 본문으로 건너뛰기: the first stop for the keyboard, hidden until focused. It moves focus to <main> itself instead of
+ * following the hash, which the router would treat as a navigation, and leaves the scroll position alone.
+ */
+function SkipLink() {
+  const skip = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    document.getElementById(MAIN_ID)?.focus({ preventScroll: true });
+  };
+  return (
+    <a href={`#${MAIN_ID}`} className={s.skipLink} onClick={skip}>
+      {t('shell.skip')}
+    </a>
+  );
+}
 
 interface NavItem {
   to: string;
@@ -144,6 +164,7 @@ export default function AppShell({ role }: { role: Role }) {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [offersRound, setOffersRound] = useState(0);
   const refreshOffers = useCallback(() => setOffersRound((n) => n + 1), []);
+  useRouteFocus();
 
   // The badge is a nicety: a failure leaves it empty
   useEffect(() => {
@@ -186,6 +207,7 @@ export default function AppShell({ role }: { role: Role }) {
 
   return (
     <div className={s.shell} data-theme="app">
+      <SkipLink />
       <header className={s.rail}>
         <Link to={homeFor(role)} className={s.brand} aria-label={t('shell.home')}>
           <LogoMark width={36} height={36} />
@@ -215,6 +237,8 @@ export default function AppShell({ role }: { role: Role }) {
                       )}
                     </span>
                     {t(g.label)}
+                    {/* After the label, so it reads "채용, AI 기능이 있는 메뉴" and not as one phrase */}
+                    {g.ai && <AiSectionLabel />}
                   </Link>
                 </li>
               );
@@ -279,7 +303,7 @@ export default function AppShell({ role }: { role: Role }) {
           </div>
         </div>
 
-        <main className={s.main}>
+        <main id={MAIN_ID} tabIndex={-1} className={s.main}>
           {withdrawn && location.pathname !== paths.consent && (
             <p className={s.banner} role="status">
               {t('shell.withdrawn')}
@@ -305,8 +329,10 @@ export default function AppShell({ role }: { role: Role }) {
 export function GuestShell() {
   const location = useLocation();
   const next = encodeURIComponent(`${location.pathname}${location.search}`);
+  useRouteFocus();
   return (
     <div className={s.guestShell} data-theme="app">
+      <SkipLink />
       <header className={s.header}>
         <Link to={paths.home} className={s.brandWide} aria-label={t('shell.home')}>
           <LogoMark width={36} height={36} />
@@ -321,7 +347,7 @@ export function GuestShell() {
           </Link>
         </div>
       </header>
-      <main className={s.guestMain}>
+      <main id={MAIN_ID} tabIndex={-1} className={s.guestMain}>
         <div className={s.stage}>
           <div key={location.pathname} className={s.page}>
             <Outlet />

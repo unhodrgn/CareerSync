@@ -14,6 +14,7 @@ import SeekerGate from '@/components/seeker/SeekerGate';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { InterviewOut, RoadmapOut } from '@/types/career';
 
 type Tab = 'gaps' | 'interview' | 'review';
@@ -45,6 +46,7 @@ export default function JobPrep() {
   const { jobId } = useParams();
   const id = Number(jobId);
   const job = useApi(() => api.job(id), [id]);
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
   const [params, setParams] = useSearchParams();
   const tab: Tab = isTab(params.get('tab')) ? (params.get('tab') as Tab) : 'gaps';
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));

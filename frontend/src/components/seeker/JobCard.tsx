@@ -1,15 +1,14 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { experienceLabel } from '@/components/common/format';
-import { ArrowRightIcon, BriefcaseIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@/components/common/icons';
+import { BriefcaseIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@/components/common/icons';
 import { Deadline, employmentLabel } from '@/components/common/Labels';
 import { JobIconTile } from '@/components/common/JobIconTile';
 import { cx } from '@/components/common/Page';
 import ui from '@/components/common/ui.module.css';
-import { t } from '@/i18n';
 import type { EmploymentType } from '@/types/job';
 import type { MatchScores } from '@/types/recommendation';
-import { isScore, MatchPanel, ScoreBreakdown } from './Match';
+import { isScore, MatchReasons, MatchSummary, type PreferenceStatus } from './Match';
 import c from './jobCard.module.css';
 
 export interface JobCardJob {
@@ -21,28 +20,36 @@ export interface JobCardJob {
   min_experience_years?: number | null;
   deadline: string | null;
   expired?: boolean;
+  /** How many criteria the company set; `undefined` = not known (left out). */
   criteria_count?: number;
 }
 
 /**
- * A job as a compact white card (DESIGN.md Job card): the job-type icon tile, title and company, one row of facts, the score
- * breakdown, and a footer with the criteria count, the card's own actions and the mint 상세 보기 pill. With a valid
- * match score (D42, D43) the dark match panel sits on the right; missing or partial scores only hide that part.
- * The title link is stretched over the whole card, so a click anywhere opens the job; the footer (상세 보기, a real
- * link to the same page, and the card's own `actions`) sits above it, so nothing interactive is nested in a link.
+ * A recommended job as a white card (DESIGN.md Job card): the job-type icon tile, title and company, one row of
+ * facts, then what the match is made of (the company's criteria by category and the seeker's preferences, D42) with
+ * the card's own actions beside it. With a valid match score the score and its band sit on the right, on white
+ * behind a hairline; missing or partial scores only hide those parts.
+ * The title link is stretched over the whole card and is its only link to the job, so the card has one tab stop
+ * for the job; the card's own `actions` sit above it, so nothing interactive is nested in a link.
  */
 export default function JobCard({
   to,
   job,
   scores,
+  prefs,
   actions,
 }: {
   to: string;
   job: JobCardJob;
   scores?: Partial<MatchScores> | null;
+  /** Whether the seeker has preferences (D46): the preference score shows as a number only when they do. */
+  prefs: PreferenceStatus;
   actions?: ReactNode;
 }) {
   const scored = scores != null && isScore(scores.match_score);
+  const reasons = scores ? (
+    <MatchReasons categories={scores.categories} preference={scores.preference_score} prefs={prefs} criteriaCount={job.criteria_count} />
+  ) : null;
   return (
     <li className={c.card} data-scored={scored || undefined}>
       <div className={c.body}>
@@ -77,24 +84,16 @@ export default function JobCard({
           </li>
         </ul>
 
-        {scores && <ScoreBreakdown categories={scores.categories} preference={scores.preference_score} />}
-
-        <div className={c.foot}>
-          {job.criteria_count !== undefined && (
-            <span className={c.footNote}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
-          )}
-          <div className={c.actions}>
-            {actions}
-            <Link to={to} className={cx(ui.btn, ui.primary, ui.small)} aria-label={t('jobs.openAria', { title: job.title })}>
-              {t('jobs.open')}
-              <ArrowRightIcon width={15} height={15} />
-            </Link>
+        {(reasons || actions) && (
+          <div className={c.foot}>
+            {reasons}
+            {actions && <div className={c.actions}>{actions}</div>}
           </div>
-        </div>
+        )}
       </div>
       {scored && (
         <div className={c.side}>
-          <MatchPanel score={scores.match_score} level={scores.match_level} compact />
+          <MatchSummary score={scores.match_score} level={scores.match_level} />
         </div>
       )}
     </li>

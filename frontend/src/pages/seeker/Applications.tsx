@@ -2,6 +2,7 @@ import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { formatDate } from '@/components/common/format';
+import { JobIconTile } from '@/components/common/JobIconTile';
 import { ApplicationStatusTag } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
@@ -47,12 +48,15 @@ export default function Applications() {
                 {state.data.map((a) => (
                   <tr key={a.id}>
                     <td>
-                      <span className={s.jobMain}>
-                        <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
-                          {a.job_title}
-                        </Link>
-                        <span className={ui.meta}>
-                          <strong>{a.company_name}</strong>
+                      <span className={s.jobCell}>
+                        <JobIconTile title={a.job_title} size="sm" />
+                        <span className={s.jobMain}>
+                          <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
+                            {a.job_title}
+                          </Link>
+                          <span className={ui.meta}>
+                            <strong>{a.company_name}</strong>
+                          </span>
                         </span>
                       </span>
                     </td>

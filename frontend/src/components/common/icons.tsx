@@ -127,6 +127,14 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
+export function ChevronUpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m6 15 6-6 6 6" />
+    </Icon>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <Icon {...props}>

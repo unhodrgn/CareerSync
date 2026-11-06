@@ -7,6 +7,12 @@
   outline: none;
 }
 
+/* Prose paragraphs avoid a single word alone on the last line ("모릅니다."); line breaks only, no widths or heights.
+   Only <p>: buttons, labels, chips, table cells and inputs are never paragraphs. Ignored where unsupported. */
+:where([data-theme='app']) :where(p) {
+  text-wrap: pretty;
+}
+
 /* ── Checkboxes and radios: rounded, mint when checked, the mint halo on keyboard focus ── */
 
 :where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']) {

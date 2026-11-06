@@ -1,0 +1,67 @@
+/* Job rows (DESIGN.md Job rows): the job list as one white record list, rows split by hairlines, for scanning many
+   jobs. The side columns have fixed widths, so the score, criteria count and deadline line up from row to row. */
+
+.row {
+  padding: var(--ds-space-4) 0;
+}
+
+.lead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+/* 18/700, like the job rows on 공고 관리 and 지원 현황 */
+.title {
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title:focus-visible {
+  outline: none;
+}
+
+/* The whole row opens the job, so the focus ring goes round the row */
+.row:has(.title:focus-visible) {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  border-radius: var(--ds-radius-md);
+}
+
+.side {
+  display: grid;
+  grid-template-columns: 84px 72px 16px;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
+}
+
+.side[data-scores] {
+  grid-template-columns: 148px 84px 72px 16px;
+}
+
+/* Numbers right-aligned in their own slot, bands after them, so both line up down the list */
+.score {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.criteria {
+  white-space: nowrap;
+}
+
+.deadline {
+  font-size: var(--ds-text-meta);
+  text-align: right;
+}

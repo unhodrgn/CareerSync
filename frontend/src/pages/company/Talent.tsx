@@ -17,6 +17,7 @@ import s from '@/components/company/company.module.css';
 import CandidateAvatar from '@/components/company/CandidateAvatar';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { TalentCandidate } from '@/types/talent';
 
 /**
@@ -28,6 +29,7 @@ export default function Talent() {
   const id = Number(jobId);
   const job = useApi(() => api.job(id), [id]);
   const talent = useApi(() => api.talent(id), [id]);
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
 
   if (job.state.status === 'loading') {
     return (

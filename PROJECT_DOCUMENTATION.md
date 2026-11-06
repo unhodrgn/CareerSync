@@ -285,9 +285,9 @@ Routes from `frontend/src/routes/router.tsx` (paths in `routes/paths.ts`); every
 | `/register` | `public/Register` | — | `register` |
 | `/consent` | `public/Consent` (re-consent) | any signed-in | `me`, `consent` |
 | `/jobs` | `public/JobList` | guest or signed-in | `jobs`; seeker: `recommendationMatches` |
-| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply`, `jobMatch` |
+| `/jobs/:jobId` | `public/JobDetail` | guest or signed-in (guests see criterion names only, D35) | `job`, `jobCriteria`, `company`; seeker: `myCv`, `myApplications`, `apply`, `jobMatch`, `myPreferences` (only when a score is shown, D46) |
 | `/companies/:companyId` | `public/CompanyPublic` | any signed-in | `company` |
-| `/seeker` | `seeker/RecommendedJobs` (추천 공고) | seeker | `recommendations`, `myPreferences` |
+| `/seeker` | `seeker/RecommendedJobs` (추천 공고) | seeker | `recommendations`, `myPreferences`, `jobs` (one request; criteria count and experience by job id) |
 | `/seeker/cv` | `seeker/Cv` (내 이력서: My CV) | seeker | `myCv`, `uploadCv`, `updateCv`, `reviewCv` |
 | `/seeker/applications` | `seeker/Applications` (지원 현황: My applications) | seeker | `myApplications` |
 | `/seeker/offers` | `seeker/Offers` (받은 제안: Received offers) | seeker | `myOffers`, `acceptOffer`, `rejectOffer`, `myPreferences` |

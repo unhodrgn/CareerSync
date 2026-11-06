@@ -27,9 +27,11 @@ export default function CriteriaPanel({ view, scores }: { view: CriteriaView; sc
   const lead: MessageKey | null = seeker ? 'job.criteriaLead' : owner ? null : 'job.criteriaGuestLead';
   return (
     <section className={cx(ui.panel, s.asideBlock)}>
-      <h2 className={s.asideTitle}>{t('job.criteria')}</h2>
-      {/* The criteria are the company's; only the score rings are AI-made */}
-      {scoreOf.size > 0 && <AiLabel />}
+      {/* The criteria are the company's; only the score rings are AI-made, so the label sits over their column */}
+      <div className={s.asideHead}>
+        <h2 className={s.asideTitle}>{t('job.criteria')}</h2>
+        {scoreOf.size > 0 && <AiLabel />}
+      </div>
       {view.items.length === 0 ? (
         <p className={ui.caption}>{t('job.criteriaNone')}</p>
       ) : (

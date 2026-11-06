@@ -14,7 +14,8 @@ import ui from './ui.module.css';
 export function Loading({ rows = 4, panel = true }: { rows?: number; panel?: boolean }) {
   const widths = [72, 90, 56, 84, 64, 78];
   const body = (
-    <div className={ui.stack} style={{ gap: 14 }} aria-busy="true" aria-label={t('common.loading')}>
+    // data-loading: route focus waits for the page's H1 until this is gone (components/layout/useRouteFocus.ts)
+    <div className={ui.stack} style={{ gap: 14 }} aria-busy="true" aria-label={t('common.loading')} data-loading="">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className={ui.skeleton} style={{ width: `${widths[i % widths.length]}%` }} />
       ))}

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
@@ -10,20 +10,53 @@ import { ApplicationStatusTag, ScoreSquare } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
-import ApplicantDetail from '@/components/company/ApplicantDetail';
+import ApplicantDetail, { type DetailFocus } from '@/components/company/ApplicantDetail';
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
 import CandidateAvatar from '@/components/company/CandidateAvatar';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import { APPLICATION_STATUSES, type ApplicantList, type ApplicationStatus, type EvaluationStatus } from '@/types/application';
 
 const MIN_FITS = [60, 70, 80];
 const EVAL_STATUSES: EvaluationStatus[] = ['done', 'pending', 'failed'];
+// Criteria columns: equal shares of what is left after rank (40) + Fit (72) + the applicant (at least 168), kept
+// between 40 and 96 px; under 80 px a name no longer fits on two horizontal lines, so the headers turn 45°.
+// The fixed widths live in company.module.css (.colRank, .colFit).
+const RESERVED = 40 + 72 + 168;
+const MIN_COLUMN = 40;
+const MAX_COLUMN = 96;
+const COMFORTABLE_COLUMN = 80;
+
+/**
+ * Sets each criterion column's width (--crit-w, plain px: Chrome treats percentage calc() widths on table columns
+ * as auto) from the table's width, and says whether the headers are angled. The table is width: 100% with a fixed
+ * layout, so its width never depends on these columns or the header height, and measuring again cannot loop.
+ */
+function useCriteriaColumns(ref: RefObject<HTMLTableElement | null>, count: number, active: boolean) {
+  const [dense, setDense] = useState(false);
+  useLayoutEffect(() => {
+    const table = ref.current;
+    if (!active || !table || count === 0) return;
+    const fit = () => {
+      const share = Math.floor(((table.clientWidth - RESERVED) / count) * 10) / 10;
+      const width = Math.min(MAX_COLUMN, Math.max(MIN_COLUMN, share));
+      table.style.setProperty('--crit-w', `${width}px`);
+      setDense(width < COMFORTABLE_COLUMN);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [ref, count, active]);
+  return dense;
+}
 
 /**
  * Applicants ranked by Fit (D22): the quick filters apply after ranking, so a rank never shifts. The selected
- * applicant (`?selected=`) opens beside the table with the evaluation and the status buttons.
+ * applicant (`?selected=`, rank 1 or the first visible one by default) opens beside the table with the evidence
+ * first and the status pinned below it; ↑/↓ on a row or the prev/next buttons move the selection, never the ranking.
  */
 export default function Applicants() {
   const { jobId } = useParams();
@@ -132,15 +165,58 @@ function Board({
   setData: (d: ApplicantList) => void;
   filtered: boolean;
 }) {
+  const items = data.items;
+  const index = items.findIndex((r) => r.application_id === selected);
+  const current = index >= 0 ? items[index] : null;
+  // The open applicant names the tab (홍길동 – 지원자 상세 – CareerSync); none open keeps 지원자 관리
+  useDocumentTitle(current?.name, 'page.company.applicantDetail.title');
+  const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
+  const tableRef = useRef<HTMLTableElement>(null);
+  const dense = useCriteriaColumns(tableRef, data.criteria.length, items.length > 0);
+  const requests = useRef(0);
+  const [focusRequest, setFocusRequest] = useState<(DetailFocus & { id: number }) | null>(null);
+  const [announce, setAnnounce] = useState('');
+
+  // Rank 1, or the first visible applicant when filtered, opens by default; focus stays where it is
+  const firstId = items[0]?.application_id;
+  useEffect(() => {
+    if (index < 0 && firstId !== undefined) onSelect(firstId);
+  }, [index, firstId, onSelect]);
+
   if (data.total_count === 0) return <Empty title={t('apl.empty.title')} body={t('apl.empty.body')} />;
-  const current = data.items.find((r) => r.application_id === selected) ?? null;
-  const onKey = (e: KeyboardEvent, applicationId: number) => {
+
+  // Moving through the list only changes the selection; the ranking and its order stay as computed
+  const openRow = (applicationId: number) => {
+    onSelect(applicationId);
+    setFocusRequest({ id: applicationId, target: 'heading', n: ++requests.current });
+  };
+  const step = (to: number, target: 'prev' | 'next') => {
+    const r = items[to];
+    if (!r) return;
+    onSelect(r.application_id);
+    setFocusRequest({ id: r.application_id, target, n: ++requests.current });
+    setAnnounce(t('apl.nav.announce', { position: to + 1, name: r.name }));
+    rowRefs.current.get(r.application_id)?.scrollIntoView({ block: 'nearest' });
+  };
+  const onKey = (e: KeyboardEvent, i: number) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      onSelect(applicationId);
+      openRow(items[i].application_id);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const next = items[i + (e.key === 'ArrowDown' ? 1 : -1)];
+      if (!next) return;
+      e.preventDefault();
+      onSelect(next.application_id);
+      rowRefs.current.get(next.application_id)?.focus();
     }
   };
+  const rowLabel = (a: (typeof items)[number], isSelected: boolean) => {
+    const who = a.rank ? t('apl.row.ranked', { rank: a.rank, name: a.name }) : a.name;
+    return isSelected ? t('apl.row.selected', { label: who }) : who;
+  };
   const pending = data.items.some((r) => r.evaluation_status === 'pending');
+  const facts = (a: (typeof items)[number]) =>
+    a.evaluation_status === 'done' ? t('apl.experience', { value: monthsLabel(a.experience_months) }) : t('apl.applied', { date: formatDate(a.applied_at) });
 
   return (
     <div className={s.board}>
@@ -161,7 +237,20 @@ function Board({
         {data.items.length === 0 ? (
           <Empty panel={false} title={t('apl.noMatch')} />
         ) : (
-          <table className={ui.table} style={{ marginTop: 12 }}>
+          <table
+            ref={tableRef}
+            className={cx(ui.table, s.ranking)}
+            style={{ marginTop: 12 }}
+            data-dense={dense || undefined}
+          >
+            <colgroup>
+              <col className={s.colRank} />
+              <col />
+              <col className={s.colFit} />
+              {data.criteria.map((c) => (
+                <col key={c.id} className={s.colCrit} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th>{t('apl.col.rank')}</th>
@@ -173,8 +262,15 @@ function Board({
                     {t('apl.col.fit')}
                   </span>
                 </th>
+                {/* The name may be cut short on screen; the title and the label keep it whole */}
                 {data.criteria.map((c) => (
-                  <th key={c.id} className={s.critHead} title={c.name}>
+                  <th
+                    key={c.id}
+                    data-crit
+                    className={s.critHead}
+                    title={c.name}
+                    aria-label={`${c.name}, ${t('apl.detail.weight', { n: Math.round(c.weight) })}`}
+                  >
                     <span className={s.critHeadName}>{c.name}</span>
                     <span className={s.critHeadWeight}>{Math.round(c.weight)}%</span>
                   </th>
@@ -182,14 +278,22 @@ function Board({
               </tr>
             </thead>
             <tbody className={ui.stagger}>
-              {data.items.map((a) => (
+              {items.map((a, i) => (
                 <tr
                   key={a.application_id}
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(a.application_id, el);
+                    else rowRefs.current.delete(a.application_id);
+                  }}
                   className={s.applicantRow}
                   tabIndex={0}
-                  aria-selected={selected === a.application_id}
+                  // A focused row is read by its name, and Chromium gives a table row none from its cells; aria-selected
+                  // is for grids. So the row is named — rank and applicant, 선택됨 first when selected — and the table
+                  // keeps its native semantics; data-selected only draws the selection
+                  aria-label={rowLabel(a, selected === a.application_id)}
+                  data-selected={selected === a.application_id || undefined}
                   onClick={() => onSelect(a.application_id)}
-                  onKeyDown={(e) => onKey(e, a.application_id)}
+                  onKeyDown={(e) => onKey(e, i)}
                 >
                   <td>{a.rank ? <span className={s.rank} data-top={a.rank === 1 || undefined}>{a.rank}</span> : <span className={ui.muted}>—</span>}</td>
                   <td>
@@ -197,15 +301,11 @@ function Board({
                       {/* Seeded by the application, never by the name or email; kept apart from the talent seed */}
                       <CandidateAvatar seed={`A-${a.application_id}`} />
                       <span className={s.nameCell}>
-                        <strong>{a.name}</strong>
+                        <strong title={a.name}>{a.name}</strong>
                         {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
                         <span className={cx(ui.caption, s.nameFacts)}>
                           <ApplicationStatusTag status={a.status} />
-                          <span>
-                            {a.evaluation_status === 'done'
-                              ? t('apl.experience', { value: monthsLabel(a.experience_months) })
-                              : t('apl.applied', { date: formatDate(a.applied_at) })}
-                          </span>
+                          <span>{facts(a)}</span>
                         </span>
                       </span>
                     </span>
@@ -253,14 +353,24 @@ function Board({
           key={current.application_id}
           row={current}
           criteriaCount={data.criteria.length}
+          position={index + 1}
+          total={items.length}
+          onPrev={index > 0 ? () => step(index - 1, 'prev') : undefined}
+          onNext={index < items.length - 1 ? () => step(index + 1, 'next') : undefined}
+          focusRequest={focusRequest?.id === current.application_id ? focusRequest : null}
+          onEscape={() => rowRefs.current.get(current.application_id)?.focus()}
           onStatusChanged={(status) => setData({ ...data, items: data.items.map((r) => (r.application_id === current.application_id ? { ...r, status } : r)) })}
           onEvaluationChanged={onRefresh}
         />
       ) : (
-        <aside className={cx(ui.panel, s.detail)}>
+        <aside className={cx(ui.panel, s.detailPlaceholder)}>
           <p className={ui.caption}>{t('apl.select')}</p>
         </aside>
       )}
+      {/* Says who opened after the prev/next buttons; a focused row is read out by itself */}
+      <p className={ui.visuallyHidden} role="status">
+        {announce}
+      </p>
     </div>
   );
 }

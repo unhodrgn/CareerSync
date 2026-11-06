@@ -43,6 +43,14 @@
   gap: var(--ds-space-3);
 }
 
+/* A job row in a list: the job icon tile, then the title and company */
+.jobCell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
 /* A job's title as a link (applications, offers) */
 .jobMain {
   min-width: 0;
@@ -174,7 +182,8 @@ a.jobTitle:hover {
   max-width: 46em;
 }
 
-.jd h3 {
+/* The JD's own section heads (주요 업무, 자격 요건 …) are h2 under the job title, at the Heading size */
+.jd h2 {
   margin: var(--ds-space-6) 0 var(--ds-space-2);
   font-size: var(--ds-text-heading);
   font-weight: var(--ds-weight-bold);
@@ -205,6 +214,15 @@ a.jobTitle:hover {
   gap: var(--ds-space-4);
 }
 
+/* 기업 소개 is a sibling of the JD's section heads (h2), so it takes their size; 인재상 and projects stay h3 */
+.companyHead {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+
 .projectList {
   margin: 0;
   padding: 0;
@@ -228,6 +246,11 @@ a.jobTitle:hover {
   color: var(--ds-ink);
 }
 
+/* 기업 정보: its section headings at the standard 18/700 (ui.panelTitle), with the gap 기업 소개 has on job detail */
+.publicSectionTitle {
+  margin-bottom: var(--ds-space-2);
+}
+
 .publicProject {
   padding: var(--ds-space-3) 0;
   display: grid;
@@ -242,6 +265,18 @@ a.jobTitle:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* A panel title with a label at the other end of its row (이 공고의 평가 기준 · AI 분석) */
+.asideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+
+.asideHead .asideTitle {
+  margin: 0;
 }
 
 .asideTitle {
@@ -344,6 +379,96 @@ a.jobTitle:hover {
   margin-left: auto;
 }
 
+/* ── 추천 공고: the seeker's preferences as chips above the result (DESIGN.md Preference chips) ── */
+
+.prefBar {
+  margin-bottom: var(--ds-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.prefLabel {
+  flex: none;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink-2);
+}
+
+.prefChips {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+}
+
+/* What the list was matched against, written as facts (the job card's facts row), not as filter buttons:
+   no fill, no height, nothing to press */
+.prefChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-ink);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  white-space: nowrap;
+}
+
+.prefChip svg {
+  flex: none;
+  color: var(--ds-muted);
+}
+
+/* "+N" and the pencil are real controls: white tool chips */
+.prefTool {
+  flex: none;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
+  color: var(--ds-ink);
+  font: inherit;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.prefTool:hover {
+  background: var(--ds-chip-hover);
+}
+
+.prefTool:active {
+  transform: scale(0.95);
+}
+
+.prefNone {
+  font-size: var(--ds-text-meta);
+  color: var(--ds-muted);
+}
+
+.prefCount {
+  flex: none;
+  margin: 0 0 0 auto;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-muted);
+}
+
 /* ── CV ── */
 
 /* The CV page uses the same content width as every other page */
@@ -397,6 +522,31 @@ a.jobTitle:hover {
   border-radius: calc(var(--ds-radius-card) + 4px);
   background: var(--ds-surface);
   text-align: center;
+  transition:
+    border-color 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+}
+
+/* A file is over the area: it will take the drop */
+.dropzone[data-over] {
+  border-style: solid;
+  border-color: var(--ds-focus);
+  background: var(--ds-accent-wash);
+}
+
+.dropzone[data-over] > * {
+  pointer-events: none;
+}
+
+/* The icon circle is accent-wash too: lift it to white so it stays visible on the washed area */
+.dropzone[data-over] .dropIcon {
+  background: var(--ds-surface);
+}
+
+.dropHint {
+  margin: 0;
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
 }
 
 .dropIcon {
@@ -939,6 +1089,27 @@ a.jobTitle:hover {
   color: var(--ds-ink-2);
 }
 
+/* Turning the opt-in on: the confirm carries the shown/hidden lists, so they are read at the moment of choice */
+.publicConfirm {
+  margin-top: var(--ds-space-4);
+}
+
+.visibilityInConfirm {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.publicResult {
+  min-height: 20px;
+  margin-top: var(--ds-space-3);
+}
+
+.publicResult:empty {
+  min-height: 0;
+  margin-top: 0;
+}
+
 .dl {
   margin: 0;
   display: grid;
@@ -981,4 +1152,9 @@ a.jobTitle:hover {
   .tips[open] > ul {
     animation: open 200ms var(--ease-out) backwards;
   }
+}
+
+/* A link at the end of a caption moves to the next line whole instead of breaking inside */
+.inlineAction {
+  white-space: nowrap;
 }

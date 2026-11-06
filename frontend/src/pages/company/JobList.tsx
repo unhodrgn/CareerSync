@@ -1,6 +1,7 @@
 import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
+import { JobIconTile } from '@/components/common/JobIconTile';
 import { Deadline, JobMeta, JobStatusTag } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
@@ -48,15 +49,18 @@ export default function CompanyJobList() {
           <ul className={cx(ui.recordList, ui.stagger)}>
             {jobs.map((job) => (
               <li key={job.id} className={ui.recordRow} data-closed={job.status === 'closed' || undefined}>
-                <div className={s.jobRowMain}>
-                  {/* The title leads with its status beside it, as in the job header */}
-                  <span className={s.jobRowHead}>
-                    <Link to={rowTarget(job)} className={cx(ui.recordTitle, s.jobRowTitle, ui.stretched)}>
-                      {job.title}
-                    </Link>
-                    <JobStatusTag status={job.status} />
-                  </span>
-                  <JobMeta location={job.location} employmentType={job.employment_type} minExperienceYears={job.min_experience_years} />
+                <div className={s.jobRowLead}>
+                  <JobIconTile title={job.title} size="sm" className={s.jobRowTile} />
+                  <div className={s.jobRowMain}>
+                    {/* The title leads with its status beside it, as in the job header */}
+                    <span className={s.jobRowHead}>
+                      <Link to={rowTarget(job)} className={cx(ui.recordTitle, s.jobRowTitle, ui.stretched)}>
+                        {job.title}
+                      </Link>
+                      <JobStatusTag status={job.status} />
+                    </span>
+                    <JobMeta location={job.location} employmentType={job.employment_type} minExperienceYears={job.min_experience_years} />
+                  </div>
                 </div>
                 <div className={s.jobRowSide}>
                   <span className={ui.caption}>{t('common.criteriaCount', { n: job.criteria_count })}</span>

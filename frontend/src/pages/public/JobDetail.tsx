@@ -17,10 +17,11 @@ import ui from '@/components/common/ui.module.css';
 import CompanyBlock from '@/components/seeker/CompanyBlock';
 import CriteriaPanel from '@/components/seeker/CriteriaPanel';
 import JdText from '@/components/seeker/JdText';
-import { isScore, MatchPanel, ScoreBreakdown, ScoreNote } from '@/components/seeker/Match';
+import { isScore, MatchPanel, preferenceStatus, ScoreBreakdown, ScoreNote } from '@/components/seeker/Match';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { ApplicationOut } from '@/types/application';
 import type { CvOut } from '@/types/cv';
 import type { JobOut } from '@/types/job';
@@ -41,6 +42,8 @@ export default function JobDetail() {
   const matchData = match.state.status === 'ok' ? match.state.data : null;
 
   const back = { to: paths.jobs, label: t('job.backToList') };
+  // 백엔드 개발자 – 공고 상세 – CareerSync once the job is loaded; 공고 상세 – CareerSync until then
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
   if (job.state.status === 'loading') {
     return (
       <div className={ui.page}>
@@ -122,15 +125,30 @@ function CriteriaSection({ jobId, scores }: { jobId: number; scores?: JobMatch['
   return state.status === 'ok' ? <CriteriaPanel view={state.data} scores={scores} /> : null;
 }
 
+/** Why there is no score, as far as the page can tell (D43 needs a confirmed newest CV and AI consent). */
+type CvState = 'none' | 'unconfirmed' | 'confirmed' | 'unknown';
+
 interface MatchContext {
   match: JobMatch;
   /** The seeker applied to this job: no score is shown for it (D43). */
   applied: boolean;
+  /** Read only when there is no score and no application, to say which prerequisite is missing. */
+  cv: CvState | null;
 }
 
 async function loadMatch(jobId: number): Promise<MatchContext> {
   const [match, mine] = await Promise.all([api.jobMatch(jobId), api.myApplications()]);
-  return { match, applied: Array.isArray(mine) && mine.some((a) => a.job_id === jobId) };
+  const applied = Array.isArray(mine) && mine.some((a) => a.job_id === jobId);
+  const cv = match?.status === 'none' && !applied ? await cvState() : null;
+  return { match, applied, cv };
+}
+
+async function cvState(): Promise<CvState> {
+  try {
+    return (await api.myCv()).confirmed ? 'confirmed' : 'unconfirmed';
+  } catch (e) {
+    return errorCode(e) === 'CV_NOT_FOUND' ? 'none' : 'unknown';
+  }
 }
 
 /**
@@ -149,18 +167,52 @@ function MatchSection({ data }: { data: MatchContext }) {
       </h2>
       {done ? (
         <>
-          <MatchPanel score={match.match_score} level={match.match_level} titled={false} compact />
-          <ScoreBreakdown categories={match.categories} preference={match.preference_score} />
+          <MatchPanel score={match.match_score} level={match.match_level} compact />
+          <MatchBreakdown match={match} />
           {match.notice && <AiNotice notice={match.notice} inBox />}
           <ScoreNote />
         </>
       ) : match?.status === 'pending' && !applied ? (
         <AiBusy>{t('match.pending')}</AiBusy>
+      ) : applied ? (
+        <p className={ui.caption}>{t('match.applied')}</p>
       ) : (
-        <p className={ui.caption}>{applied ? t('match.applied') : t('match.none')}</p>
+        <NoScore cv={data.cv} />
       )}
     </section>
   );
+}
+
+/**
+ * The breakdown on job detail. Mounted only when a score is shown, so only then does it ask for the seeker's
+ * preferences (guests and companies never reach it): 미설정 when none is set, the number when some are, a loading
+ * mark meanwhile, 확인 불가 when the request fails (D46).
+ */
+function MatchBreakdown({ match }: { match: JobMatch }) {
+  const { state } = useApi(() => api.myPreferences(), []);
+  return <ScoreBreakdown categories={match.categories} preference={match.preference_score} prefs={preferenceStatus(state)} />;
+}
+
+/**
+ * No score and no application: the missing prerequisite when the page knows it, otherwise what a score needs. For
+ * withdrawn consent and a missing CV the apply panel right below carries the fixing action as its main button, so
+ * this only says why; an unconfirmed CV has no such button there and gets the link.
+ */
+function NoScore({ cv }: { cv: CvState | null }) {
+  const { user } = useAuth();
+  if (user && aiConsentWithdrawn(user)) return <p className={ui.caption}>{t('match.noConsent')}</p>;
+  if (cv === 'none') return <p className={ui.caption}>{t('match.noCv')}</p>;
+  if (cv === 'unconfirmed') {
+    return (
+      <p className={ui.caption}>
+        {t('match.cvUnconfirmed')}{' '}
+        <Link to={paths.seeker.cv} className={cx(ui.linkTone, s.inlineAction)}>
+          {t('reco.noCv.action')}
+        </Link>
+      </p>
+    );
+  }
+  return <p className={ui.caption}>{t(cv === 'confirmed' ? 'match.none' : 'match.noneGeneric')}</p>;
 }
 
 function GuestApply() {

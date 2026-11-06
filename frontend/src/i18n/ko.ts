@@ -19,11 +19,14 @@ export default {
   'page.seeker.offers.title': '받은 제안',
   'page.seeker.preferences.title': '희망 조건',
   'page.seeker.jobPrep.title': '취업 준비',
+  'page.seeker.account.title': '내 정보',
 
   'page.company.companyProfile.title': '기업 프로필',
   'page.company.jobList.title': '공고 관리',
   'page.company.jobEditor.title': '공고 작성',
   'page.company.applicants.title': '지원자 관리',
+  // Next to the open applicant's name in the document title (홍길동 – 지원자 상세 – CareerSync)
+  'page.company.applicantDetail.title': '지원자 상세',
   'page.company.talent.title': '인재 추천',
   'page.company.sentOffers.title': '보낸 제안',
 
@@ -65,20 +68,45 @@ export default {
   // Match scores with their band (D16, D42) and criterion importance (D30, a label, never a weight)
   'ai.label.analysis': 'AI 분석',
   'ai.label.generated': 'AI 생성',
-  'ai.section': 'AI 기능이 있는 메뉴',
+  // Read after a rail item's label (채용, AI 기능이 있는 메뉴); the comma keeps the two apart for screen readers
+  'ai.section': ', AI 기능이 있는 메뉴',
   'ai.working.roadmap': '부족한 기술과 학습 로드맵을 정리하고 있습니다',
   'ai.working.questions': '면접 예상 질문을 만들고 있습니다',
   'ai.working.review': '이력서를 점검하고 있습니다',
   'ai.working.draft': '공고 초안을 쓰고 있습니다',
   'ai.working.suggest': '공고 내용에서 평가 기준을 찾고 있습니다',
-  'match.title': 'AI 적합도',
   'match.heading': '적합도',
+  // The small category rings keep "%" for screen readers only; the match score reads as 점 (87점), never a percentage
   'match.unit': '%',
+  'match.points': '점',
+  'match.srScore': '적합도 {n}점',
   'match.breakdown': '적합도 구성',
   'match.preference': '희망 조건',
+  'match.criteria': '평가 기준',
+  // The preference score when it is not a number (D46): no preference set, or the preferences could not be read
+  'match.prefUnset': '미설정',
+  'match.prefUnknown': '확인 불가',
+  // Under the breakdown when no preference is set (D15 counts the preference score as 100, D46)
+  'match.prefUnsetNote': '희망 조건을 정하지 않아 희망 조건 점수를 100으로 계산해 적합도에 반영했습니다. 희망 조건을 정하면 적합도가 낮아질 수 있습니다.',
   'match.disclaimer': '점수는 합격 가능성을 뜻하지 않습니다. 기업이 정한 가중치는 공개되지 않습니다.',
+  // 점수 보는 법 (ScoreGuide). The band numbers come from BAND_THRESHOLDS (types/recommendation.ts), which mirrors
+  // docs/DECISIONS.md D16 and RECO_BAND_HIGH / RECO_BAND_MID; the preference fields are those of D15
+  'match.guide.title': '점수 보는 법',
+  'match.guide.match': '적합도는 기업이 이 공고에 정한 평가 기준으로 본 이력서 점수와 희망 조건 점수를 합친 0~100 점수입니다.',
+  'match.guide.bands': '매우 적합 {high}~100 · 적합 {mid}~{highBelow} · 참고 {low}~{midBelow}이고, {low} 미만은 구간 없이 숫자만 표시합니다.',
+  'match.guide.categories':
+    '분류별 점수(기술·경력 등)는 그 분류에 속한 평가 기준 점수를 가중치 없이 단순 평균한 값입니다. 적합도는 기업이 정한 가중치를 반영해 계산하므로 분류별 점수로 적합도를 다시 계산할 수는 없습니다.',
+  'match.guide.preference':
+    '희망 조건 점수는 정해 둔 항목(근무지·고용 형태·직무 키워드) 가운데 이 공고와 맞는 항목의 비율입니다. 하나도 정하지 않았다면 100으로 계산되며, 화면에는 ‘미설정’으로 표시합니다.',
+  'match.guide.private': '평가 기준은 기업이 정합니다. 기준별 가중치와 평가 근거는 공개되지 않습니다.',
   'match.pending': '이 공고의 적합도를 분석하고 있습니다. 잠시 뒤 다시 열어 보세요.',
-  'match.none': '추천 공고에서 분석이 끝난 공고는 여기에 적합도가 표시됩니다.',
+  // No score on job detail (D43): the reason when the page knows it, otherwise what a score needs
+  'match.none': '아직 이 공고의 적합도가 없습니다. 적합도는 희망 조건에 맞아 추천 공고에서 분석이 끝난 공고에만 표시됩니다.',
+  'match.noneGeneric':
+    '아직 이 공고의 적합도가 없습니다. 적합도는 확인한 이력서와 AI 분석 동의가 있고, 추천 공고에서 분석이 끝난 공고에만 표시됩니다.',
+  'match.noCv': '확인한 이력서가 없어 적합도를 표시할 수 없습니다. 이력서를 올리고 내용을 확인해 저장하면 분석할 수 있습니다.',
+  'match.cvUnconfirmed': '최신 이력서를 아직 확인하지 않아 적합도를 표시할 수 없습니다. 내 이력서에서 내용을 확인해 저장해 주세요.',
+  'match.noConsent': 'AI 분석 동의를 철회해 적합도를 표시하지 않습니다. 다시 동의하면 분석할 수 있습니다.',
   'match.applied': '지원한 공고에는 적합도를 표시하지 않습니다.',
   'band.very': '매우 적합',
   'band.good': '적합',
@@ -109,6 +137,7 @@ export default {
   'masked.address': '주소',
 
   'shell.nav': '주 메뉴',
+  'shell.skip': '본문으로 건너뛰기',
   'shell.home': 'CareerSync 홈',
   'shell.login': '로그인',
   'shell.register': '회원가입',
@@ -165,8 +194,6 @@ export default {
 
   // Job list and detail (public, D4)
   'jobs.title': '공고 목록',
-  'jobs.open': '상세 보기',
-  'jobs.openAria': '{title} 상세 보기',
   'jobs.guestLead': '로그인 없이 둘러볼 수 있습니다. 가입하면 맞는 공고를 추천받을 수 있습니다.',
   'jobs.search': '공고 제목 검색',
   'jobs.searchPlaceholder': '공고 제목으로 검색 · 예: 데이터 엔지니어',
@@ -188,7 +215,7 @@ export default {
   'job.talentProfile': '인재상',
   'job.projects': '진행 중인 프로젝트',
   'job.criteria': '이 공고의 평가 기준',
-  'job.criteriaLead': '가중치는 공개되지 않습니다. 점수는 분석이 끝난 공고에만 표시됩니다.',
+  'job.criteriaLead': '중요도(핵심·중요·일반)는 기업이 정한 가중치에 따라 나뉘며, 가중치 숫자는 공개되지 않습니다. 점수는 분석이 끝난 공고에만 표시됩니다.',
   'job.criteriaGuestLead': '구직자로 로그인하면 분류와 중요도도 볼 수 있습니다.',
   'job.criteriaNone': '아직 평가 기준이 없습니다.',
   'job.applyTitle': '지원',
@@ -218,6 +245,8 @@ export default {
   'reco.pending': '분석 중인 공고 {n}개는 분석이 끝나면 여기에 나타납니다.',
   'reco.groupCount': '{n}개',
   'reco.prep': '준비하기',
+  // The 준비하기 link's accessible name, so each card's link is told apart; the visible label stays 준비하기
+  'reco.prepFor': '{title} 준비하기',
   'reco.noCv.title': '이력서를 확인하면 추천을 받을 수 있습니다',
   'reco.noCv.body': 'AI가 읽은 내용을 확인하고 저장한 이력서가 있어야 공고를 추천할 수 있습니다.',
   'reco.noCv.action': '내 이력서로 가기',
@@ -226,8 +255,15 @@ export default {
   'reco.empty.action': '희망 조건 바꾸기',
   'reco.pendingOnly.title': '추천할 공고를 분석하고 있습니다',
   'reco.pendingOnly.body': '분석이 끝난 공고부터 여기에 나타납니다. 잠시 뒤 새로고침해 보세요.',
+  'reco.prefs.label': '희망 조건',
+  'reco.prefs.none':
+    '정하지 않아 근무지·고용 형태·직무로 거르지 않고, 희망 조건 점수를 100으로 계산해 적합도에 반영했습니다. 희망 조건을 정하면 적합도가 낮아질 수 있습니다.',
+  'reco.prefs.more': '희망 조건 {n}개 더 보기',
+  'reco.prefs.moreShort': '+{n}',
+  'reco.prefs.edit': '희망 조건 바꾸기',
+  'reco.prefs.set': '희망 조건 정하기',
   'reco.talentHint': '인재 추천 공개가 꺼져 있어 기업이 먼저 제안을 보낼 수 없습니다.',
-  'reco.talentHintAction': '희망 조건에서 켜기',
+  'reco.talentHintAction': '희망 조건에서 공개 켜기',
 
   // Seeker: CV
   'cv.title': '내 이력서',
@@ -235,6 +271,9 @@ export default {
   'cv.upload.title': '이력서 PDF 올리기',
   'cv.upload.body': '글자를 선택할 수 있는 텍스트 PDF를 올려 주세요. 스캔한 이미지 PDF는 읽을 수 없습니다.',
   'cv.upload.pick': 'PDF 선택',
+  'cv.upload.drop': '놓으면 바로 올립니다',
+  'cv.upload.dropHint': '또는 PDF 파일을 여기로 끌어다 놓으세요.',
+  'cv.upload.oneFile': 'PDF 파일 하나만 놓아 주세요.',
   'cv.upload.limits': '텍스트 PDF · 5쪽 이하 · 5MB 이하',
   'cv.upload.mask': '이름, 이메일, 전화번호 같은 개인정보는 가린 뒤 분석합니다.',
   'cv.upload.consent': 'AI 분석 동의가 있어야 올릴 수 있습니다.',
@@ -250,8 +289,9 @@ export default {
   'cv.confirm': '확인하고 저장',
   'cv.saveEdit': '수정한 내용 저장',
   'cv.saving': '저장하는 중…',
-  'cv.newVersionHint': '저장하면 버전 {v}로 남습니다.',
-  'cv.confirmedDone': '버전 {v}로 확인했습니다. 지원과 추천에 이 버전이 쓰입니다.',
+  // Particles attach to fixed nouns, never to {v} (버전 3으로, 버전 7로 …): see backend/tests/test_ko_particles.py
+  'cv.newVersionHint': '저장하면 새 버전(버전 {v})으로 남습니다.',
+  'cv.confirmedDone': '확인했습니다. 지원과 추천에 이 버전(버전 {v})이 쓰입니다.',
   'cv.reviewBanner': 'AI가 읽은 내용입니다. 틀린 곳을 고친 뒤 확인하고 저장해 주세요.',
   'cv.reupload': '새 PDF 올리기',
   'cv.summary': '요약',
@@ -345,7 +385,8 @@ export default {
   'offers.acceptBody': '{company}에 이름({name})과 이메일({email})이 공개됩니다. 이력서 원문과 다른 정보는 공개되지 않습니다.',
   'offers.acceptConfirm': '수락하고 연락처 공개',
   'offers.declineTitle': '이 제안을 거절할까요?',
-  'offers.declineBody': '거절하면 {company}는 이 공고로 다시 제안할 수 없습니다. 다른 공고로는 제안할 수 있습니다.',
+  // 에서 reads the same after any company name (클라우드랩, 넥스트코드, Acme …)
+  'offers.declineBody': '거절하면 {company}에서 이 공고로 다시 제안할 수 없습니다. 다른 공고로는 제안할 수 있습니다.',
   'offers.declineConfirm': '거절하기',
   'offers.responding': '보내는 중…',
   'offers.revealed': '공개된 정보: 이름, 이메일',
@@ -373,7 +414,11 @@ export default {
     '켜면 기업이 익명 프로필을 보고 제안을 보낼 수 있습니다. 제안을 수락하기 전까지 기업은 당신이 누구인지 알 수 없습니다.',
   'pref.public.since': '{date}부터 공개 중',
   'pref.public.off': '공개하지 않음',
-  'pref.public.unsaved': '희망 조건 저장을 눌러야 공개 설정이 바뀝니다.',
+  'pref.public.confirmTitle': '인재 추천에 익명으로 공개할까요?',
+  'pref.public.confirmDo': '공개하기',
+  'pref.public.saving': '바꾸는 중…',
+  'pref.public.turnedOn': '공개로 바꿨습니다.',
+  'pref.public.turnedOff': '공개를 껐습니다.',
   'pref.public.withdrawn': 'AI 분석 동의를 철회한 상태에서는 공개를 켜도 다시 동의할 때까지 인재 추천에 나타나지 않습니다.',
   'pref.public.shown': '기업에게 보이는 것',
   'pref.public.shownBody': '익명 ID, 기술, 이력서 원문에서 확인한 경력 연수, 직무명, 프로젝트에 쓴 기술, 학위와 전공, 자격증, 희망 조건',
@@ -520,8 +565,32 @@ export default {
   'editor.unsaved': '저장하지 않은 변경이 있습니다.',
   'editor.publish': '게시하기',
   'editor.publishing': '게시하는 중…',
-  'editor.publishHint': '공고 내용과 평가 기준을 저장해야 게시할 수 있습니다.',
-  'editor.published': '게시했습니다. 이제 지원을 받고 구직자에게 추천됩니다.',
+  // Backend publish rules: a non-empty JD, 1–{max} criteria summing to {total} (and the guardrail); 게시하기 saves first
+  'editor.publishHint': '게시하려면 공고 내용과 평가 기준(1~{max}개, 가중치 합계 {total})이 필요합니다. 게시하기를 누르면 저장하지 않은 변경도 함께 저장합니다.',
+  'editor.published': '게시했습니다. 이제 공고 목록에 보이고 지원을 받습니다.',
+  // The confirm before 게시하기. Locked and editable fields follow backend EDITABLE_AFTER_PUBLISH and the criteria lock
+  'editor.publishTitle': '이 공고를 게시할까요?',
+  'editor.publishBody': '게시하면 공고 목록에 보이고 지원을 받습니다. 지원자 점수는 지금 내용으로 계산됩니다.',
+  'editor.publishLocked': '게시 후 바꿀 수 없음',
+  'editor.publishEditable': '게시 후에도 바꿀 수 있음',
+  'editor.publishLockedCriteria': '평가 기준 추가·삭제와 기준 이름·분류·설명',
+  'editor.publishEditableWeights': '기준별 가중치',
+  'editor.publishFinal': '게시 후에는 게시를 취소하거나 공고를 삭제할 수 없고, 마감만 할 수 있습니다. 마감한 공고는 다시 게시할 수 없습니다.',
+  'editor.publishUnsaved': '저장하지 않은 변경도 함께 저장합니다.',
+  // Changed weights on a published job: Fit is recomputed from the stored criterion scores and the new weights when
+  // read, so analyzed applicants re-rank at once and seekers' match scores change; the criterion scores stay
+  'editor.reweigh.known':
+    '분석이 끝난 지원자 {n}명이 있습니다. 저장하면 새 가중치로 Fit이 바로 다시 계산되어 지원자 순위가 바뀔 수 있고, 구직자에게 보이는 적합도도 달라질 수 있습니다. 기준별 점수는 그대로입니다.',
+  'editor.reweigh.unknown':
+    '지원자 현황을 불러오지 못했습니다. 분석이 끝난 지원자가 있다면 저장할 때 새 가중치로 Fit이 바로 다시 계산되어 순위가 바뀔 수 있고, 구직자에게 보이는 적합도도 달라질 수 있습니다. 기준별 점수는 그대로입니다.',
+  'editor.reweigh.maybe':
+    '분석이 끝난 지원자가 있다면 저장할 때 새 가중치로 Fit이 바로 다시 계산되어 순위가 바뀔 수 있고, 구직자에게 보이는 적합도도 달라질 수 있습니다. 기준별 점수는 그대로입니다.',
+  'editor.reweighTitle': '바꾼 가중치를 저장할까요?',
+  'editor.reweighBody.known':
+    '지원자 {n}명의 Fit이 새 가중치로 다시 계산되어 순위가 바뀔 수 있고, 구직자에게 보이는 적합도도 달라질 수 있습니다. 기준별 점수는 바뀌지 않습니다.',
+  'editor.reweighBody.unknown':
+    '분석이 끝난 지원자가 있다면 Fit이 새 가중치로 다시 계산되어 순위가 바뀔 수 있고, 구직자에게 보이는 적합도도 달라질 수 있습니다. 기준별 점수는 바뀌지 않습니다.',
+  'editor.reweighConfirm': '변경 저장',
   'editor.toApplicants': '지원자 순위로',
   'editor.lockedHint': '게시한 공고는 마감일, 근무지, 급여 안내와 기준의 가중치만 바꿀 수 있습니다.',
   'editor.closed': '마감한 공고입니다. 내용을 바꿀 수 없습니다.',
@@ -563,7 +632,25 @@ export default {
   'apl.detail.met': '기준 {total}개 중 {n}개 충족',
   'apl.detail.status': '지원 상태',
   'apl.detail.statusNote': '상태는 채용 담당자만 바꿉니다. AI는 상태를 바꾸지 않습니다.',
-  'apl.detail.statusChanged': '‘{status}’로 바꿨습니다.',
+  // 상태로 after the status label: 로 stays right for every status (검토 전, 합격, 보류 …)
+  'apl.detail.statusChanged': '‘{status}’ 상태로 바꿨습니다.',
+  'apl.detail.progress': '진행',
+  'apl.detail.outcome': '결정',
+  'apl.detail.confirm.passed': '합격으로 바꿀까요?',
+  'apl.detail.confirm.rejected': '불합격으로 바꿀까요?',
+  'apl.detail.confirmBody': '구직자의 지원 현황에 바로 보입니다. 바꾼 뒤에도 되돌리기로 이전 상태로 돌릴 수 있습니다.',
+  'apl.detail.confirmDo.passed': '합격으로 바꾸기',
+  'apl.detail.confirmDo.rejected': '불합격으로 바꾸기',
+  'apl.detail.undo': '되돌리기',
+  'apl.detail.undone': '‘{status}’ 상태로 되돌렸습니다.',
+  'apl.nav.label': '지원자 이동',
+  'apl.nav.position': '{n} / {total}',
+  'apl.nav.prev': '이전 지원자',
+  'apl.nav.next': '다음 지원자',
+  'apl.nav.announce': '{position}번째 지원자 {name}',
+  // A ranking row's accessible name (read when the row has focus); 선택됨 leads on the selected row
+  'apl.row.ranked': '{rank}위 {name}',
+  'apl.row.selected': '선택됨, {label}',
   'apl.detail.criteria': '기준별 평가',
   'apl.detail.weight': '가중치 {n}%',
   'apl.detail.score': '{n}점',

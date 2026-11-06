@@ -484,3 +484,35 @@
     transition: none !important;
   }
 }
+
+/* ── Skip link (본문으로 건너뛰기): off screen until focused, then a high-contrast pill at the top left ── */
+
+.skipLink {
+  position: absolute;
+  top: var(--ds-space-3);
+  left: var(--ds-space-3);
+  z-index: 100;
+  padding: 10px 18px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-surface);
+  font-size: 14px;
+  font-weight: var(--ds-weight-bold);
+  text-decoration: none;
+  transform: translateY(calc(-100% - 2 * var(--ds-space-3)));
+}
+
+.skipLink:focus {
+  transform: none;
+}
+
+.skipLink:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 3px;
+}
+
+/* <main> takes focus from the skip link and after navigation without an H1; it is a region, not a control */
+.main:focus,
+.guestMain:focus {
+  outline: none;
+}

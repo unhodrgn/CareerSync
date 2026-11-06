@@ -30,6 +30,20 @@
 }
 
 /* 공고 관리 rows */
+/* The job icon tile, then the title, status and meta */
+.jobRowLead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* A closed job's tile recedes with its title */
+[data-closed] .jobRowTile {
+  background: var(--ds-sunken);
+  color: var(--ds-muted);
+}
+
 .jobRowMain {
   min-width: 0;
   display: grid;
@@ -330,32 +344,88 @@
   gap: 12px;
 }
 
-.board th.critHead,
-.board td.scoreCell {
-  padding-left: 4px;
-  padding-right: 4px;
-  text-align: center;
+/* Fixed columns: rank, the applicant (takes what is left, never under 168 px) and Fit keep their room; the criteria
+   share the rest equally, 40–96 px each (--crit-w, set by Applicants from the table width), so the table never grows
+   past its panel or under the detail panel. Keep these widths in step with RESERVED in Applicants.tsx. */
+.ranking {
+  table-layout: fixed;
 }
 
-/* Criterion names take up to two lines, so the columns stay as narrow as their scores (the full name is in the title) */
-.critHead {
-  max-width: 80px;
+/* Every header sits on the bottom line, so 순위 / 지원자 / Fit stay below the angled names above them */
+.ranking th {
+  vertical-align: bottom;
+}
+
+.colRank {
+  width: 40px;
+}
+
+.colFit {
+  width: 72px;
+}
+
+.colCrit {
+  width: var(--crit-w, 64px);
+}
+
+.board th.critHead,
+.board td.scoreCell {
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
 }
 
 .board th.critHead {
   white-space: normal;
+  vertical-align: bottom;
 }
 
+/* Comfortable (columns of 80 px or more): the name on up to two lines, broken only between words; the weight below */
 .critHeadName {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-height: 1.35;
   color: var(--ds-ink-2);
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .critHeadWeight {
+  display: block;
+  margin-top: 2px;
   font-weight: var(--ds-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dense (narrower columns): each name on one line at 45°, running down into its column from the upper left, so the
+   labels use the empty space above 지원자 and Fit and never reach past the last column into the detail panel.
+   Neighbours sit a column width × sin 45° apart (28 px or more), wider than a line, so they never touch. */
+.ranking[data-dense] th.critHead {
+  position: relative;
+  height: 136px;
+}
+
+.ranking[data-dense] .critHeadName {
+  position: absolute;
+  right: calc(50% - 4px);
+  bottom: 26px;
+  display: block;
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: rotate(45deg);
+  transform-origin: 100% 100%;
+}
+
+.ranking[data-dense] .critHeadWeight {
+  margin-top: 0;
+}
+
+.ranking[data-dense] .scoreCell .score {
+  gap: 4px;
 }
 
 .score {
@@ -380,11 +450,11 @@
   background: var(--ds-sunken);
 }
 
-.applicantRow[aria-selected='true'] td {
+.applicantRow[data-selected] td {
   background: var(--ds-accent-wash);
 }
 
-.applicantRow[aria-selected='true'] td:first-child {
+.applicantRow[data-selected] td:first-child {
   box-shadow: inset 3px 0 0 var(--ds-accent);
 }
 
@@ -426,25 +496,36 @@
 }
 
 .nameCell {
+  min-width: 0;
   display: grid;
   gap: 2px;
 }
 
 .nameCell strong {
+  overflow: hidden;
   font-size: 15px;
   font-weight: var(--ds-weight-bold);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Status and experience side by side when there is room, on two lines when not; neither is ever cut short */
 .nameFacts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 10px;
+  gap: 0 10px;
+  line-height: 1.4;
 }
 
 .nameFacts > * {
   white-space: nowrap;
+}
+
+/* Rows a little tighter than the default table, so more applicants are in view */
+.board .applicantRow td {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .board th.fitHead,
@@ -460,17 +541,191 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The applicant panel: a prev/next strip, the evidence, then the status. It keeps its natural height and moves
+   with the page (the page is the only scroll container): sticky at the top while it fits the window, and when it is
+   taller ApplicantDetail moves that sticky top so it stays in view both ways. The strip sticks to the top of the
+   window and the status to the bottom while the panel runs past them. No overflow here: it would turn the panel
+   into a scroll container and stop both from sticking to the window. */
 .detail {
   position: sticky;
   top: calc(var(--shell-top, 0px) + 24px);
-  max-height: calc(100vh - var(--shell-top, 0px) - 40px);
-  overflow-y: auto;
+  min-width: 0;
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.detailPlaceholder {
+  position: sticky;
+  top: calc(var(--shell-top, 0px) + 24px);
+}
+
+.detailNav {
+  position: sticky;
+  top: var(--shell-top, 0px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px 6px 20px;
+  border-radius: calc(var(--ds-radius-card) + 4px) calc(var(--ds-radius-card) + 4px) 0 0;
+  background: var(--ds-surface);
+  box-shadow: 0 1px 0 var(--ds-line);
+}
+
+.navPosition {
+  flex: none;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Once the heading has scrolled away, the strip names the applicant, so the panel is never anonymous */
+.navName {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.navName[data-shown] {
+  opacity: 1;
+}
+
+.detailBody {
+  padding: 14px 20px 20px;
+}
+
+.personText {
+  min-width: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Applied date and experience under the person and Fit, at the full width of the panel */
+.detailMeta {
+  margin-top: 10px;
+}
+
+.detailName:focus {
+  outline: none;
+}
+
+.detailName:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Sticks to the bottom of the window while the panel continues below it; floats over the evidence */
+.statusFoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  padding: 14px 20px 16px;
+  border-top: 1px solid var(--ds-line);
+  border-radius: 0 0 calc(var(--ds-radius-card) + 4px) calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: 0 -8px 24px rgb(16 24 40 / 0.06);
+}
+
+.statusHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusTitle {
+  margin: 0;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+.statusGroups {
+  display: grid;
+  gap: 6px;
+}
+
+/* A row label, then three options: 진행 (where the application is) and 결정 (the outcome) */
+.statusRow {
+  display: grid;
+  grid-template-columns: 34px repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+}
+
+.statusRowLabel {
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-muted);
+}
+
+.statusConfirm {
+  gap: var(--ds-space-2);
+}
+
+.statusConfirmBody {
+  color: var(--ds-ink-2);
+}
+
+.statusResult {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--ds-text-meta);
+  color: var(--ds-ink-2);
+}
+
+.statusResult[hidden] {
+  display: none;
+}
+
+.statusResult:focus {
+  outline: none;
+}
+
+.statusResult:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.undo {
+  margin-left: auto;
+  padding: 0 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .detailHead {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
+}
+
+.detailHead .person {
+  flex: 1 1 auto;
 }
 
 .detailName {
@@ -500,14 +755,10 @@
   border-top: 1px solid var(--ds-line);
 }
 
-.statusGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
 .statusOption {
-  height: 38px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 4px;
   border: 1px solid var(--ds-line-strong);
   border-radius: var(--ds-radius-md);
   background: var(--ds-surface);
@@ -708,6 +959,97 @@
 .confirmBar:focus-visible {
   outline: 2px solid var(--focus-color);
   outline-offset: 4px;
+}
+
+/* The action bar while it asks to confirm 게시하기 or changed weights: a card instead of the pill, room for lines */
+.actionBarConfirm {
+  padding: var(--ds-space-5) var(--ds-space-6);
+  align-items: stretch;
+  border-radius: var(--ds-radius-card);
+}
+
+.confirmBlock {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.confirmBlock:focus {
+  outline: none;
+}
+
+.confirmBlock:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 6px;
+  border-radius: 6px;
+}
+
+.confirmTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+.confirmText {
+  max-width: 72ch;
+  margin: 0;
+  font-size: var(--ds-text-meta);
+  line-height: 1.6;
+  color: var(--ds-ink-2);
+}
+
+.confirmText strong {
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+/* Locked / editable after publish: a label column and the form's own field names */
+.confirmFields {
+  margin: var(--ds-space-1) 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px var(--ds-space-4);
+  font-size: var(--ds-text-meta);
+  line-height: 1.6;
+}
+
+.confirmFields dt {
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+.confirmFields dd {
+  margin: 0;
+  color: var(--ds-ink-2);
+}
+
+.inlineList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.inlineList li + li::before {
+  content: '·';
+  padding: 0 8px;
+  color: var(--ds-muted);
+}
+
+.confirmActions {
+  margin-top: var(--ds-space-2);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+}
+
+/* Changed weights on a published job (re-ranking warning), under the criteria lead */
+.reweighNote:not(:empty) {
+  margin-top: var(--ds-space-3);
+  max-width: 72ch;
 }
 
 .noticeWrap {
