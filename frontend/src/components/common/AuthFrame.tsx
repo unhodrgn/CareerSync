@@ -5,7 +5,7 @@ import { t, type MessageKey } from '@/i18n';
 import { paths } from '@/routes/paths';
 import styles from './AuthFrame.module.css';
 
-/** Field colour: the seeker navy, the employer green, or the hub ink for pages that serve both sides. */
+/** Which side the field speaks to: seekers, companies, or both (the hub: login and consent). One palette for all. */
 export type FrameTone = 'seeker' | 'company' | 'hub';
 
 const FIELD: Record<FrameTone, { title: MessageKey; points: MessageKey[] }> = {
@@ -21,13 +21,13 @@ const FIELD: Record<FrameTone, { title: MessageKey; points: MessageKey[] }> = {
 };
 
 /**
- * Shell of the login, register and consent pages, in the landing's world: the audience field on the left
- * (its colour follows `tone`), the form card on the off-white ground on the right.
+ * Shell of the login, register and consent pages (DESIGN.md Auth frame): the dark gradient field on the left with
+ * what the chosen side gets (`tone`), the form card on the gray content panel on the right.
  */
 export default function AuthFrame({ tone, headerEnd, children }: { tone: FrameTone; headerEnd?: ReactNode; children: ReactNode }) {
   const field = FIELD[tone];
   return (
-    <div className={styles.page} data-tone={tone}>
+    <div className={styles.page} data-tone={tone} data-theme="app">
       <header className={styles.header}>
         <Link to={paths.home} className={styles.brand} aria-label={t('auth.home')}>
           <LogoMark />

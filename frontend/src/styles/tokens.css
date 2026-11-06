@@ -71,4 +71,92 @@
 
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
   --focus-color: var(--color-seeker);
+
+  /* ── App design system (every page except the landing; DESIGN.md). One mint palette for both roles. ──
+     The landing keeps the tokens above; nothing above changes value. */
+
+  /* Surfaces */
+  --ds-bg: #ffffff; /* page, rail, header */
+  --ds-panel: #f4f5f7; /* the large rounded content panel behind the cards */
+  --ds-surface: #ffffff; /* cards */
+  --ds-sunken: #f7f8fa; /* fills inside cards */
+  --ds-chip: #eceef1; /* filter chips, neutral tags */
+  --ds-chip-hover: #e2e5e9;
+  --ds-tag: #eef3f1; /* small meta tags on cards */
+
+  /* Text and lines */
+  --ds-ink: #111111;
+  --ds-ink-2: #3a3a3c;
+  --ds-muted: #646b78; /* meta and captions; passes 4.5:1 on white (5.4:1) and on the panel (4.9:1) */
+  --ds-line: #ececee;
+  --ds-line-strong: #dcdfe3; /* input borders, outlined buttons at rest */
+
+  /* Accent: the one primary action, rings and selected states. Text on the accent is ink, never white. */
+  --ds-accent: #00eb9c; /* measured from the reference's APPLY NOW buttons */
+  --ds-accent-hover: #00d48c;
+  --ds-on-accent: #0b0b0b;
+  --ds-accent-soft: #b2fae2; /* the reference's highlighted chat bubble */
+  --ds-accent-wash: #eef8f3; /* the current rail item */
+  --ds-ring: #2dd4a7; /* progress rings */
+  --ds-accent-text: #067a55; /* accent-colored text and links on white (4.9:1) */
+  --ds-focus: #0b8f6c; /* focus outlines (3:1 or more on white and the panel) */
+  --ds-halo: 0 0 0 4px rgb(0 235 156 / 0.3); /* the focus halo around inputs, checkboxes and radios */
+
+  /* Disabled controls: a gray fill with muted text, never a faded accent */
+  --ds-disabled: #e7e9ec;
+  --ds-on-disabled: #8b9099;
+
+  /* The dark match panel */
+  --ds-match-from: #07120f;
+  --ds-match-to: #0f5e4a;
+  --ds-on-match: #ffffff;
+  --ds-on-match-muted: rgb(255 255 255 / 0.78);
+
+  /* Type: Pretendard (above) at 400 / 500 / 700 */
+  --ds-weight-regular: 400;
+  --ds-weight-medium: 500;
+  --ds-weight-bold: 700;
+  --ds-text-section: 24px; /* the section name in the shell header */
+  --ds-text-title: 22px; /* page H1 */
+  --ds-text-card-title: 18px;
+  --ds-text-heading: 18px;
+  --ds-text-body: 15px;
+  --ds-text-meta: 14px;
+  --ds-text-caption: 13px;
+  --ds-text-tiny: 12px;
+
+  /* Radii */
+  --ds-radius-sm: 8px; /* small tags */
+  --ds-radius-chip: 10px; /* chips, small controls */
+  --ds-radius-md: 12px; /* inputs, list rows */
+  --ds-radius-card: 16px; /* cards, rail items */
+  --ds-radius-match: 20px; /* the match panel */
+  --ds-radius-panel: 24px; /* the content panel */
+  --ds-radius-pill: 999px; /* buttons, segmented tabs, counts */
+
+  /* Shadows: cards are nearly flat; floating things (dropdowns, sticky bars) get the soft lift */
+  --ds-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04);
+  --ds-shadow-pop: 0 8px 24px rgb(16 24 40 / 0.08);
+
+  /* Spacing scale (dense: steps 4 and up are one step tighter than the first pass, 16/20/24/32/40 → 14/16/20/24/32) */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 14px;
+  --ds-space-5: 16px;
+  --ds-space-6: 20px;
+  --ds-space-7: 24px;
+  --ds-space-8: 32px;
+
+  /* Shell geometry */
+  --ds-rail-width: 88px;
+  --ds-header-height: 72px;
+
+  /* ── AI: blue marks AI only (never decorative); mint stays the brand and action colour ── */
+  --ds-ai: #2563eb; /* AI icon, AI pill fill with white text (5.2:1), borders */
+  --ds-ai-text: #1d4ed8; /* AI labels and text: 6.7:1 on white, 6.1:1 on ai-soft */
+  --ds-ai-soft: #eef4ff; /* AI container background */
+  --ds-ai-line: #c7d7fe; /* AI container border */
+  --ds-ai-on-dark: #bfdbfe; /* AI label on the dark match panel */
+  --ds-ai-gradient: linear-gradient(135deg, #3b82f6, #2563eb); /* starts at the logo's blue; the AI chip on dark ground only */
 }

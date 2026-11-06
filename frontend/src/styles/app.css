@@ -1,0 +1,113 @@
+/* App-wide element styles of the design system (DESIGN.md), scoped to [data-theme='app'] (the app shells, the auth
+   frame and standalone pages), so the landing never matches them. Wrapped in :where() for zero specificity: any
+   component class still wins. */
+
+/* Outlines only for keyboard focus: a click never leaves a ring behind */
+:where([data-theme='app']) :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Prose paragraphs avoid a single word alone on the last line ("모릅니다."); line breaks only, no widths or heights.
+   Only <p>: buttons, labels, chips, table cells and inputs are never paragraphs. Ignored where unsupported. */
+:where([data-theme='app']) :where(p) {
+  text-wrap: pretty;
+}
+
+/* ── Checkboxes and radios: rounded, mint when checked, the mint halo on keyboard focus ── */
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']) {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  border: 1.5px solid var(--ds-line-strong);
+  border-radius: 6px;
+  background: var(--ds-surface);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+:where([data-theme='app']) :where(input[type='radio']) {
+  border-radius: 50%;
+}
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']):hover {
+  border-color: var(--ds-muted);
+}
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']):checked {
+  border-color: var(--ds-accent);
+  background: var(--ds-accent);
+}
+
+/* The tick: two ink strokes, drawn only when checked */
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']))::after {
+  content: '';
+  width: 10px;
+  height: 5px;
+  margin-top: -2px;
+  border-bottom: 2px solid var(--ds-on-accent);
+  border-left: 2px solid var(--ds-on-accent);
+  transform: rotate(-45deg) scale(0.6);
+  opacity: 0;
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch'])):checked::after {
+  transform: rotate(-45deg) scale(1);
+  opacity: 1;
+}
+
+/* The radio dot */
+:where([data-theme='app']) :where(input[type='radio'])::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ds-on-accent);
+  transform: scale(0.4);
+  opacity: 0;
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+:where([data-theme='app']) :where(input[type='radio']):checked::after {
+  transform: scale(1);
+  opacity: 1;
+}
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']):focus-visible {
+  outline: none;
+  border-color: var(--ds-focus);
+  box-shadow: var(--ds-halo);
+}
+
+:where([data-theme='app']) :where(input[type='checkbox']:not([role='switch']), input[type='radio']):disabled {
+  border-color: var(--ds-line);
+  background: var(--ds-disabled);
+  cursor: not-allowed;
+}
+
+/* ── Autofill: keep the white field and ink text instead of the browser's blue ── */
+
+:where([data-theme='app']) :where(input:-webkit-autofill, input:autofill) {
+  -webkit-text-fill-color: var(--ds-ink);
+  caret-color: var(--ds-ink);
+  box-shadow: inset 0 0 0 1000px var(--ds-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-theme='app']) :where(input[type='checkbox'], input[type='radio']),
+  :where([data-theme='app']) :where(input[type='checkbox'], input[type='radio'])::after {
+    transition: none;
+  }
+}

@@ -21,11 +21,16 @@ export default function CompanyProfile() {
   return (
     <div className={ui.page}>
       <PageHead
+        tabTitle
         title={t('page.company.companyProfile.title')}
         lead={t('cprof.lead')}
         actions={
           company.state.status === 'ok' && (
-            <Link to={generatePath(paths.companyPublic, { companyId: String(company.state.data.id) })} className={cx(ui.btn, ui.secondary)}>
+            <Link
+              to={generatePath(paths.companyPublic, { companyId: String(company.state.data.id) })}
+              state={{ back: 'companyProfile' }}
+              className={cx(ui.btn, ui.secondary)}
+            >
               {t('cprof.preview')}
             </Link>
           )

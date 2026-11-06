@@ -1,0 +1,383 @@
+/* Match scores (DESIGN.md Match panel): rings, the dark gradient panel, the breakdown row. */
+
+/* ── Ring ── */
+
+.ring {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+}
+
+.ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.ringTrack,
+.ringArc {
+  fill: none;
+}
+
+.ringTrack {
+  stroke: var(--ds-line);
+}
+
+.ringArc {
+  stroke: var(--ds-ring);
+  stroke-linecap: round;
+}
+
+.ring[data-tone='dark'] .ringTrack {
+  stroke: rgb(255 255 255 / 0.14);
+}
+
+.ringValue {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--ds-ink);
+}
+
+.ringValue[data-size='xs'] {
+  font-size: 12px;
+}
+
+.ringValue[data-size='sm'] {
+  font-size: 13px;
+}
+
+.ringValue[data-size='lg'] {
+  font-size: 30px;
+  font-weight: var(--ds-weight-medium);
+}
+
+.ring[data-tone='dark'] .ringValue {
+  color: var(--ds-on-match);
+}
+
+.ringUnit {
+  margin-left: 1px;
+  font-size: 0.5em;
+  font-weight: var(--ds-weight-bold);
+}
+
+/* ── Dark match panel ── */
+
+.panel {
+  min-width: 0;
+  padding: var(--ds-space-4) var(--ds-space-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-match);
+  background: linear-gradient(180deg, var(--ds-match-from) 0%, var(--ds-match-to) 100%);
+  color: var(--ds-on-match);
+  text-align: center;
+}
+
+.panel[data-compact] {
+  padding: var(--ds-space-3);
+}
+
+.panelBand {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: 0.02em;
+}
+
+/* ── Breakdown row ── */
+
+.breakdown {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.breakdownTitle {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+/* Two columns of equal 44 px rows, so a fourth item starts a new row in line instead of wrapping on its own */
+.breakdownList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-2) var(--ds-space-4);
+}
+
+.breakdownItem {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+/* 미설정 / 확인 불가 in the ring's place: at least as wide as a ring, centred in it */
+.breakdownItem .prefState {
+  flex: none;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.breakdownLabel {
+  max-width: 7em;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-medium);
+  line-height: 1.3;
+  color: var(--ds-ink-2);
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-muted);
+}
+
+/* On a list: the AI pill, then the notice and the disclaimer as one caption (ink-2, like the AI notice) */
+.noticeLine {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-ink-2);
+}
+
+.noticeLine > :first-child {
+  margin-top: 1px;
+}
+
+/* 희망 조건 미설정: what that does to the match score, under the breakdown (D46) */
+.prefNote {
+  max-width: 72ch;
+  margin: var(--ds-space-3) 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ds-ink-2);
+}
+
+.prefNoteLink {
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.prefNoteLink:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The score note and the guide under it */
+.noteBlock {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+/* "점수 보는 법": a native disclosure in the link tone, closed by default */
+.guide {
+  max-width: 72ch;
+  font-size: var(--ds-text-caption);
+  line-height: 1.6;
+  color: var(--ds-ink-2);
+}
+
+.guideToggle {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-accent-text);
+  cursor: pointer;
+  list-style: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.guideToggle::-webkit-details-marker {
+  display: none;
+}
+
+.guideToggle svg {
+  transition: transform 160ms var(--ease-out);
+}
+
+.guide[open] .guideToggle svg {
+  transform: rotate(180deg);
+}
+
+.guideToggle:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.guideList {
+  margin: 6px 0 2px;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.guideList li::marker {
+  color: var(--ds-line-strong);
+}
+
+/* The preference score when it is not a number: 미설정 (none set, D46) or 확인 불가 (the request failed) */
+.prefState {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-chip);
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-muted);
+  white-space: nowrap;
+}
+
+/* While the preferences load: the shapes of a meter and a ring */
+.meterSkeleton {
+  display: inline-block;
+  width: 64px;
+  height: 12px;
+  border-radius: var(--ds-radius-pill);
+}
+
+.ringSkeleton {
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+/* ── On lists (job cards, job rows): the score on white, and what it is made of ── */
+
+/* The number with the band pill: stacked on a card, side by side in a row */
+.summary {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.summary[data-size='sm'] {
+  flex-direction: row;
+  gap: var(--ds-space-3);
+}
+
+.summaryNumber {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 34px;
+  font-weight: var(--ds-weight-medium);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-ink);
+}
+
+.summary[data-size='sm'] .summaryNumber {
+  min-width: 52px;
+  justify-content: flex-end;
+  font-size: 20px;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.summaryUnit {
+  margin-left: 2px;
+  font-size: 0.5em;
+  font-weight: var(--ds-weight-bold);
+}
+
+/* In a job row half of 20 px would be 10 px: 점 has more strokes than a digit, so 12 px */
+.summary[data-size='sm'] .summaryUnit {
+  font-size: 12px;
+}
+
+/* One line: 기업 기준 N개, the categories, a hairline, 희망 조건. No boxes and no fills behind it */
+.reasons {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+}
+
+.reasonsLead {
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-muted);
+  white-space: nowrap;
+}
+
+.reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* The seeker's own part, set off from the company's criteria */
+.reason[data-own] {
+  padding-left: 20px;
+  border-left: 1px solid var(--ds-line-strong);
+}
+
+.reasonLabel {
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-ink-2);
+}
+
+.reasonValue {
+  min-width: 2.4ch;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-ink);
+}
+
+/* Ring mint on the ring track, like the score rings it replaces on lists */
+.meter {
+  position: relative;
+  width: 40px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-line);
+}
+
+.meterFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--ds-ring);
+}

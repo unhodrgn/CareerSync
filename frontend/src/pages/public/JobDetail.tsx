@@ -6,32 +6,44 @@ import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, consentPath, useAuth } from '@/auth/AuthContext';
 import { deadlineLabel, formatDate } from '@/components/common/format';
 import { ArrowRightIcon, CheckIcon } from '@/components/common/icons';
+import { JobIconTile } from '@/components/common/JobIconTile';
 import { ApplicationStatusTag, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
+import { AiBusy, AiMark } from '@/components/common/Ai';
+import { AiNotice } from '@/components/common/AiNotice';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import CompanyBlock from '@/components/seeker/CompanyBlock';
 import CriteriaPanel from '@/components/seeker/CriteriaPanel';
 import JdText from '@/components/seeker/JdText';
+import { isScore, MatchPanel, preferenceStatus, ScoreBreakdown, ScoreNote } from '@/components/seeker/Match';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { ApplicationOut } from '@/types/application';
 import type { CvOut } from '@/types/cv';
 import type { JobOut } from '@/types/job';
+import type { JobMatch } from '@/types/recommendation';
 
 /**
- * Job detail (D4). No band here, whoever looks (D31). The aside depends on the viewer: a guest gets the way to log
- * in, a seeker the apply panel and job prep, a company user only the criteria names.
+ * Job detail (D4). The aside depends on the viewer: a guest gets the way to log in, a seeker the match score when
+ * the job already has one (D42, D43), the apply panel and job prep, a company user only the criteria names.
  */
 export default function JobDetail() {
   const { jobId } = useParams();
   const id = Number(jobId);
   const { user } = useAuth();
   const job = useApi(() => api.job(id), [id, user?.id]);
+  const seeker = user?.role === 'seeker';
+  // Read only: the score of an evaluation that already exists; a failure only leaves the section out
+  const match = useApi(() => (seeker ? loadMatch(id) : Promise.resolve(null)), [id, user?.id]);
+  const matchData = match.state.status === 'ok' ? match.state.data : null;
 
   const back = { to: paths.jobs, label: t('job.backToList') };
+  // 백엔드 개발자 – 공고 상세 – CareerSync once the job is loaded; 공고 상세 – CareerSync until then
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
   if (job.state.status === 'loading') {
     return (
       <div className={ui.page}>
@@ -59,8 +71,11 @@ export default function JobDetail() {
         <div className={s.detailMain}>
           {/* The title leads on the canvas, level with the apply panel; the company and meta line under it */}
           <header className={s.jobHead}>
-            <h1 className={s.jobHeadTitle}>{data.title}</h1>
-            <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
+            <JobIconTile title={data.title} size="lg" />
+            <div className={s.jobHeadText}>
+              <h1 className={s.jobHeadTitle}>{data.title}</h1>
+              <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
+            </div>
           </header>
 
           <article className={ui.panel}>
@@ -88,8 +103,9 @@ export default function JobDetail() {
         {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
           {!user && <GuestApply />}
-          {user?.role === 'seeker' && <ApplyPanel job={data} />}
-          <CriteriaSection jobId={data.id} />
+          {seeker && matchData && <MatchSection data={matchData} />}
+          {seeker && <ApplyPanel job={data} />}
+          <CriteriaSection jobId={data.id} scores={matchData?.match?.criteria} />
         </aside>
       </div>
     </div>
@@ -102,11 +118,101 @@ function CompanySection({ companyId }: { companyId: number }) {
   return state.status === 'ok' ? <CompanyBlock company={state.data} /> : null;
 }
 
-function CriteriaSection({ jobId }: { jobId: number }) {
+function CriteriaSection({ jobId, scores }: { jobId: number; scores?: JobMatch['criteria'] | null }) {
   const { user } = useAuth();
   const { state } = useApi(() => api.jobCriteria(jobId), [jobId, user?.id]);
   // A company account reading another company's job gets 404 (criteria are the owner's): no panel then
-  return state.status === 'ok' ? <CriteriaPanel view={state.data} /> : null;
+  return state.status === 'ok' ? <CriteriaPanel view={state.data} scores={scores} /> : null;
+}
+
+/** Why there is no score, as far as the page can tell (D43 needs a confirmed newest CV and AI consent). */
+type CvState = 'none' | 'unconfirmed' | 'confirmed' | 'unknown';
+
+interface MatchContext {
+  match: JobMatch;
+  /** The seeker applied to this job: no score is shown for it (D43). */
+  applied: boolean;
+  /** Read only when there is no score and no application, to say which prerequisite is missing. */
+  cv: CvState | null;
+}
+
+async function loadMatch(jobId: number): Promise<MatchContext> {
+  const [match, mine] = await Promise.all([api.jobMatch(jobId), api.myApplications()]);
+  const applied = Array.isArray(mine) && mine.some((a) => a.job_id === jobId);
+  const cv = match?.status === 'none' && !applied ? await cvState() : null;
+  return { match, applied, cv };
+}
+
+async function cvState(): Promise<CvState> {
+  try {
+    return (await api.myCv()).confirmed ? 'confirmed' : 'unconfirmed';
+  } catch (e) {
+    return errorCode(e) === 'CV_NOT_FOUND' ? 'none' : 'unknown';
+  }
+}
+
+/**
+ * The seeker's score for this job (D42): the dark panel, the breakdown, the AI notice and what a score is not.
+ * Scores show only for a `done` result with a valid match score; anything missing falls back to the status line.
+ */
+function MatchSection({ data }: { data: MatchContext }) {
+  const { match, applied } = data;
+  const done = match?.status === 'done' && isScore(match.match_score);
+  return (
+    // AI-made content: the AI box (blue-soft) around the mint panel and rings
+    <section className={cx(ui.aiBox, ui.aiBoxCard, s.asideBlock)}>
+      <h2 className={cx(s.asideTitle, s.aiTitle)}>
+        <AiMark />
+        {t('match.heading')}
+      </h2>
+      {done ? (
+        <>
+          <MatchPanel score={match.match_score} level={match.match_level} compact />
+          <MatchBreakdown match={match} />
+          {match.notice && <AiNotice notice={match.notice} inBox />}
+          <ScoreNote />
+        </>
+      ) : match?.status === 'pending' && !applied ? (
+        <AiBusy>{t('match.pending')}</AiBusy>
+      ) : applied ? (
+        <p className={ui.caption}>{t('match.applied')}</p>
+      ) : (
+        <NoScore cv={data.cv} />
+      )}
+    </section>
+  );
+}
+
+/**
+ * The breakdown on job detail. Mounted only when a score is shown, so only then does it ask for the seeker's
+ * preferences (guests and companies never reach it): 미설정 when none is set, the number when some are, a loading
+ * mark meanwhile, 확인 불가 when the request fails (D46).
+ */
+function MatchBreakdown({ match }: { match: JobMatch }) {
+  const { state } = useApi(() => api.myPreferences(), []);
+  return <ScoreBreakdown categories={match.categories} preference={match.preference_score} prefs={preferenceStatus(state)} />;
+}
+
+/**
+ * No score and no application: the missing prerequisite when the page knows it, otherwise what a score needs. For
+ * withdrawn consent and a missing CV the apply panel right below carries the fixing action as its main button, so
+ * this only says why; an unconfirmed CV has no such button there and gets the link.
+ */
+function NoScore({ cv }: { cv: CvState | null }) {
+  const { user } = useAuth();
+  if (user && aiConsentWithdrawn(user)) return <p className={ui.caption}>{t('match.noConsent')}</p>;
+  if (cv === 'none') return <p className={ui.caption}>{t('match.noCv')}</p>;
+  if (cv === 'unconfirmed') {
+    return (
+      <p className={ui.caption}>
+        {t('match.cvUnconfirmed')}{' '}
+        <Link to={paths.seeker.cv} className={cx(ui.linkTone, s.inlineAction)}>
+          {t('reco.noCv.action')}
+        </Link>
+      </p>
+    );
+  }
+  return <p className={ui.caption}>{t(cv === 'confirmed' ? 'match.none' : 'match.noneGeneric')}</p>;
 }
 
 function GuestApply() {

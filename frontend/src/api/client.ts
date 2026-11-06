@@ -10,7 +10,7 @@ import type { CheckResult, CriteriaSetOut, CriteriaView, CriterionIn } from '@/t
 import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
 import type { JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate } from '@/types/job';
 import type { PreferenceIn, PreferenceOut } from '@/types/preference';
-import type { RecommendationList } from '@/types/recommendation';
+import type { JobMatch, JobScoreList, RecommendationList } from '@/types/recommendation';
 import type { OfferCreate, SeekerOffer, SentOffer, TalentList } from '@/types/talent';
 
 export const API_BASE = '/api';
@@ -126,6 +126,10 @@ export const api = {
   apply: (jobId: number) => request<ApplicationOut>('POST', `/jobs/${jobId}/applications`),
   myApplications: () => request<ApplicationOut[]>('GET', '/applications/mine'),
   recommendations: (limit = 20) => request<RecommendationList>('GET', `/recommendations/jobs${query({ limit })}`),
+  // Read-only scores from existing evaluations (D43): the job list asks for the jobs it shows, job detail for one
+  recommendationMatches: (jobIds: number[]) =>
+    request<JobScoreList>('GET', `/recommendations/matches${query({ job_ids: jobIds.join(',') })}`),
+  jobMatch: (jobId: number) => request<JobMatch>('GET', `/jobs/${jobId}/match`),
   roadmap: (jobId: number) => request<RoadmapOut>('POST', `/jobs/${jobId}/roadmap`),
   interviewQuestions: (jobId: number) => request<InterviewOut>('POST', `/jobs/${jobId}/interview-questions`),
   myPreferences: () => request<PreferenceOut>('GET', '/preferences/me'),

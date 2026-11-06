@@ -60,6 +60,7 @@ export default function Offers() {
   return (
     <div className={ui.page}>
       <PageHead
+        tabTitle
         title={t('offers.title')}
         lead={t('offers.lead')}
         extra={

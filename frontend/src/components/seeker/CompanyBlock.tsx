@@ -8,7 +8,7 @@ export default function CompanyBlock({ company }: { company: CompanyPublicOut })
   return (
     <section className={s.companyBlock} aria-labelledby="job-company">
       <div>
-        <h2 id="job-company" className={ui.sectionTitle}>
+        <h2 id="job-company" className={s.companyHead}>
           {t('job.company')} · {company.name}
         </h2>
         <p className={ui.body}>{company.intro || t('job.companyIntroNone')}</p>

@@ -19,6 +19,8 @@ const CODE_TEXT: Partial<Record<string, MessageKey>> = {
   CV_ENCRYPTED: 'error.cvEncrypted',
   CV_TOO_MANY_PAGES: 'error.cvTooManyPages',
   CV_NO_TEXT: 'error.cvNoText',
+  // Frontend only (like NETWORK): more than one file dropped on the CV drop area
+  CV_ONE_FILE: 'cv.upload.oneFile',
   OFFER_NOT_FOUND: 'error.offerNotFound',
   OFFER_NOT_PENDING: 'error.offerNotPending',
   OFFER_EXPIRED: 'error.offerExpired',

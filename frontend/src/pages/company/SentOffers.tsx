@@ -12,6 +12,7 @@ import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import AnonymousFacts from '@/components/company/AnonymousFacts';
 import s from '@/components/company/company.module.css';
+import CandidateAvatar from '@/components/company/CandidateAvatar';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import type { SentOffer } from '@/types/talent';
@@ -39,6 +40,7 @@ export default function SentOffers() {
   return (
     <div className={ui.page}>
       <PageHead
+        tabTitle
         title={t('page.company.sentOffers.title')}
         count={state.status === 'ok' && state.data.length ? state.data.length : undefined}
         lead={t('sent.lead')}
@@ -97,7 +99,10 @@ function OfferRow({ offer: o, onCancelled, onStale }: { offer: SentOffer; onCanc
   return (
     <li ref={focus.fallbackRef} tabIndex={-1} className={s.offerRow}>
       <div>
-        <span className={s.anonId}>{o.anonymous_id}</span>
+        <span className={s.anonId}>
+          <CandidateAvatar seed={o.anonymous_id} />
+          {o.anonymous_id}
+        </span>
         {o.job_id && o.job_title ? (
           <Link to={generatePath(paths.company.applicants, { jobId: String(o.job_id) })} className={ui.caption}>
             {o.job_title}

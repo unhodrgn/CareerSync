@@ -3,8 +3,9 @@ import { Link, useParams } from 'react-router';
 import { api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
+import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
-import { CheckIcon, ClockIcon, RefreshIcon } from '@/components/common/icons';
+import { CheckIcon, RefreshIcon } from '@/components/common/icons';
 import { OfferStatusTag, ScoreSquare } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, InlineError, Loading } from '@/components/common/States';
@@ -13,8 +14,10 @@ import ui from '@/components/common/ui.module.css';
 import AnonymousFacts from '@/components/company/AnonymousFacts';
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
+import CandidateAvatar from '@/components/company/CandidateAvatar';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { TalentCandidate } from '@/types/talent';
 
 /**
@@ -26,6 +29,7 @@ export default function Talent() {
   const id = Number(jobId);
   const job = useApi(() => api.job(id), [id]);
   const talent = useApi(() => api.talent(id), [id]);
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
 
   if (job.state.status === 'loading') {
     return (
@@ -66,8 +70,7 @@ export default function Talent() {
             </p>
             {talent.state.data.pending_count > 0 && (
               <p className={ui.notice}>
-                <ClockIcon width={16} height={16} />
-                <span>{t('talent.pending', { n: talent.state.data.pending_count })}</span>
+                <AiBusy as="span">{t('talent.pending', { n: talent.state.data.pending_count })}</AiBusy>
                 <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={talent.reload}>
                   <RefreshIcon width={15} height={15} />
                   {t('common.refresh')}
@@ -119,7 +122,10 @@ function TalentRow({ candidate: c, jobId, onStale }: { candidate: TalentCandidat
   return (
     <li className={s.talentRow}>
       <div>
-        <span className={s.anonId}>{c.anonymous_id}</span>
+        <span className={s.anonId}>
+          <CandidateAvatar seed={c.anonymous_id} />
+          {c.anonymous_id}
+        </span>
         <div className={s.critScores}>
           {c.criteria.map((cr) => (
             <span key={cr.criterion_id} className={s.score}>
@@ -131,7 +137,10 @@ function TalentRow({ candidate: c, jobId, onStale }: { candidate: TalentCandidat
         <AnonymousFacts profile={c} />
       </div>
       <div className={s.talentSide}>
-        <span className={ui.caption}>{t('apl.col.fit')}</span>
+        <span className={cx(ui.caption, s.aiHead)}>
+          <AiMark size="sm" />
+          {t('apl.col.fit')}
+        </span>
         <span className={s.fitBig}>{c.fit.toFixed(1)}</span>
         {status && <OfferStatusTag status={status} />}
         {!blocked && !composing && (

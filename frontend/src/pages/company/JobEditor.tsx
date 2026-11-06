@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { cloneElement, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactElement, type RefObject } from 'react';
 import { generatePath, Link, useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
@@ -8,12 +8,14 @@ import { cx, PageHead } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
+import { AiBusy, AiMark } from '@/components/common/Ai';
 import CriteriaSuggestions from '@/components/company/CriteriaSuggestions';
 import JdDraftPanel from '@/components/company/JdDraftPanel';
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
 import { t, type MessageKey } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import { CATEGORIES, type Category, type CriteriaSetOut, type GuardrailHit, type Importance } from '@/types/criteria';
 import { EMPLOYMENT_TYPES, type EmploymentType, type JdAnalysisOut, type JobCreate, type JobOut } from '@/types/job';
 
@@ -90,6 +92,8 @@ function Loader({ jobId }: { jobId: number | null }) {
     jobId == null ? 'new' : 'loading',
   );
   const [round, setRound] = useState(0);
+  // An existing job names the tab (백엔드 개발자 – 공고 수정 – CareerSync); a new one keeps 공고 작성
+  useDocumentTitle(typeof state === 'object' && 'job' in state ? state.job.title : null);
   useEffect(() => {
     if (jobId == null) return;
     let current = true;
@@ -140,7 +144,16 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
   const [pageError, setPageError] = useState<unknown>(handoff?.criteriaError ?? null);
   const [notice, setNotice] = useState<MessageKey | null>(handoff?.saved ? 'editor.saved' : null);
   const [busy, setBusy] = useState<'save' | 'publish' | 'close' | 'delete' | 'analyze' | null>(null);
-  const [confirm, setConfirm] = useState<'close' | 'delete' | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  // The confirm last opened: its trigger gets focus back when the confirm closes (useConfirmFocus has one trigger)
+  const [lastConfirm, setLastConfirm] = useState<Confirm | null>(null);
+  // Where focus goes once a publish attempt has finished (applied when the action bar is no longer busy)
+  const [publishOutcome, setPublishOutcome] = useState<'success' | 'error' | null>(null);
+  const successRef = useRef<HTMLSpanElement>(null);
+  const publishButtonRef = useRef<HTMLButtonElement | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  // A new job's first save moves to its own page and publishes there: not a failure
+  const handedOff = useRef(false);
   const [draftOpen, setDraftOpen] = useState(handoff?.then === 'draft');
   const [analysis, setAnalysis] = useState<JdAnalysisOut | null>(null);
   const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLParagraphElement>(confirm !== null);
@@ -155,6 +168,15 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
   // Basics, JD and criteria content are fixed once applicants are scored against them
   const basicsLocked = published || closed;
   const dirty = JSON.stringify(form) !== JSON.stringify(savedForm) || !sameRows(rows, savedRows);
+  const analyzed = useAnalyzedApplicants(published ? job : null);
+  // A saved weight that now differs, matched by criterion id (order never counts). Fit is computed from the stored
+  // per-criterion scores and the current weights when it is read, so saving new weights re-ranks analyzed applicants
+  // at once and changes seekers' match scores; the per-criterion scores stay
+  const weightsChanged =
+    published && rows.some((r) => r.id != null && savedRows.some((o) => o.id === r.id && Number(o.weight) !== Number(r.weight)));
+  // Warn and confirm unless the applications request confirmed that no applicant has a Fit; loading or a failed
+  // request is never read as zero
+  const reweighRisk = weightsChanged && analyzed !== 0;
   const total = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
 
   const setField = <K extends keyof Form>(k: K, v: Form[K]) => {
@@ -286,6 +308,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
           criteriaError = e;
         }
       }
+      handedOff.current = true;
       navigate(generatePath(paths.company.jobEdit, { jobId: String(current.id) }), {
         replace: true,
         state: {
@@ -334,22 +357,78 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
     }
   };
 
+  const openConfirm = (kind: Confirm) => {
+    setLastConfirm(kind);
+    setConfirm(kind);
+  };
+  const triggerFor = (kind: Confirm) => (lastConfirm === kind ? focus.triggerRef : undefined);
+
   const onSave = () =>
     run('save', async () => {
       if (await save()) setNotice('editor.saved');
     });
 
+  // 저장 on a published job whose weights changed asks first while analyzed applicants may exist
+  const askSave = () => (reweighRisk ? openConfirm('weights') : onSave());
+
+  // 게시하기 asks first; the checks the save would run come before the question, so it is not asked in vain
+  const askPublish = () => {
+    setPageError(null);
+    if (!job && !form.title.trim()) {
+      setFieldErrors({ title: t('editor.titleRequired') });
+      return;
+    }
+    if (!sameRows(rows, savedRows) && !validateRows()) return;
+    openConfirm('publish');
+  };
+
+  const confirmed = (action: () => Promise<void>) => () => {
+    setConfirm(null);
+    void action();
+  };
+
+  const onConfirmKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      setConfirm(null);
+    }
+  };
+
   const onPublish = () =>
     run('publish', async () => {
+      handedOff.current = false;
       const current = dirty || !job ? await save('publish') : job;
-      if (!current) return;
+      if (!current) {
+        // The save failed (its error is shown), unless a new job moved to its own page to publish there
+        if (!handedOff.current) setPublishOutcome('error');
+        return;
+      }
       try {
         setJob(await api.publishJob(current.id));
         setNotice('editor.published');
+        setPublishOutcome('success');
       } catch (e) {
         showError(e);
+        setPublishOutcome('error');
       }
     });
+
+  // After a publish attempt, once the bar is enabled again. Success: the success message (the 게시하기 button is gone),
+  // read once on focus. Failure: focus the error handling already moved stays; else the first field marked invalid
+  // (its error is its description); else 게시하기, back and enabled, with the error announced by its alert.
+  useEffect(() => {
+    if (!publishOutcome || busy !== null) return;
+    setPublishOutcome(null);
+    if (publishOutcome === 'success') {
+      successRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const active = document.activeElement;
+    if (active && active !== document.body && active !== publishButtonRef.current) return;
+    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) invalid.focus();
+    else publishButtonRef.current?.focus({ preventScroll: true });
+  }, [publishOutcome, busy]);
 
   const onClose = () =>
     run('close', async () => {
@@ -436,7 +515,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
       {job ? <JobHeader job={job} /> : <PageHead title={t('editor.newTitle')} back={{ to: paths.company.jobs, label: t('jobTabs.back') }} />}
 
       <div className={s.editor}>
-        <div className={ui.stack}>
+        <div className={ui.stack} ref={formRef}>
           {basicsLocked && (
             // After 마감 the confirm's trigger is gone: focus lands here
             <p ref={focus.fallbackRef} tabIndex={-1} className={ui.notice}>
@@ -455,8 +534,8 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                   value={form.title}
                   maxLength={200}
                   readOnly={basicsLocked}
-                  placeholder={t('editor.titlePlaceholder')}
-                  aria-invalid={fieldErrors.title ? true : undefined}
+                  // A locked field shows what it holds, never an instruction it cannot follow
+                  placeholder={basicsLocked ? undefined : t('editor.titlePlaceholder')}
                   onChange={(e) => setField('title', e.target.value)}
                 />
               </Field>
@@ -494,7 +573,6 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                   type="date"
                   value={form.deadline}
                   readOnly={closed}
-                  aria-invalid={fieldErrors.deadline ? true : undefined}
                   onChange={(e) => setField('deadline', e.target.value)}
                 />
               </Field>
@@ -511,6 +589,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
               </h2>
               {!basicsLocked && !draftOpen && (
                 <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} disabled={busy !== null} onClick={async () => (job ? setDraftOpen(true) : ensureSaved('draft'))}>
+                  <AiMark />
                   {t('editor.aiDraft')}
                 </button>
               )}
@@ -523,8 +602,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                 maxLength={10000}
                 value={form.description}
                 readOnly={basicsLocked}
-                placeholder={t('editor.jdPlaceholder')}
-                aria-invalid={fieldErrors.description ? true : undefined}
+                placeholder={basicsLocked ? undefined : t('editor.jdPlaceholder')}
                 onChange={(e) => setField('description', e.target.value)}
               />
             </Field>
@@ -554,13 +632,29 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                 <p className={ui.caption} style={{ marginTop: 4 }}>
                   {t('editor.criteriaLead')}
                 </p>
+                {/* Always in the DOM so the warning is announced when it appears */}
+                <div role="status" className={s.reweighNote}>
+                  {reweighRisk && (
+                    <p className={ui.notice}>
+                      <AlertIcon width={16} height={16} />
+                      {reweighText(analyzed, 'warning')}
+                    </p>
+                  )}
+                </div>
               </div>
               {!basicsLocked && !analysis && (
                 <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} disabled={busy !== null} onClick={onAnalyze}>
+                  {/* The button asks the AI for criteria */}
+                  <AiMark />
                   {busy === 'analyze' ? t('editor.suggest.running') : t('editor.suggest')}
                 </button>
               )}
             </div>
+            {busy === 'analyze' && (
+              <div style={{ marginBottom: 12 }}>
+                <AiBusy>{t('ai.working.suggest')}</AiBusy>
+              </div>
+            )}
 
             {rows.length === 0 ? (
               <p className={ui.caption}>{t('editor.criteriaEmpty')}</p>
@@ -619,9 +713,40 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
           {pageError != null && <InlineError>{errorText(pageError)}</InlineError>}
 
           {!closed && (
-            <div className={ui.actionBar}>
-              {confirm ? (
-                <div ref={focus.regionRef} tabIndex={-1} role="group" aria-label={t(confirm === 'close' ? 'editor.closeTitle' : 'editor.deleteTitle')} className={s.confirmBar}>
+            <div className={cx(ui.actionBar, (confirm === 'publish' || confirm === 'weights') && s.actionBarConfirm)}>
+              {confirm === 'publish' ? (
+                <PublishConfirm
+                  regionRef={focus.regionRef}
+                  unsaved={dirty || !job}
+                  busy={busy !== null}
+                  onConfirm={confirmed(onPublish)}
+                  onCancel={() => setConfirm(null)}
+                  onKeyDown={onConfirmKey}
+                />
+              ) : confirm === 'weights' ? (
+                <div ref={focus.regionRef} tabIndex={-1} role="group" aria-labelledby="reweigh-title" className={s.confirmBlock} onKeyDown={onConfirmKey}>
+                  <p className={s.confirmTitle} id="reweigh-title">
+                    {t('editor.reweighTitle')}
+                  </p>
+                  <p className={s.confirmText}>{reweighText(analyzed, 'confirm')}</p>
+                  <div className={s.confirmActions}>
+                    <button type="button" className={cx(ui.btn, ui.quiet)} disabled={busy !== null} onClick={() => setConfirm(null)}>
+                      {t('common.cancel')}
+                    </button>
+                    <button type="button" className={cx(ui.btn, ui.primary)} disabled={busy !== null} onClick={confirmed(onSave)}>
+                      {t('editor.reweighConfirm')}
+                    </button>
+                  </div>
+                </div>
+              ) : confirm ? (
+                <div
+                  ref={focus.regionRef}
+                  tabIndex={-1}
+                  role="group"
+                  aria-label={t(confirm === 'close' ? 'editor.closeTitle' : 'editor.deleteTitle')}
+                  className={s.confirmBar}
+                  onKeyDown={onConfirmKey}
+                >
                   <span className={ui.actionBarText}>
                     <strong>{t(confirm === 'close' ? 'editor.closeTitle' : 'editor.deleteTitle')}</strong> {t(confirm === 'close' ? 'editor.closeBody' : 'editor.deleteBody')}
                   </span>
@@ -634,9 +759,10 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                 </div>
               ) : (
                 <>
-                  <span className={ui.actionBarText} role="status">
+                  {/* A live region for every notice except 게시했습니다, which takes focus and is read once that way */}
+                  <span className={ui.actionBarText} role={notice === 'editor.published' ? undefined : 'status'}>
                     {notice ? (
-                      <span className={ui.done}>
+                      <span className={ui.done} ref={notice === 'editor.published' ? successRef : undefined} tabIndex={notice === 'editor.published' ? -1 : undefined}>
                         <CheckIcon width={16} height={16} />
                         {t(notice)}
                         {notice === 'editor.published' && job && (
@@ -650,24 +776,39 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                     ) : published ? (
                       ''
                     ) : (
-                      t('editor.publishHint')
+                      t('editor.publishHint', { max: MAX_CRITERIA, total: WEIGHT_TOTAL })
                     )}
                   </span>
                   {job && status === 'draft' && (
-                    <button ref={focus.triggerRef} type="button" className={cx(ui.btn, ui.quiet)} disabled={busy !== null} onClick={() => setConfirm('delete')}>
+                    <button ref={triggerFor('delete')} type="button" className={cx(ui.btn, ui.quiet)} disabled={busy !== null} onClick={() => openConfirm('delete')}>
                       {t('editor.delete')}
                     </button>
                   )}
                   {published && (
-                    <button ref={focus.triggerRef} type="button" className={cx(ui.btn, ui.quiet)} disabled={busy !== null} onClick={() => setConfirm('close')}>
+                    <button ref={triggerFor('close')} type="button" className={cx(ui.btn, ui.quiet)} disabled={busy !== null} onClick={() => openConfirm('close')}>
                       {t('editor.close')}
                     </button>
                   )}
-                  <button type="button" className={cx(ui.btn, published ? ui.primary : ui.secondary)} disabled={busy !== null || (!dirty && !!job)} onClick={onSave}>
+                  <button
+                    ref={triggerFor('weights')}
+                    type="button"
+                    className={cx(ui.btn, published ? ui.primary : ui.secondary)}
+                    disabled={busy !== null || (!dirty && !!job)}
+                    onClick={askSave}
+                  >
                     {busy === 'save' ? t('editor.saving') : t('editor.save')}
                   </button>
                   {!published && (
-                    <button type="button" className={cx(ui.btn, ui.primary)} disabled={busy !== null} onClick={onPublish}>
+                    <button
+                      ref={(el) => {
+                        publishButtonRef.current = el;
+                        if (lastConfirm === 'publish') focus.triggerRef.current = el;
+                      }}
+                      type="button"
+                      className={cx(ui.btn, ui.primary)}
+                      disabled={busy !== null}
+                      onClick={askPublish}
+                    >
                       {busy === 'publish' ? t('editor.publishing') : t('editor.publish')}
                     </button>
                   )}
@@ -696,20 +837,131 @@ function Field({
   error?: string;
   className?: string;
   hideLabel?: boolean;
-  children: ReactNode;
+  /** One control (input, select or textarea). */
+  children: ReactElement<{ 'aria-labelledby'?: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }>;
 }) {
+  const id = useId();
+  const message = error ?? hint;
+  // The label alone names the control; the error, or else the hint, describes it, so the error is read with the field
+  // without being repeated in its name
+  const control = cloneElement(children, {
+    'aria-labelledby': `${id}-label`,
+    'aria-describedby': message ? `${id}-message` : undefined,
+    'aria-invalid': error ? true : undefined,
+  });
   return (
     <label className={cx(ui.field, className)}>
-      <span className={hideLabel ? ui.visuallyHidden : ui.label}>{label}</span>
-      {children}
+      <span id={`${id}-label`} className={hideLabel ? ui.visuallyHidden : ui.label}>
+        {label}
+      </span>
+      {control}
       {error && (
-        <span className={ui.error}>
+        <span id={`${id}-message`} className={ui.error}>
           <AlertIcon width={14} height={14} />
           {error}
         </span>
       )}
-      {hint && !error && <span className={ui.hint}>{hint}</span>}
+      {hint && !error && (
+        <span id={`${id}-message`} className={ui.hint}>
+          {hint}
+        </span>
+      )}
     </label>
+  );
+}
+
+type Confirm = 'close' | 'delete' | 'publish' | 'weights';
+
+/**
+ * How many applicants of a published job already have a Fit (analysis done), from the applicant list the company
+ * already reads: a number when the request answered, 'unknown' when it failed, null while it loads or for other jobs.
+ * Only a confirmed 0 means "no one to re-rank".
+ */
+function useAnalyzedApplicants(job: JobOut | null): number | 'unknown' | null {
+  const [count, setCount] = useState<number | 'unknown' | null>(null);
+  const jobId = job?.id ?? null;
+  useEffect(() => {
+    setCount(null);
+    if (jobId == null) return;
+    let current = true;
+    api.applicants(jobId).then(
+      (list) => current && setCount(Array.isArray(list.items) ? list.items.filter((r) => r.fit !== null).length : 'unknown'),
+      () => current && setCount('unknown'),
+    );
+    return () => {
+      current = false;
+    };
+  }, [jobId]);
+  return count;
+}
+
+/** The re-ranking text: with the count when it is known, as a condition while loading or after a failed request. */
+function reweighText(analyzed: number | 'unknown' | null, kind: 'warning' | 'confirm'): string {
+  if (typeof analyzed === 'number') return t(kind === 'warning' ? 'editor.reweigh.known' : 'editor.reweighBody.known', { n: analyzed });
+  if (analyzed === 'unknown') return t(kind === 'warning' ? 'editor.reweigh.unknown' : 'editor.reweighBody.unknown');
+  return t(kind === 'warning' ? 'editor.reweigh.maybe' : 'editor.reweighBody.unknown');
+}
+
+/**
+ * The confirm before 게시하기: what publishing does, the fields that lock and those that stay editable (the form's own
+ * labels, so the lists follow the form; backend EDITABLE_AFTER_PUBLISH and the criteria lock), that it cannot be
+ * undone, and that unsaved changes are saved with it.
+ */
+function PublishConfirm({
+  regionRef,
+  unsaved,
+  busy,
+  onConfirm,
+  onCancel,
+  onKeyDown,
+}: {
+  regionRef: RefObject<HTMLDivElement | null>;
+  unsaved: boolean;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  onKeyDown: (e: KeyboardEvent) => void;
+}) {
+  const id = useId();
+  const locked = [t('editor.titleLabel'), t('editor.employment'), t('editor.minExperience'), t('editor.jd'), t('editor.publishLockedCriteria')];
+  const editable = [t('editor.location'), t('editor.deadline'), t('editor.salary'), t('editor.publishEditableWeights')];
+  return (
+    <div ref={regionRef} tabIndex={-1} role="group" aria-labelledby={`${id}-title`} className={s.confirmBlock} onKeyDown={onKeyDown}>
+      <p className={s.confirmTitle} id={`${id}-title`}>
+        {t('editor.publishTitle')}
+      </p>
+      <p className={s.confirmText}>{t('editor.publishBody')}</p>
+      <dl className={s.confirmFields}>
+        <dt>{t('editor.publishLocked')}</dt>
+        <dd>
+          <ul className={s.inlineList}>
+            {locked.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </dd>
+        <dt>{t('editor.publishEditable')}</dt>
+        <dd>
+          <ul className={s.inlineList}>
+            {editable.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </dd>
+      </dl>
+      <p className={s.confirmText}>
+        <strong>{t('editor.publishFinal')}</strong>
+        {unsaved && <> {t('editor.publishUnsaved')}</>}
+      </p>
+      <div className={s.confirmActions}>
+        <button type="button" className={cx(ui.btn, ui.quiet)} disabled={busy} onClick={onCancel}>
+          {t('common.cancel')}
+        </button>
+        <button type="button" className={cx(ui.btn, ui.primary)} disabled={busy} onClick={onConfirm}>
+          {t('editor.publish')}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -746,8 +998,9 @@ function CriterionRow({
           value={row.name}
           maxLength={50}
           readOnly={locked}
-          placeholder={t('editor.criterion.name')}
+          placeholder={locked ? undefined : t('editor.criterion.name')}
           aria-invalid={invalid || undefined}
+          aria-describedby={!hits.length && error ? `crit-error-${row.key}` : undefined}
           onChange={(e) => onChange({ name: e.target.value })}
           onBlur={onBlurCheck}
         />
@@ -795,7 +1048,7 @@ function CriterionRow({
           value={row.description}
           maxLength={500}
           readOnly={locked}
-          placeholder={t('editor.criterion.descriptionPlaceholder')}
+          placeholder={locked ? undefined : t('editor.criterion.descriptionPlaceholder')}
           onChange={(e) => onChange({ description: e.target.value })}
           onBlur={onBlurCheck}
         />
@@ -816,7 +1069,7 @@ function CriterionRow({
         </div>
       )}
       {!hits.length && error && (
-        <span className={s.critWide}>
+        <span className={s.critWide} id={`crit-error-${row.key}`}>
           <InlineError>{error}</InlineError>
         </span>
       )}
@@ -825,7 +1078,7 @@ function CriterionRow({
 }
 
 /**
- * One criteria set, two directions: what signed-in seekers read (name, category, importance; no weights, D1, D30)
+ * One criteria set, two directions: what signed-in seekers read (name, category, importance; no weights, D30, D42)
  * and what the applicant ranking uses (weights). Importance comes from the last saved set.
  */
 function TwoWayPreview({ rows, importance }: { rows: Row[]; importance: (r: Row) => Importance | undefined }) {

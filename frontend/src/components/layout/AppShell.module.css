@@ -1,30 +1,33 @@
-/* App shell. Signed in: the landing's audience field reduced to a navigation rail (navy for seekers, green for
-   companies), the page on the canvas to its right. Guests: the landing header over the canvas.
-   The shell sets the page tone once (DESIGN.md Tone Rule) and --shell-top, the height of anything sticky at the
-   top of the viewport, so sticky panels inside pages sit below it. */
+/* App shell (DESIGN.md Navigation). Signed in: a white icon rail with the role's groups, a header with the group's
+   name and its pages as segmented tabs, the page on a gray rounded content panel. Guests: a header over the same
+   panel. One mint palette for both roles: the shell sets the page tone once (--tone and friends, read by the shared
+   building blocks), and --shell-top, the height of anything sticky at the top of the viewport (nothing here). */
 
 .shell,
 .guestShell {
-  --tone: var(--color-seeker);
-  --tone-accent: var(--color-seeker-accent);
-  --tone-dot: var(--color-seeker-dot);
-  --tone-soft: var(--color-seeker-soft);
-  --tone-badge: var(--color-seeker-badge);
-  --tone-lit: var(--color-seeker-lit);
-  --focus-color: var(--tone);
+  --tone: var(--ds-ink);
+  --tone-accent: var(--ds-accent);
+  --tone-dot: var(--ds-accent);
+  --tone-soft: var(--ds-accent-soft);
+  --tone-badge: var(--ds-ink);
+  --tone-lit: var(--ds-accent-wash);
+  --focus-color: var(--ds-focus);
+  --shell-top: 0px;
   min-height: 100vh;
-  background: var(--color-canvas);
+  background: var(--ds-bg);
+  color: var(--ds-ink);
+}
+
+.shell ::selection,
+.guestShell ::selection {
+  background: var(--ds-accent-soft);
+  color: var(--ds-ink);
 }
 
 .shell {
-  --shell-top: 0px;
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: var(--ds-rail-width) minmax(0, 1fr);
   align-items: start;
-}
-
-.guestShell {
-  --shell-top: 64px;
 }
 
 /* App pages reserve the scrollbar's room, so a page growing past the viewport never shifts the layout sideways
@@ -34,161 +37,259 @@
   scrollbar-gutter: stable;
 }
 
-.shell[data-tone='company'] {
-  --tone: var(--color-employer);
-  --tone-accent: var(--color-employer-accent);
-  --tone-dot: var(--color-employer-dot);
-  --tone-soft: var(--color-employer-soft);
-  --tone-badge: var(--color-employer-badge);
-  --tone-lit: var(--color-employer-soft);
-}
-
 /* ── Rail ── */
 
 .rail {
-  --focus-color: var(--color-paper);
   position: sticky;
   top: 0;
   z-index: 20;
   height: 100vh;
   overflow-y: auto;
-  padding: 20px 14px 14px;
+  padding: 0 12px var(--ds-space-6);
   display: flex;
   flex-direction: column;
-  background: var(--tone);
-  color: var(--color-paper);
+  align-items: center;
+  background: var(--ds-bg);
 }
 
-.rail .brand {
-  padding: 0 8px;
-  gap: 10px;
-  color: var(--color-paper);
+/* The mark sits level with the header's section name */
+.brand {
+  flex: none;
+  height: var(--ds-header-height);
+  display: grid;
+  place-items: center;
+  text-decoration: none;
 }
 
-.rail .brandName {
-  font-size: 17px;
+.brand:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--ds-radius-card);
 }
 
-.nav {
-  margin-top: 28px;
+.railNav {
   flex: 1;
+  width: 100%;
 }
 
-.navList {
+.railList {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
-/* Settings-like pages after a thin rule */
-.navDivider {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgb(255 255 255 / 0.14);
-}
-
-.navLink {
+/* Icon over a short label; the current group sits on a mint wash */
+.railLink {
   position: relative;
   isolation: isolate;
-  height: 40px;
-  padding: 0 10px;
+  width: 100%;
+  padding: 10px 4px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  border-radius: var(--radius-md);
-  color: rgb(255 255 255 / 0.78);
-  font-size: 14px;
-  font-weight: 600;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--ds-radius-card);
+  background: transparent;
+  color: var(--ds-ink-2);
+  font: inherit;
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
+  line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
   transition:
     background-color 160ms var(--ease-out),
-    color 160ms var(--ease-out);
+    color 160ms var(--ease-out),
+    transform 150ms var(--ease-out);
 }
 
-.navLink svg {
-  flex: none;
-  color: rgb(255 255 255 / 0.62);
+.railLink:hover {
+  background: var(--ds-sunken);
+  color: var(--ds-ink);
 }
 
-.navLink:hover {
-  background: rgb(255 255 255 / 0.07);
-  color: var(--color-paper);
+.railLink:active {
+  transform: scale(0.95);
 }
 
-/* The current page's fill: a layer that fades in (opacity only) */
-.navLink::before {
+/* The current group's fill: a layer that fades in (opacity only) */
+.railLink::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: rgb(255 255 255 / 0.13);
+  background: var(--ds-accent-wash);
   opacity: 0;
   transition: opacity 220ms var(--ease-out);
 }
 
-.navLink[aria-current='page'] {
-  color: var(--color-paper);
+.railLink[aria-current] {
+  color: var(--ds-ink);
 }
 
-.navLink[aria-current='page']::before {
+.railLink[aria-current]::before {
   opacity: 1;
 }
 
-.navLink[aria-current='page'] svg {
-  color: var(--tone-accent);
+.railLink[aria-current] .railIcon {
+  color: var(--ds-accent-text);
 }
 
-/* Outlines stay inside the row so neighbours never cover them */
-.navLink:focus-visible,
-.logout:focus-visible {
+/* No ring after a click; keyboard focus draws one inside the item so neighbours never cover it */
+.railLink:focus {
+  outline: none;
+}
+
+.railLink:focus-visible {
+  outline: 2px solid var(--focus-color);
   outline-offset: -2px;
 }
 
-.badge {
-  margin-left: auto;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+.railIcon {
+  position: relative;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--tone-accent);
-  color: var(--tone);
-  font-size: 11.5px;
-  font-weight: 600;
+}
+
+.railIcon svg {
+  flex: none;
+}
+
+/* The pending-offer count: top-left, so the top-right corner stays free for the AI badge */
+.railBadge {
+  position: absolute;
+  top: -6px;
+  left: -12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-pill);
+  box-shadow: 0 0 0 2px var(--ds-bg);
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
+  font-size: 11px;
+  font-weight: var(--ds-weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
-/* Who is signed in, then 로그아웃 as a labelled row */
-.user {
-  padding: 14px 8px 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid rgb(255 255 255 / 0.14);
+/* ── Header: section › segmented tabs, who is signed in on the right ── */
+
+.body {
+  min-width: 0;
 }
 
-.avatar {
+.top {
+  height: var(--ds-header-height);
+  padding: 0 var(--ds-space-7) 0 var(--ds-space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-6);
+}
+
+.trail {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+}
+
+.section {
   flex: none;
-  width: 32px;
-  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ds-text-section);
+  font-weight: var(--ds-weight-bold);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ds-ink);
+}
+
+.trailChevron {
+  flex: none;
+  color: var(--ds-ink);
+}
+
+.tabs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+}
+
+.tab {
+  height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-ink);
+  font-size: 15px;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 160ms var(--ease-out),
+    color 160ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.tab:hover {
+  background: var(--ds-chip);
+}
+
+.tab:active {
+  transform: scale(0.97);
+}
+
+.tab[aria-current='page'] {
+  background: var(--ds-ink);
+  color: var(--ds-bg);
+}
+
+.tabCount {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--tone-badge);
-  color: var(--tone-accent);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
+  font-size: var(--ds-text-tiny);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tab[aria-current='page'] .tabCount {
+  background: var(--ds-bg);
+  color: var(--ds-ink);
+}
+
+.user {
+  flex: none;
+  min-width: 0;
+  max-width: 280px;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
 }
 
 .userText {
   min-width: 0;
-  flex: 1;
   display: grid;
+  text-align: right;
 }
 
 .userName,
@@ -199,95 +300,89 @@
 }
 
 .userName {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .userDetail {
-  font-size: 12px;
-  color: rgb(255 255 255 / 0.7);
+  font-size: 12.5px;
+  color: var(--ds-muted);
 }
 
-.logout {
-  height: 36px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: rgb(255 255 255 / 0.78);
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 160ms var(--ease-out),
-    color 160ms var(--ease-out);
-}
-
-.logout svg {
+.avatar {
   flex: none;
-  color: rgb(255 255 255 / 0.62);
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent-text);
+  font-size: 15px;
+  font-weight: var(--ds-weight-bold);
 }
 
-.logout:hover {
-  background: rgb(255 255 255 / 0.07);
-  color: var(--color-paper);
-}
+/* ── Content panel ── */
 
 .main {
   min-width: 0;
+  padding: 0 var(--ds-space-7) var(--ds-space-7) 0;
+}
+
+/* The gray rounded panel the page's white cards sit on */
+.stage {
+  min-width: 0;
+  min-height: calc(100vh - var(--ds-header-height) - var(--ds-space-7));
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-panel);
 }
 
 /* AI consent withdrawn (D17): the seeker keeps working; AI features ask for consent again */
 .banner {
-  margin: 0;
-  padding: 10px 40px;
+  margin: 0 0 var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-5);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-paper);
-  font-size: 13.5px;
-  color: var(--color-ink-soft);
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-accent-soft);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-accent-wash);
+  font-size: var(--ds-text-meta);
+  color: var(--ds-ink-2);
 }
 
 .banner a {
-  color: var(--tone);
-  font-weight: 600;
+  color: var(--ds-accent-text);
+  font-weight: var(--ds-weight-bold);
   text-underline-offset: 3px;
 }
 
-/* ── Guest header: the landing header with 회원가입 and 로그인 ── */
+/* ── Guest header: brand, 회원가입 and 로그인 ── */
 
 .header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   height: 64px;
-  padding: 0 40px;
+  padding: 0 var(--ds-space-7);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--color-canvas);
+  gap: var(--ds-space-7);
+  background: var(--ds-bg);
 }
 
-.brand {
+.brandWide {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-3);
+  color: var(--ds-ink);
   text-decoration: none;
 }
 
 .brandName {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: var(--ds-weight-bold);
   letter-spacing: -0.02em;
 }
 
@@ -295,19 +390,21 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 13px;
+  gap: var(--ds-space-5);
 }
 
 .inkButton {
-  padding: 8px 16px;
+  height: 40px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--color-ink);
-  color: var(--color-paper);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -317,7 +414,7 @@
 }
 
 .inkButton:hover {
-  background: var(--color-ink-soft);
+  background: var(--ds-ink-2);
 }
 
 .inkButton:active {
@@ -325,14 +422,23 @@
 }
 
 .quietLink {
-  color: var(--color-ink-soft);
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--ds-ink-2);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
   text-decoration: none;
 }
 
 .quietLink:hover {
-  color: var(--color-ink);
+  color: var(--ds-ink);
+}
+
+.guestMain {
+  min-width: 0;
+  padding: 0 var(--ds-space-7) var(--ds-space-7);
+}
+
+.guestShell .stage {
+  min-height: calc(100vh - 64px - var(--ds-space-7));
 }
 
 /* ── Motion: page enter on route change, the withdrawn banner ── */
@@ -377,4 +483,36 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ── Skip link (본문으로 건너뛰기): off screen until focused, then a high-contrast pill at the top left ── */
+
+.skipLink {
+  position: absolute;
+  top: var(--ds-space-3);
+  left: var(--ds-space-3);
+  z-index: 100;
+  padding: 10px 18px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-surface);
+  font-size: 14px;
+  font-weight: var(--ds-weight-bold);
+  text-decoration: none;
+  transform: translateY(calc(-100% - 2 * var(--ds-space-3)));
+}
+
+.skipLink:focus {
+  transform: none;
+}
+
+.skipLink:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 3px;
+}
+
+/* <main> takes focus from the skip link and after navigation without an H1; it is a region, not a control */
+.main:focus,
+.guestMain:focus {
+  outline: none;
 }

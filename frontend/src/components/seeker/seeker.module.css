@@ -1,21 +1,23 @@
-/* Seeker pages (and the public job pages). Navy is the tone; the only meaning-carrying colours are the band pill
-   and the amber gap. */
+/* Seeker pages (and the public job pages), in the app design system (DESIGN.md): white cards on the gray panel,
+   one mint accent, the dark gradient for match scores and the guest banner. Amber still means a skill the CV
+   lacks, and nothing else. Job cards and the match panel have their own modules (jobCard, match). */
 
-/* Job list */
+/* ── Job list ── */
 
 .toolbar {
-  margin-bottom: 16px;
+  margin-bottom: var(--ds-space-4);
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: var(--ds-space-4);
 }
 
 .toolbarCount {
   margin: 0;
   justify-self: end;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-muted);
 }
 
 .search {
@@ -24,62 +26,32 @@
 
 .search svg {
   position: absolute;
-  top: 11px;
-  left: 12px;
-  color: var(--color-ink-muted);
+  top: 13px;
+  left: 16px;
+  color: var(--ds-ink-2);
   pointer-events: none;
 }
 
 .search input {
-  padding-left: 38px;
+  padding-left: 44px;
+  border-radius: var(--ds-radius-pill);
 }
 
-/* The job list's panel: no head, so it pads like a list (rows carry their own 16px) */
+/* The job list: the cards themselves are the surface, so the section is only a stack */
 .jobPanel {
-  padding: 4px 24px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
-}
-
-.jobList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.jobItem + .jobItem {
-  border-top: 1px solid var(--color-line-soft);
-}
-
-.jobLink {
-  margin: 0 -12px;
-  padding: 18px 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ds-space-3);
+}
+
+/* A job row in a list: the job icon tile, then the title and company */
+.jobCell {
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 24px;
-  border-radius: var(--radius-md);
-  color: inherit;
-  text-decoration: none;
-  transition:
-    background-color 160ms var(--ease-out),
-    transform 150ms var(--ease-out);
+  gap: var(--ds-space-3);
 }
 
-.jobLink:active {
-  transform: scale(0.995);
-}
-
-.jobLink:hover {
-  background: var(--color-sunken);
-}
-
-.jobLink[data-expired] {
-  opacity: 0.6;
-}
-
-/* A job row: the title leads, the company and meta line sits under it */
+/* A job's title as a link (applications, offers) */
 .jobMain {
   min-width: 0;
   display: grid;
@@ -89,77 +61,66 @@
 .jobTitle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: inherit;
+  gap: var(--ds-space-2);
+  color: var(--ds-ink);
   text-decoration: none;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
   line-height: 1.35;
   letter-spacing: -0.02em;
 }
 
-.jobSide {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+a.jobTitle:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
 }
 
-.chevron {
-  color: var(--color-axis);
-  transition: color 160ms var(--ease-out), transform 160ms var(--ease-out);
-}
-
-.jobLink:hover .chevron {
-  color: var(--color-ink);
-  transform: translateX(2px);
-}
-
+/* Guests: the dark gradient band with the mint sign-up action */
 .guestBanner {
-  margin-bottom: 20px;
-  padding: 10px 10px 10px 20px;
+  --focus-color: var(--ds-accent);
+  margin-bottom: var(--ds-space-5);
+  padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-4) var(--ds-space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  border-radius: var(--radius-lg);
-  background: var(--color-seeker);
-  color: var(--color-paper);
-  --focus-color: var(--color-paper);
+  gap: var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: linear-gradient(100deg, var(--ds-match-from) 0%, var(--ds-match-to) 100%);
+  color: var(--ds-on-match);
 }
 
 .guestBanner p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--ds-text-body);
   line-height: 1.5;
-  color: rgb(255 255 255 / 0.86);
+  color: var(--ds-on-match-muted);
 }
 
 .onField {
-  background: var(--color-paper);
-  color: var(--color-seeker);
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
 }
 
 .onField:hover {
-  background: var(--color-canvas);
+  background: var(--ds-accent-hover);
 }
 
-/* Job detail */
+/* ── Job detail ── */
 
 .detail {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 352px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   align-items: start;
-  gap: 24px;
+  gap: var(--ds-space-6);
 }
 
 .aside {
   position: sticky;
-  /* Below the guest header (--shell-top is 0 beside the rail) */
-  top: calc(var(--shell-top, 0px) + 24px);
+  /* Below anything sticky the shell keeps at the top (--shell-top is 0 in this design) */
+  top: calc(var(--shell-top, 0px) + var(--ds-space-6));
   display: grid;
-  gap: 16px;
+  gap: var(--ds-space-4);
 }
 
 .detailMain {
@@ -167,26 +128,36 @@
 }
 
 .jobHead {
-  margin-bottom: 20px;
-  display: grid;
-  gap: 8px;
+  margin-bottom: var(--ds-space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-4);
 }
 
-/* The job is the page's subject: Field Title (34px) */
+.jobHeadText {
+  min-width: 0;
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+/* The job is the page's subject: the largest title on the page */
 .jobHeadTitle {
   margin: 0;
-  font-size: 34px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: var(--ds-weight-bold);
   line-height: 1.25;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
+  color: var(--ds-ink);
 }
 
 .facts {
   margin: 0;
+  padding-bottom: var(--ds-space-5);
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 32px;
-  font-size: 14px;
+  gap: var(--ds-space-2) var(--ds-space-8);
+  border-bottom: 1px solid var(--ds-line);
+  font-size: var(--ds-text-body);
 }
 
 .facts div {
@@ -196,47 +167,60 @@
 }
 
 .facts dt {
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-meta);
+  color: var(--ds-muted);
 }
 
 .facts dd {
   margin: 0;
-  color: var(--color-ink-soft);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-ink);
 }
 
 .jd {
-  margin-top: 24px;
-  max-width: 44em;
+  margin-top: var(--ds-space-6);
+  max-width: 46em;
 }
 
-.jd h3 {
-  margin: 20px 0 8px;
-  font-size: 15px;
-  font-weight: 600;
+/* The JD's own section heads (주요 업무, 자격 요건 …) are h2 under the job title, at the Heading size */
+.jd h2 {
+  margin: var(--ds-space-6) 0 var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .jd p {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.75;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .jd ul {
   margin: 0;
-  padding-left: 18px;
-  font-size: 15px;
+  padding-left: 20px;
+  font-size: 16px;
   line-height: 1.75;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .companyBlock {
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-line-soft);
+  margin-top: var(--ds-space-7);
+  padding-top: var(--ds-space-6);
+  border-top: 1px solid var(--ds-line);
   display: grid;
-  gap: 16px;
+  gap: var(--ds-space-4);
+}
+
+/* 기업 소개 is a sibling of the JD's section heads (h2), so it takes their size; 인재상 and projects stay h3 */
+.companyHead {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .projectList {
@@ -245,59 +229,85 @@
   list-style: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ds-space-3);
 }
 
 .project {
-  padding: 14px 16px;
+  padding: var(--ds-space-4);
   display: grid;
   gap: 6px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-sunken);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-sunken);
 }
 
 .projectName {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
+}
+
+/* 기업 정보: its section headings at the standard 18/700 (ui.panelTitle), with the gap 기업 소개 has on job detail */
+.publicSectionTitle {
+  margin-bottom: var(--ds-space-2);
 }
 
 .publicProject {
-  padding: 12px 0;
+  padding: var(--ds-space-3) 0;
   display: grid;
   gap: 6px;
 }
 
 .publicProject + .publicProject {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
 }
 
 .tagRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+}
+
+/* A panel title with a label at the other end of its row (이 공고의 평가 기준 · AI 분석) */
+.asideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+
+.asideHead .asideTitle {
+  margin: 0;
 }
 
 .asideTitle {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 600;
+  margin: 0 0 var(--ds-space-1);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+
+/* The heading of an AI box: the AI pill before the title */
+.aiTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .asideBlock {
   display: grid;
-  gap: 12px;
+  gap: var(--ds-space-4);
 }
 
 .prepLink {
-  padding-top: 12px;
+  padding-top: var(--ds-space-3);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-top: 1px solid var(--color-line-soft);
-  color: var(--tone);
-  font-size: 14px;
-  font-weight: 600;
+  border-top: 1px solid var(--ds-line);
+  color: var(--ds-accent-text);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
   text-decoration: none;
 }
 
@@ -314,137 +324,165 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* Recommendations */
+/* ── Recommendations ── */
 
+/* The AI notice and the score note above a list of scored jobs */
 .resultHead {
+  margin-bottom: var(--ds-space-4);
   display: grid;
-  gap: 2px;
+  gap: var(--ds-space-1);
 }
 
-/* One bordered panel; each band is a group with the band in a left column, level with its first job's title */
-.recoPanel {
-  margin-top: 20px;
-  padding: 0 20px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
-}
-
-.group {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 20px;
-}
-
-.group + .group {
-  border-top: 1px solid var(--color-line);
-}
-
+/* A section heading inside a page (e.g. open / past offers) */
 .groupHead {
-  margin: 0;
-  /* The pill's centre on the first title's centre (row padding 18px + half a 24px title line) */
-  padding-top: 13px;
-  display: grid;
-  justify-items: start;
-  align-content: start;
-  gap: 6px;
-}
-
-.groupCount {
-  padding-left: 16px;
-}
-
-.recoList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.recoRow {
-  position: relative;
-  padding: 18px 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  margin: 0 0 var(--ds-space-3);
+  display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.recoRow + .recoRow {
-  border-top: 1px solid var(--color-line-soft);
-}
-
-.recoRow {
-  transition: transform 150ms var(--ease-out);
-}
-
-/* Pressing the row (its title link covers it), not the 준비하기 link above it */
-.recoRow:has(.stretched:active) {
-  transform: scale(0.995);
-}
-
-.recoRow:hover .jobTitle {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.recoRow:hover .chevron {
-  color: var(--color-ink);
-  transform: translateX(2px);
-}
-
-/* A link whose hit area is the whole row (position: relative on the row) */
-.stretched::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-
-.aboveStretch {
-  position: relative;
-  z-index: 1;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 /* One line under the 추천 공고 lead while the talent opt-in is off */
 .talentHint {
-  margin: 10px 0 0;
-  font-size: 13.5px;
+  margin: var(--ds-space-3) 0 0;
+  font-size: var(--ds-text-meta);
   line-height: 1.55;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .pendingLine {
-  margin: 16px 0 24px;
+  margin: 0 0 var(--ds-space-4);
+  padding: var(--ds-space-2) var(--ds-space-2) var(--ds-space-2) var(--ds-space-4);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
+  font-size: var(--ds-text-meta);
+  color: var(--ds-ink-2);
 }
 
 .pendingLine svg {
-  color: var(--color-seeker-dot);
+  color: var(--ds-accent-text);
 }
 
-/* CV */
+.pendingLine button {
+  margin-left: auto;
+}
 
-/* One column at a reading width: the CV is a document, not a dashboard */
+/* ── 추천 공고: the seeker's preferences as chips above the result (DESIGN.md Preference chips) ── */
+
+.prefBar {
+  margin-bottom: var(--ds-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.prefLabel {
+  flex: none;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink-2);
+}
+
+.prefChips {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+}
+
+/* What the list was matched against, written as facts (the job card's facts row), not as filter buttons:
+   no fill, no height, nothing to press */
+.prefChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-ink);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  white-space: nowrap;
+}
+
+.prefChip svg {
+  flex: none;
+  color: var(--ds-muted);
+}
+
+/* "+N" and the pencil are real controls: white tool chips */
+.prefTool {
+  flex: none;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
+  color: var(--ds-ink);
+  font: inherit;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.prefTool:hover {
+  background: var(--ds-chip-hover);
+}
+
+.prefTool:active {
+  transform: scale(0.95);
+}
+
+.prefNone {
+  font-size: var(--ds-text-meta);
+  color: var(--ds-muted);
+}
+
+.prefCount {
+  flex: none;
+  margin: 0 0 0 auto;
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-muted);
+}
+
+/* ── CV ── */
+
+/* The CV page uses the same content width as every other page */
 .cvColumn {
-  max-width: 920px;
   display: grid;
-  gap: 16px;
+  gap: var(--ds-space-4);
   align-content: start;
 }
 
 .cvHead {
-  padding-bottom: 4px;
+  padding: var(--ds-space-5) var(--ds-space-6);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-4);
 }
 
 .cvHeadText {
@@ -454,95 +492,123 @@
   gap: 4px;
 }
 
-/* Bottom bar while editing: the save action stays in reach on a long form (flat, on the canvas) */
+/* Bottom bar while editing: the save action stays in reach on a long form */
 .saveBar {
   position: sticky;
-  bottom: 16px;
+  bottom: var(--ds-space-4);
   z-index: 10;
-  padding: 10px 12px 10px 20px;
+  padding: 10px 10px 10px 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-hub);
-  background: var(--color-paper);
+  gap: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-pop), 0 0 0 1px var(--ds-line);
 }
 
 .saveBarText {
   min-width: 0;
   flex: 1;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
 }
 
 .dropzone {
-  padding: 56px 32px;
+  padding: 64px 32px;
   display: grid;
   justify-items: center;
-  gap: 12px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
+  gap: var(--ds-space-3);
+  border: 1.5px dashed var(--ds-line-strong);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
   text-align: center;
+  transition:
+    border-color 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+}
+
+/* A file is over the area: it will take the drop */
+.dropzone[data-over] {
+  border-style: solid;
+  border-color: var(--ds-focus);
+  background: var(--ds-accent-wash);
+}
+
+.dropzone[data-over] > * {
+  pointer-events: none;
+}
+
+/* The icon circle is accent-wash too: lift it to white so it stays visible on the washed area */
+.dropzone[data-over] .dropIcon {
+  background: var(--ds-surface);
+}
+
+.dropHint {
+  margin: 0;
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
 }
 
 .dropIcon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-hub);
-  background: var(--color-seeker-soft);
-  color: var(--color-seeker);
+  border-radius: 50%;
+  background: var(--ds-accent-wash);
+  color: var(--ds-accent-text);
 }
 
 .fileIcon {
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--color-seeker-soft);
-  color: var(--color-seeker);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-accent-wash);
+  color: var(--ds-accent-text);
 }
 
 .fileName {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .section + .section {
-  margin-top: 22px;
-  padding-top: 22px;
-  border-top: 1px solid var(--color-line-soft);
+  margin-top: var(--ds-space-6);
+  padding-top: var(--ds-space-6);
+  border-top: 1px solid var(--ds-line);
 }
 
 .sectionHead {
-  margin: 0 0 12px;
+  margin: 0 0 var(--ds-space-3);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .entry {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--ds-space-4);
 }
 
 .entry + .entry {
-  margin-top: 16px;
+  margin-top: var(--ds-space-4);
 }
 
 .entryPeriod {
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -553,94 +619,101 @@
 }
 
 .entryTitle {
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .sourceLine {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--ds-space-2);
   font-size: 12.5px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 /* The word 원문 leading the evidence line: text, not a chip */
 .sourceLabel {
   flex: none;
-  font-weight: 600;
-  color: var(--color-ink-muted);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-muted);
 }
 
 .editGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--ds-space-3);
 }
 
+/* A skill on the CV: the gray chip of the reference's filters */
 .skillChip {
-  height: 30px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: var(--color-sunken);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: var(--ds-radius-chip);
+  background: var(--ds-chip);
+  color: var(--ds-ink);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-medium);
 }
 
 .skillChip button {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   margin-right: -8px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: var(--color-ink-muted);
+  color: var(--ds-ink-2);
   cursor: pointer;
 }
 
 .skillChip button:hover {
-  background: var(--color-line-soft);
-  color: var(--color-ink);
+  background: var(--ds-chip-hover);
+  color: var(--ds-ink);
 }
 
+/* How the CV is read: the dark gradient card */
 .ruleCard {
-  padding: 18px 20px;
+  padding: var(--ds-space-5) var(--ds-space-6);
   display: grid;
-  gap: 8px;
-  border-radius: var(--radius-lg);
-  background: var(--color-seeker);
-  color: var(--color-paper);
+  gap: var(--ds-space-2);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: linear-gradient(160deg, var(--ds-match-from) 0%, var(--ds-match-to) 100%);
+  color: var(--ds-on-match);
 }
 
 .ruleCard h2 {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
+}
+
+.ruleCard h2 svg {
+  color: var(--ds-accent);
 }
 
 .ruleCard p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--ds-text-caption);
   line-height: 1.65;
-  color: rgb(255 255 255 / 0.82);
+  color: var(--ds-on-match-muted);
 }
 
-/* Job prep */
+/* ── Job prep ── */
 
 .prepGrid {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
   align-items: start;
-  gap: 24px;
+  gap: var(--ds-space-6);
 }
 
 .steps {
@@ -648,73 +721,74 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 12px;
+  gap: var(--ds-space-3);
 }
 
 .step {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  gap: 16px;
-  padding: 18px 20px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-paper);
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-5) var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 /* Neutral: amber is kept for the missing items themselves (Amber Is Absence) */
 .stepIndex {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--color-line-soft);
-  color: var(--color-ink-soft);
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 50%;
+  background: var(--ds-ink);
+  color: var(--ds-bg);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
 }
 
 .stepBody {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  gap: var(--ds-space-3);
 }
 
 .stepHead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .stepCols {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 20px;
+  gap: var(--ds-space-5);
 }
 
 .plainList {
   margin: 0;
   padding-left: 18px;
-  font-size: 13.5px;
+  font-size: var(--ds-text-meta);
   line-height: 1.7;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .resource {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--color-seeker);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-accent-text);
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--color-seeker) 30%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--ds-accent-text) 30%, transparent);
 }
 
-/* Interview questions: one list in one panel, rows split by soft lines */
+/* Interview questions: one list in one card, rows split by hairlines */
 .questions {
   margin: 0;
   padding: 0;
@@ -722,13 +796,13 @@
 }
 
 .question {
-  padding: 20px 0;
+  padding: var(--ds-space-5) 0;
   display: grid;
-  gap: 10px;
+  gap: var(--ds-space-3);
 }
 
 .question + .question {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
 }
 
 .question:last-child {
@@ -738,31 +812,32 @@
 .questionText {
   margin: 0;
   display: flex;
-  gap: 12px;
-  font-size: 16px;
-  font-weight: 600;
+  gap: var(--ds-space-3);
+  font-size: 17px;
+  font-weight: var(--ds-weight-bold);
   line-height: 1.5;
   letter-spacing: -0.015em;
+  color: var(--ds-ink);
 }
 
 .questionIndex {
   flex: none;
-  width: 22px;
-  color: var(--color-ink-muted);
+  width: 24px;
+  color: var(--ds-accent-text);
   font-variant-numeric: tabular-nums;
 }
 
 .questionBody {
   max-width: 52em;
-  padding-left: 34px;
+  padding-left: 36px;
   display: grid;
   gap: 10px;
 }
 
 .inlineLabel {
-  margin-right: 8px;
-  font-weight: 600;
-  color: var(--color-ink);
+  margin-right: var(--ds-space-2);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 /* Answer tips on demand */
@@ -771,9 +846,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--tone);
-  font-size: 13.5px;
-  font-weight: 600;
+  color: var(--ds-accent-text);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
   list-style: none;
   cursor: pointer;
 }
@@ -791,89 +866,91 @@
 }
 
 .tips ul {
-  margin-top: 8px;
+  margin-top: var(--ds-space-2);
 }
 
 .reviewCols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
-  gap: 32px;
+  gap: var(--ds-space-7);
 }
 
-/* The second column is set off by a 1px rule, not a box */
+/* The second column is set off by a hairline, not a box */
 .reviewCol + .reviewCol {
-  padding-left: 32px;
-  border-left: 1px solid var(--color-line-soft);
+  padding-left: var(--ds-space-7);
+  border-left: 1px solid var(--ds-line);
 }
 
 .reviewColTitle {
-  margin: 0 0 14px;
+  margin: 0 0 var(--ds-space-4);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-heading);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .reviewItem {
   display: grid;
-  gap: 8px;
+  gap: var(--ds-space-2);
 }
 
 .reviewItem + .reviewItem {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line-soft);
+  margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-4);
+  border-top: 1px solid var(--ds-line);
 }
 
 .reviewTitle {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14.5px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
-/* Offers */
+/* ── Offers ── */
 
 .offer {
-  padding: 20px 24px;
+  padding: var(--ds-space-6);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px 24px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
+  gap: var(--ds-space-4) var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .offer + .offer {
-  margin-top: 12px;
+  margin-top: var(--ds-space-3);
 }
 
-/* Past offers: compact rows in one list */
+/* Past offers: compact rows in one card */
 .pastSection {
-  margin-top: 32px;
+  margin-top: var(--ds-space-7);
 }
 
 .pastList {
-  padding: 0 20px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-lg);
-  background: var(--color-paper);
+  padding: 0 var(--ds-space-6);
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .offerPast {
-  padding: 14px 0;
+  padding: var(--ds-space-4) 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 16px;
+  gap: var(--ds-space-4);
 }
 
 .offerPast + .offerPast {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
 }
 
 .offerPast .offerMain {
@@ -881,8 +958,8 @@
 }
 
 .offerPastTitle {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-weight-bold);
 }
 
 .offerPastTitle .jobTitle {
@@ -890,7 +967,7 @@
 }
 
 .offersNotice {
-  margin-bottom: 16px;
+  margin-bottom: var(--ds-space-4);
 }
 
 .offersNotice:focus {
@@ -900,53 +977,57 @@
 .offerMain {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  gap: var(--ds-space-2);
 }
 
 .offerCompany {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-ink-muted);
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-muted);
 }
 
 .offerCompany strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ink);
+  font-size: var(--ds-text-meta);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .offerTitle {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--ds-text-card-title);
+  font-weight: var(--ds-weight-bold);
   letter-spacing: -0.02em;
+  color: var(--ds-ink);
 }
 
 .offerMessage {
   margin: 4px 0 0;
   max-width: 48em;
-  font-size: 14px;
+  font-size: var(--ds-text-body);
   line-height: 1.7;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }
 
 .offerSide {
   display: grid;
   justify-items: end;
   align-content: start;
-  gap: 8px;
+  gap: var(--ds-space-2);
   font-size: 12.5px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .offerActions {
   grid-column: 1 / -1;
+  padding-top: var(--ds-space-4);
   display: flex;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+  border-top: 1px solid var(--ds-line);
 }
 
 .offerConfirm {
@@ -954,109 +1035,110 @@
 }
 
 .publicLine {
-  margin: 10px 0 0;
+  margin: var(--ds-space-3) 0 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: var(--color-ink-soft);
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-meta);
+  color: var(--ds-ink-2);
 }
 
 .publicDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-seeker-dot);
+  background: var(--ds-accent);
 }
 
-/* Preferences and account */
+/* ── Preferences and account ── */
 
 .twoCol {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
   align-items: start;
-  gap: 24px;
+  gap: var(--ds-space-6);
 }
 
 .toggleRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--ds-space-4);
 }
 
-/* What companies see and do not see: two rows under a soft line, no boxes */
+/* What companies see and do not see: two rows under a hairline, no boxes */
 .visibility {
-  margin: 16px 0 0;
-  padding-top: 16px;
+  margin: var(--ds-space-4) 0 0;
+  padding-top: var(--ds-space-4);
   display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--color-line-soft);
+  gap: var(--ds-space-3);
+  border-top: 1px solid var(--ds-line);
 }
 
 .visibility dt {
   margin-bottom: 2px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-ink);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .visibility dd {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--ds-text-caption);
   line-height: 1.6;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
+}
+
+/* Turning the opt-in on: the confirm carries the shown/hidden lists, so they are read at the moment of choice */
+.publicConfirm {
+  margin-top: var(--ds-space-4);
+}
+
+.visibilityInConfirm {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.publicResult {
+  min-height: 20px;
+  margin-top: var(--ds-space-3);
+}
+
+.publicResult:empty {
+  min-height: 0;
+  margin-top: 0;
 }
 
 .dl {
   margin: 0;
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
-  gap: 12px 16px;
-  font-size: 14px;
+  gap: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-text-body);
 }
 
 .dl dt {
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .dl dd {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: var(--ds-space-2);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .saveRow {
-  margin-top: 20px;
+  margin-top: var(--ds-space-5);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-3);
 }
 
-a.jobTitle:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-/* ── Motion (DESIGN.md, App pages · Motion) ── */
-
-/* The focal moment on 추천 공고: each band pill settles in, then its jobs follow. Groups start 40ms apart and
-   everything has arrived within 380ms. */
-@keyframes bandIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
-@keyframes rowIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
+/* ── Motion (DESIGN.md Motion) ── */
 
 @keyframes open {
   from {
@@ -1065,40 +1147,14 @@ a.jobTitle:hover {
   }
 }
 
-.group {
-  --group-delay: 0ms;
-}
-
-.group:nth-of-type(2) {
-  --group-delay: 40ms;
-}
-
-.group:nth-of-type(n + 3) {
-  --group-delay: 80ms;
-}
-
 @media (prefers-reduced-motion: no-preference) {
-  .groupHead > [data-band] {
-    transform-origin: left center;
-    animation: bandIn 260ms var(--ease-out) backwards;
-    animation-delay: var(--group-delay);
-  }
-
-  .recoRow {
-    animation: rowIn 220ms var(--ease-out) backwards;
-    animation-delay: calc(var(--group-delay) + 40ms);
-  }
-
-  .recoRow:nth-child(2) {
-    animation-delay: calc(var(--group-delay) + 60ms);
-  }
-
-  .recoRow:nth-child(n + 3) {
-    animation-delay: calc(var(--group-delay) + 80ms);
-  }
-
   /* Answer tips opening under a question (closing is immediate) */
   .tips[open] > ul {
     animation: open 200ms var(--ease-out) backwards;
   }
+}
+
+/* A link at the end of a caption moves to the next line whole instead of breaking inside */
+.inlineAction {
+  white-space: nowrap;
 }

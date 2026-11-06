@@ -2,6 +2,7 @@ import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { formatDate } from '@/components/common/format';
+import { JobIconTile } from '@/components/common/JobIconTile';
 import { ApplicationStatusTag } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
@@ -12,14 +13,14 @@ import { paths } from '@/routes/paths';
 
 /**
  * The seeker's applications and their status, read-only. Status is the recruiter's decision (AI rule 5); the
- * evaluation status and any score stay on the company side (D1).
+ * evaluation status and any score stay on the company side (no score for applied jobs, D43).
  */
 export default function Applications() {
   const { state, reload } = useApi(() => api.myApplications(), []);
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
+      <PageHead tabTitle title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' &&
@@ -47,12 +48,15 @@ export default function Applications() {
                 {state.data.map((a) => (
                   <tr key={a.id}>
                     <td>
-                      <span className={s.jobMain}>
-                        <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
-                          {a.job_title}
-                        </Link>
-                        <span className={ui.meta}>
-                          <strong>{a.company_name}</strong>
+                      <span className={s.jobCell}>
+                        <JobIconTile title={a.job_title} size="sm" />
+                        <span className={s.jobMain}>
+                          <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
+                            {a.job_title}
+                          </Link>
+                          <span className={ui.meta}>
+                            <strong>{a.company_name}</strong>
+                          </span>
                         </span>
                       </span>
                     </td>

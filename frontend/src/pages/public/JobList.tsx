@@ -4,19 +4,26 @@ import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { useAuth } from '@/auth/AuthContext';
 import { ArrowRightIcon, SearchIcon } from '@/components/common/icons';
-import { Deadline, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
+import { JobRow, JobRowList } from '@/components/seeker/JobRow';
+import { PreferenceUnsetNote, preferenceStatus, ScoreNote, type PreferenceStatus } from '@/components/seeker/Match';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import type { JobListItem } from '@/types/job';
+import type { PreferenceOut } from '@/types/preference';
+import type { JobScoreList } from '@/types/recommendation';
 
 // The API's maximum page; the demo has far fewer published jobs, and there is no paging design yet
 const LIMIT = 100;
 
-/** Published, unexpired jobs (D4); search by title only (D33). Guests, seekers and companies share this page. */
+/**
+ * Published, unexpired jobs (D4); search by title only (D33). Guests, seekers and companies share this page; a
+ * seeker also sees the match scores that already exist (D43). Compact rows for browsing many jobs: what a score is
+ * made of stays on 추천 공고 and job detail.
+ */
 export default function JobList() {
   const { user } = useAuth();
   // The search is kept in the URL: it survives a reload and the switch to the guest shell when a session ends
@@ -34,10 +41,14 @@ export default function JobList() {
   }, [q, query, setParams]);
 
   const { state, reload } = useApi(() => api.jobs({ q: query || undefined, limit: LIMIT }), [query, user?.id]);
+  const seeker = user?.role === 'seeker';
+  const scores = useListScores(state.status === 'ok' ? state.data.items : null, seeker);
+  const scoresShown = scores != null && Array.isArray(scores.items) && scores.items.length > 0;
+  const prefs = useListPreferences(seeker && scoresShown, seeker, user?.id);
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('jobs.title')} lead={user ? t('jobs.lead') : undefined} />
+      <PageHead title={t('jobs.title')} tabTitle />
 
       {!user && (
         <div className={s.guestBanner}>
@@ -86,7 +97,15 @@ export default function JobList() {
             )
           ) : (
             <>
-              <JobRows jobs={state.data.items} />
+              {/* A seeker sees the scores that already exist, with the AI notice and what a score is not (D42) */}
+              {scores && scoresShown && (
+                <div className={s.resultHead}>
+                  <ScoreNote notice={scores.notice} />
+                  {/* Once above the rows, only when the preferences API confirmed that none is set (D46) */}
+                  {prefs === 'unset' && <PreferenceUnsetNote />}
+                </div>
+              )}
+              <JobRows jobs={state.data.items} scores={scores} />
               {state.data.total > state.data.items.length && (
                 <p className={ui.caption} style={{ marginTop: 12 }}>
                   {t('jobs.more', { n: state.data.total, shown: state.data.items.length })}
@@ -100,29 +119,53 @@ export default function JobList() {
   );
 }
 
-function JobRows({ jobs }: { jobs: JobListItem[] }) {
+function JobRows({ jobs, scores }: { jobs: JobListItem[]; scores: JobScoreList | null }) {
+  // Malformed or missing items only leave the scores out (the row checks each score itself)
+  const items = Array.isArray(scores?.items) ? scores.items : [];
+  const byId = new Map(items.filter((item) => item != null).map((item) => [item.job_id, item]));
+  // The score column appears once any listed job has a score, so a seeker without any sees no empty column
+  const scoreColumn = byId.size > 0;
   return (
-    <ul className={cx(s.jobList, ui.stagger)}>
+    <JobRowList label={t('jobs.title')}>
       {jobs.map((job) => (
-        <li key={job.id} className={s.jobItem}>
-          <Link to={generatePath(paths.jobDetail, { jobId: String(job.id) })} className={s.jobLink}>
-            <span className={s.jobMain}>
-              <span className={s.jobTitle}>{job.title}</span>
-              <JobMeta
-                company={job.company_name}
-                location={job.location}
-                employmentType={job.employment_type}
-                minExperienceYears={job.min_experience_years}
-              />
-            </span>
-            <span className={s.jobSide}>
-              <span className={ui.caption}>{t('common.criteriaCount', { n: job.criteria_count })}</span>
-              <Deadline job={job} />
-              <ArrowRightIcon className={s.chevron} width={16} height={16} />
-            </span>
-          </Link>
-        </li>
+        <JobRow
+          key={job.id}
+          to={generatePath(paths.jobDetail, { jobId: String(job.id) })}
+          job={job}
+          scoreColumn={scoreColumn}
+          scores={byId.get(job.id)}
+        />
       ))}
-    </ul>
+    </JobRowList>
   );
+}
+
+/**
+ * Scores of the listed jobs for a seeker, read from evaluations that already exist (D43). Most jobs have none; a
+ * failed request only leaves the scores out.
+ */
+/**
+ * The seeker's preferences, asked for once — the first time scores are shown, not again on each search — so the
+ * list can say when the scores count an unset preference score as 100 (D15, D46). Never for guests or companies;
+ * `null` until asked. Loading and failure come back as `loading` / `unknown`, which show no note.
+ */
+function useListPreferences(scoresShown: boolean, seeker: boolean, userId: number | undefined): PreferenceStatus | null {
+  const [wanted, setWanted] = useState(false);
+  useEffect(() => {
+    if (scoresShown) setWanted(true);
+  }, [scoresShown]);
+  const ask = wanted && seeker;
+  const { state } = useApi<PreferenceOut | null>(() => (ask ? api.myPreferences() : Promise.resolve(null)), [ask, userId]);
+  if (!ask) return null;
+  return state.status === 'ok' && state.data === null ? 'loading' : preferenceStatus(state);
+}
+
+function useListScores(jobs: JobListItem[] | null, seeker: boolean): JobScoreList | null {
+  const ids = jobs?.map((job) => job.id) ?? [];
+  const key = ids.join(',');
+  const { state } = useApi(
+    () => (seeker && ids.length > 0 ? api.recommendationMatches(ids) : Promise.resolve(null)),
+    [key, seeker],
+  );
+  return state.status === 'ok' ? state.data : null;
 }

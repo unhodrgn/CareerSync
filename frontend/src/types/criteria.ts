@@ -22,7 +22,7 @@ export interface CriteriaSetOut {
   blocklist_version: string;
 }
 
-/** Signed-in seeker: no weights or numbers (D1, D30). */
+/** Signed-in seeker: no weights (D30, D42); scores come from GET /api/jobs/{job_id}/match. */
 export interface SeekerCriterionOut {
   name: string;
   category: Category;

@@ -1,17 +1,17 @@
-/* Card and controls shared by the login, register and consent pages (inside AuthFrame). */
+/* Card and controls shared by the login, register and consent pages (inside AuthFrame), in the app design system. */
 
 .card {
   width: min(480px, 100%);
-  padding: 36px 40px 32px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  background: var(--color-paper);
+  padding: 32px 32px 28px;
+  border-radius: calc(var(--ds-radius-card) + 4px);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-card);
 }
 
 .title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: var(--ds-weight-bold);
   letter-spacing: -0.02em;
 }
 
@@ -19,7 +19,7 @@
   margin: 8px 0 0;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .form {
@@ -31,34 +31,44 @@
 .switchLine {
   margin: 20px 0 0;
   padding-top: 18px;
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--ds-line);
   font-size: 13.5px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
   text-align: center;
 }
 
 .switchLine a,
 .headerLink {
   margin-left: 6px;
-  color: var(--tone);
-  font-weight: 600;
+  color: var(--ds-accent-text);
+  font-weight: var(--ds-weight-bold);
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--tone) 35%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--ds-accent-text) 35%, transparent);
 }
 
 .headerLink {
   margin: 0;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-ink);
-  color: var(--color-paper);
+  height: 40px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-ink);
+  color: var(--ds-bg);
   text-decoration: none;
   font-size: 14px;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
 }
 
 .headerLink:hover {
-  background: var(--color-ink-soft);
+  background: var(--ds-ink-2);
+}
+
+.headerLink:active {
+  transform: scale(0.95);
 }
 
 .headerButton {
@@ -66,22 +76,22 @@
   border: 0;
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
   cursor: pointer;
 }
 
 .headerQuiet {
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
   text-decoration: none;
 }
 
 .headerQuiet:hover {
-  color: var(--color-ink);
+  color: var(--ds-ink);
 }
 
-/* Role switch: two options, each in its own audience colour */
+/* Role switch: two options; the chosen one has an ink edge on the mint wash (one palette for both roles) */
 
 .roles {
   margin: 0;
@@ -94,7 +104,7 @@
   margin-bottom: 8px;
   padding: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--ds-weight-bold);
 }
 
 .roleOptions {
@@ -104,27 +114,20 @@
 }
 
 .role {
-  --role: var(--color-seeker);
-  --role-soft: var(--color-seeker-lit);
-  --role-dot: var(--color-seeker-dot);
+  --role: var(--ds-ink);
+  --role-soft: var(--ds-accent-wash);
   position: relative;
   display: grid;
   gap: 2px;
-  padding: 12px 14px 12px 38px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-chip);
-  background: var(--color-sunken);
+  padding: 14px 16px 14px 42px;
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
   cursor: pointer;
   transition:
     border-color 200ms var(--ease-out),
     background-color 200ms var(--ease-out),
     box-shadow 200ms var(--ease-out);
-}
-
-.role[data-role='company'] {
-  --role: var(--color-employer);
-  --role-soft: var(--color-employer-soft);
-  --role-dot: var(--color-employer-dot);
 }
 
 .role input {
@@ -133,24 +136,24 @@
   pointer-events: none;
 }
 
-/* The radio mark: an empty ring, filled with the role colour when chosen */
+/* The radio mark: an empty ring, mint with an ink dot when chosen */
 .role::before {
   content: '';
   position: absolute;
-  top: 15px;
-  left: 14px;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid var(--color-axis);
+  top: 17px;
+  left: 16px;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--ds-muted);
   border-radius: 50%;
-  background: var(--color-paper);
+  background: var(--ds-surface);
   transition:
     border-color 200ms var(--ease-out),
     box-shadow 200ms var(--ease-out);
 }
 
 .role:hover {
-  border-color: var(--color-axis);
+  border-color: var(--ds-muted);
 }
 
 .role:has(input:checked) {
@@ -160,29 +163,28 @@
 }
 
 .role:has(input:checked)::before {
-  border-color: var(--role);
-  box-shadow: inset 0 0 0 3px var(--color-paper);
-  background: var(--role);
+  border-color: var(--ds-accent);
+  background: radial-gradient(circle, var(--ds-on-accent) 0 3.5px, var(--ds-accent) 4px);
 }
 
 .role:has(input:focus-visible) {
-  outline: 2px solid var(--role);
-  outline-offset: 2px;
+  border-color: var(--ds-focus);
+  box-shadow: inset 0 0 0 1px var(--ds-focus), var(--ds-halo);
 }
 
 .roleName {
   font-size: 15px;
-  font-weight: 600;
-  color: var(--color-ink);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-ink);
 }
 
 .role:has(input:checked) .roleName {
-  color: var(--role);
+  color: var(--ds-ink);
 }
 
 .roleDesc {
   font-size: 12.5px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .version {
@@ -191,14 +193,14 @@
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  color: var(--color-ink-muted);
+  color: var(--ds-muted);
 }
 
 .versionValue {
   padding: 2px 8px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: var(--color-canvas);
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-panel);
   font-variant-numeric: tabular-nums;
-  color: var(--color-ink-soft);
+  color: var(--ds-ink-2);
 }

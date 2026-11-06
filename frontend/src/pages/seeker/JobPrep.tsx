@@ -3,6 +3,7 @@ import { generatePath, useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { errorCode } from '@/api/errors';
 import { useApi } from '@/api/useApi';
+import { AiBox, AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, ClipboardCheckIcon, ExternalIcon, MessageIcon } from '@/components/common/icons';
 import { cx, PageHead } from '@/components/common/Page';
@@ -13,6 +14,7 @@ import SeekerGate from '@/components/seeker/SeekerGate';
 import s from '@/components/seeker/seeker.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { useDocumentTitle } from '@/routes/title';
 import type { InterviewOut, RoadmapOut } from '@/types/career';
 
 type Tab = 'gaps' | 'interview' | 'review';
@@ -44,6 +46,7 @@ export default function JobPrep() {
   const { jobId } = useParams();
   const id = Number(jobId);
   const job = useApi(() => api.job(id), [id]);
+  useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
   const [params, setParams] = useSearchParams();
   const tab: Tab = isTab(params.get('tab')) ? (params.get('tab') as Tab) : 'gaps';
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set([tab]));
@@ -119,6 +122,8 @@ export default function JobPrep() {
               onKeyDown={onTabKey}
             >
               <Icon width={16} height={16} />
+              {/* Every tab here is an AI feature */}
+              <AiMark />
               {t(`prep.tab.${tabId}`)}
             </button>
           ))}
@@ -146,10 +151,20 @@ export default function JobPrep() {
 function Gaps({ jobId, onGate }: { jobId: number; onGate: (e: unknown) => void }) {
   const { state, reload } = useApi(() => api.roadmap(jobId), [jobId]);
   const gated = useGate(state.error, onGate);
-  if (state.status === 'loading') return <Loading />;
+  if (state.status === 'loading') return <AiLoading text={t('ai.working.roadmap')} />;
   if (gated) return null;
   if (state.status === 'error') return <PrepError error={state.error} onRetry={reload} />;
   return <Roadmap data={state.data} />;
+}
+
+/** A tab's AI result is being made: the blue working line over skeleton rows. */
+function AiLoading({ text }: { text: string }) {
+  return (
+    <section className={cx(ui.panel, ui.stack)} aria-busy="true">
+      <AiBusy>{text}</AiBusy>
+      <Loading rows={4} panel={false} />
+    </section>
+  );
 }
 
 function PrepError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
@@ -163,7 +178,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
     return (
       <div className={ui.stack}>
         <AiNotice notice={data.notice} method={data.method} />
-        <section className={ui.panel}>
+        <AiBox card>
           <div className={ui.empty}>
             <span className={ui.done}>
               <CheckIcon width={18} height={18} />
@@ -171,7 +186,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
             <p className={ui.emptyTitle}>{t('prep.none.title')}</p>
             <p className={ui.emptyBody}>{t('prep.none.body')}</p>
           </div>
-        </section>
+        </AiBox>
       </div>
     );
   }
@@ -181,7 +196,8 @@ function Roadmap({ data }: { data: RoadmapOut }) {
       <AiNotice notice={data.notice} method={data.method} />
       {data.limited && <p className={ui.caption}>{t('common.limited')}</p>}
       <div className={s.prepGrid}>
-        <section className={ui.panel}>
+        {/* Skill gaps: what the AI pipeline found missing in the CV text */}
+        <AiBox card>
           <div className={ui.panelHead}>
             <h2 className={ui.panelTitle}>
               {t('prep.gaps.title')}
@@ -203,55 +219,58 @@ function Roadmap({ data }: { data: RoadmapOut }) {
           <p className={ui.caption} style={{ marginTop: 14 }}>
             {t('prep.gaps.lead')}
           </p>
-        </section>
+        </AiBox>
 
-        <section aria-labelledby="roadmap-title">
-          <h2 id="roadmap-title" className={ui.panelTitle}>
-            {t('prep.roadmap.title')}
-          </h2>
-          <p className={ui.caption} style={{ margin: '4px 0 14px' }}>
-            {t('prep.roadmap.lead')}
-          </p>
-          <ol className={cx(s.steps, ui.stagger)}>
-            {data.steps.map((step) => (
-              <li key={step.order} className={s.step}>
-                <span className={s.stepIndex}>{step.order}</span>
-                <div className={s.stepBody}>
-                  {/* The kind (기술 · 자격증) is already in the list on the left */}
-                  <span className={s.stepHead}>{step.skill}</span>
-                  <p className={ui.body}>
-                    <strong>{t('prep.roadmap.goal')}</strong> · {step.goal}
-                  </p>
-                  <div className={s.stepCols}>
-                    <div>
-                      <h3 className={ui.sectionTitle}>{t('prep.roadmap.activities')}</h3>
-                      <ul className={s.plainList}>
-                        {step.activities.map((a, i) => (
-                          <li key={i}>{a}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className={ui.sectionTitle}>{t('prep.roadmap.resources')}</h3>
-                      {step.resources.length === 0 ? (
-                        <p className={ui.caption}>{t('prep.roadmap.noResources')}</p>
-                      ) : (
-                        <div className={ui.stack} style={{ gap: 6 }}>
-                          {step.resources.map((r) => (
-                            <a key={r.url} className={s.resource} href={r.url} target="_blank" rel="noreferrer">
-                              {r.title}
-                              <ExternalIcon width={14} height={14} />
-                            </a>
+        {/* The roadmap steps are written by the AI (or its template) */}
+        <AiBox card kind="generated">
+          <section aria-labelledby="roadmap-title">
+            <h2 id="roadmap-title" className={ui.panelTitle}>
+              {t('prep.roadmap.title')}
+            </h2>
+            <p className={ui.caption} style={{ margin: '4px 0 14px' }}>
+              {t('prep.roadmap.lead')}
+            </p>
+            <ol className={cx(s.steps, ui.stagger)}>
+              {data.steps.map((step) => (
+                <li key={step.order} className={s.step}>
+                  <span className={s.stepIndex}>{step.order}</span>
+                  <div className={s.stepBody}>
+                    {/* The kind (기술 · 자격증) is already in the list on the left */}
+                    <span className={s.stepHead}>{step.skill}</span>
+                    <p className={ui.body}>
+                      <strong>{t('prep.roadmap.goal')}</strong> · {step.goal}
+                    </p>
+                    <div className={s.stepCols}>
+                      <div>
+                        <h3 className={ui.sectionTitle}>{t('prep.roadmap.activities')}</h3>
+                        <ul className={s.plainList}>
+                          {step.activities.map((a, i) => (
+                            <li key={i}>{a}</li>
                           ))}
-                        </div>
-                      )}
+                        </ul>
+                      </div>
+                      <div>
+                        <h3 className={ui.sectionTitle}>{t('prep.roadmap.resources')}</h3>
+                        {step.resources.length === 0 ? (
+                          <p className={ui.caption}>{t('prep.roadmap.noResources')}</p>
+                        ) : (
+                          <div className={ui.stack} style={{ gap: 6 }}>
+                            {step.resources.map((r) => (
+                              <a key={r.url} className={s.resource} href={r.url} target="_blank" rel="noreferrer">
+                                {r.title}
+                                <ExternalIcon width={14} height={14} />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </AiBox>
       </div>
     </div>
   );
@@ -260,7 +279,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
 function Interview({ jobId, onGate }: { jobId: number; onGate: (e: unknown) => void }) {
   const { state, reload } = useApi(() => api.interviewQuestions(jobId), [jobId]);
   const gated = useGate(state.error, onGate);
-  if (state.status === 'loading') return <Loading />;
+  if (state.status === 'loading') return <AiLoading text={t('ai.working.questions')} />;
   if (gated) return null;
   if (state.status === 'error') return <PrepError error={state.error} onRetry={reload} />;
   return <Questions data={state.data} />;
@@ -271,50 +290,52 @@ function Questions({ data }: { data: InterviewOut }) {
     <div className={ui.stack}>
       <AiNotice notice={data.notice} method={data.method} />
       {data.limited && <p className={ui.caption}>{t('common.limited')}</p>}
-      <section className={ui.panel} aria-labelledby="questions-title">
-        <h2 id="questions-title" className={ui.panelTitle}>
-          {t('prep.q.title', { n: data.questions.length })}
-        </h2>
-        <p className={ui.caption} style={{ margin: '4px 0 6px' }}>
-          {t('prep.q.lead')}
-        </p>
-        {/* One list: the eye moves question to question; answer tips open on demand */}
-        <ol className={cx(s.questions, ui.stagger)}>
-          {data.questions.map((q, i) => (
-            <li key={i} className={s.question}>
-              <p className={s.questionText}>
-                <span className={s.questionIndex}>{i + 1}</span>
-                <span>{q.question}</span>
-              </p>
-              <div className={s.questionBody}>
-                <span className={s.tagRow}>
-                  <span className={cx(ui.tag, ui.tagTone)}>{t(`prep.q.kind.${q.kind}`)}</span>
-                  {/* The criterion tag only when the question does not already name it */}
-                  {q.criterion_name && !q.question.includes(q.criterion_name) && <span className={ui.tag}>{q.criterion_name}</span>}
-                </span>
-                <p className={ui.body}>
-                  <span className={s.inlineLabel}>{t('prep.q.intent')}</span>
-                  {q.intent}
+      <AiBox card kind="generated">
+        <section aria-labelledby="questions-title">
+          <h2 id="questions-title" className={ui.panelTitle}>
+            {t('prep.q.title', { n: data.questions.length })}
+          </h2>
+          <p className={ui.caption} style={{ margin: '4px 0 6px' }}>
+            {t('prep.q.lead')}
+          </p>
+          {/* One list: the eye moves question to question; answer tips open on demand */}
+          <ol className={cx(s.questions, ui.stagger)}>
+            {data.questions.map((q, i) => (
+              <li key={i} className={s.question}>
+                <p className={s.questionText}>
+                  <span className={s.questionIndex}>{i + 1}</span>
+                  <span>{q.question}</span>
                 </p>
-                {q.cv_quote && <p className={ui.quote}>{q.cv_quote}</p>}
-                {q.answer_tips.length > 0 && (
-                  <details className={s.tips}>
-                    <summary>
-                      {t('prep.q.tips')}
-                      <ChevronDownIcon width={15} height={15} />
-                    </summary>
-                    <ul className={s.plainList}>
-                      {q.answer_tips.map((tip, j) => (
-                        <li key={j}>{tip}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+                <div className={s.questionBody}>
+                  <span className={s.tagRow}>
+                    <span className={cx(ui.tag, ui.tagTone)}>{t(`prep.q.kind.${q.kind}`)}</span>
+                    {/* The criterion tag only when the question does not already name it */}
+                    {q.criterion_name && !q.question.includes(q.criterion_name) && <span className={ui.tag}>{q.criterion_name}</span>}
+                  </span>
+                  <p className={ui.body}>
+                    <span className={s.inlineLabel}>{t('prep.q.intent')}</span>
+                    {q.intent}
+                  </p>
+                  {q.cv_quote && <p className={ui.quote}>{q.cv_quote}</p>}
+                  {q.answer_tips.length > 0 && (
+                    <details className={s.tips}>
+                      <summary>
+                        {t('prep.q.tips')}
+                        <ChevronDownIcon width={15} height={15} />
+                      </summary>
+                      <ul className={s.plainList}>
+                        {q.answer_tips.map((tip, j) => (
+                          <li key={j}>{tip}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </AiBox>
     </div>
   );
 }
@@ -323,7 +344,7 @@ function Questions({ data }: { data: InterviewOut }) {
 function Review({ onGate }: { onGate: (e: unknown) => void }) {
   const { state, reload } = useApi(async () => api.reviewCv((await api.myCv()).id), []);
   const gated = useGate(state.error, onGate);
-  if (state.status === 'loading') return <Loading />;
+  if (state.status === 'loading') return <AiLoading text={t('ai.working.review')} />;
   if (gated) return null;
   if (state.status === 'error') return <SeekerGate error={state.error} onRetry={reload} />;
   return (

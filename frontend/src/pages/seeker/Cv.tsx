@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode, type Ref } from 'react';
 import { Link, useLocation } from 'react-router';
 import { ApiError, api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
 import { consentPath } from '@/auth/AuthContext';
+import { AiBox, AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate, monthsLabel } from '@/components/common/format';
-import { CheckIcon, ClipboardCheckIcon, DocumentIcon, InfoIcon, PlusIcon, UploadIcon, XIcon } from '@/components/common/icons';
+import { CheckIcon, DocumentIcon, InfoIcon, PlusIcon, UploadIcon, XIcon } from '@/components/common/icons';
 import { cx, PageHead } from '@/components/common/Page';
 import { ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
@@ -18,6 +19,11 @@ import type { CvOut, CvProfile, CvReviewOut } from '@/types/cv';
 
 // Same limit as the backend (ai.parsing.pdf MAX_BYTES); checked here only to answer before the upload
 const MAX_BYTES = 5 * 1024 * 1024;
+
+/** A drag that carries files from the system (not text or a link dragged inside the page). */
+const carriesFiles = (e: { dataTransfer: DataTransfer | null }) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+// A drop skips the picker's `accept`, so the type is checked here; the server still checks the content
+const looksLikePdf = (file: File) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
 const MASKED: Record<string, MessageKey> = {
   name: 'masked.name',
@@ -48,10 +54,8 @@ export default function Cv() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const pick = () => fileRef.current?.click();
-  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  // One path for the picker and the drop area
+  const upload = async (file: File) => {
     setUploadError(null);
     if (file.size > MAX_BYTES) {
       setUploadError(new ApiError(422, 'CV_TOO_LARGE', ''));
@@ -66,12 +70,41 @@ export default function Cv() {
       setUploading(false);
     }
   };
+  const onFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void upload(file);
+  };
+  const onDropFiles = (files: File[]) => {
+    if (files.length !== 1) return setUploadError(new ApiError(0, 'CV_ONE_FILE', ''));
+    if (!looksLikePdf(files[0])) return setUploadError(new ApiError(422, 'CV_NOT_PDF', ''));
+    void upload(files[0]);
+  };
+
+  // A file dropped anywhere else on this page would make the browser open it and leave the app; only the drop
+  // area (no CV yet) takes files, and replacing a CV stays the explicit 새 PDF 올리기 button
+  useEffect(() => {
+    const onDragOver = (e: globalThis.DragEvent) => {
+      if (!carriesFiles(e) || e.defaultPrevented) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+    };
+    const onDrop = (e: globalThis.DragEvent) => {
+      if (carriesFiles(e) && !e.defaultPrevented) e.preventDefault();
+    };
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
 
   let content;
   if (state.status === 'loading') content = <Loading rows={6} />;
   else if (state.status === 'error') content = <ErrorPanel error={state.error} onRetry={reload} />;
   else if (uploading) content = <Processing />;
-  else if (!state.data) content = <Upload onPick={pick} error={uploadError} />;
+  else if (!state.data) content = <Upload onPick={pick} onDropFiles={onDropFiles} error={uploadError} />;
   else {
     content = (
       <CvView
@@ -88,7 +121,7 @@ export default function Cv() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('cv.title')} lead={t('cv.lead')} />
+      <PageHead title={t('cv.title')} lead={t('cv.lead')} tabTitle />
       <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={onFile} />
       {content}
     </div>
@@ -105,18 +138,49 @@ function UploadError({ error }: { error: unknown }) {
   );
 }
 
-/** No CV yet: one column, the upload is the only thing on the page. */
-function Upload({ onPick, error }: { onPick: () => void; error: unknown }) {
+/** No CV yet: one column, the upload is the only thing on the page. A PDF can be picked or dropped here. */
+function Upload({ onPick, onDropFiles, error }: { onPick: () => void; onDropFiles: (files: File[]) => void; error: unknown }) {
+  const [over, setOver] = useState(false);
+  // dragenter/dragleave also fire for the children; count them so the highlight does not flicker
+  const depth = useRef(0);
+  const leave = () => ((depth.current = 0), setOver(false));
+  const drag = {
+    onDragEnter: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      depth.current += 1;
+      setOver(true);
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    onDragLeave: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (depth.current === 0) setOver(false);
+    },
+    onDrop: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      leave();
+      onDropFiles(Array.from(e.dataTransfer.files));
+    },
+  };
   return (
-    <section className={cx(s.dropzone, s.cvColumn)}>
+    <section className={cx(s.dropzone, s.cvColumn)} data-over={over || undefined} {...drag}>
       <span className={s.dropIcon}>
         <UploadIcon width={22} height={22} />
       </span>
-      <p className={ui.emptyTitle}>{t('cv.upload.title')}</p>
+      <p className={ui.emptyTitle}>
+        {over ? t('cv.upload.drop') : t('cv.upload.title')}
+      </p>
       <p className={ui.emptyBody}>{t('cv.upload.body')}</p>
       <button type="button" className={cx(ui.btn, ui.primary)} onClick={onPick}>
         {t('cv.upload.pick')}
       </button>
+      <p className={s.dropHint}>{t('cv.upload.dropHint')}</p>
       {error != null && <UploadError error={error} />}
       <p className={ui.caption}>
         {t('cv.upload.limits')}
@@ -130,7 +194,7 @@ function Upload({ onPick, error }: { onPick: () => void; error: unknown }) {
 function Processing() {
   return (
     <section className={cx(ui.panel, s.cvColumn)} aria-busy="true">
-      <p className={ui.caption}>{t('cv.processing')}</p>
+      <AiBusy>{t('cv.processing')}</AiBusy>
       <div style={{ marginTop: 16 }}>
         <Loading rows={5} panel={false} />
       </div>
@@ -204,7 +268,7 @@ function CvView({
   return (
     <div className={s.cvColumn}>
       {/* One header for the file and its version; the page's actions sit on its right */}
-      <header className={s.cvHead}>
+      <header className={cx(ui.panel, s.cvHead)}>
         <span className={s.fileIcon}>
           <DocumentIcon width={20} height={20} />
         </span>
@@ -262,17 +326,36 @@ function CvView({
       )}
       {editing && <RuleCard />}
 
-      <section className={ui.panel} aria-label={t('cv.title')}>
-        <AiNotice notice={cv.notice} method={cv.method} />
-        <div style={{ marginTop: 20 }}>
-          <ProfileView
-            profile={editing ? draft : cv.profile}
-            editing={editing}
-            update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
-            firstFieldRef={focus.regionRef}
-          />
-        </div>
-      </section>
+      {editing ? (
+        // While editing it is the seeker's own form: a plain card
+        <section className={ui.panel} aria-label={t('cv.title')}>
+          <AiNotice notice={cv.notice} method={cv.method} />
+          <div style={{ marginTop: 20 }}>
+            <ProfileView
+              profile={draft}
+              editing
+              update={(patch) => setDraft((p) => ({ ...p, ...patch }))}
+              firstFieldRef={focus.regionRef}
+            />
+          </div>
+        </section>
+      ) : cv.method === 'seeker' ? (
+        // A version the seeker edited is their own content: a plain card (the notice names the method, 직접 수정)
+        <section className={ui.panel} aria-label={t('cv.title')}>
+          <AiNotice notice={cv.notice} method={cv.method} />
+          <div style={{ marginTop: 20 }}>
+            <ProfileView profile={cv.profile} editing={false} update={() => undefined} firstFieldRef={focus.regionRef} />
+          </div>
+        </section>
+      ) : (
+        // What the AI read from the PDF: the AI box (AI 분석)
+        <section aria-label={t('cv.title')}>
+          <AiBox card>
+            <AiNotice notice={cv.notice} method={cv.method} inBox />
+            <ProfileView profile={cv.profile} editing={false} update={() => undefined} firstFieldRef={focus.regionRef} />
+          </AiBox>
+        </section>
+      )}
 
       {editing ? (
         // Stays in view at the bottom while scrolling through a long form
@@ -315,10 +398,10 @@ function CheckPanel({ cv }: { cv: CvOut }) {
 
   return (
     <section className={ui.panel} aria-labelledby="cv-check">
-      <div className={ui.panelHead}>
+      <div className={cx(ui.panelHead, !busy && error == null && !review && ui.panelHeadAlone)}>
         <div>
           <h2 id="cv-check" className={ui.panelTitle}>
-            <ClipboardCheckIcon width={18} height={18} />
+            <AiMark />
             {t('cv.check.title')}
           </h2>
           <p className={ui.caption} style={{ marginTop: 4 }}>
@@ -331,7 +414,12 @@ function CheckPanel({ cv }: { cv: CvOut }) {
           </button>
         )}
       </div>
-      {busy && <Loading rows={4} panel={false} />}
+      {busy && (
+        <div className={ui.stack}>
+          <AiBusy>{t('cv.check.running')}</AiBusy>
+          <Loading rows={4} panel={false} />
+        </div>
+      )}
       {error != null && (
         <InlineError>
           {errorText(error)}{' '}
@@ -363,10 +451,11 @@ function Source({ text }: { text: string }) {
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <section className={s.section}>
-      <h3 className={s.sectionHead}>
+      {/* The CV's sections are h2 under the page's h1; 이력서 점검 is their sibling */}
+      <h2 className={s.sectionHead}>
         {title}
         {count !== undefined && <span className={ui.count}>{count}</span>}
-      </h3>
+      </h2>
       {children}
     </section>
   );
@@ -411,7 +500,7 @@ function ProfileView({
           {editing ? (
             <textarea
               ref={firstFieldRef}
-              className={ui.textarea}
+              className={cx(ui.textarea, ui.autoGrow)}
               rows={2}
               maxLength={500}
               value={profile.summary}
@@ -484,7 +573,7 @@ function ProfileView({
                     <label className={ui.field} style={{ gridColumn: '1 / -1' }}>
                       <span className={ui.label}>{t('cv.descriptionLabel')}</span>
                       <textarea
-                        className={ui.textarea}
+                        className={cx(ui.textarea, ui.autoGrow)}
                         rows={2}
                         maxLength={2000}
                         value={x.description}
@@ -514,7 +603,7 @@ function ProfileView({
                 <span className={s.entryTitle}>{x.name}</span>
                 {editing ? (
                   <textarea
-                    className={ui.textarea}
+                    className={cx(ui.textarea, ui.autoGrow)}
                     rows={2}
                     maxLength={2000}
                     value={x.description}

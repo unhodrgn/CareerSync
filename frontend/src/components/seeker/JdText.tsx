@@ -28,7 +28,7 @@ export default function JdText({ text }: { text: string }) {
     }
     flush();
     if (!trimmed) continue;
-    if (HEADINGS.includes(trimmed)) blocks.push(<h3 key={`h${blocks.length}`}>{trimmed}</h3>);
+    if (HEADINGS.includes(trimmed)) blocks.push(<h2 key={`h${blocks.length}`}>{trimmed}</h2>);
     else blocks.push(<p key={`p${blocks.length}`}>{line}</p>);
   }
   flush();
