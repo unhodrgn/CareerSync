@@ -5,7 +5,9 @@ import { BriefcaseIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@/components
 import { Deadline, employmentLabel } from '@/components/common/Labels';
 import { JobIconTile } from '@/components/common/JobIconTile';
 import { cx } from '@/components/common/Page';
+import { GateTag, hasGate } from '@/components/common/RequiredGate';
 import ui from '@/components/common/ui.module.css';
+import type { RequiredGateOut } from '@/types/gate';
 import type { EmploymentType } from '@/types/job';
 import type { MatchScores } from '@/types/recommendation';
 import { isScore, MatchReasons, MatchSummary, type PreferenceStatus } from './Match';
@@ -38,6 +40,7 @@ export default function JobCard({
   scores,
   prefs,
   actions,
+  gate,
 }: {
   to: string;
   job: JobCardJob;
@@ -45,6 +48,8 @@ export default function JobCard({
   /** Whether the seeker has preferences (D46): the preference score shows as a number only when they do. */
   prefs: PreferenceStatus;
   actions?: ReactNode;
+  /** Required criteria gate (D50): shown with the job's facts, apart from the match score; nothing without a check. */
+  gate?: RequiredGateOut | null;
 }) {
   const scored = scores != null && isScore(scores.match_score);
   const reasons = scores ? (
@@ -76,6 +81,11 @@ export default function JobCard({
             <li>
               <BriefcaseIcon width={17} height={17} />
               {experienceLabel(job.min_experience_years)}
+            </li>
+          )}
+          {hasGate(gate) && (
+            <li>
+              <GateTag status={gate.status} />
             </li>
           )}
           <li>

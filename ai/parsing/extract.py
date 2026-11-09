@@ -5,6 +5,8 @@ in code, never trusted from the LLM.
 """
 import logging
 import re
+import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 from ai.embedding.skills import SkillDictionary
@@ -115,6 +117,108 @@ def verified_experience(text: str, experiences: list[Experience], today: str) ->
     lines = list(dict.fromkeys(lines))
     spans = [Experience(start=start, end=end) for start, end in map(_period, lines)]
     return total_experience_months(spans, today), lines
+
+
+# ── Stated total experience (docs/DECISIONS.md D48) ──
+
+# Most months a stated total may claim; a larger number is a typo or not a duration
+_STATED_MAX_MONTHS = 50 * 12
+_BULLET = r"^[\s\-•*·▪■]*"
+# After a label value: "이상" / "+" / "trở lên" (or more: open-ended), "차" (N년차), then an optional note in brackets
+_TAIL = r"\s*(?:(?P<more>이상|\+|or\s+more|trở\s+lên)|차)?\s*(?:[(\[].*)?$"
+
+
+def _duration(years: str, months: str, *, unit_optional: bool = False) -> str:
+    """A duration in one language: "2년", "2년 6개월", "6개월", "2~4년" / "2년~4년" / "5+ years".
+    Groups: y, m, mo (the lower bound), y_hi / y_hi2 / mo_hi (the upper bound of a range), plus (open-ended)."""
+    y_unit = f"(?:{years})" + ("?" if unit_optional else "")
+    return (
+        rf"(?:(?P<y>\d{{1,2}})(?:\s*[~\-–]\s*(?P<y_hi>\d{{1,2}}))?\s*(?P<plus>\+)?\s*{y_unit}"
+        rf"(?:\s*[~\-–]\s*(?P<y_hi2>\d{{1,2}})\s*(?:{years}))?"
+        rf"(?:\s*(?P<m>\d{{1,2}})\s*(?:{months}))?"
+        rf"|(?P<mo>\d{{1,2}})(?:\s*[~\-–]\s*(?P<mo_hi>\d{{1,2}}))?\s*(?:{months}))"
+    )
+
+
+_KO = _duration("년", "개월")
+_EN = _duration(r"years?|yrs?", r"months?")
+_EN_BARE = _duration(r"years?|yrs?", r"months?", unit_optional=True)
+_VI = _duration("năm", "tháng")
+_VI_BARE = _duration("năm", "tháng", unit_optional=True)
+_STATED = tuple(
+    re.compile(_BULLET + p, re.IGNORECASE)
+    for p in (
+        # 경력: 2년 · 총 경력 5년 · 경력 기간: 1년 6개월 (the value must be a duration, so "경력 및 주요 활동" never matches)
+        rf"(?:총\s*)?경력(?:\s*기간)?\s*[:：]?\s*{_KO}{_TAIL}",
+        # Years of experience: 5 · Total experience: 5 years
+        rf"(?:total\s+)?years\s+of\s+(?:[a-z]+\s+)?experience\s*[:：]\s*{_EN_BARE}{_TAIL}",
+        rf"(?:total\s+)?(?:work\s+|professional\s+)?experience\s*[:：]\s*{_EN}{_TAIL}",
+        # 5 years of experience … · Over 5+ years of professional experience …
+        rf"(?:(?P<over>over\s+|more\s+than\s+)|total\s+of\s+)?{_EN}\s+of\s+(?:[a-z][a-z\-]*\s+){{0,2}}experience\b",
+        # Số năm kinh nghiệm: 6 (years of experience) · Kinh nghiệm: 3 năm (experience: 3 years)
+        rf"(?:tổng\s+)?số\s+năm\s+kinh\s+nghiệm\s*[:：]?\s*{_VI_BARE}{_TAIL}",
+        rf"(?:tổng\s+)?kinh\s+nghiệm(?:\s+làm\s+việc)?\s*[:：]\s*{_VI}{_TAIL}",
+        # 3 năm kinh nghiệm … (3 years of experience …)
+        rf"{_VI}\s+kinh\s+nghiệm\b",
+    )
+)
+
+
+@dataclass(frozen=True)
+class StatedExperience:
+    """One stated total experience line of the CV text."""
+
+    low_months: int  # what the line states at least (a range's lower bound)
+    high_months: int | None  # what it states at most; None when open-ended ("5년 이상", "5+ years", "over 5 years")
+    line: str  # the line, as it appears in the text
+
+
+def _group(m: re.Match, name: str) -> str | None:
+    return m.groupdict().get(name)
+
+
+def stated_experience_candidates(text: str) -> list[StatedExperience]:
+    """Every stated total experience line of the CV text, in order (see `stated_experience`), with the upper bound of
+    a range and whether the statement is open-ended. Used where a range or several statements matter (D50)."""
+    found: list[StatedExperience] = []
+    for raw in text.splitlines():
+        line = unicodedata.normalize("NFC", raw.strip())
+        if not line or not any(ch.isdigit() for ch in line):
+            continue
+        for pattern in _STATED:
+            if m := pattern.match(line):
+                if m["mo"] is not None:
+                    low = int(m["mo"])
+                    high = int(m["mo_hi"]) if m["mo_hi"] is not None else low
+                else:
+                    extra = int(m["m"] or 0)
+                    low = 12 * int(m["y"]) + extra
+                    upper = m["y_hi"] or m["y_hi2"]
+                    high = 12 * int(upper) + extra if upper is not None else low
+                if any(_group(m, g) for g in ("plus", "more", "over")):
+                    high = None
+                elif high < low:
+                    high = low
+                if low <= _STATED_MAX_MONTHS:
+                    found.append(StatedExperience(low, high, raw.strip()))
+                break
+    return found
+
+
+def stated_experience(text: str) -> tuple[int, str] | None:
+    """The total experience the CV states on a line of its own text, e.g. "경력: 2년", "총 경력 5년",
+    "5 years of experience", "Số năm kinh nghiệm: 6": (months, that line), or None when no line states one.
+
+    Read only from the (masked) CV text, never from the editable profile. A range counts its lower bound
+    ("2~4년" → 2 years); several stated lines count the smallest; a number that is not a plausible duration
+    (e.g. "2020년") is not read. Unlike `verified_experience`, nothing here is checked against employment
+    periods: callers must report it as stated, not verified.
+    """
+    found = stated_experience_candidates(text)
+    if not found:
+        return None
+    smallest = min(found, key=lambda s: s.low_months)
+    return smallest.low_months, smallest.line
 
 
 # ── Rule-based CV structuring ──

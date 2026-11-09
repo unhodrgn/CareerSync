@@ -4,7 +4,8 @@ docs/DECISIONS.md D3, D18, D19).
 Candidates: `profile_public` seekers with AI consent at RECO_MIN_CONSENT_VERSION or later and a newest
 CV version that is confirmed — checked on every request. Excluded: seekers who applied to the job,
 seekers with a pending or accepted offer from the company, seekers who rejected an offer for this job.
-Then Pref ≥ RECO_MIN_PREF → evaluation for (job, CV version): `done` gives Fit ≥ RECO_MIN_FIT;
+Then Pref ≥ RECO_MIN_PREF → required criteria gate (D50), FAIL left out before any evaluation is queued
+(`gate_allows`, shared with the offer check) → evaluation for (job, CV version): `done` gives Fit ≥ RECO_MIN_FIT;
 missing, failed or stale ones are queued within the caps. Everything shown to the company is read from
 the masked CV text (CLAUDE.md AI rule 14), never the seeker-edited profile alone.
 """
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ai.parsing.extract import line_in_text, verified_experience
 from ai.parsing.sections import split_sections
+from ai.scoring.gate import RequiredGate
 from ai.scoring.pref import JobFacts, pref_score
 from app.core.config import settings
 from app.core.errors import AppError
@@ -26,7 +28,15 @@ from app.models.application import EvaluationStatus
 from app.models.job import JobStatus
 from app.models.matching import TalentOfferStatus
 from app.schemas.talent import TalentCandidate, TalentCriterionScore, TalentDesired, TalentEducation, TalentList
-from app.services import ai_runtime, criteria_service, cv_service, evaluation_service, job_service, preference_service
+from app.services import (
+    ai_runtime,
+    criteria_service,
+    cv_service,
+    evaluation_service,
+    gate_service,
+    job_service,
+    preference_service,
+)
 
 KST = timezone(timedelta(hours=9))
 
@@ -173,10 +183,20 @@ def offer_status(offer: TalentOffer) -> str:
     return "expired" if offer_expired(offer) else offer.status
 
 
+def gate_allows(job: JobPosting, profile: CvProfile, gates: gate_service.Gates | None = None) -> RequiredGate | None:
+    """The required criteria gate (D50) of this CV version for this job, or None when it is FAIL: the one rule the
+    talent list and the offer check share. REVIEW is allowed."""
+    gate = (gates or gate_service.Gates()).get(profile, job.min_experience_years)
+    return None if gate_service.excluded(gate) else gate
+
+
 def qualifies(db: Session, job: JobPosting, pref: SeekerPreference, profile: CvProfile) -> bool:
-    """Pref and Fit both pass for this job, with a `done` evaluation (what the talent list would show)."""
+    """Pref, the required criteria gate and Fit all pass for this job, with a `done` evaluation (what the talent list
+    would show)."""
     facts = JobFacts(title=job.title, description=job.description, location=job.location, employment_type=job.employment_type)
     if pref_score(preference_service.to_preferences(pref), facts).score < settings.RECO_MIN_PREF:
+        return False
+    if gate_allows(job, profile) is None:
         return False
     ev = db.scalars(select(Evaluation).where(Evaluation.job_id == job.id, Evaluation.cv_profile_id == profile.id)).first()
     weights = {c.id: c.effective_weight for c in criteria_service.load_for_scoring(db, job.id).items}
@@ -191,13 +211,19 @@ def recommend(db: Session, user: User, job_id: int, limit: int) -> TalentResult:
 
     facts = JobFacts(title=job.title, description=job.description, location=job.location, employment_type=job.employment_type)
     offers = _offers_by_seeker(db, job.company_id)
-    passed = []
+    gates = gate_service.Gates()
+    passed, gate_of = [], {}
     for seeker, pref, profile in public_pool(db, job):
         if blocking_offer(offers.get(seeker.id, []), job.id):
             continue
         score = pref_score(preference_service.to_preferences(pref), facts).score
-        if score >= settings.RECO_MIN_PREF:
-            passed.append((seeker, pref, profile, score))
+        if score < settings.RECO_MIN_PREF:
+            continue
+        # Required criteria gate (D50) before any evaluation: FAIL is not listed, so it is never queued
+        if (gate := gate_allows(job, profile, gates)) is None:
+            continue
+        gate_of[profile.id] = gate
+        passed.append((seeker, pref, profile, score))
     # Queue order when the caps bite: highest Pref first, then the most recently confirmed CV
     passed.sort(key=lambda x: (-x[3], -(x[2].confirmed_at.timestamp() if x[2].confirmed_at else 0), -x[2].id))
 
@@ -246,6 +272,7 @@ def recommend(db: Session, user: User, job_id: int, limit: int) -> TalentResult:
             offer_status=offer_status(max(offers[seeker.id], key=lambda o: (_aware(o.created_at), o.id)))
             if seeker.id in offers
             else None,
+            required_gate=gate_service.to_brief(gate_of[profile.id]),
             **anonymous_profile(pref, profile, today),
         )
         for fit, _, pref, seeker, profile, ev in ranked[:limit]

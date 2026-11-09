@@ -158,6 +158,7 @@ export const api = {
     for (const st of filters.status ?? []) search.append('status', st);
     if (filters.min_fit !== undefined) search.append('min_fit', String(filters.min_fit));
     if (filters.evaluation_status) search.append('evaluation_status', filters.evaluation_status);
+    if (filters.required_gate) search.append('required_gate', filters.required_gate);
     const text = search.toString();
     return request<ApplicantList>('GET', `/jobs/${jobId}/applications${text ? `?${text}` : ''}`);
   },

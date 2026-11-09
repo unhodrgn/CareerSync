@@ -17,7 +17,7 @@ DEPTH = 2  # folders down to this many levels below the repo root must be listed
 # Local, generated or secret, so never listed; hidden folders are tool folders (.claude, .impeccable, …) except these
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__"}
 HIDDEN_KEPT = {".github"}
-SKIP_FILES = {".env", "AUDIT_REPORT.md"}  # local secrets; the untracked audit report
+SKIP_FILES = {".env", "AUDIT_REPORT.md", "CLAUDE.md"}  # local secrets; the untracked audit report
 BRANCH = re.compile(r"├── |└── ")
 INDENT = ("│   ", "    ")  # one level = 4 characters
 FIX_TREE = "Add it to the tree, or allowlist it in backend/tests/docs/allowlist.yaml [tree_omitted] with a reason."

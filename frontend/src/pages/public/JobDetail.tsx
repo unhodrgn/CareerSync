@@ -9,6 +9,8 @@ import { ArrowRightIcon, CheckIcon } from '@/components/common/icons';
 import { JobIconTile } from '@/components/common/JobIconTile';
 import { ApplicationStatusTag, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
+import { matchView } from '@/components/common/gateDisplay';
+import { GateDetail, hasGate } from '@/components/common/RequiredGate';
 import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { ErrorPanel, InlineError, Loading } from '@/components/common/States';
@@ -158,6 +160,9 @@ async function cvState(): Promise<CvState> {
 function MatchSection({ data }: { data: MatchContext }) {
   const { match, applied } = data;
   const done = match?.status === 'done' && isScore(match.match_score);
+  // A done score, a running evaluation and an applied job keep their messages; only then does a FAIL gate say that no
+  // recommendation analysis runs for this job (it is never queued, D50) instead of promising a score later
+  const view = matchView(match, done, applied);
   return (
     // AI-made content: the AI box (blue-soft) around the mint panel and rings
     <section className={cx(ui.aiBox, ui.aiBoxCard, s.asideBlock)}>
@@ -165,19 +170,29 @@ function MatchSection({ data }: { data: MatchContext }) {
         <AiMark />
         {t('match.heading')}
       </h2>
-      {done ? (
+      {view === 'score' && done ? (
         <>
           <MatchPanel score={match.match_score} level={match.match_level} compact />
           <MatchBreakdown match={match} />
           {match.notice && <AiNotice notice={match.notice} inBox />}
           <ScoreNote />
         </>
-      ) : match?.status === 'pending' && !applied ? (
+      ) : view === 'pending' ? (
         <AiBusy>{t('match.pending')}</AiBusy>
-      ) : applied ? (
+      ) : view === 'applied' ? (
         <p className={ui.caption}>{t('match.applied')}</p>
+      ) : view === 'gateFail' ? (
+        <p className={ui.caption}>{t('match.gateFail')}</p>
       ) : (
         <NoScore cv={data.cv} />
+      )}
+      {/* The required criteria gate (D50) needs no evaluation, so it can show without a score. It is about the job's
+          minimum experience, apart from the score, and never blocks applying: the apply panel below stays as it is */}
+      {!applied && hasGate(match?.required_gate) && (
+        <div className={s.gateBlock}>
+          <h3 className={ui.sectionTitle}>{t('gate.title')}</h3>
+          <GateDetail gate={match.required_gate} audience="seeker" />
+        </div>
       )}
     </section>
   );

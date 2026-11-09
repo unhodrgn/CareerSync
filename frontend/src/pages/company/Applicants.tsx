@@ -4,9 +4,10 @@ import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
-import { formatDate, monthsLabel } from '@/components/common/format';
+import { formatDate } from '@/components/common/format';
 import { RefreshIcon } from '@/components/common/icons';
 import { ApplicationStatusTag, ScoreSquare } from '@/components/common/Labels';
+import { applicantExperience, GateTag, hasGate } from '@/components/common/RequiredGate';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
@@ -18,13 +19,16 @@ import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import { useDocumentTitle } from '@/routes/title';
 import { APPLICATION_STATUSES, type ApplicantList, type ApplicationStatus, type EvaluationStatus } from '@/types/application';
+import { GATE_STATUSES, type GateStatusT } from '@/types/gate';
 
 const MIN_FITS = [60, 70, 80];
 const EVAL_STATUSES: EvaluationStatus[] = ['done', 'pending', 'failed'];
-// Criteria columns: equal shares of what is left after rank (40) + Fit (72) + the applicant (at least 168), kept
-// between 40 and 96 px; under 80 px a name no longer fits on two horizontal lines, so the headers turn 45°.
-// The fixed widths live in company.module.css (.colRank, .colFit).
+// Criteria columns: equal shares of what is left after rank (40) + Fit (72) + the applicant (at least 168) + the
+// minimum-experience gate (88, only when the job sets a minimum), kept between 40 and 96 px; under 80 px a name no
+// longer fits on two horizontal lines, so the headers turn 45°. The fixed widths live in company.module.css
+// (.colRank, .colFit, .colGate).
 const RESERVED = 40 + 72 + 168;
+const GATE_COLUMN = 88;
 const MIN_COLUMN = 40;
 const MAX_COLUMN = 96;
 const COMFORTABLE_COLUMN = 80;
@@ -34,13 +38,13 @@ const COMFORTABLE_COLUMN = 80;
  * as auto) from the table's width, and says whether the headers are angled. The table is width: 100% with a fixed
  * layout, so its width never depends on these columns or the header height, and measuring again cannot loop.
  */
-function useCriteriaColumns(ref: RefObject<HTMLTableElement | null>, count: number, active: boolean) {
+function useCriteriaColumns(ref: RefObject<HTMLTableElement | null>, count: number, active: boolean, reserved = RESERVED) {
   const [dense, setDense] = useState(false);
   useLayoutEffect(() => {
     const table = ref.current;
     if (!active || !table || count === 0) return;
     const fit = () => {
-      const share = Math.floor(((table.clientWidth - RESERVED) / count) * 10) / 10;
+      const share = Math.floor(((table.clientWidth - reserved) / count) * 10) / 10;
       const width = Math.min(MAX_COLUMN, Math.max(MIN_COLUMN, share));
       table.style.setProperty('--crit-w', `${width}px`);
       setDense(width < COMFORTABLE_COLUMN);
@@ -49,7 +53,7 @@ function useCriteriaColumns(ref: RefObject<HTMLTableElement | null>, count: numb
     const observer = new ResizeObserver(fit);
     observer.observe(table);
     return () => observer.disconnect();
-  }, [ref, count, active]);
+  }, [ref, count, active, reserved]);
   return dense;
 }
 
@@ -65,9 +69,11 @@ export default function Applicants() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus[]>([]);
   const [minFit, setMinFit] = useState<number | undefined>(undefined);
   const [evalFilter, setEvalFilter] = useState<EvaluationStatus | undefined>(undefined);
+  // Required criteria gate (D50): filters the shown list only; it never removes, re-ranks or changes an applicant
+  const [gateFilter, setGateFilter] = useState<GateStatusT | undefined>(undefined);
   const list = useApi(
-    () => api.applicants(id, { status: statusFilter, min_fit: minFit, evaluation_status: evalFilter }),
-    [id, statusFilter.join(','), minFit, evalFilter],
+    () => api.applicants(id, { status: statusFilter, min_fit: minFit, evaluation_status: evalFilter, required_gate: gateFilter }),
+    [id, statusFilter.join(','), minFit, evalFilter, gateFilter],
   );
   const [params, setParams] = useSearchParams();
   const selected = Number(params.get('selected')) || null;
@@ -89,7 +95,9 @@ export default function Applicants() {
     );
   }
 
-  const filtered = statusFilter.length > 0 || minFit !== undefined || evalFilter !== undefined;
+  // The gate exists only for a job with a minimum experience; otherwise its filter and column stay out
+  const gated = (job.state.data.min_experience_years ?? 0) > 0;
+  const filtered = statusFilter.length > 0 || minFit !== undefined || evalFilter !== undefined || gateFilter !== undefined;
   return (
     <div className={ui.page}>
       <JobHeader job={job.state.data} />
@@ -134,8 +142,29 @@ export default function Applicants() {
             ))}
           </select>
         </label>
+        {gated && (
+          <label className={s.filterGroup}>
+            {t('gate.filter')}
+            <select
+              className={cx(ui.select, s.smallSelect)}
+              value={gateFilter ?? ''}
+              onChange={(e) => setGateFilter((e.target.value || undefined) as GateStatusT | undefined)}
+            >
+              <option value="">{t('apl.filter.all')}</option>
+              {GATE_STATUSES.map((x) => (
+                <option key={x} value={x}>
+                  {t(`gate.status.${x}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {filtered && (
-          <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={() => (setStatusFilter([]), setMinFit(undefined), setEvalFilter(undefined))}>
+          <button
+            type="button"
+            className={cx(ui.btn, ui.quiet, ui.small)}
+            onClick={() => (setStatusFilter([]), setMinFit(undefined), setEvalFilter(undefined), setGateFilter(undefined))}
+          >
             {t('apl.filter.reset')}
           </button>
         )}
@@ -144,7 +173,16 @@ export default function Applicants() {
       {list.state.status === 'loading' && <Loading rows={6} />}
       {list.state.status === 'error' && <ErrorPanel error={list.state.error} onRetry={list.reload} />}
       {list.state.status === 'ok' && (
-        <Board data={list.state.data} selected={selected} onSelect={select} onRefresh={list.reload} setData={list.setData} filtered={filtered} />
+        <Board
+          data={list.state.data}
+          selected={selected}
+          onSelect={select}
+          onRefresh={list.reload}
+          setData={list.setData}
+          filtered={filtered}
+          gated={gated}
+          gateFiltered={gateFilter !== undefined}
+        />
       )}
     </div>
   );
@@ -157,6 +195,8 @@ function Board({
   onRefresh,
   setData,
   filtered,
+  gated,
+  gateFiltered,
 }: {
   data: ApplicantList;
   selected: number | null;
@@ -164,6 +204,9 @@ function Board({
   onRefresh: () => void;
   setData: (d: ApplicantList) => void;
   filtered: boolean;
+  /** The job sets a minimum experience: the gate column shows (D50). */
+  gated: boolean;
+  gateFiltered: boolean;
 }) {
   const items = data.items;
   const index = items.findIndex((r) => r.application_id === selected);
@@ -172,7 +215,7 @@ function Board({
   useDocumentTitle(current?.name, 'page.company.applicantDetail.title');
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
   const tableRef = useRef<HTMLTableElement>(null);
-  const dense = useCriteriaColumns(tableRef, data.criteria.length, items.length > 0);
+  const dense = useCriteriaColumns(tableRef, data.criteria.length, items.length > 0, RESERVED + (gated ? GATE_COLUMN : 0));
   const requests = useRef(0);
   const [focusRequest, setFocusRequest] = useState<(DetailFocus & { id: number }) | null>(null);
   const [announce, setAnnounce] = useState('');
@@ -216,7 +259,8 @@ function Board({
   };
   const pending = data.items.some((r) => r.evaluation_status === 'pending');
   const facts = (a: (typeof items)[number]) =>
-    a.evaluation_status === 'done' ? t('apl.experience', { value: monthsLabel(a.experience_months) }) : t('apl.applied', { date: formatDate(a.applied_at) });
+    // The gate's stated total replaces a period-based 0 that would contradict it (D50); otherwise as before
+    a.evaluation_status === 'done' ? applicantExperience(a.experience_months, a.required_gate) : t('apl.applied', { date: formatDate(a.applied_at) });
 
   return (
     <div className={s.board}>
@@ -234,6 +278,7 @@ function Board({
         </div>
         <AiNotice notice={data.notice} />
         {filtered && <p className={ui.caption}>{t('apl.filter.note')}</p>}
+        {gateFiltered && <p className={ui.caption}>{t('gate.filter.note')}</p>}
         {data.items.length === 0 ? (
           <Empty panel={false} title={t('apl.noMatch')} />
         ) : (
@@ -250,6 +295,7 @@ function Board({
               {data.criteria.map((c) => (
                 <col key={c.id} className={s.colCrit} />
               ))}
+              {gated && <col className={s.colGate} />}
             </colgroup>
             <thead>
               <tr>
@@ -275,6 +321,8 @@ function Board({
                     <span className={s.critHeadWeight}>{Math.round(c.weight)}%</span>
                   </th>
                 ))}
+                {/* After the criteria, apart from Fit and its evidence: a label about the job's minimum, not a score */}
+                {gated && <th className={s.gateHead}>{t('gate.col')}</th>}
               </tr>
             </thead>
             <tbody className={ui.stagger}>
@@ -336,6 +384,11 @@ function Board({
                       </td>
                     );
                   })}
+                  {gated && (
+                    <td className={s.gateCell}>
+                      {hasGate(a.required_gate) ? <GateTag status={a.required_gate.status} short /> : <span className={ui.muted}>—</span>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

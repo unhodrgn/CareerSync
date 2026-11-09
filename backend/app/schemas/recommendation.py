@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.schemas.application import AI_NOTICE
 from app.schemas.criteria import Category, Importance
+from app.schemas.gate import RequiredGateOut
 from app.schemas.job import EmploymentType
 
 MatchLevel = Literal["매우 적합", "적합", "참고"]
@@ -32,6 +33,8 @@ class RecommendedJob(BaseModel):
     match_level: MatchLevel
     preference_score: int
     categories: list[CategoryScore]
+    # Required criteria gate (D50): PASS or REVIEW here (FAIL jobs are not recommended); the seeker's own CV lines
+    required_gate: RequiredGateOut | None = None
 
 
 class RecommendationList(BaseModel):
@@ -81,4 +84,7 @@ class JobMatch(BaseModel):
     preference_score: int | None = None
     categories: list[CategoryScore] = []
     criteria: list[CriterionMatch] = []
+    # Required criteria gate (D50) for this seeker and job, also while no score exists; null without a confirmed CV,
+    # without current AI consent, or for an applied job
+    required_gate: RequiredGateOut | None = None
     notice: str = AI_NOTICE

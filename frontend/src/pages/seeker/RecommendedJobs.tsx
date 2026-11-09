@@ -217,6 +217,7 @@ function Result({
               job={{ ...r, ...facts?.get(r.job_id) }}
               scores={r}
               prefs={prefsStatus}
+              gate={r.required_gate}
               actions={
                 <Link
                   to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })}

@@ -16,6 +16,7 @@ from app.schemas.application import (
     EvaluationStatusT,
     StatusUpdate,
 )
+from app.schemas.gate import GateStatusT
 from app.services import application_service as svc
 from app.services import evaluation_service
 
@@ -52,8 +53,11 @@ def list_applicants(
     status_: Annotated[list[ApplicationStatusT] | None, Query(alias="status", description="Repeatable")] = None,
     min_fit: Annotated[float | None, Query(ge=0, le=100, description="Leaves out applicants without a Fit")] = None,
     evaluation_status: Annotated[EvaluationStatusT | None, Query()] = None,
+    required_gate: Annotated[
+        GateStatusT | None, Query(description="Required criteria gate (D50); a filter only, never a ranking or status change")
+    ] = None,
 ):
-    return svc.ranked(db, user, job_id, status_, min_fit, evaluation_status)
+    return svc.ranked(db, user, job_id, status_, min_fit, evaluation_status, required_gate)
 
 
 @router.get(

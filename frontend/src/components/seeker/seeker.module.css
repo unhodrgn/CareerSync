@@ -299,6 +299,12 @@ a.jobTitle:hover {
   gap: var(--ds-space-4);
 }
 
+/* The required criteria gate (D50) inside the match box: a hairline keeps it apart from the score above */
+.gateBlock {
+  padding-top: var(--ds-space-4);
+  border-top: 1px solid var(--ds-line);
+}
+
 .prepLink {
   padding-top: var(--ds-space-3);
   display: inline-flex;

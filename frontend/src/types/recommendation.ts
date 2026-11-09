@@ -1,5 +1,6 @@
 // Mirrors backend/app/schemas/recommendation.py.
 import type { Category, Importance } from './criteria';
+import type { RequiredGateOut } from './gate';
 import type { EmploymentType } from './job';
 
 /** The band shown with the match score (D16, D42). */
@@ -39,6 +40,8 @@ export interface RecommendedJob extends MatchScores {
   deadline: string | null;
   /** Recommended jobs always have a band (Final ≥ 40). */
   match_level: MatchLevel;
+  /** Required criteria gate (D50): PASS or REVIEW (FAIL jobs are not recommended). */
+  required_gate?: RequiredGateOut | null;
 }
 
 export interface RecommendationList {
@@ -76,5 +79,7 @@ export interface JobMatch {
   preference_score: number | null;
   categories: CategoryScore[];
   criteria: CriterionMatch[];
+  /** Required criteria gate (D50) with every status; null without a confirmed CV or AI consent, or for an applied job. */
+  required_gate?: RequiredGateOut | null;
   notice: string;
 }

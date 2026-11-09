@@ -1,7 +1,7 @@
 """Job recommendation for seekers (PROJECT_DOCUMENTATION.md §6.1; docs/DECISIONS.md D2, D15, D16, D42, D43).
 
 ① candidates: published, unexpired jobs the seeker has not applied to → ② Pref, drop < RECO_MIN_PREF
-→ ③ evaluation for (job, newest confirmed CV version): `done` ones give Fit; missing, failed or stale
+→ ②b required criteria gate (D50), drop FAIL before any evaluation is queued → ③ evaluation for (job, newest confirmed CV version): `done` ones give Fit; missing, failed or stale
 ones are queued in the background within the caps → ④ Fit with current weights, drop < RECO_MIN_FIT
 → ⑤ Final = 0.5·Fit + 0.5·Pref → ⑥ sort. Seekers see the match score (Final rounded down) with its band
 (매우 적합 / 적합 / 참고), the preference score and unweighted category scores (D42); never weights.
@@ -31,7 +31,15 @@ from app.schemas.recommendation import (
     RecommendationList,
     RecommendedJob,
 )
-from app.services import ai_runtime, criteria_service, cv_service, evaluation_service, job_service, preference_service
+from app.services import (
+    ai_runtime,
+    criteria_service,
+    cv_service,
+    evaluation_service,
+    gate_service,
+    job_service,
+    preference_service,
+)
 from app.services.criteria_service import ScoringCriterion
 
 KST = timezone(timedelta(hours=9))  # no daylight saving in Korea
@@ -156,12 +164,19 @@ def recommend(db: Session, user: User, limit: int) -> Recommendation:
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
 
     prefs = preference_service.to_preferences(preference_service.get_mine(db, user))
-    passed = []
+    gates = gate_service.Gates()
+    passed, gate_of = [], {}
     for job in _candidates(db, user.id):
         facts = JobFacts(title=job.title, description=job.description, location=job.location, employment_type=job.employment_type)
         pref = pref_score(prefs, facts).score
-        if pref >= settings.RECO_MIN_PREF:
-            passed.append((job, pref))
+        if pref < settings.RECO_MIN_PREF:
+            continue
+        # Required criteria gate (D50) before any evaluation: a FAIL job is not recommended, so it is never queued
+        gate = gates.get(profile, job.min_experience_years)
+        if gate_service.excluded(gate):
+            continue
+        gate_of[job.id] = gate
+        passed.append((job, pref))
     # Queue order when the caps bite: highest Pref first, then newest
     passed.sort(key=lambda x: (-x[1], -(x[0].published_at.timestamp() if x[0].published_at else 0), -x[0].id))
 
@@ -213,6 +228,7 @@ def recommend(db: Session, user: User, limit: int) -> Recommendation:
                 match_level=match_level(final),
                 preference_score=math.floor(pref),
                 categories=categories,
+                required_gate=gate_service.to_out(gate_of[job.id]),
             )
         )
     return Recommendation(RecommendationList(items=items, pending_count=pending), queued)
@@ -284,18 +300,20 @@ def job_match(db: Session, user: User, job_id: int) -> JobMatch:
     CV), with each criterion's score (D42, D43)."""
     _seeker_only(user)
     job = job_service.get_visible_job(db, job_id, user)
-    none = JobMatch(job_id=job.id, status="none")
     profile = _confirmed_cv(db, user)
     if profile is None or not _has_ai_consent(user) or _applied(db, user, [job.id]):
-        return none
+        return JobMatch(job_id=job.id, status="none")
+    # Required criteria gate (D50): needs no evaluation, so it is shown with every status
+    gate = gate_service.to_out(gate_service.compute(profile, job.min_experience_years))
+    none = JobMatch(job_id=job.id, status="none", required_gate=gate)
     ev = db.scalars(select(Evaluation).where(Evaluation.job_id == job.id, Evaluation.cv_profile_id == profile.id)).first()
     if ev is None or ev.status == EvaluationStatus.FAILED:
         return none
     if ev.status != EvaluationStatus.DONE:
-        return JobMatch(job_id=job.id, status="pending")
+        return JobMatch(job_id=job.id, status="pending", required_gate=gate)
     prefs = preference_service.to_preferences(preference_service.get_mine(db, user))
     scored = _score(db, job, ev, prefs)
     if scored is None:
         return none
     score, rows = scored
-    return JobMatch(status="done", criteria=rows, **score.model_dump())
+    return JobMatch(status="done", criteria=rows, required_gate=gate, **score.model_dump())

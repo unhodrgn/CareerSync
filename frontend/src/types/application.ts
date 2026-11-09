@@ -1,4 +1,5 @@
 // Mirrors backend/app/schemas/application.py.
+import type { GateStatusT, RequiredGateOut } from './gate';
 
 export type ApplicationStatus = 'submitted' | 'reviewing' | 'interview' | 'on_hold' | 'passed' | 'rejected';
 export type EvaluationStatus = 'pending' | 'done' | 'failed';
@@ -44,6 +45,8 @@ export interface ApplicantRow {
   /** Criteria scored at or above the strong level (75). */
   strong_count: number;
   scores: ScoreBrief[];
+  /** Required criteria gate (D50): a label only; it never removes, re-ranks or changes an applicant. */
+  required_gate?: RequiredGateOut | null;
 }
 
 export interface ExcludedBrief {
@@ -66,6 +69,8 @@ export interface ApplicantFilters {
   status?: ApplicationStatus[];
   min_fit?: number;
   evaluation_status?: EvaluationStatus;
+  /** Required criteria gate (D50): filters the shown list only. */
+  required_gate?: GateStatusT;
 }
 
 export interface CriterionEvaluation {
@@ -96,5 +101,7 @@ export interface EvaluationOut {
   embedding_model: string;
   prompt_version: string;
   finished_at: string | null;
+  /** Required criteria gate (D50), the full result. */
+  required_gate?: RequiredGateOut | null;
   notice: string;
 }

@@ -23,4 +23,6 @@ env_undocumented: []
 constants: []
 
 # test_doc_tree.py: top-level entries and folders (down to two levels below the root) left out of the CareerSync/ tree on purpose
-tree_omitted: []
+tree_omitted:
+  - path: test_data
+    reason: Local AI matching test dataset, intentionally git-ignored and not part of the repository documentation tree.

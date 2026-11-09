@@ -1,10 +1,19 @@
+import unicodedata
+
 import pytest
 
-from ai.parsing.extract import analyze_jd, months_between, structure_cv, total_experience_months
+from ai.parsing.extract import (
+    analyze_jd,
+    months_between,
+    stated_experience,
+    structure_cv,
+    total_experience_months,
+    verified_experience,
+)
 from ai.parsing.pdf import PdfError, extract_text
 from ai.parsing.pii import mask_pii
 from ai.parsing.profile import Experience
-from ai.parsing.sections import split_sections
+from ai.parsing.sections import heading_key, split_sections
 from ai.tests.helpers import SAMPLE_CV, SKILLS, FakeLLM, make_pdf
 
 
@@ -30,6 +39,133 @@ def test_name_with_spaces_between_syllables_is_masked():
 def test_sections_by_heading():
     keys = [s.key for s in split_sections(SAMPLE_CV)]
     assert keys == ["other", "experience", "project", "education", "certificate"]
+
+
+@pytest.mark.parametrize(
+    "heading, key",
+    [
+        # Existing Korean and English headings keep their section
+        ("경력", "experience"), ("경력사항", "experience"), ("Work Experience", "experience"), ("## 경력 사항:", "experience"),
+        ("프로젝트", "project"), ("Projects", "project"), ("학력", "education"), ("Education", "education"),
+        ("보유 기술", "skill"), ("Technical Skills", "skill"), ("자기소개", "summary"), ("자격증", "certificate"),
+        ("대외활동", "activity"),
+        # Korean combined heading (D49)
+        ("경력 및 주요 활동", "experience"),
+        # Vietnamese headings (D49), upper case as on the CVs
+        ("KINH NGHIỆM", "experience"), ("KINH NGHIỆM / CÔNG VIỆC", "experience"), ("KINH NGHIỆM/CÔNG VIỆC", "experience"),
+        ("Kinh nghiệm làm việc", "experience"), ("DỰ ÁN", "project"), ("KỸ NĂNG CHUYÊN MÔN", "skill"),
+        ("KỸ NĂNG", "skill"), ("HỌC VẤN", "education"), ("TÓM TẮT NĂNG LỰC", "summary"),
+    ],
+)
+def test_heading_keys(heading, key):
+    assert heading_key(heading) == key
+
+
+def test_decomposed_vietnamese_headings_are_recognized():
+    # PDF text can carry Vietnamese letters as base letter + combining marks
+    assert heading_key(unicodedata.normalize("NFD", "KINH NGHIỆM / CÔNG VIỆC")) == "experience"
+    assert heading_key(unicodedata.normalize("NFD", "DỰ ÁN")) == "project"
+
+
+@pytest.mark.parametrize("line", ["경력: 2년", "Số năm kinh nghiệm: 6", "경력 3년 이상", "Kinh nghiệm phát triển API", "경력 및 활동 내역"])
+def test_lines_that_are_not_headings(line):
+    assert heading_key(line) is None
+
+
+def test_korean_combined_heading_keeps_project_periods_out_of_experience():
+    text = (
+        "경력 및 주요 활동\n넥스트코드 백엔드 개발자 2021.03 ~ 2023.02\n주문 API 개발\n\n"
+        "프로젝트\n추천 시스템 2019.01 ~ 2020.12\n\n학력\n컴퓨터공학 학사"
+    )
+    assert [s.key for s in split_sections(text)] == ["experience", "project", "education"]
+    months, lines = verified_experience(text, [], "2026-11")
+    assert (months, lines) == (24, ["넥스트코드 백엔드 개발자 2021.03 ~ 2023.02"])
+
+
+def test_vietnamese_experience_and_projects_are_separate_sections():
+    text = (
+        "Mã ứng viên: VN99\nSố năm kinh nghiệm: 2\n"
+        "TÓM TẮT NĂNG LỰC\nBackend Java.\n"
+        "KỸ NĂNG CHUYÊN MÔN\nJava, Spring Boot, PostgreSQL\n"
+        "KINH NGHIỆM / CÔNG VIỆC\nCông ty ABC | Backend 2022.01 ~ 2023.12\nXây dựng REST API.\n"
+        "DỰ ÁN\nỨng dụng đặt lịch 2020.01 ~ 2020.06\n"
+        "HỌC VẤN\nCử nhân Kỹ thuật phần mềm"
+    )
+    sections = {s.key: s.text for s in split_sections(text)}
+    assert list(sections) == ["other", "summary", "skill", "experience", "project", "education"]
+    assert "2020.01" in sections["project"] and "2020.01" not in sections["experience"]
+    # Only the employment period counts; the project's 6 months are not experience
+    assert verified_experience(text, [], "2026-11") == (24, ["Công ty ABC | Backend 2022.01 ~ 2023.12"])
+
+
+# ── stated total experience (D48) ──
+
+
+@pytest.mark.parametrize(
+    "text, months",
+    [
+        ("경력: 2년", 24),
+        ("총 경력 5년", 60),
+        ("총 경력: 5년 3개월", 63),
+        ("경력 기간: 1년 6개월", 18),
+        ("경력: 6개월", 6),
+        ("경력 10년차", 120),
+        ("- 경력: 2년 (핀테크)", 24),
+        ("5 years of experience in backend development", 60),
+        ("Over 5+ years of professional experience", 60),
+        ("Years of experience: 4", 48),
+        ("Total experience: 3 years", 36),
+        ("Số năm kinh nghiệm: 6", 72),
+        ("Kinh nghiệm: 3 năm", 36),
+        ("3 năm kinh nghiệm Java", 36),
+        # Zero is a statement too
+        ("경력: 0년", 0),
+        ("Số năm kinh nghiệm: 0", 0),
+        # Ranges count their lower bound, never more than stated
+        ("경력: 2~4년", 24),
+        ("경력: 2년~4년", 24),
+        ("3-5 years of experience", 36),
+    ],
+)
+def test_stated_experience(text, months):
+    assert stated_experience(f"자기소개\n백엔드 개발자\n{text}\n") == (months, text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "경력: 2020년",  # a year, not a duration
+        "경력: 99년",  # not a plausible duration
+        "경력: 신입",
+        "경력: 몇 년",
+        "Experience: 5",  # no unit
+        "경력 및 주요 활동",
+        "KINH NGHIỆM / CÔNG VIỆC",
+        "경력 3년 이상의 시니어와 협업했습니다",  # a sentence, not a stated total
+        "주니어 2명(경력 1년)을 멘토링",
+        "",
+    ],
+)
+def test_no_stated_experience(text):
+    assert stated_experience(text) is None
+
+
+def test_conflicting_stated_totals_count_the_smallest():
+    assert stated_experience("경력: 7년\n자기소개\n총 경력 2년") == (24, "총 경력 2년")
+
+
+def test_stated_experience_reads_decomposed_vietnamese():
+    line = unicodedata.normalize("NFD", "Số năm kinh nghiệm: 4")
+    assert stated_experience(line) == (48, line)
+
+
+def test_verified_experience_ignores_stated_totals():
+    # Its return values stay period-based: the applicant list and talent cards use them (D48)
+    assert verified_experience("경력: 5년\n자기소개\nJava 개발", [], "2026-11") == (0, [])
+    masked = mask_pii(SAMPLE_CV, ["김지원"]).text
+    profile, _ = structure_cv(masked, SKILLS, None)
+    months, lines = verified_experience(masked, profile.experiences, "2026-10")
+    assert months == 68 and len(lines) == 2
 
 
 def test_rules_structure_the_sample_cv():

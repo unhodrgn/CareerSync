@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.gate import RequiredGateOut
+
 ApplicationStatusT = Literal["submitted", "reviewing", "interview", "on_hold", "passed", "rejected"]
 EvaluationStatusT = Literal["pending", "done", "failed"]
 
@@ -44,6 +46,8 @@ class ApplicantRow(BaseModel):
     fit: float | None
     strong_count: int
     scores: list[ScoreBrief]
+    # Required criteria gate (D50): a label only; it never removes, re-ranks or changes an applicant
+    required_gate: RequiredGateOut | None = None
 
 
 class ExcludedBrief(BaseModel):
@@ -89,6 +93,8 @@ class EvaluationOut(BaseModel):
     embedding_model: str
     prompt_version: str
     finished_at: datetime | None
+    # Required criteria gate (D50): the full result with the minimum, the experience used, basis, reason and evidence
+    required_gate: RequiredGateOut | None = None
     notice: str = AI_NOTICE
 
 

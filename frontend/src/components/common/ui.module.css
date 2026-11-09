@@ -1201,6 +1201,22 @@
   --status-dot: var(--ds-line-strong);
 }
 
+/* Required criteria gate (D50): met in mint, not met in amber (needs attention, never the rejected gray or a red
+   error: it is a recommendation filter, not a decision), to be checked as an empty ring like 검토 전 */
+.status[data-gate='PASS'] {
+  --status-dot: var(--ds-accent-text);
+}
+
+.status[data-gate='FAIL'] {
+  --status-dot: var(--color-gap-line);
+}
+
+.status[data-gate='REVIEW']::before {
+  box-sizing: border-box;
+  border: 1.5px solid var(--ds-muted);
+  background: transparent;
+}
+
 /* ── Record lists: one white card, rows split by hairlines ── */
 
 .recordList {

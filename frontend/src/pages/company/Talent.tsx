@@ -7,6 +7,7 @@ import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { CheckIcon, RefreshIcon } from '@/components/common/icons';
 import { OfferStatusTag, ScoreSquare } from '@/components/common/Labels';
+import { GateTag, hasBriefGate } from '@/components/common/RequiredGate';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, InlineError, Loading } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
@@ -47,6 +48,7 @@ export default function Talent() {
     );
   }
 
+  const minExperienceYears = job.state.data.min_experience_years;
   return (
     <div className={ui.page}>
       <JobHeader job={job.state.data} />
@@ -83,7 +85,13 @@ export default function Talent() {
           ) : (
             <ul className={cx(ui.recordList, ui.stagger)}>
               {talent.state.data.items.map((c) => (
-                <TalentRow key={c.anonymous_id} candidate={c} jobId={id} onStale={talent.reload} />
+                <TalentRow
+                  key={c.anonymous_id}
+                  candidate={c}
+                  jobId={id}
+                  minExperienceYears={minExperienceYears}
+                  onStale={talent.reload}
+                />
               ))}
             </ul>
           )}
@@ -93,7 +101,18 @@ export default function Talent() {
   );
 }
 
-function TalentRow({ candidate: c, jobId, onStale }: { candidate: TalentCandidate; jobId: number; onStale: () => void }) {
+function TalentRow({
+  candidate: c,
+  jobId,
+  minExperienceYears,
+  onStale,
+}: {
+  candidate: TalentCandidate;
+  jobId: number;
+  /** The job's minimum: the status-only gate (D50) shows only when the job sets one. */
+  minExperienceYears: number | null;
+  onStale: () => void;
+}) {
   const [composing, setComposing] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -142,6 +161,8 @@ function TalentRow({ candidate: c, jobId, onStale }: { candidate: TalentCandidat
           {t('apl.col.fit')}
         </span>
         <span className={s.fitBig}>{c.fit.toFixed(1)}</span>
+        {/* Status only: the anonymous card never gets a reason, months or CV lines (D19), so none is shown or asked for */}
+        {hasBriefGate(c.required_gate, minExperienceYears) && <GateTag status={c.required_gate.status} />}
         {status && <OfferStatusTag status={status} />}
         {!blocked && !composing && (
           <button ref={focus.triggerRef} type="button" className={cx(ui.btn, ui.secondary)} onClick={() => (setComposing(true), setError(null))}>

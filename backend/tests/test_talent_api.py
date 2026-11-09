@@ -20,7 +20,7 @@ from .test_recommendations_api import _done
 
 TALENT_KEYS = {
     "anonymous_id", "fit", "criteria", "skills", "experience_years", "roles", "project_techs", "education",
-    "certificates", "desired", "offer_status",
+    "certificates", "desired", "offer_status", "required_gate",
 }
 
 

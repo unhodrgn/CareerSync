@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 from app.schemas.application import AI_NOTICE
+from app.schemas.gate import RequiredGateBrief
 
 
 class TalentCriterionScore(BaseModel):
@@ -42,6 +43,8 @@ class TalentCandidate(AnonymousProfile):
     criteria: list[TalentCriterionScore]
     # Latest offer from this company to this seeker: pending, accepted, rejected, cancelled or expired
     offer_status: str | None = None
+    # Required criteria gate (D50), status only: PASS or REVIEW (FAIL is never listed)
+    required_gate: RequiredGateBrief | None = None
 
 
 class TalentList(BaseModel):

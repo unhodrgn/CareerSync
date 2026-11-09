@@ -69,7 +69,7 @@ def create(db: Session, user: User, data: OfferCreate) -> TalentOffer:
         raise AppError(409, "OFFER_REJECTED", "이 공고에 대한 제안을 이미 거절한 인재입니다.")
     if blocking is not None:
         raise AppError(409, "OFFER_EXISTS", "이 인재에게 이미 진행 중이거나 수락된 제안이 있습니다.", offer_id=blocking.id)
-    # Same rule as the talent list: the seeker must currently pass Pref and Fit for this job
+    # Same rule as the talent list: the seeker must currently pass Pref, the required criteria gate (D50) and Fit
     if not talent_service.qualifies(db, job, pref, profile):
         raise AppError(404, "TALENT_NOT_FOUND", "제안할 수 있는 인재를 찾을 수 없습니다.")
     if sent_today(db, job.company_id) >= settings.OFFER_DAILY_LIMIT:

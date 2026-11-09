@@ -23,7 +23,7 @@ from app.schemas.application import (
     ExcludedBrief,
     ScoreBrief,
 )
-from app.services import criteria_service, cv_service, evaluation_service, job_service
+from app.services import criteria_service, cv_service, evaluation_service, gate_service, job_service
 
 
 def _not_found() -> AppError:
@@ -119,9 +119,13 @@ def ranked(
     statuses: list[str] | None = None,
     min_fit: float | None = None,
     evaluation_status: str | None = None,
+    required_gate: str | None = None,
 ) -> ApplicantList:
     """Applicants ranked by Fit. Quick filters (D22) apply after ranking, so a rank is the same with or
-    without them; `min_fit` leaves out applicants without a Fit (pending or failed evaluation)."""
+    without them; `min_fit` leaves out applicants without a Fit (pending or failed evaluation).
+
+    Every row carries the required criteria gate (D50) as a label. It never removes, re-ranks or changes an
+    applicant (AI rule 5); `required_gate` (PASS / FAIL / REVIEW) is only an optional quick filter."""
     job = job_service.get_owned_job(db, job_id, user)
     loaded = criteria_service.load_for_scoring(db, job.id)
     weights = {c.id: c.effective_weight for c in loaded.items}
@@ -138,6 +142,7 @@ def ranked(
         ev = evs.get(a.cv_profile_id)
         fit, strong = evaluation_service.fit_of(ev, weights)
         profile = cv_service.to_profile_data(a.cv_profile)
+        gate = gate_service.compute(a.cv_profile, job.min_experience_years, profile, today)
         rows[a.id] = ApplicantRow(
             application_id=a.id,
             rank=None,
@@ -153,6 +158,7 @@ def ranked(
             scores=[ScoreBrief(criterion_id=s.job_criteria_id, score=s.score) for s in ev.scores if s.job_criteria_id in weights]
             if fit is not None
             else [],
+            required_gate=gate_service.to_out(gate),
         )
         if fit is not None:
             rank_items.append(RankItem(a.id, fit, strong, a.created_at.timestamp()))
@@ -169,6 +175,8 @@ def ranked(
         ordered = [r for r in ordered if r.evaluation_status == evaluation_status]
     if min_fit is not None:
         ordered = [r for r in ordered if r.fit is not None and r.fit >= min_fit]
+    if required_gate:
+        ordered = [r for r in ordered if r.required_gate is not None and r.required_gate.status == required_gate]
     return ApplicantList(
         job_id=job.id,
         job_title=job.title,
@@ -224,6 +232,7 @@ def evaluation(db: Session, user: User, application_id: int) -> EvaluationOut:
         embedding_model=ev.embedding_model if ev else "",
         prompt_version=ev.prompt_version if ev else "",
         finished_at=ev.finished_at if ev else None,
+        required_gate=gate_service.to_out(gate_service.compute(app.cv_profile, db.get(JobPosting, app.job_id).min_experience_years)),
     )
 
 

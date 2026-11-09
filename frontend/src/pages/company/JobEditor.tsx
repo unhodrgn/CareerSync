@@ -553,7 +553,12 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                   ))}
                 </select>
               </Field>
-              <Field label={t('editor.minExperience')} hint={t('editor.minExperienceHint')} error={fieldErrors.min_experience_years}>
+              <Field
+                label={t('editor.minExperience')}
+                // The required criteria gate (D50): how the minimum is used in AI recommendations
+                hint={`${t('editor.minExperienceHint')} ${t('editor.minExperienceGate')}`}
+                error={fieldErrors.min_experience_years}
+              >
                 <input
                   className={ui.input}
                   type="number"

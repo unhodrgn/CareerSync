@@ -22,7 +22,7 @@ from ai.embedding.model import Embedder
 from ai.embedding.skills import SkillDictionary
 from ai.guardrails.evidence import verify_quotes
 from ai.llm.client import LLMClient, LLMError
-from ai.parsing.extract import _RANGE, PROMPT_DIR, line_in_text, verified_experience
+from ai.parsing.extract import _RANGE, PROMPT_DIR, line_in_text, stated_experience, verified_experience
 from ai.parsing.sections import Chunk, split_sections
 from ai.scoring.retrieval import best_lines, cv_chunks, keywords, retrieve
 from ai.scoring.types import Candidate, Criterion, CriterionResult, JobContext, nearest_level
@@ -167,6 +167,8 @@ def _span(months: int) -> str:
 
 
 def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
+    """Employment periods in the CV text first (`verified_experience`); only when the text has none, the total
+    the CV states (`stated_experience`, method rule:experience-stated). Same formula for both."""
     required = required_years(f"{c.name} {c.description}")
     if required is None:
         # The job's min_experience_years; NULL means 신입 가능 (0 years)
@@ -177,9 +179,14 @@ def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) ->
         # No experience required (신입): everyone meets it, so no CV evidence is needed
         reason = "경력 요건 없음(신입)" + (f", 확인된 경력 약 {_span(months)}" if months else "")
         return _result(c, 100, reason, evidence, "rule:experience", evidence_required=False)
+    target_months = round(12 * required)
+    if not evidence and (stated := stated_experience(candidate.text)) is not None:
+        # No employment period in the CV text: the total the CV states, reported as stated, not verified (D48)
+        stated_months, line = stated
+        reason = f"이력서 기재 경력 {_span(stated_months) if stated_months else '0년'} (요구 {_span(target_months)}), 근무 기간은 확인되지 않음"
+        return _result(c, 100 * stated_months / target_months, reason, [line], "rule:experience-stated")
     if not months:
         return _result(c, 0, "확인된 경력 없음", [], "rule:experience")
-    target_months = round(12 * required)
     reason = f"확인된 경력 약 {_span(months)} (요구 {_span(target_months)})"
     return _result(c, 100 * months / target_months, reason, evidence, "rule:experience")
 

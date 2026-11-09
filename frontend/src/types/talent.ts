@@ -1,4 +1,5 @@
 // Mirrors backend/app/schemas/talent.py and offer.py.
+import type { RequiredGateBrief } from './gate';
 import type { EmploymentType } from './job';
 
 export type OfferStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
@@ -48,6 +49,8 @@ export interface TalentCandidate extends AnonymousProfile {
   criteria: TalentCriterionScore[];
   /** Latest offer from this company to this seeker. */
   offer_status: OfferStatus | null;
+  /** Required criteria gate (D50), status only: PASS or REVIEW (FAIL is never listed). */
+  required_gate?: RequiredGateBrief | null;
 }
 
 export interface TalentList {

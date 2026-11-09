@@ -332,6 +332,77 @@ def test_without_a_career_heading_only_verified_source_lines_count():
     assert (r.score, r.reason) == (0, "확인된 경력 없음")
 
 
+# ── experience: stated total when the CV has no employment period (D48) ──
+
+STATED_NOTE = "근무 기간은 확인되지 않음"
+
+
+def _stated_cv(line: str, body: str = "자기소개\n백엔드 API 개발\n경력 및 주요 활동\n주문 API 운영") -> Candidate:
+    return Candidate(CvProfile(), f"지원 분야: 백엔드 개발자\n{line}\n{body}")
+
+
+@pytest.mark.parametrize(
+    "line, required, score, shown",
+    [
+        ("경력: 2년", "서버 개발 1년 이상", 100, "2년"),
+        ("경력: 2년", "경력 3년 이상", 67, "2년"),
+        ("Số năm kinh nghiệm: 6", "개발 5년 이상", 100, "6년"),
+        ("Số năm kinh nghiệm: 4", "프론트엔드 10년 이상", 40, "4년"),
+        ("5 years of experience in backend development", "경력 10년 이상", 50, "5년"),
+    ],
+)
+def test_stated_experience_scores_with_the_same_formula(line, required, score, shown):
+    r = run([Criterion(1, required, "", "experience", 100)], cand=_stated_cv(line))[0]
+    assert (r.score, r.method, r.evidence) == (score, "rule:experience-stated", (line,))
+    assert f"이력서 기재 경력 {shown}" in r.reason and STATED_NOTE in r.reason
+
+
+def test_employment_periods_win_over_a_stated_total():
+    text = "경력: 10년\n경력\n넥스트코드 백엔드 개발자 2024.11 ~ 2026.10\nJava 개발"
+    r = run([Criterion(1, "경력 4년 이상", "", "experience", 100)], cand=Candidate(CvProfile(), text))[0]
+    assert (r.score, r.method) == (50, "rule:experience")  # 24 of 48 months; the stated 10 years are not used
+    assert r.evidence == ("넥스트코드 백엔드 개발자 2024.11 ~ 2026.10",) and STATED_NOTE not in r.reason
+
+
+def test_a_stated_total_only_in_the_edited_profile_is_not_used():
+    profile = CvProfile(
+        summary="경력: 10년",
+        experiences=[Experience(org="Acme", start="2010-01", end="2020-12", source="경력: 10년")],
+    )
+    r = run([Criterion(1, "경력 3년 이상", "", "experience", 100)], cand=Candidate(profile, "자기소개\nJava 개발"))[0]
+    assert (r.score, r.reason, r.evidence, r.method) == (0, "확인된 경력 없음", (), "rule:experience")
+
+
+def test_stated_zero_experience():
+    cand = _stated_cv("경력: 0년")
+    r = run([Criterion(1, "경력 3년 이상", "", "experience", 100)], cand=cand)[0]
+    assert (r.score, r.method) == (0, "rule:experience-stated") and "이력서 기재 경력 0년" in r.reason
+    # 신입 criteria are unchanged: everyone meets them
+    assert run([Criterion(2, "신입 가능", "", "experience", 100)], cand=cand)[0].score == 100
+
+
+def test_a_stated_range_counts_its_lower_bound():
+    r = run([Criterion(1, "경력 4년 이상", "", "experience", 100)], cand=_stated_cv("경력: 2~4년"))[0]
+    assert (r.score, r.method) == (50, "rule:experience-stated")
+
+
+@pytest.mark.parametrize("line", ["경력: 2020년", "경력: 신입", "Experience: 5", "경력 3년 이상의 시니어와 협업"])
+def test_ambiguous_or_missing_statements_score_nothing(line):
+    r = run([Criterion(1, "경력 1년 이상", "", "experience", 100)], cand=_stated_cv(line))[0]
+    assert (r.score, r.reason, r.method) == (0, "확인된 경력 없음", "rule:experience")
+
+
+def test_no_experience_information_scores_zero():
+    r = run([Criterion(1, "경력 1년 이상", "", "experience", 100)], cand=Candidate(CvProfile(), "자기소개\nJava 개발"))[0]
+    assert (r.score, r.reason, r.evidence, r.method) == (0, "확인된 경력 없음", (), "rule:experience")
+
+
+def test_period_based_experience_is_unchanged_on_the_sample_cv():
+    r = run([Criterion(1, "경력 10년 이상", "", "experience", 100)])[0]
+    assert (r.score, r.method) == (57, "rule:experience")  # 68 of 120 months
+    assert "확인된 경력 약 5년 8개월 (요구 10년)" == r.reason and len(r.evidence) == 2
+
+
 def test_a_certificate_added_only_to_the_profile_is_not_counted():
     generic = Criterion(1, "관련 자격증", "", "certificate", 100)
     original = run([generic])[0]

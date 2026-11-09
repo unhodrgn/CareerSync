@@ -4,10 +4,11 @@ import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
 import { AiBox, AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
-import { formatDate, monthsLabel } from '@/components/common/format';
+import { formatDate } from '@/components/common/format';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon } from '@/components/common/icons';
 import { ApplicationStatusTag, CategoryTag, ScoreSquare } from '@/components/common/Labels';
 import { cx } from '@/components/common/Page';
+import { applicantExperience, GateDetail, hasGate } from '@/components/common/RequiredGate';
 import { ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
@@ -140,6 +141,9 @@ export default function ApplicantDetail({
   const evaluation = useApi(() => api.evaluation(row.application_id), [row.application_id, row.evaluation_status]);
   const headingId = useId();
   const statusTitleId = useId();
+  const gateTitleId = useId();
+  // The evaluation's full gate (D50) once it has loaded; the row's (the same server helper) meanwhile
+  const gate = (evaluation.state.status === 'ok' ? evaluation.state.data.required_gate : undefined) ?? row.required_gate;
   const panelRef = useRef<HTMLElement>(null);
   useStickyPanel(panelRef);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -313,8 +317,19 @@ export default function ApplicantDetail({
         {/* Full panel width, so it does not squeeze beside Fit */}
         <p className={cx(ui.caption, s.detailMeta)}>
           {t('apl.applied', { date: formatDate(row.applied_at) })}
-          {row.evaluation_status === 'done' && ` · ${t('apl.experience', { value: monthsLabel(row.experience_months) })}`}
+          {row.evaluation_status === 'done' && ` · ${applicantExperience(row.experience_months, gate)}`}
         </p>
+
+        {/* The required criteria gate (D50): its own section, before the criteria and apart from Fit. It needs no
+            evaluation, so it shows while one is pending too; the label never changes the status pinned below */}
+        {hasGate(gate) && (
+          <section className={s.detailSection} aria-labelledby={gateTitleId}>
+            <h3 id={gateTitleId} className={ui.sectionTitle}>
+              {t('gate.title')}
+            </h3>
+            <GateDetail gate={gate} audience="company" />
+          </section>
+        )}
 
         <section className={s.detailSection} aria-labelledby="eval-title">
           <h3 id="eval-title" className={ui.sectionTitle}>

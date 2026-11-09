@@ -368,6 +368,19 @@
   width: var(--crit-w, 64px);
 }
 
+/* The minimum-experience gate (D50), only for a job with a minimum: after the criteria, set off by a hairline so it
+   never reads as one more criterion score. Keep the width in step with GATE_COLUMN in Applicants.tsx */
+.colGate {
+  width: 88px;
+}
+
+.board th.gateHead,
+.board td.gateCell {
+  padding-left: 14px;
+  border-left: 1px solid var(--ds-line);
+  white-space: nowrap;
+}
+
 .board th.critHead,
 .board td.scoreCell {
   padding-left: 2px;

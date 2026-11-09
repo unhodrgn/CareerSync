@@ -19,7 +19,7 @@ from .test_jobs_api import make_published
 URL = "/api/recommendations/jobs"
 ITEM_KEYS = {
     "job_id", "title", "company_name", "location", "employment_type", "deadline",
-    "match_score", "match_level", "preference_score", "categories",
+    "match_score", "match_level", "preference_score", "categories", "required_gate",
 }
 SCORE_KEYS = {"job_id", "match_score", "match_level", "preference_score", "categories"}
 CRITERION_KEYS = {"criterion_id", "name", "category", "importance", "score"}
@@ -260,7 +260,7 @@ def test_job_match_lists_each_criterion_without_weights(client, db, world, queue
     _scored(db, job, _cv_id(client, h), UNEVEN)
     before = len(_evaluations(db))
     body = client.get(f"/api/jobs/{job}/match", headers=h).json()
-    assert set(body) == SCORE_KEYS | {"status", "criteria", "notice"}
+    assert set(body) == SCORE_KEYS | {"status", "criteria", "required_gate", "notice"}
     assert (body["status"], body["match_score"], body["match_level"], body["preference_score"]) == ("done", 55, "참고", 50)
     assert all(set(c) == CRITERION_KEYS for c in body["criteria"])  # no weight, reason or evidence
     assert {c["name"]: (c["category"], c["importance"], c["score"]) for c in body["criteria"]} == {

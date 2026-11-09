@@ -199,3 +199,9 @@ __marimo__/
 **/.impeccable/live/server.json
 **/.impeccable/live/sessions/
 **/.impeccable/live/previews/
+
+# Local AI matching test dataset (synthetic CVs, job summaries, human-only expected results); never committed
+/test_data/
+# Local AI coding assistant configuration
+/CLAUDE.md
+/.impeccable/

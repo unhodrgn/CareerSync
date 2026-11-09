@@ -1,19 +1,37 @@
 """Split CV text into sections and retrieval chunks."""
 import re
+import unicodedata
 from dataclasses import dataclass
 
-# Section heading keywords (Korean and English) → section key
+# Section heading keywords (Korean, English and Vietnamese; docs/DECISIONS.md D49) → section key.
+# Vietnamese: kinh nghiệm (làm việc) / công việc = (work) experience / job, dự án = projects,
+# kỹ năng (chuyên môn) = (professional) skills, học vấn = education, tóm tắt năng lực = summary of qualifications.
 _HEADINGS = {
-    "experience": ("경력", "경력사항", "경력 사항", "work experience", "experience", "employment", "career"),
-    "education": ("학력", "학력사항", "학력 사항", "education"),
-    "project": ("프로젝트", "프로젝트 경험", "프로젝트 경력", "projects", "project"),
+    "experience": (
+        "경력", "경력사항", "경력 사항", "경력 및 주요 활동", "work experience", "experience", "employment", "career",
+        "kinh nghiệm", "kinh nghiệm làm việc", "kinh nghiệm / công việc",
+    ),
+    "education": ("학력", "학력사항", "학력 사항", "education", "học vấn"),
+    "project": ("프로젝트", "프로젝트 경험", "프로젝트 경력", "projects", "project", "dự án"),
     "certificate": ("자격증", "자격 사항", "자격사항", "어학", "certificates", "certifications", "licenses"),
-    "skill": ("기술", "기술 스택", "보유 기술", "스킬", "skills", "tech stack", "technical skills"),
-    "summary": ("자기소개", "소개", "요약", "summary", "about me", "profile"),
+    "skill": (
+        "기술", "기술 스택", "보유 기술", "스킬", "skills", "tech stack", "technical skills", "kỹ năng", "kỹ năng chuyên môn",
+    ),
+    "summary": ("자기소개", "소개", "요약", "summary", "about me", "profile", "tóm tắt năng lực"),
     "activity": ("활동", "대외활동", "수상", "activities", "awards"),
 }
-_HEADING_LOOKUP = {h: key for key, words in _HEADINGS.items() for h in words}
 _STRIP = re.compile(r"^[\s#*■□●○◆◇▶▷•\-\[\]【】<>()0-9.]+|[\s:：\[\]【】<>()]+$")
+# Longest heading looked up, after normalizing; longer lines are never headings
+_MAX_HEADING = 30
+
+
+def _heading_words(line: str) -> str:
+    """NFC (PDF text may decompose Vietnamese letters), lower case, one space, " / " around a slash."""
+    words = unicodedata.normalize("NFC", _STRIP.sub("", line)).lower()
+    return " ".join(re.sub(r"\s*/\s*", " / ", words).split())
+
+
+_HEADING_LOOKUP = {_heading_words(h): key for key, words in _HEADINGS.items() for h in words}
 
 
 @dataclass(frozen=True)
@@ -30,8 +48,8 @@ class Chunk:
 
 
 def heading_key(line: str) -> str | None:
-    words = _STRIP.sub("", line).strip().lower()
-    if not words or len(words) > 20:
+    words = _heading_words(line)
+    if not words or len(words) > _MAX_HEADING:
         return None
     return _HEADING_LOOKUP.get(words)
 
