@@ -14,8 +14,9 @@ from .markdown import ROOT, Allowlist, Doc, guarded_docs, report
 
 ROOT_LINE = "CareerSync/"
 DEPTH = 2  # folders down to this many levels below the repo root must be listed
-# Local, generated or secret, so never listed; hidden folders are tool folders (.claude, .impeccable, …) except these
-SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__"}
+# Local, generated or secret, so never listed; hidden folders are tool folders (.claude, .impeccable, …) except these.
+# test_data is the git-ignored local AI matching dataset: present locally, absent in a clean checkout.
+SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__", "test_data"}
 HIDDEN_KEPT = {".github"}
 SKIP_FILES = {".env", "AUDIT_REPORT.md", "CLAUDE.md"}  # local secrets; the untracked audit report
 BRANCH = re.compile(r"├── |└── ")

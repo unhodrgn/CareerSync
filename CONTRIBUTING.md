@@ -26,4 +26,4 @@ Setup and the full command list: [Run locally](docs/how-to/run-locally.md).
 
 ## AI coding assistants
 
-Read [CLAUDE.md](CLAUDE.md) first: how to plan and work, permissions, and the AI rules the code must keep.
+Follow the development rules in [PROJECT_DOCUMENTATION.md §10](PROJECT_DOCUMENTATION.md#10-development-rules) and the decisions in [docs/DECISIONS.md](docs/DECISIONS.md). Assistant-specific instructions live in a local CLAUDE.md that is not tracked in Git.

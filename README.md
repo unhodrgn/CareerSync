@@ -124,7 +124,6 @@ Start at the [documentation map](docs/index.md). The main documents:
 | [Privacy and legal](docs/explanation/privacy-and-legal.md) | What the LLM sees, consent, the guardrail, the laws |
 | [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md) | Technical reference: database, API (§4.1), frontend, AI, configuration, known issues, glossary |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decisions, scope and open questions (source of truth) |
-| [CLAUDE.md](CLAUDE.md) | Rules for AI coding assistants working on this repository |
 | [DESIGN.md](DESIGN.md) · [PRODUCT.md](PRODUCT.md) | Design system and product context for the frontend |
 
 API request and response schemas as implemented: Swagger at http://localhost:8000/docs while the backend runs.
