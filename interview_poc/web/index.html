@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 면접 연습 (프로토타입)</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- livekit-client 2.24.1, pinned and checked with a Subresource Integrity hash -->
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.24.1/dist/livekit-client.umd.js"
+          integrity="sha384-GpoGEkJlx2sLomFuCCD/fOOaQojhrcwfW03ncXAYsWGWrC3G72awbt2c21WDrOvH"
+          crossorigin="anonymous"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>AI 면접 연습 <span class="tag">프로토타입</span></h1>
+    <p class="ai-banner" role="note"><strong>AI 안내</strong> 화면의 면접관은 AI로 만든 가상 아바타입니다. 이 면접은 연습용 시연이며, 점수나 합격 여부를 판단하지 않습니다.</p>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="면접 화면">
+      <div class="avatar-box">
+        <video id="avatar-video" autoplay playsinline aria-label="AI 면접관 아바타"></video>
+        <p id="avatar-placeholder" class="placeholder">면접을 시작하면 AI 면접관이 나타납니다.</p>
+      </div>
+      <div class="side">
+        <div class="preview-box">
+          <video id="preview-video" autoplay muted playsinline aria-label="내 카메라 미리보기"></video>
+          <p class="note">미리보기는 이 브라우저 안에서만 보이며 어디로도 전송되지 않습니다.</p>
+        </div>
+        <p id="timer" class="timer" aria-live="off">0:00 / 3:00</p>
+        <p id="status" class="status" role="status" aria-live="polite">대기 중</p>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="시작과 종료">
+      <label class="check"><input id="agree" type="checkbox"> 안내를 확인했으며, 실제 개인정보 대신 가상의 정보로 답하겠습니다.</label>
+      <div class="buttons">
+        <button id="start" type="button" disabled>면접 시작</button>
+        <button id="end" type="button" disabled>종료</button>
+      </div>
+      <p id="error" class="error" role="alert" hidden></p>
+    </section>
+
+    <section class="panel" aria-label="대화 기록">
+      <h2>대화 기록 <span class="hint">(개인정보는 [이름]처럼 가려진 상태로만 표시되고, 저장되지 않습니다)</span></h2>
+      <ol id="transcript" class="transcript"></ol>
+    </section>
+
+    <section class="panel privacy" aria-label="개인정보 안내">
+      <h2>개인정보 안내</h2>
+      <ul>
+        <li>마이크 음성만 면접관(AI)에게 전달됩니다. 카메라 영상은 전송되지 않습니다.</li>
+        <li>이 프로그램은 음성과 영상을 녹음·녹화하거나 저장하지 않습니다. 음성은 문자로 바뀐 뒤 개인정보가 가려진 텍스트만 AI에 전달됩니다.</li>
+        <li>음성 인식, 음성 합성, 아바타 영상은 외부 서비스(LiveKit, Anam)를 거치며, 그 서비스의 처리 방침은 별도입니다.</li>
+        <li>실제 이름, 연락처, 주소는 말하지 마세요.</li>
+      </ul>
+    </section>
+
+    <section class="panel" aria-label="측정값">
+      <h2>측정값 (이 브라우저 기준)</h2>
+      <pre id="metrics" class="metrics">아직 없음</pre>
+    </section>
+  </main>
+
+  <div id="remote-audio" hidden></div>
+</body>
+</html>

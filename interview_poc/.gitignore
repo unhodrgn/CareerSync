@@ -1,0 +1,8 @@
+# Local-only files of the PoC (the repo-root .gitignore does not cover .env.local or the run reports)
+.env
+.env.*
+!.env.example
+.venv/
+.runs/
+__pycache__/
+.pytest_cache/

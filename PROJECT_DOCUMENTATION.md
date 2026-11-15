@@ -495,6 +495,9 @@ CareerSync/
 │   ├── make_demo_cv.py          # Builds data/demo/demo_cv.pdf and checks it reads back
 │   ├── docker_init.py           # Compose init: migrations + seed
 │   └── smoke_test.py            # End-to-end check of a running app over HTTP
+├── interview_poc/               # Standalone AI avatar interview proof of concept (own virtualenv; not part of the app, imports no app.* or ai.*)
+│   ├── tests/                   # Offline tests (no network, no key), run from interview_poc/ with its own virtualenv
+│   └── web/                     # Static meeting page
 └── frontend/                    # React + TypeScript + Vite
     ├── Dockerfile               # Vite dev server on :3000 for Compose
     ├── .env.example             # Optional VITE_API_TARGET (copy to frontend/.env.local)
