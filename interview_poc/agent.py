@@ -31,10 +31,13 @@ from conductor import Hooks, InterviewConductor, SayOutcome
 from config import (
     AGENT_NAME,
     AVATAR_JOIN_TIMEOUT_SECONDS,
+    ENDPOINTING_MAX_DELAY_SECONDS,
+    ENDPOINTING_MIN_DELAY_SECONDS,
     LANGUAGE,
     RUNS_DIR,
     STT_MODEL,
     TTS_MODEL,
+    TURN_DETECTOR_VERSION,
     ConfigError,
     Settings,
     load_env_file,
@@ -113,10 +116,64 @@ def build_session(settings: Settings, vad) -> tuple[AgentSession, VoiceGroq]:
         llm=llm,
         tts=inference.TTS(TTS_MODEL, voice=settings.tts_voice, language=LANGUAGE),
         vad=vad,
-        # A preemptive reply could start on an unfinished transcript; the conductor decides every reply itself
-        turn_handling={"preemptive_generation": {"enabled": False}},
+        turn_handling={
+            # The Korean-capable audio turn detector, asked for by version: without `version`, `start` would run the local
+            # v1-mini. v1 streams the candidate's audio to LiveKit Inference (see README, "Turn-taking"). With
+            # `local_fallback=True` a failure, a timeout or a used-up development allowance moves the session to v1-mini
+            # for the rest of the session instead of ending turns on the delay alone; TurnDetectorWatch reports that.
+            "turn_detection": inference.TurnDetector(version=TURN_DETECTOR_VERSION, local_fallback=True),
+            # Give a candidate time to think between clauses. Both delays are set because the SDK fills missing keys with
+            # its shorter streaming defaults (0.3 s / 2.5 s).
+            "endpointing": {
+                "mode": "fixed",
+                "min_delay": ENDPOINTING_MIN_DELAY_SECONDS,
+                "max_delay": ENDPOINTING_MAX_DELAY_SECONDS,
+            },
+            # A preemptive reply could start on an unfinished transcript; the conductor decides every reply itself
+            "preemptive_generation": {"enabled": False},
+        },
     )
     return session, llm
+
+
+def turn_detection_label(session: AgentSession) -> str:
+    """The end-of-turn detector this session runs right now: `turn-detector-v1` (cloud) or `turn-detector-v1-mini` (local).
+
+    The detector's public `model` follows a fallback: the SDK swaps it in place (livekit-agents 1.8.12, `inference/eot/base.py`).
+    """
+    detector = session.turn_detection
+    return str(getattr(detector, "model", detector))  # a mode string, None or a detector object
+
+
+class TurnDetectorWatch:
+    """Notices when the cloud turn detector (v1) falls back to the local v1-mini, which is sticky for the rest of the session.
+
+    The SDK logs one warning of its own at that moment. This adds the PoC's own record: a warning naming both models and a
+    `turn_detector` section in the run report, so a test run never reads as "v1" when part of it ran on v1-mini.
+    Nothing here changes the detector or calls a service. `check` is cheap and is called from the session events.
+    """
+
+    def __init__(self, session: AgentSession, metrics: RunMetrics, requested: str) -> None:
+        self._session = session
+        self._metrics = metrics
+        self.initial = self.current = turn_detection_label(session)
+        metrics.note_turn_detector(self.initial, requested=requested)
+
+    def check(self, where: str) -> bool:
+        """True when the model changed since the last check; says so once in the log and in the run report."""
+        model = turn_detection_label(self._session)
+        if model == self.current:
+            return False
+        log.warning(
+            "turn detector fell back: %s -> %s (noticed at %s); the rest of this session runs on the local model",
+            self.current,
+            model,
+            where,
+        )
+        self._metrics.mark("turn_detector_fallback", from_model=self.current, to_model=model, where=where)
+        self._metrics.note_turn_detector(model)
+        self.current = model
+        return True
 
 
 def room_options(settings: Settings) -> room_io.RoomOptions:
@@ -149,7 +206,7 @@ def candidate_left_handler(conductor: InterviewConductor, spawn):
 async def run_interview(ctx: JobContext) -> None:
     load_env_file()
     metrics = RunMetrics()
-    state = {"ended": False}
+    state: dict[str, Any] = {"ended": False, "watch": None}  # "watch": the TurnDetectorWatch, set once the session exists
     closed = asyncio.Event()
     background: set[asyncio.Task] = set()  # keep a reference to fire-and-forget tasks so they are not garbage collected
 
@@ -167,6 +224,8 @@ async def run_interview(ctx: JobContext) -> None:
             log.debug("could not send a page event", exc_info=True)
 
     async def on_shutdown(reason: str) -> None:
+        if state["watch"] is not None:
+            state["watch"].check("shutdown")  # a fallback in the last seconds still reaches the report
         metrics.finish(reason or "job_shutdown")
         path = metrics.write(RUNS_DIR)
         log.info("session report written to %s", path)
@@ -187,6 +246,15 @@ async def run_interview(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(on_shutdown)
 
     session, llm = build_session(settings, ctx.proc.userdata["vad"])
+    watch = TurnDetectorWatch(session, metrics, requested=TURN_DETECTOR_VERSION)
+    state["watch"] = watch
+    log.info(
+        "turn detection: requested=%s, local_fallback=on, model=%s, endpointing min=%.1fs max=%.1fs",
+        TURN_DETECTOR_VERSION,
+        watch.initial,
+        ENDPOINTING_MIN_DELAY_SECONDS,
+        ENDPOINTING_MAX_DELAY_SECONDS,
+    )
     agent = PracticeInterviewer(settings.mask_names)
 
     async def say(text: str, step: str, n: int | None) -> SayOutcome:
@@ -229,17 +297,20 @@ async def run_interview(ctx: JobContext) -> None:
 
     @session.on("agent_state_changed")
     def _agent_state(ev) -> None:
+        watch.check("agent_state")
         if ev.new_state == "speaking":
             metrics.mark("agent_speaking")
 
     @session.on("user_state_changed")
     def _user_state(ev) -> None:
+        watch.check("user_state")
         metrics.mark("user_state", state=ev.new_state)
         conductor.set_candidate_speaking(ev.new_state == "speaking")
 
     @session.on("metrics_collected")
     def _metrics(ev) -> None:
-        metrics.note_sdk_metric(ev.metrics)
+        watch.check("metrics")
+        metrics.note_sdk_metric(ev.metrics)  # also counts the detector's answered predictions (eot_inference_metrics)
 
     @session.on("error")
     def _error(ev) -> None:

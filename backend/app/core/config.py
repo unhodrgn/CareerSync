@@ -98,6 +98,42 @@ class Settings:
     # process memory: reset on restart, correct only with one backend process (uvicorn without --workers)
     JD_DAILY_LLM_DRAFTS: int = 20
 
+    # Practice interview (docs/DECISIONS.md D57): reservations per seeker per KST day, kept in the database ledger
+    # (`interview_quota`). A reservation is never refunded, and deleting a session does not give one back
+    INTERVIEW_DAILY_SESSIONS: int = 3
+    INTERVIEW_DAILY_PLAN_MODEL_CALLS: int = 3
+    INTERVIEW_DAILY_FEEDBACK_MODEL_CALLS: int = 3
+
+    # Practice interview lifecycle (docs/DECISIONS.md D53, D57). Constants, not environment variables
+    # Version of the transcript-storage consent text (interview_consent_service); a changed text needs a new version
+    INTERVIEW_CONSENT_VERSION: str = "2026-11-16"
+    INTERVIEW_RETENTION_DAYS: int = 30  # expires_at = created_at + this; never extended
+    INTERVIEW_JOIN_SECONDS: int = 300  # a created session can be joined for this long after its plan is ready
+    INTERVIEW_MAX_SECONDS: int = 600  # time budget of a live session, counted from its start
+    # After INTERVIEW_MAX_SECONDS only the final end event and the closing agent line are accepted, for this long
+    INTERVIEW_END_GRACE_SECONDS: int = 30
+    INTERVIEW_PLAN_LEASE_SECONDS: int = 120  # a planning session must be finished within this (the model call included)
+    # Feedback (M4 S3b, D64): a feedback-model attempt holds the session's lease for this long (a normal call ends in about 90 s, see
+    # ai/llm/client.py), and a session gets at most this many model attempts, a failed or crashed one included
+    INTERVIEW_FEEDBACK_LEASE_SECONDS: int = 120
+    INTERVIEW_FEEDBACK_MAX_ATTEMPTS: int = 3
+    # The limits the engine runs with (D57); each session stores the ones it started with
+    INTERVIEW_MAX_QUESTIONS: int = 5
+    INTERVIEW_MAX_FOLLOWUPS_PER_ITEM: int = 2
+    INTERVIEW_MAX_CLARIFIES_PER_ITEM: int = 1
+    INTERVIEW_SILENCE_NUDGE_SECONDS: int = 20
+    INTERVIEW_SILENCE_SKIP_SECONDS: int = 45
+    INTERVIEW_TURN_LLM_DEADLINE_SECONDS: int = 8
+    # Retention maintenance on create and list: expired sessions removed per call, and the page size of the history
+    INTERVIEW_LAZY_PURGE_BATCH: int = 50
+    INTERVIEW_HISTORY_DEFAULT_LIMIT: int = 20
+    INTERVIEW_HISTORY_MAX_LIMIT: int = 50
+    # Ingestion of turns (M4 S3a). Regular turns take sequence numbers 1 to MAX_TURNS - 1; the closing line may take MAX_TURNS
+    INTERVIEW_MAX_TURNS: int = 120
+    INTERVIEW_MAX_TURN_CHARS: int = 4000  # of a stored (masked) turn: the same limit as the CHECK on interview_turns.text
+    INTERVIEW_MAX_RAW_TURN_CHARS: int = 8000  # of a text as received, before masking; over it is refused, never cut
+    INTERVIEW_COVERAGE_MAX_BYTES: int = 4096  # of a validated coverage snapshot as stored
+
 
 settings = Settings()
 

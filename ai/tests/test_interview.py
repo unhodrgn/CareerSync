@@ -97,6 +97,91 @@ def test_fewer_than_three_usable_questions_fall_back_to_the_template(response):
     assert method == "rules" and questions == interview_rules(CRITERIA, BLOCKLISTS)
 
 
+class _ErrorLLM:
+    """A model whose error message quotes the model's output, the way a validation error does (the marker stands for a CV line)."""
+
+    model = "error-llm"
+
+    def __init__(self, error):
+        self.error = error
+
+    def complete_json(self, system, user, schema, max_tokens=4000):
+        raise self.error
+
+
+def test_a_failed_llm_call_logs_the_error_type_only_and_the_fallback_is_unchanged(caplog):
+    """D65: the message of an LLM error can quote the model's output, which can quote CV lines. Nothing but the type is logged."""
+    import logging
+
+    from ai.llm.client import LLMError
+
+    secret = "SECRET-CV-LINE-김지원-2019년-입사"
+    error = LLMError(f"LLM output failed validation: 1 validation error, input_value='{secret}'")
+    error.__cause__ = ValueError(secret)  # a traceback would print this too
+    caplog.set_level(logging.DEBUG)
+    questions, method = _make(_ErrorLLM(error))
+    assert method == "rules" and questions == interview_rules(CRITERIA, BLOCKLISTS)  # the fallback is what it was
+    (record,) = [r for r in caplog.records if "using the template" in r.getMessage()]
+    assert (record.levelno, record.args, record.exc_info) == (logging.WARNING, ("LLMError",), None)
+    assert secret not in caplog.text and "input_value" not in caplog.text
+
+
+DROPPED_MARKER = "SECRET-DROPPED-QUESTION-김지원-2019년-입사"
+
+
+def _dropped_logs(caplog):
+    return [r for r in caplog.records if "question dropped" in r.getMessage()]
+
+
+def test_a_dropped_template_question_logs_a_reason_and_never_its_text(caplog):
+    """D65: a dropped question is logged by reason, source and criterion id. Its text (here it holds a marker, and a blocked word that
+    makes the blocklist drop it) can quote the CV, so it is not logged."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    criteria = [*CRITERIA, CriterionInfo(21, f"{DROPPED_MARKER} 결혼 여부", "other")]
+    questions = interview_rules(criteria, BLOCKLISTS)
+    assert all(DROPPED_MARKER not in q.question for q in questions)  # the question of criterion 21 was dropped, and the others are as before
+    assert [q.criterion_id for q in questions[:4]] == [11, 12, 13, 14] and 21 not in {q.criterion_id for q in questions}
+    (record,) = _dropped_logs(caplog)
+    assert record.getMessage() == "interview question dropped: reason=blocklist source=template criterion_id=21"  # the metadata that is left
+    assert (record.levelno, record.exc_info) == (logging.INFO, None)
+    assert DROPPED_MARKER not in caplog.text and "결혼" not in caplog.text
+
+
+def test_a_dropped_llm_question_logs_a_reason_and_never_its_text_and_the_result_is_unchanged(caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    llm = FakeLLM({"questions": [
+        _q(f"{DROPPED_MARKER} 나이가 어떻게 되시나요?", 11),  # dropped by a blocklist, for a real criterion
+        _q(f"{DROPPED_MARKER} 가족 계획이 있나요?", 999),  # dropped, for a criterion that does not exist: no id is logged
+        _q("Java를 써 봤나요?", 11), _q("Spring은요?", 12), _q("협업은 어땠나요?", 14),
+    ]})
+    questions, method = _make(llm)
+    assert method.startswith("llm:") and [q.question for q in questions] == ["Java를 써 봤나요?", "Spring은요?", "협업은 어땠나요?"]
+    assert sorted(r.getMessage() for r in _dropped_logs(caplog)) == [
+        "interview question dropped: reason=blocklist source=llm criterion_id=11",
+        "interview question dropped: reason=blocklist source=llm criterion_id=None",
+    ]
+    assert all(r.exc_info is None and r.levelno == logging.INFO for r in _dropped_logs(caplog))
+    assert DROPPED_MARKER not in caplog.text and "나이가" not in caplog.text and "가족" not in caplog.text
+
+
+def test_when_dropped_questions_leave_too_few_the_template_is_used_and_no_text_is_logged(caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+    llm = FakeLLM({"questions": [
+        _q(f"{DROPPED_MARKER} 나이가 어떻게 되시나요?", 11), _q(f"{DROPPED_MARKER} 결혼은 하셨나요?", 12), _q("Java를 써 봤나요?", 11),
+    ]})
+    questions, method = _make(llm)
+    assert method == "rules" and questions == interview_rules(CRITERIA, BLOCKLISTS)  # the fallback is what it was
+    assert len(_dropped_logs(caplog)) == 2
+    assert [r.getMessage() for r in caplog.records if "using the template" in r.getMessage()] == ["interview questions by LLM failed, using the template: LLMError"]
+    assert DROPPED_MARKER not in caplog.text and "나이가" not in caplog.text and "결혼은" not in caplog.text
+
+
 def test_the_llm_sees_at_most_four_masked_cv_excerpts():
     llm = FakeLLM({"questions": [_q("A", 11), _q("B", 12), _q("C", 13)]})
     _make(llm)

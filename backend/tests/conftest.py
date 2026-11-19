@@ -1,11 +1,12 @@
-"""API test fixtures. Uses SQLite in memory by default; set TEST_DATABASE_URL to run against PostgreSQL."""
+"""API test fixtures. Uses SQLite in memory by default; set TEST_DATABASE_URL to run against PostgreSQL.
+
+The `db` fixture DROPS EVERY APPLICATION TABLE of the database before and after each test. A PostgreSQL URL is therefore accepted only
+for a disposable local database whose name ends in `_pgtest` (`db_safety.py`); anything else is refused before a connection is made."""
 from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.core.config import env_or_default, settings
 from app.core.security import create_access_token, hash_password
@@ -13,12 +14,12 @@ from app.db.session import Base, get_db
 from app.main import app
 from app.models import Company, JobPosting, User
 
+from .db_safety import make_test_engine
+
 
 @pytest.fixture
 def db():
-    url = env_or_default("TEST_DATABASE_URL", "sqlite://")
-    kwargs = {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool} if url.startswith("sqlite") else {}
-    engine = create_engine(url, **kwargs)
+    engine = make_test_engine(env_or_default("TEST_DATABASE_URL", "sqlite://"))  # refuses an unsafe PostgreSQL URL before any connection
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()

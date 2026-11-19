@@ -167,7 +167,7 @@ def test_concurrent_apply_by_the_same_seeker_is_409(client, db, world, job, queu
     assert len(db.scalars(select(Application)).all()) == 1 and len(queued) == 1
 
 
-# ── Real concurrency: PostgreSQL only (TEST_DATABASE_URL=postgresql+psycopg://…/careersync_test) ──
+# ── Real concurrency: PostgreSQL only (TEST_DATABASE_URL=postgresql+psycopg://…/careersync_pgtest, a disposable local database) ──
 
 on_postgres = pytest.mark.skipif(
     not os.getenv("TEST_DATABASE_URL", "").startswith("postgresql"), reason="needs TEST_DATABASE_URL on PostgreSQL"

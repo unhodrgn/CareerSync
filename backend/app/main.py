@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 
 from ai.embedding.model import configured_model, get_embedder
 from ai.llm.client import check_llm_config, llm_model
-from app.api.v1 import applications, auth, career, companies, criteria, cv, jobs, preferences, recommendations, talent, users
+from app.api.v1 import applications, auth, career, companies, criteria, cv, interview_sessions, jobs, preferences, recommendations, talent, users
+from app.core import no_store, validation_errors
 from app.core.config import dev_secrets_in_use
 from app.core.errors import AppError
 
@@ -63,6 +64,7 @@ app.include_router(preferences.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
 app.include_router(talent.router, prefix="/api")
 app.include_router(career.router, prefix="/api")
+app.include_router(interview_sessions.router, prefix="/api")
 
 
 @app.exception_handler(AppError)
@@ -73,3 +75,9 @@ def _app_error(_: Request, exc: AppError) -> JSONResponse:
 @app.get("/health", tags=["meta"])
 def health() -> dict:
     return {"status": "ok"}
+
+
+# Last, after every handler is registered: a 422 on an interview path carries no submitted value (D68), and every interview response has
+# Cache-Control: no-store (D67); every other path keeps the handlers and the responses it had
+validation_errors.install(app)
+no_store.install(app)

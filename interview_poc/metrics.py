@@ -27,6 +27,8 @@ class RunMetrics:
         self.eou: list[dict[str, float]] = []
         self.tts: dict[str, dict[str, float]] = {}
         self.avatar: list[dict[str, float | None]] = []
+        self.turn_detector: dict[str, Any] = {}
+        self.eot_cloud_predictions = 0
         self.end_reason: str | None = None
         self.t_end: float | None = None
 
@@ -37,10 +39,27 @@ class RunMetrics:
         self.marks.append({"name": name, "t": t, **fields})
         return t
 
+    def note_turn_detector(self, model: str, *, requested: str | None = None) -> None:
+        """Record the end-of-turn detector: the version asked for and the model running now (model names only).
+
+        Called once at the start and again when the SDK swaps the cloud model for the local one (a fallback is sticky).
+        """
+        td = self.turn_detector
+        if not td:
+            td.update(requested=requested, model_at_start=model)
+        elif model != td["model_at_end"]:
+            td["fallback_at_s"] = _r(self._clock() - self.t0)
+        td["model_at_end"] = model
+        td["fell_back"] = model != td["model_at_start"]
+
     def note_sdk_metric(self, metric: Any) -> None:
         """Keep the latency fields of a LiveKit metrics event (EOU, TTS, avatar); everything else is ignored."""
         kind = getattr(metric, "type", "")
-        if kind == "eou_metrics":
+        if kind == "eot_inference_metrics":
+            # One per prediction the cloud detector answered. Each is one request against the monthly allowance
+            # (a request that timed out or failed sends no metric, so this is a lower bound of the quota used).
+            self.eot_cloud_predictions += int(getattr(metric, "num_requests", 1) or 1)
+        elif kind == "eou_metrics":
             self.eou.append(
                 {
                     "end_of_utterance_delay_s": float(metric.end_of_utterance_delay),
@@ -95,6 +114,8 @@ class RunMetrics:
         start, joined = self._first("avatar_start", after=0), self._first("avatar_joined", after=0)
         out["avatar_time_to_join_s"] = _r(None if start is None or joined is None else joined - start)
         out["avatar_sdk_metrics"] = self.avatar
+        if self.turn_detector:
+            out["turn_detector"] = {**self.turn_detector, "cloud_predictions": self.eot_cloud_predictions}
 
         says = [m for m in self.marks if m["name"] == "say_called"]
         opening = next((m for m in says if m.get("step") == "opening"), None)

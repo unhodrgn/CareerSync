@@ -37,7 +37,8 @@ token_server.py (127.0.0.1)  mints a mic-only token         Anam avatar (lip-syn
 | Camera preview is local only | `app.js` opens the camera with `getUserMedia` for a muted `<video>`; it never publishes a camera track. The token allows only `microphone` (`can_publish_sources`), so LiveKit refuses any other track. |
 | Microphone audio only | Only the microphone is published. The agent subscribes to audio only (`AutoSubscribe.AUDIO_ONLY`, no video input). The page lets **only the interviewer agent** subscribe to the microphone (`setTrackSubscriptionPermissions`), not the Anam avatar worker (the Anam plugin gives that participant default, subscribe-capable grants). `?open=1` turns this off for debugging. |
 | Masked text only to the LLM | `guards.mask_spoken_pii` runs in the STT node (interim and final transcripts), again in the turn hook, and again in the conductor; the LLM sees a fixed prompt, the predefined question and the masked answers, nothing else. Preemptive replies are off. |
-| No raw PII on disk or in logs | Transcript is masked, kept in memory, shown on the page. Logs and the run report hold timings and counts only. |
+| Candidate audio reaches LiveKit Inference on **two** paths | Masking works on text, not on audio, so the raw voice cannot be masked. It already goes to LiveKit Inference for speech recognition (Deepgram nova-3). Since the turn detector is pinned to `v1` (`TURN_DETECTOR_VERSION`), the same audio is streamed a **second** time to LiveKit Inference for end-of-turn detection (a second connection to the same LiveKit gateway; the PoC itself stores nothing). Besides audio, `v1` also receives the text of the last assistant message in the chat context, and there is none today because the interviewer's lines are spoken with `add_to_chat_ctx=False`. LiveKit lists zero data retention for Inference on every plan (pricing page, read 2026-11-15); that is LiveKit's statement, not something this code can check. If the detector falls back to `v1-mini`, that audio path stays on the machine. See "Turn-taking" below. The page's notice already names LiveKit for speech recognition but does not mention turn detection: update it before anyone other than the developer (or a non-synthetic person) uses the PoC. |
+| No raw PII on disk or in logs | Transcript is masked, kept in memory, shown on the page. Logs and the run report hold timings and counts only. (`--log-level debug` is the exception: the SDK then prints transcript lines to the local console. The ones read in the SDK source come after the STT node and are masked, but an SDK error line can carry raw provider data, so keep such a log local and delete it.) |
 | AI disclosure | Spoken greeting, page banner, `show_ai_avatar_disclosure=True`. |
 | LLM only when explicit | The agent refuses to start unless `AI_MODE=llm` is set (`docs/DECISIONS.md` D5, D12), even with a key. |
 
@@ -170,7 +171,100 @@ Each session also writes `interview_poc/.runs/session-<time>.json` (timings only
 Figures to report (from the run report and the page): speech recognition latency (`stt_transcription_delay_s`,
 `end_of_utterance_delay_s`), LLM latency (`llm_ttft_s`, `llm_total_s`), time to first avatar audio
 (`time_to_first_avatar_audio_s`, `say_to_avatar_audio_s`, `user_stopped_to_avatar_audio_s`, and the page's "첫 소리"
-and "응답 지연"), total session length (`total_session_seconds`).
+and "응답 지연"), total session length (`total_session_seconds`), and the turn detector (`turn_detector.model_at_end`,
+`fell_back`, `cloud_predictions`).
+
+## Turn-taking: when the candidate's turn ends
+
+The session uses LiveKit's audio turn detector on top of Silero VAD (unchanged SDK defaults). Settings, in `config.py` and
+`build_session` in `agent.py`:
+
+| Setting | Value | Meaning |
+|---|---|---|
+| `TURN_DETECTOR_VERSION` | `"v1"` | The full model, served by LiveKit Inference. Pinned on purpose: without a version, `agent.py start` silently runs the local `v1-mini` (only `dev` and `console` pick `v1`). Korean is supported. |
+| `local_fallback` | `True` (set in `agent.py`) | If Inference fails, times out (about 1 s) or the quota is used up, the SDK moves the session to the local `v1-mini` for the rest of that session. |
+| `ENDPOINTING_MIN_DELAY_SECONDS` | `3.0` | Wait after the candidate's last speech when the detector thinks the sentence is complete. |
+| `ENDPOINTING_MAX_DELAY_SECONDS` | `6.0` | Wait when the detector thinks the candidate is not done. After this the turn ends whatever the detector says. |
+
+Both delays count from the candidate's last speech, not from the end of Silero's own 0.55 s silence window. History: the SDK
+default `min_delay` (0.3 s, `max_delay` 2.5 s) is below 0.55 s, so it never delayed anything and a one-second thinking pause
+ended the turn. At 1.5 s / 5.0 s the 2026-11-15 15:24 UTC run still ended both turns after about 1.5 s of silence (read from the
+report: `user_stopped_to_avatar_audio_s` 2.83 and 2.86 s minus the LLM and speech start, plus Silero's 0.55 s), so the detector
+had rated those pauses complete and the wait ended at `min_delay`. Hence the longer delays and the full `v1` model (LiveKit's
+public end-of-turn benchmark, English table: 4.5 % false cutoffs at 600 ms for `v1` against 12.1 % for `v1-mini`; no Korean or
+non-native figure was found).
+
+Latency: with 1.5 s a finished answer got its reply about 3.4 s after the candidate's last word (`user_stopped_to_avatar_audio_s`
+2.83–2.86 s). With 3.0 s expect about 4.9 s after the last word (`user_stopped_to_avatar_audio_s` about 4.3–4.4 s), and up to
+about 7.9 s when the candidate trails off (6 s plus the LLM and speech start). These are estimates until the checklist below
+is run. A pause longer than `min_delay` after a complete-sounding clause still ends the turn.
+
+### `v1` sends audio to LiveKit Inference, and uses the monthly allowance
+
+- **Privacy:** see the "two paths" row of the privacy table. The candidate's raw audio is streamed to LiveKit Inference a second
+  time for turn detection. A fallback to `v1-mini` keeps that path on the machine.
+- **Quota:** this PoC is a self-hosted agent (you run `agent.py start`), so `v1` draws on the project's **development
+  allowance of 7,500 predictions per month** (LiveKit "Quotas and limits", read 2026-11-15; the allowance is per project and
+  resets on the first of each month). A prediction is requested each time the candidate pauses for 200 ms or longer, and it
+  counts even if they resume before the answer returns. Rough use: 20–60 per two-answer interview (an estimate from the SDK
+  code and ordinary speech; hesitant speech gives more), so about 125–375 interviews a month. The run report counts the answered
+  ones in `turn_detector.cloud_predictions` (a lower bound: a request that times out sends no metric).
+- **Past the allowance:** on the Build plan LiveKit Inference rejects the requests and the session falls back to `v1-mini`; on
+  Ship and Scale usage beyond it is billed at $0.50 per 1,000 predictions. This project's plan is not recorded in the repo:
+  check the LiveKit Cloud dashboard (Settings, Project) for the plan and the remaining allowance.
+- **Fallback is never silent:** the SDK logs one warning when it falls back. The agent also logs
+  `turn detector fell back: turn-detector-v1 -> turn-detector-v1-mini (noticed at …)` and writes the `turn_detector` section of
+  the run report: `requested`, `model_at_start`, `model_at_end`, `fell_back`, `fallback_at_s` (only after a fallback) and
+  `cloud_predictions`. The model is read from the detector's public `model` after each session event and once more at
+  shutdown, so a fallback is noticed within one event; it cannot be read in the middle of a prediction.
+- The agent logs `turn detection: requested=v1, local_fallback=on, model=turn-detector-v1, endpointing min=3.0s max=6.0s` once
+  at the start. An explicit `v1` needs `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`: without them the session setup stops with an
+  error instead of starting on `v1-mini`.
+
+### Live checklist for the end of turn (real microphone, your keys, no automated test covers this)
+
+Why live: the offline tests only prove the configuration and the fallback bookkeeping; they do not run VAD, STT or the detector
+on real audio. Use `POC_AVATAR=off` (audio only, no Anam minutes) for tuning; the avatar does not change the turn logic. One
+session has two candidate turns, so two sessions cover four cases. The figures come from `.runs/session-<time>.json`:
+`user_stopped_to_avatar_audio_s` per turn, and the `turn_detector` section. (`end_of_utterance_delay_s` was absent from the
+reports of the 2026-11-15 runs.) Each session uses roughly 20–60 of the 7,500 monthly `v1` predictions.
+
+Run from `interview_poc/` (PowerShell), terminal 1, then terminal 2 as in "Run":
+
+```powershell
+& $py -m pytest tests -q                       # offline first
+$env:POC_AVATAR = "off"; & $py agent.py start  # terminal 1; `Remove-Item Env:POC_AVATAR` afterwards
+& $py token_server.py                          # terminal 2, then open http://127.0.0.1:8787/
+```
+
+1. **Start check.** In the agent log, find
+   `turn detection: requested=v1, local_fallback=on, model=turn-detector-v1, endpointing min=3.0s max=6.0s`.
+   If the agent stops with an error naming `LIVEKIT_API_KEY`, the credentials are missing from `interview_poc/.env`.
+2. **Session 1, answer 1, pause inside the answer.** Say one clause, stay silent for about one second (count "하나, 둘"),
+   then finish the sentence. Pass: the interviewer says nothing during the pause, and the page shows **one** candidate line
+   with both parts. Fail: a follow-up starts, or the answer is split in two (the second half is dropped).
+3. **Session 1, answer 2, clean ending.** Answer in full, end on a clear sentence ending and stay silent. Time it with a
+   stopwatch. Pass: the interviewer's voice starts about 5 s after your last word (3 s of silence, the LLM, then speech); the
+   report shows `user_stopped_to_avatar_audio_s` of about 4.3–4.4 s (it was 2.83–2.86 s at 1.5 s).
+4. **Session 2, answer 1, long pause inside the answer.** Say one clause, stay silent for about **2.5 s**, then finish the
+   sentence. Pass: one candidate line (2.5 s is inside the 3.0 s window). A pause of 3.5 s or more is expected to end the turn.
+5. **Session 2, answer 2, trailing off.** Stop mid-thought ("그래서 멱등성은 …") and stay silent. Pass: the turn does not end
+   before about 3 s, and ends by about 6 s after your last word.
+6. **After each session, read the report.** In `turn_detector`: `model_at_end` must be `turn-detector-v1` with
+   `fell_back: false` and `cloud_predictions` above 0. If `fell_back` is true, part of that session ran on `v1-mini`
+   (`fallback_at_s` says when, and the agent log has the line `turn detector fell back: …`): do not count it as a `v1` result,
+   and look for the SDK's own warning just above it (a timeout, a connection error or a used-up quota). If `cloud_predictions`
+   is 0 with `fell_back: false`, no prediction was answered: check the log for `turn detection transport latency is too high`.
+7. **Repeat the one-second pause (step 2) two more times** if it passed; three of three is the bar. Record per turn: the model,
+   `user_stopped_to_avatar_audio_s`, and pass or fail.
+
+If a turn is still split, find out why before changing anything: restart the agent with `--log-level debug` and save it
+(`& $py agent.py start --log-level debug 2>&1 | Tee-Object .runs\agent-debug.log`; `.runs/` is git-ignored, delete the file
+afterwards, see the privacy table), repeat the same pause, and read the lines `eot prediction` (probability, threshold and the
+delay used) and `user turn committed` (`delay_completed`, `end_of_turn_probability`). A probability above the threshold means
+the detector called the pause complete and the wait ended at `min_delay`; a probability below it means the wait ran to
+`max_delay` (real silence for 6 s). If it feels too slow instead, lower both delays in `config.py` (for example 2.5 s / 5.0 s)
+and update `tests/test_agent_wiring.py`. Change nothing else (interruption, VAD, STT) before this evidence is in.
 
 ## Files
 
@@ -199,4 +293,10 @@ and "응답 지연"), total session length (`total_session_seconds`).
 - `tests/test_agent_pipeline.py` runs a real `AgentSession` offline (scripted STT, fake microphone) and proves that masking sits
   on the audio path (STT node → turn hook → conductor). It does not cover VAD, the real STT/TTS services, the avatar or the
   browser; those need a live run. (Text input skips `on_user_turn_completed`, so text-mode tests cannot cover this path.)
+- The end-of-turn setup (`v1`, 3.0 s / 6.0 s) comes from the SDK source, LiveKit's documentation and run reports; it is not yet
+  confirmed with real audio (see the live checklist). `v1` is not measured for Korean or for non-native speech, and a long pause
+  (about 3 s or more) still ends a turn. A candidate who keeps talking after a premature end of turn is not recovered: the
+  interviewer's speech is not interruptible and audio during it is discarded.
+- `v1` needs the LiveKit project's development allowance (7,500 predictions a month) and the LiveKit plan is not recorded
+  here; after the allowance the Build plan falls back to `v1-mini`, which the run report shows (`turn_detector.fell_back`).
 - `livekit-api` stays below 2 because `livekit-agents` 1.8.12 requires it.

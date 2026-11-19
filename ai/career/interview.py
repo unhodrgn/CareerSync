@@ -94,11 +94,17 @@ def allowed(question: str, intent: str, tips: Sequence[str], blocklists: Sequenc
     return all(check_criterion(question, detail, bl).allowed for bl in blocklists)
 
 
+def _log_dropped(reason: str, source: str, criterion_id: int | None) -> None:
+    """What may be logged about a question that was dropped: why, where it came from and which criterion it was for (a number of the
+    job's own criteria). Never its text, which can quote the CV (D65)."""
+    log.info("interview question dropped: reason=%s source=%s criterion_id=%s", reason, source, criterion_id)
+
+
 def screen(questions: list[Question], blocklists: Sequence[Blocklist]) -> list[Question]:
     kept = [q for q in questions if allowed(q.question, q.intent, q.answer_tips, blocklists)]
     for q in questions:
         if q not in kept:
-            log.info("interview question dropped by a blocklist: %s", q.question)
+            _log_dropped("blocklist", "template", q.criterion_id)
     return kept
 
 
@@ -155,7 +161,7 @@ def interview_llm(
         tips = tuple(t for t in (_clean(x, 150) for x in q.answer_tips) if t)
         # Questions about protected attributes (age, family, origin, …) are dropped
         if not allowed(text, intent, tips, blocklists):
-            log.info("interview question dropped by a blocklist: %s", text)
+            _log_dropped("blocklist", "llm", q.criterion_id if q.criterion_id in names else None)
             continue
         cid = q.criterion_id if q.criterion_id in names else None
         verified = verify_quotes([q.cv_quote], masked_text) if q.cv_quote else []
@@ -183,5 +189,6 @@ def make_questions(
             excerpts = cv_excerpts(masked_text, query, embedder)
             return interview_llm(job_title, job_text, criteria, excerpts, masked_text, blocklists, llm), f"llm:{llm.model}"
         except LLMError as e:
-            log.warning("interview questions by LLM failed, using the template: %s", e)
+            # The type only: the message of an LLM error can quote the model's output, which can quote CV lines (D65)
+            log.warning("interview questions by LLM failed, using the template: %s", type(e).__name__)
     return interview_rules(criteria, blocklists), "rules"

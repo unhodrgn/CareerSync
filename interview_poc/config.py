@@ -30,6 +30,19 @@ STT_MODEL = "deepgram/nova-3"  # LiveKit Inference; `ko` is listed for this mode
 TTS_MODEL = "cartesia/sonic-3"  # LiveKit Inference; `ko` is listed for this model
 LANGUAGE = "ko"
 
+# End-of-turn wait, measured from the candidate's last speech (livekit-agents 1.8.12 `endpointing`, mode "fixed").
+# The SDK default (0.3 s / 2.5 s) is shorter than Silero's own 0.55 s silence, so a 1 s thinking pause ended the turn; a
+# live run with 1.5 s still cut the candidate off (its run report shows both turns ended after the MIN wait).
+# MIN: wait when the audio turn detector thinks the sentence is complete. MAX: wait when it thinks the speaker is not done.
+# MIN must stay above Silero's min_silence_duration (0.55 s), or it has no effect (tests/test_agent_wiring.py guards this).
+ENDPOINTING_MIN_DELAY_SECONDS = 3.0
+ENDPOINTING_MAX_DELAY_SECONDS = 6.0
+# The audio turn detector: "v1" is the full model on LiveKit Inference (the candidate's audio is streamed to it; self-hosted
+# agents use the project's monthly development allowance of 7,500 predictions). `local_fallback=True` (agent.py) lets the
+# session continue on the local "v1-mini" if Inference fails, times out or the allowance is used up. Without a version,
+# `agent.py start` silently runs "v1-mini" and `dev`/`console` run "v1".
+TURN_DETECTOR_VERSION = "v1"
+
 REASONING_EFFORTS = ("low", "medium", "high")  # the values Groq documents for openai/gpt-oss-120b and gpt-oss-20b
 DEFAULT_REASONING_EFFORT = "low"
 REASONING_MODEL_PREFIX = "openai/gpt-oss"  # only these models get a reasoning effort by default; others never receive the field

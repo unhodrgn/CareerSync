@@ -18,7 +18,9 @@ DEPTH = 2  # folders down to this many levels below the repo root must be listed
 # test_data is the git-ignored local AI matching dataset: present locally, absent in a clean checkout.
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__", "test_data"}
 HIDDEN_KEPT = {".github"}
-SKIP_FILES = {".env", "AUDIT_REPORT.md", "CLAUDE.md"}  # local secrets; the untracked audit report
+# Local secrets; the untracked audit report; untracked local tool config (MCP servers, installed agent skills): present
+# on a developer's machine, absent in a clean checkout, so an allowlist entry for them would fail there as stale
+SKIP_FILES = {".env", "AUDIT_REPORT.md", "CLAUDE.md", ".mcp.json", "skills-lock.json"}
 BRANCH = re.compile(r"├── |└── ")
 INDENT = ("│   ", "    ")  # one level = 4 characters
 FIX_TREE = "Add it to the tree, or allowlist it in backend/tests/docs/allowlist.yaml [tree_omitted] with a reason."
