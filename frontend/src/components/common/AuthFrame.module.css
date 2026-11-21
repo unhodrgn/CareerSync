@@ -176,3 +176,59 @@
   border-radius: var(--ds-radius-panel);
   background: var(--ds-panel);
 }
+
+.body {
+  width: min(100%, 1210px);
+  margin-inline: auto;
+}
+
+.page {
+  background: var(--ds-panel);
+}
+
+.header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--ds-line);
+}
+
+.main {
+  padding: clamp(12px, 4vw, 48px);
+  align-items: center;
+}
+
+.field {
+  min-height: 360px;
+}
+
+@media (max-width: 780px) {
+  .header {
+    padding-inline: 14px;
+    margin-bottom: 8px;
+  }
+
+  .tagline {
+    display: none;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 10px 24px;
+  }
+
+  .main {
+    grid-row: 1;
+    min-height: 0;
+    padding: 8px 4px;
+  }
+
+  .field {
+    position: static;
+    height: auto;
+    min-height: 0;
+    padding: 24px;
+  }
+
+  .fieldTitle {
+    font-size: 21px;
+  }
+}

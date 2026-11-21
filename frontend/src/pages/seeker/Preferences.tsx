@@ -119,7 +119,7 @@ export default function Preferences() {
   const { state, setData, reload } = useApi(() => api.myPreferences(), []);
   return (
     <div className={ui.page}>
-      <PageHead title={t('pref.title')} lead={t('pref.lead')} tabTitle />
+      <PageHead title={t('pref.title')} lead={t('pref.lead')} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' && <Form saved={state.data} onSaved={setData} />}

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
@@ -6,7 +6,7 @@ import { AiBusy, AiMark } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
 import { formatDate } from '@/components/common/format';
 import { RefreshIcon } from '@/components/common/icons';
-import { ApplicationStatusTag, ScoreSquare } from '@/components/common/Labels';
+import { ApplicationStatusTag } from '@/components/common/Labels';
 import { applicantExperience, GateTag, hasGate } from '@/components/common/RequiredGate';
 import { cx, PageHead } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
@@ -15,6 +15,7 @@ import ApplicantDetail, { type DetailFocus } from '@/components/company/Applican
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
 import CandidateAvatar from '@/components/company/CandidateAvatar';
+import h from '@/styles/hiring.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import { useDocumentTitle } from '@/routes/title';
@@ -23,40 +24,6 @@ import { GATE_STATUSES, type GateStatusT } from '@/types/gate';
 
 const MIN_FITS = [60, 70, 80];
 const EVAL_STATUSES: EvaluationStatus[] = ['done', 'pending', 'failed'];
-// Criteria columns: equal shares of what is left after rank (40) + Fit (72) + the applicant (at least 168) + the
-// minimum-experience gate (88, only when the job sets a minimum), kept between 40 and 96 px; under 80 px a name no
-// longer fits on two horizontal lines, so the headers turn 45°. The fixed widths live in company.module.css
-// (.colRank, .colFit, .colGate).
-const RESERVED = 40 + 72 + 168;
-const GATE_COLUMN = 88;
-const MIN_COLUMN = 40;
-const MAX_COLUMN = 96;
-const COMFORTABLE_COLUMN = 80;
-
-/**
- * Sets each criterion column's width (--crit-w, plain px: Chrome treats percentage calc() widths on table columns
- * as auto) from the table's width, and says whether the headers are angled. The table is width: 100% with a fixed
- * layout, so its width never depends on these columns or the header height, and measuring again cannot loop.
- */
-function useCriteriaColumns(ref: RefObject<HTMLTableElement | null>, count: number, active: boolean, reserved = RESERVED) {
-  const [dense, setDense] = useState(false);
-  useLayoutEffect(() => {
-    const table = ref.current;
-    if (!active || !table || count === 0) return;
-    const fit = () => {
-      const share = Math.floor(((table.clientWidth - reserved) / count) * 10) / 10;
-      const width = Math.min(MAX_COLUMN, Math.max(MIN_COLUMN, share));
-      table.style.setProperty('--crit-w', `${width}px`);
-      setDense(width < COMFORTABLE_COLUMN);
-    };
-    fit();
-    const observer = new ResizeObserver(fit);
-    observer.observe(table);
-    return () => observer.disconnect();
-  }, [ref, count, active, reserved]);
-  return dense;
-}
-
 /**
  * Applicants ranked by Fit (D22): the quick filters apply after ranking, so a rank never shifts. The selected
  * applicant (`?selected=`, rank 1 or the first visible one by default) opens beside the table with the evidence
@@ -81,14 +48,14 @@ export default function Applicants() {
 
   if (job.state.status === 'loading') {
     return (
-      <div className={ui.page}>
+      <div className={cx(ui.page, h.page)}>
         <Loading rows={8} />
       </div>
     );
   }
   if (job.state.status === 'error') {
     return (
-      <div className={ui.page}>
+      <div className={cx(ui.page, h.page)}>
         <PageHead title={t('page.company.applicants.title')} back={{ to: paths.company.jobs, label: t('jobTabs.back') }} />
         <ErrorPanel error={job.state.error} onRetry={job.reload} />
       </div>
@@ -99,9 +66,10 @@ export default function Applicants() {
   const gated = (job.state.data.min_experience_years ?? 0) > 0;
   const filtered = statusFilter.length > 0 || minFit !== undefined || evalFilter !== undefined || gateFilter !== undefined;
   return (
-    <div className={ui.page}>
+    <div className={cx(ui.page, h.page)}>
       <JobHeader job={job.state.data} />
-      <div className={s.filters}>
+      <h2 className={s.rankingHeading}>{t('jobTabs.applicants')}</h2>
+      <div className={cx(ui.panel, s.filters)}>
         <span className={s.filterGroup} role="group" aria-label={t('apl.filter.status')}>
           {t('apl.filter.status')}
           {APPLICATION_STATUSES.map((x) => (
@@ -214,8 +182,6 @@ function Board({
   // The open applicant names the tab (홍길동 – 지원자 상세 – CareerSync); none open keeps 지원자 관리
   useDocumentTitle(current?.name, 'page.company.applicantDetail.title');
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
-  const tableRef = useRef<HTMLTableElement>(null);
-  const dense = useCriteriaColumns(tableRef, data.criteria.length, items.length > 0, RESERVED + (gated ? GATE_COLUMN : 0));
   const requests = useRef(0);
   const [focusRequest, setFocusRequest] = useState<(DetailFocus & { id: number }) | null>(null);
   const [announce, setAnnounce] = useState('');
@@ -260,11 +226,11 @@ function Board({
   const pending = data.items.some((r) => r.evaluation_status === 'pending');
   const facts = (a: (typeof items)[number]) =>
     // The gate's stated total replaces a period-based 0 that would contradict it (D50); otherwise as before
-    a.evaluation_status === 'done' ? applicantExperience(a.experience_months, a.required_gate) : t('apl.applied', { date: formatDate(a.applied_at) });
+    a.evaluation_status === 'done' ? applicantExperience(a.experience_months, a.required_gate) : null;
 
   return (
     <div className={s.board}>
-      <section className={ui.panel} aria-labelledby="ranking-title">
+      <section className={cx(ui.panel, s.rankingPanel)} aria-labelledby="ranking-title">
         <div className={s.tableHead}>
           <h2 id="ranking-title" className={ui.panelTitle}>
             {t('apl.total', { shown: data.items.length, total: data.total_count })}
@@ -282,117 +248,90 @@ function Board({
         {data.items.length === 0 ? (
           <Empty panel={false} title={t('apl.noMatch')} />
         ) : (
-          <table
-            ref={tableRef}
-            className={cx(ui.table, s.ranking)}
-            style={{ marginTop: 12 }}
-            data-dense={dense || undefined}
-          >
-            <colgroup>
-              <col className={s.colRank} />
-              <col />
-              <col className={s.colFit} />
-              {data.criteria.map((c) => (
-                <col key={c.id} className={s.colCrit} />
-              ))}
-              {gated && <col className={s.colGate} />}
-            </colgroup>
-            <thead>
-              <tr>
-                <th>{t('apl.col.rank')}</th>
-                <th>{t('apl.col.name')}</th>
-                {/* Fit sits by the name: rank, applicant and fit read as one; the criteria after it are the evidence */}
-                <th className={s.fitHead}>
-                  <span className={s.aiHead}>
-                    <AiMark size="sm" />
-                    {t('apl.col.fit')}
-                  </span>
-                </th>
-                {/* The name may be cut short on screen; the title and the label keep it whole */}
-                {data.criteria.map((c) => (
-                  <th
-                    key={c.id}
-                    data-crit
-                    className={s.critHead}
-                    title={c.name}
-                    aria-label={`${c.name}, ${t('apl.detail.weight', { n: Math.round(c.weight) })}`}
-                  >
-                    <span className={s.critHeadName}>{c.name}</span>
-                    <span className={s.critHeadWeight}>{Math.round(c.weight)}%</span>
+          <div className={s.rankingScroll} role="region" aria-labelledby="ranking-title">
+            <table className={cx(ui.table, s.ranking)} role="table" aria-labelledby="ranking-title">
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th role="columnheader" scope="col">{t('apl.col.rank')}</th>
+                  <th role="columnheader" scope="col">{t('apl.col.name')}</th>
+                  <th role="columnheader" scope="col">{t('apl.col.status')}</th>
+                  <th role="columnheader" scope="col">{t('apl.col.date')}</th>
+                  <th role="columnheader" scope="col">
+                    <span className={s.aiHead}><AiMark size="sm" />{t('apl.col.fit')}</span>
                   </th>
-                ))}
-                {/* After the criteria, apart from Fit and its evidence: a label about the job's minimum, not a score */}
-                {gated && <th className={s.gateHead}>{t('gate.col')}</th>}
-              </tr>
-            </thead>
-            <tbody className={ui.stagger}>
-              {items.map((a, i) => (
-                <tr
-                  key={a.application_id}
-                  ref={(el) => {
-                    if (el) rowRefs.current.set(a.application_id, el);
-                    else rowRefs.current.delete(a.application_id);
-                  }}
-                  className={s.applicantRow}
-                  tabIndex={0}
-                  // A focused row is read by its name, and Chromium gives a table row none from its cells; aria-selected
-                  // is for grids. So the row is named — rank and applicant, 선택됨 first when selected — and the table
-                  // keeps its native semantics; data-selected only draws the selection
-                  aria-label={rowLabel(a, selected === a.application_id)}
-                  data-selected={selected === a.application_id || undefined}
-                  onClick={() => onSelect(a.application_id)}
-                  onKeyDown={(e) => onKey(e, i)}
-                >
-                  <td>{a.rank ? <span className={s.rank} data-top={a.rank === 1 || undefined}>{a.rank}</span> : <span className={ui.muted}>—</span>}</td>
-                  <td>
-                    <span className={s.person}>
-                      {/* Seeded by the application, never by the name or email; kept apart from the talent seed */}
-                      <CandidateAvatar seed={`A-${a.application_id}`} />
-                      <span className={s.nameCell}>
-                        <strong title={a.name}>{a.name}</strong>
-                        {/* Status and experience stay whole: side by side when there is room, on two lines when not */}
-                        <span className={cx(ui.caption, s.nameFacts)}>
-                          <ApplicationStatusTag status={a.status} />
-                          <span>{facts(a)}</span>
+                  {gated && <th role="columnheader" scope="col">{t('gate.col')}</th>}
+                  <th role="columnheader" scope="col"><span className={ui.visuallyHidden}>{t('jobs.details')}</span></th>
+                </tr>
+              </thead>
+              <tbody className={ui.stagger} role="rowgroup">
+                {items.map((a, i) => (
+                  <tr
+                    role="row"
+                    key={a.application_id}
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(a.application_id, el);
+                      else rowRefs.current.delete(a.application_id);
+                    }}
+                    className={s.applicantRow}
+                    tabIndex={0}
+                    // A focused row is read by its name, and Chromium gives a table row none from its cells; aria-selected
+                    // is for grids. So the row is named — rank and applicant, 선택됨 first when selected — and the table
+                    // keeps its native semantics; data-selected only draws the selection
+                    aria-label={rowLabel(a, selected === a.application_id)}
+                    data-selected={selected === a.application_id || undefined}
+                    onClick={() => openRow(a.application_id)}
+                    onKeyDown={(e) => onKey(e, i)}
+                  >
+                    <td role="cell" className={s.rankCell}>{a.rank ? <span className={s.rank} data-top={a.rank === 1 || undefined}>{a.rank}</span> : <span className={ui.muted}>—</span>}</td>
+                    <td role="cell" className={s.personCell}>
+                      <span className={s.person}>
+                        {/* Seeded by the application, never by the name or email; kept apart from the talent seed */}
+                        <CandidateAvatar seed={`A-${a.application_id}`} />
+                        <span className={s.nameCell}>
+                          <strong title={a.name}>{a.name}</strong>
+                          {facts(a) && <span className={ui.caption}>{facts(a)}</span>}
                         </span>
                       </span>
-                    </span>
-                  </td>
-                  <td className={s.fitCell}>
-                    {a.fit !== null ? (
-                      <span className={s.fit}>{a.fit.toFixed(1)}</span>
-                    ) : a.evaluation_status === 'pending' ? (
-                      <AiBusy as="span">{t('evalStatus.pending')}</AiBusy>
-                    ) : (
-                      <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>
-                    )}
-                  </td>
-                  {data.criteria.map((c) => {
-                    const sc = a.scores.find((x) => x.criterion_id === c.id);
-                    return (
-                      <td key={c.id} className={s.scoreCell}>
-                        {sc ? (
-                          <span className={s.score}>
-                            <ScoreSquare score={sc.score} />
-                            {sc.score}
-                          </span>
-                        ) : a.evaluation_status === 'pending' ? (
-                          <span className={ui.skeleton} style={{ display: 'inline-block', width: 28, height: 10 }} />
-                        ) : (
-                          <span className={ui.muted}>—</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  {gated && (
-                    <td className={s.gateCell}>
-                      {hasGate(a.required_gate) ? <GateTag status={a.required_gate.status} short /> : <span className={ui.muted}>—</span>}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td role="cell"><ApplicationStatusTag status={a.status} /></td>
+                    <td role="cell" className={cx(ui.num, s.dateCell)}>
+                      <span className={s.mobileLabel}>{t('apl.col.date')}</span>
+                      {a.applied_at ? formatDate(a.applied_at) : '—'}
+                    </td>
+                    <td role="cell" className={s.fitCell}>
+                      {a.fit !== null ? (
+                        <span className={s.fitRing} style={{ background: `conic-gradient(#147a73 ${a.fit}%, #e4edf0 0)` }}><span>{a.fit.toFixed(1)}</span></span>
+                      ) : a.evaluation_status === 'pending' ? (
+                        <AiBusy as="span">{t('evalStatus.pending')}</AiBusy>
+                      ) : (
+                        <span className={ui.caption}>{t(`evalStatus.${a.evaluation_status}`)}</span>
+                      )}
+                    </td>
+                    {gated && (
+                      <td role="cell" className={s.gateCell}>
+                        <span className={s.mobileLabel}>{t('gate.col')}</span>
+                        {hasGate(a.required_gate) ? <GateTag status={a.required_gate.status} short /> : <span className={ui.muted}>—</span>}
+                      </td>
+                    )}
+                    <td role="cell" className={s.openCell}>
+                      <button
+                        type="button"
+                        className={cx(ui.btn, ui.primary, ui.small)}
+                        aria-label={t('apl.openFor', { name: a.name })}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openRow(a.application_id);
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        {t('apl.open')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {data.excluded_criteria.length > 0 && (
           <p className={ui.caption} style={{ marginTop: 12 }}>

@@ -34,7 +34,6 @@ export default function CompanyJobList() {
   return (
     <div className={ui.page}>
       <PageHead
-        tabTitle
         title={t('page.company.jobList.title')}
         count={jobs.length || undefined}
         lead={t('cjobs.lead')}
@@ -46,7 +45,7 @@ export default function CompanyJobList() {
         (jobs.length === 0 ? (
           <Empty title={t('cjobs.empty.title')} body={t('cjobs.empty.body')} action={newJob} />
         ) : (
-          <ul className={cx(ui.recordList, ui.stagger)}>
+          <ul className={cx(ui.recordList, ui.stagger, s.managedJobs)}>
             {jobs.map((job) => (
               <li key={job.id} className={ui.recordRow} data-closed={job.status === 'closed' || undefined}>
                 <div className={s.jobRowLead}>

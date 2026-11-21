@@ -69,17 +69,16 @@ export default function JobDetail() {
     <div className={ui.page}>
       {/* The job title below is the page's one H1 */}
       <PageHead back={back} />
+      <header className={s.jobHead}>
+        <JobIconTile title={data.title} size="lg" />
+        <div className={s.jobHeadText}>
+          <h1 className={s.jobHeadTitle}>{data.title}</h1>
+          <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
+        </div>
+      </header>
+
       <div className={s.detail}>
         <div className={s.detailMain}>
-          {/* The title leads on the canvas, level with the apply panel; the company and meta line under it */}
-          <header className={s.jobHead}>
-            <JobIconTile title={data.title} size="lg" />
-            <div className={s.jobHeadText}>
-              <h1 className={s.jobHeadTitle}>{data.title}</h1>
-              <JobMeta company={data.company_name} location={data.location} employmentType={data.employment_type} minExperienceYears={data.min_experience_years} />
-            </div>
-          </header>
-
           <article className={ui.panel}>
             {/* Location, employment type and experience are in the meta line above; the rest in one unboxed row */}
             <dl className={s.facts}>
@@ -105,8 +104,8 @@ export default function JobDetail() {
         {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
           {!user && <GuestApply />}
-          {seeker && matchData && <MatchSection data={matchData} />}
           {seeker && <ApplyPanel job={data} />}
+          {seeker && matchData && <MatchSection data={matchData} />}
           <CriteriaSection jobId={data.id} scores={matchData?.match?.criteria} />
         </aside>
       </div>

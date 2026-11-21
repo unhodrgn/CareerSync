@@ -204,3 +204,13 @@
   font-variant-numeric: tabular-nums;
   color: var(--ds-ink-2);
 }
+
+.card {
+  border: 1px solid var(--ds-line);
+}
+
+@media (max-width: 480px) {
+  .card { padding: 20px 16px; }
+  .roleOptions { grid-template-columns: minmax(0, 1fr); }
+  .headerLink, .headerButton { padding-inline: 12px; white-space: nowrap; }
+}

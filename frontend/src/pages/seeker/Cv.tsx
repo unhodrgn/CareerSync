@@ -121,7 +121,7 @@ export default function Cv() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('cv.title')} lead={t('cv.lead')} tabTitle />
+      <PageHead title={t('cv.title')} lead={t('cv.lead')} />
       <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={onFile} />
       {content}
     </div>

@@ -15,7 +15,7 @@ import CompanyPublic from '@/pages/public/CompanyPublic';
 import Consent from '@/pages/public/Consent';
 import Home from '@/pages/public/Home';
 import JobDetail from '@/pages/public/JobDetail';
-import JobList from '@/pages/public/JobList';
+import BrowseJobs from '@/pages/public/BrowseJobs';
 import Login from '@/pages/public/Login';
 import NotFound from '@/pages/public/NotFound';
 import Register from '@/pages/public/Register';
@@ -60,7 +60,7 @@ export const router = createBrowserRouter([
       {
         errorElement: pageError,
         children: [
-          { path: paths.jobs, element: <JobList />, handle: title('page.public.jobList.title') },
+          { path: paths.jobs, element: <BrowseJobs />, handle: title('page.public.jobList.title') },
           { path: paths.jobDetail, element: <JobDetail />, handle: title('page.public.jobDetail.title') },
           // A company profile needs a login (GET /api/companies/{id}); signed in, it shows in the user's own shell
           { element: <RequireRole />, children: [{ path: paths.companyPublic, element: <CompanyPublic />, handle: title('page.public.companyPublic.title') }] },
