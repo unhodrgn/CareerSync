@@ -114,7 +114,10 @@ def refused_creation(db, world, clock):
 
 
 def test_a_cv_with_nul_is_refused_before_any_model_sees_it(db, clock, monkeypatch):
-    world = make_world_with_cv(db, SAMPLE_CV.replace("Spring Boot", f"Spring{NUL}Boot", 1))
+    world = make_world_with_cv(db, SAMPLE_CV)
+    # PostgreSQL cannot store a NUL in `cv_documents.masked_text` (the INSERT of the fixture fails there), so the text is patched in at the one place
+    # the service reads the stored CV, and this runs the same on SQLite and PostgreSQL (test_interview_nul_postgres.py has the PostgreSQL-only side).
+    monkeypatch.setattr(svc, "_read_stored_cv", lambda _db, _cv_document_id: SAMPLE_CV.replace("Spring Boot", f"Spring{NUL}Boot", 1))
     llm = PlanLLM(db)
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     session = refused_creation(db, world, clock)

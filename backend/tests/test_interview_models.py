@@ -239,7 +239,8 @@ def _turn(session_id, seq=1, **overrides):
 
 @pytest.mark.parametrize(
     "overrides",
-    [{"role": "interviewer"}, {"seq": 0}, {"seq": -3}, {"item_index": -1}, {"text": "x" * 4001}, {"text": None}, {"kind": None}],
+    # the role is at most 10 characters: a longer one ("interviewer") is refused by `varchar(10)` on PostgreSQL with a DataError, before the check constraint
+    [{"role": "observer"}, {"seq": 0}, {"seq": -3}, {"item_index": -1}, {"text": "x" * 4001}, {"text": None}, {"kind": None}],
 )
 def test_a_bad_turn_is_refused(db, ids, overrides):
     session = _insert(db, make_session(ids))

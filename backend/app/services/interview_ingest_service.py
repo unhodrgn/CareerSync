@@ -181,6 +181,16 @@ def _is_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+# A surrogate code point (0xD800 to 0xDFFF) is never text. A valid pair is one character in a `str` (decoding JSON makes it one), so any that
+# is left is unpaired, or two halves that nobody combined, and UTF-8 cannot encode it: the database driver would raise UnicodeEncodeError at
+# the INSERT. Built from `chr` and not written as escapes, which some tools rewrite.
+_SURROGATE = re.compile(f"[{chr(0xD800)}-{chr(0xDFFF)}]")
+
+
+def _has_surrogate(text: str) -> bool:
+    return _SURROGATE.search(text) is not None
+
+
 # ── Record a turn ──
 
 
@@ -436,8 +446,10 @@ def _clean_turn(event: TurnEvent, plan: _Plan, names: list[str], *, closing: boo
     # The engine's closing action has no topic whatever the index, so the closing line may echo None; every other turn echoes the topic
     if event.topic_id != expected_topic and not (closing and event.topic_id is None):
         raise _bad("topic_id")  # the agent runs another plan than the stored one
-    if not isinstance(event.text, str) or "\x00" in event.text:
-        raise _bad("text")  # U+0000 is refused, never stripped: PostgreSQL TEXT cannot hold it, and a text that has one is not a transcript
+    if not isinstance(event.text, str) or "\x00" in event.text or _has_surrogate(event.text):
+        # U+0000 is refused, never stripped: PostgreSQL TEXT cannot hold it, and a text that has one is not a transcript. A surrogate code point
+        # is refused the same way, never replaced or recombined: nothing can store it, and left alone it would fail at the INSERT as a raw error
+        raise _bad("text")
     if len(event.text) > settings.INTERVIEW_MAX_RAW_TURN_CHARS:
         raise AppError(422, "INTERVIEW_TURN_TOO_LONG", "발화가 너무 깁니다.")
     masked = mask_spoken(event.text, names)

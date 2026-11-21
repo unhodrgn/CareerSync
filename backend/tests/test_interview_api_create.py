@@ -312,7 +312,10 @@ def test_a_job_without_usable_criteria_is_422_not_available_and_nothing_is_reser
 
 
 def test_a_cv_the_plan_refuses_is_422_not_available_and_the_session_is_closed(api, db, monkeypatch):
-    world = build_world(db, masked_cv=SAMPLE_CV.replace("Java", "Ja" + NUL + "va", 1))  # U+0000 in the cleaned CV: refused before any model
+    world = build_world(db)
+    # U+0000 in the cleaned CV: refused before any model. PostgreSQL cannot store a NUL in `cv_documents.masked_text` (the INSERT of the fixture
+    # fails there), so the text is patched in at the one place the service reads the stored CV, and this runs the same on SQLite and PostgreSQL.
+    monkeypatch.setattr(interview_service, "_read_stored_cv", lambda _db, _cv_document_id: SAMPLE_CV.replace("Java", "Ja" + NUL + "va", 1))
     llm = PlanLLM(db)
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     refused(create(api, world), 422, "INTERVIEW_NOT_AVAILABLE")

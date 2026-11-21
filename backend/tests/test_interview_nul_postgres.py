@@ -1,8 +1,8 @@
 """What PostgreSQL does with U+0000, and that the interview never gets that far (M4 S3c, D65): PostgreSQL only.
 
 These need `TEST_DATABASE_URL=postgresql+psycopg://…/<name>_pgtest` on this machine (a throwaway database: the fixture drops every table)
-and are SKIPPED without it. They were written, not run: nothing in the repository says PostgreSQL has been verified to behave as the
-first two tests assume until they have passed against one. The refusals themselves are tested on SQLite in test_interview_nul.py.
+and are SKIPPED without it. They ran and passed on PostgreSQL on 2026-11-22 (D77), so PostgreSQL does behave as the first two tests
+assume. The refusals themselves are tested on SQLite in test_interview_nul.py.
 
 1. The characterization tests insert a NUL straight into the tables. They assert the hazard the refusals exist for: if PostgreSQL ever
    accepts the character, the refusals are not needed any more and these tests say so by failing.
@@ -73,8 +73,12 @@ def test_pg_a_turn_with_nul_is_refused_with_422_and_no_row(db, world, clock, tex
 
 
 @PG
-def test_pg_a_cv_with_nul_is_refused_before_the_model_and_nothing_is_stored(db, clock, monkeypatch):
-    world = build_world(db, email="nul@interview.test", masked_cv=SAMPLE_CV.replace("Spring Boot", f"Spring{NUL}Boot", 1))
+def test_pg_a_cv_with_nul_is_refused_before_the_model_and_nothing_is_stored(db, world, clock, monkeypatch):
+    # PostgreSQL cannot hold a NUL in `cv_documents.masked_text` (the INSERT of the fixture itself fails), so the stored CV stays clean and the one
+    # place the service reads the CV text from is patched: this shows that the refusal completes on PostgreSQL, before the model, with no database
+    # error. The SQLite tests of the same guard (test_interview_nul.py, test_interview_api_create.py) use the same patch: a really stored NUL fails
+    # on PostgreSQL in the INSERT of the fixture, as the first PostgreSQL run of Tier B showed, so no test stores one any more.
+    monkeypatch.setattr(svc, "_read_stored_cv", lambda _db, _cv_document_id: SAMPLE_CV.replace("Spring Boot", f"Spring{NUL}Boot", 1))
     llm = PlanLLM(db)
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     with pytest.raises(AppError) as error:
@@ -84,6 +88,7 @@ def test_pg_a_cv_with_nul_is_refused_before_the_model_and_nothing_is_stored(db, 
     session = db.query(InterviewSession).filter_by(seeker_id=world.user.id).one()
     assert (session.status, session.end_reason, session.plan) == ("aborted", "plan_unavailable", None)
     assert llm.calls == []
+    assert db.scalar(select(func.count()).select_from(InterviewTurn)) == 0  # and nothing else of the interview was written
 
 
 @PG

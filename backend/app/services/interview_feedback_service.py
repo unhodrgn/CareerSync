@@ -70,7 +70,7 @@ from app.core.errors import AppError
 from app.models import InterviewSession, InterviewTurn, User
 from app.models.interview import InterviewStatus, QuotaKind
 from app.services import ai_runtime, career_service, interview_quota_service, interview_service
-from app.services.interview_plan_service import has_nul, plan_digest
+from app.services.interview_plan_service import has_nul, has_surrogate, plan_digest
 from app.services.interview_time import Clock, as_utc, now_from, utcnow
 
 log = logging.getLogger(__name__)
@@ -393,12 +393,13 @@ def _finish(db: Session, source: _Source, views: _Views, kit: _Kit, llm: LLMClie
     """Ask the model once, with no transaction open, and settle the lease: store, or release, or find that it is no longer ours."""
     try:
         report = _model_report(views.safe_turns, views.safe_plan, kit, llm)
-        if report.method != "rules" and has_nul(report.to_data()):
-            # U+0000 in what the model wrote (or in its name): PostgreSQL cannot store it, and the screens of `make_feedback` do not look
-            # for it. The whole model report is dropped, never cleaned and never stored in part, and the request goes on as a failed
-            # model call: the rules report, provisional, or final on the last attempt (D65). The rules report is made of stored values,
-            # which PostgreSQL could not have held with a NUL in them.
-            log.warning("interview feedback by the model rejected (nul_character); using the rules")
+        data = report.to_data()
+        if report.method != "rules" and (has_nul(data) or has_surrogate(data)):
+            # U+0000 or a surrogate code point in what the model wrote (or in its name): PostgreSQL cannot store either, and the screens of
+            # `make_feedback` do not look for them. The whole model report is dropped, never cleaned and never stored in part, and the
+            # request goes on as a failed model call: the rules report, provisional, or final on the last attempt (D65, D73). The rules
+            # report is made of stored values, which PostgreSQL could not have held with either in them.
+            log.warning("interview feedback by the model rejected (nul_or_surrogate_character); using the rules")
             report = _rules_report(views, kit)
         used = held.attempt
         if report.method == "rules" and used < settings.INTERVIEW_FEEDBACK_MAX_ATTEMPTS:

@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .markdown import ROOT, Allowlist, Doc, guarded_docs, load, report, tables
+from .markdown import ROOT, TRACKER, Allowlist, Doc, guarded_docs, load, report, tables
 
 D_REF = re.compile(r"\bD(\d{1,3})(?![0-9])")
 Q_REF = re.compile(r"\bQ(\d{1,3})(?![0-9])")
@@ -119,7 +119,7 @@ def test_ids_are_defined_once():
 
 def test_every_referenced_id_exists():
     allowed = Allowlist("ids", "ref")
-    problems = reference_problems(guarded_docs(), _ids(), allowed) + allowed.problems()
+    problems = reference_problems(guarded_docs(skip=TRACKER), _ids(), allowed) + allowed.problems()
     assert not problems, report(problems)
 
 

@@ -7,7 +7,7 @@ ai/prompts/ (markdown.EXCLUDED)."""
 import re
 import unicodedata
 
-from .markdown import Doc, guarded_docs, report
+from .markdown import TRACKER, Doc, guarded_docs, report
 
 VIETNAMESE = frozenset("ăâđêôơưĩũĂÂĐÊÔƠƯĨŨ") | frozenset(chr(c) for c in range(0x1EA0, 0x1EFA))
 WORD = re.compile(r"\S+")
@@ -35,5 +35,5 @@ def language_problems(docs: list[Doc]) -> list[str]:
 
 
 def test_docs_are_english():
-    problems = language_problems(guarded_docs())
+    problems = language_problems(guarded_docs(skip=TRACKER))
     assert not problems, report(problems)

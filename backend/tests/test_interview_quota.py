@@ -261,6 +261,57 @@ def test_losing_the_row_creation_race_is_fine_and_keeps_the_callers_work(db, ids
     assert db.scalar(select(InterviewSession.status)) == "planning"  # the caller's work survived the savepoint
 
 
+def _count_increments(monkeypatch, *, miss_first=0):
+    """Wrap `_increment`: count its calls, and make the first `miss_first` of them answer "no row matched" without running (our UPDATE ran before
+    another request's row was visible)."""
+    real, calls = quota._increment, {"n": 0}
+
+    def increment(*args):
+        calls["n"] += 1
+        return False if calls["n"] <= miss_first else real(*args)
+
+    monkeypatch.setattr(quota, "_increment", increment)
+    return calls
+
+
+@pytest.mark.parametrize("kind", QuotaKind.ALL)
+def test_a_row_created_between_our_update_and_our_existence_check_still_gives_a_reservation(db, ids, monkeypatch, kind):
+    """Another request creates and commits today's row after our UPDATE looked for it and before our existence check (READ COMMITTED: each
+    statement sees what was committed before it started). Our UPDATE matched no row only because the row was not there yet, so a row with room
+    (used 1 of 3) must give us a reservation: the UPDATE is tried once more (D75)."""
+    assert claim(db, ids.seeker_id, kind, now=NOON) is True  # "the other request": it created the row, used = 1
+    db.commit()
+    calls = _count_increments(monkeypatch, miss_first=1)
+    assert claim(db, ids.seeker_id, kind, now=NOON) is True
+    assert calls["n"] == 2  # the first UPDATE missed, the retry took the reservation
+    db.commit()
+    assert _row(db, ids.seeker_id, kind) == (2, 3)
+
+
+@pytest.mark.parametrize("kind", QuotaKind.ALL)
+def test_a_denied_claim_tries_the_update_once_more_and_the_answer_is_still_no(db, ids, monkeypatch, kind):
+    """A row with no room (3 of 3): the UPDATE and its one retry both match no row, and the answer is False, with nothing changed."""
+    assert _take(db, ids.seeker_id, kind, 3) == [True, True, True]
+    db.commit()
+    calls = _count_increments(monkeypatch)
+    assert claim(db, ids.seeker_id, kind, now=NOON) is False
+    assert calls["n"] == 2
+    db.commit()
+    assert _row(db, ids.seeker_id, kind) == (3, 3)
+
+
+@pytest.mark.parametrize("kind", QuotaKind.ALL)
+def test_the_retry_is_one_and_not_a_loop(db, ids, monkeypatch, kind):
+    """If the retry matches no row either, the claim gives up: two UPDATEs, never a third (here the row has room, and the UPDATE is made to miss)."""
+    assert claim(db, ids.seeker_id, kind, now=NOON) is True  # used = 1 of 3
+    db.commit()
+    calls = _count_increments(monkeypatch, miss_first=99)
+    assert claim(db, ids.seeker_id, kind, now=NOON) is False
+    assert calls["n"] == 2
+    db.commit()
+    assert _row(db, ids.seeker_id, kind) == (1, 3)
+
+
 def test_a_missing_row_is_created_inside_a_savepoint_and_an_existing_one_needs_none(db, ids):
     """On PostgreSQL a failed INSERT aborts the whole transaction unless it ran in a savepoint, so the creation must use one
     (SQLite would not show the difference)."""

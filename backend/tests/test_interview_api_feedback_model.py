@@ -77,6 +77,12 @@ def as_another_request(db):
         second.close()
 
 
+def fenced_by_lease_token(sql: str) -> bool:
+    """The WHERE clause compares the lease token column with a bound parameter: `= ?` in SQLite's text of the statement, `= %(name)s::VARCHAR` in
+    PostgreSQL's. The SET list writes `feedback_lease_token=` without spaces, so only the comparison matches."""
+    return re.search(r"\bfeedback_lease_token = (?:\?|%\()", sql) is not None
+
+
 class Timeline:
     """What the engine saw, in order: begin, commit, rollback, every statement, and the marks that a test adds (the model call)."""
 
@@ -445,7 +451,7 @@ def test_the_model_is_called_with_no_transaction_open_after_the_lease_the_attemp
     assert max(reservation) < commits[-1]  # ... committed before the model is called
     assert not [e for e in before[commits[-1] + 1:] if e[0] == "sql"]  # and nothing is read or written between that commit and the call
     stores = [e[1] for e in after if e[0] == "sql" and e[1].startswith("UPDATE interview_sessions SET feedback=")]
-    assert len(stores) == 1 and "feedback_lease_token = ?" in stores[0]  # T3: after the call, fenced by the lease token
+    assert len(stores) == 1 and fenced_by_lease_token(stores[0])  # T3: after the call, fenced by the lease token
     assert after[-1][0] == "commit" and timeline.open is False and not db.in_transaction()  # nothing is left open
 
 
@@ -459,7 +465,7 @@ def test_a_failed_model_call_also_happens_outside_any_transaction_and_ends_with_
     before, model, after = timeline.split("model")
     assert model[1]["session_open"] is False and model[2] is False
     releases = [e[1] for e in after if e[0] == "sql" and e[1].startswith("UPDATE interview_sessions SET feedback_lease_until")]
-    assert len(releases) == 1 and "feedback_lease_token = ?" in releases[0] and "interview_sessions.feedback IS NULL" in releases[0]  # fenced, and never over a report
+    assert len(releases) == 1 and fenced_by_lease_token(releases[0]) and "interview_sessions.feedback IS NULL" in releases[0]  # fenced, and never over a report
     assert not [e for e in after if e[0] == "sql" and e[1].startswith("UPDATE interview_sessions SET feedback=")]  # nothing was stored
     assert after[-1][0] == "commit" and timeline.open is False and not db.in_transaction()
 

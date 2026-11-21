@@ -5,7 +5,7 @@ import ast
 import re
 from pathlib import Path
 
-from .markdown import ROOT, Doc, guarded_docs, place, report
+from .markdown import ROOT, TRACKER, Doc, guarded_docs, place, report
 
 SEED = "scripts/seed.py"
 VERSIONS = "backend/migrations/versions"
@@ -106,7 +106,7 @@ def count_problems(docs: list[Doc]) -> list[str]:
 
 
 def test_no_hand_typed_test_counts():
-    problems = count_problems(guarded_docs())
+    problems = count_problems(guarded_docs(skip=TRACKER))
     assert not problems, report(problems)
 
 

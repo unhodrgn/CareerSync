@@ -52,18 +52,29 @@ class PlanRefused(Exception):
         self.code = code
 
 
-def has_nul(value: object) -> bool:
-    """True when U+0000 is in a string anywhere in `value`: a string, the keys and values of a mapping, the items of a list, tuple or set,
-    and the fields of a dataclass (a `Question` of the bank, a plan item). Pure and recursive; it never changes what it reads."""
+def _any_text(value: object, bad) -> bool:
+    """True when `bad(text)` holds for a string anywhere in `value`: a string, the keys and values of a mapping, the items of a list, tuple
+    or set, and the fields of a dataclass (a `Question` of the bank, a plan item). Pure and recursive; it never changes what it reads."""
     if isinstance(value, str):
-        return NUL in value
+        return bad(value)
     if isinstance(value, Mapping):
-        return any(has_nul(key) or has_nul(item) for key, item in value.items())
+        return any(_any_text(key, bad) or _any_text(item, bad) for key, item in value.items())
     if isinstance(value, (list, tuple, set, frozenset)):
-        return any(has_nul(item) for item in value)
+        return any(_any_text(item, bad) for item in value)
     if is_dataclass(value) and not isinstance(value, type):
-        return any(has_nul(getattr(value, field.name)) for field in fields(value))
+        return any(_any_text(getattr(value, field.name), bad) for field in fields(value))
     return False
+
+
+def has_nul(value: object) -> bool:
+    """True when U+0000 is in a string anywhere in `value` (see `_any_text`)."""
+    return _any_text(value, lambda text: NUL in text)
+
+
+def has_surrogate(value: object) -> bool:
+    """True when a surrogate code point (0xD800 to 0xDFFF) is in a string anywhere in `value`. A valid pair is one character in a `str`
+    (decoding JSON makes it one), so any that is left is not text: JSONB refuses it and UTF-8 cannot encode it (D73)."""
+    return _any_text(value, lambda text: any(0xD800 <= ord(char) <= 0xDFFF for char in text))
 
 
 @dataclass(frozen=True)
@@ -128,6 +139,8 @@ def build_canonical_plan(
     bank, method = make_bank(job_title, job_text, infos, clean.text, embedder, blocklists, llm)
     if has_nul(bank):  # the generated questions, intents, tips and quotes
         raise PlanRefused("nul_bank")
+    if has_surrogate(bank):  # a surrogate is refused the same way (D73)
+        raise PlanRefused("surrogate_bank")
     plan = build_plan(criteria, prefilter_bank(bank, clean), stored_cv, (), blocklists, limits, skills, method)
     return seal(plan, clean, blocklists)
 
@@ -162,6 +175,8 @@ def seal(plan: InterviewPlan, clean: CleanCv, blocklists: Sequence[Blocklist]) -
     data = final.to_dict()
     if has_nul(data):  # every string that will be stored, keys included
         raise PlanRefused("nul_plan")
+    if has_surrogate(data):  # before `plan_digest`, whose UTF-8 encoding would raise on one (D73)
+        raise PlanRefused("surrogate_plan")
     return CanonicalPlan(final, data, plan_digest(data), final.bank_method)
 
 

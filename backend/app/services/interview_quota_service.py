@@ -8,7 +8,8 @@ Three independent limits per seeker per KST day: session reservations, planning 
 1. The database keeps `used` within `quota_limit` (`ck_interview_quota_used`), whatever the code does.
 2. The only increment is one conditional UPDATE (`... WHERE used < quota_limit`). PostgreSQL locks the row, and a concurrent
    UPDATE that waited re-checks the condition against the committed row; SQLite has one writer at a time.
-3. The row is created once: the primary key makes a concurrent creation fail for the loser, who then updates the winner's row.
+3. The row is created once: the primary key makes a concurrent creation fail for the loser, who then updates the winner's row. A request whose
+   UPDATE ran before the row was visible but whose existence check ran after it tries the UPDATE once more, and is denied only if that matches no row (D75).
 4. There is no way to give a reservation back: no decrement, no delete, no reset, and no foreign key to a session.
 5. The caller commits `claim` together with whatever the reservation is for, before any model call. A request that
    is refused and rolled back takes nothing; one that committed keeps its reservation whatever happens next.
@@ -73,7 +74,10 @@ def claim(db: Session, seeker_id: int, kind: str, *, now: datetime | None = None
     if _increment(db, seeker_id, day, kind):
         return True
     if _exists(db, seeker_id, day, kind):
-        return False  # the row is there and used == quota_limit
+        # The row is there. The UPDATE matched nothing because used == quota_limit, or because it ran before another request committed the row
+        # (READ COMMITTED: each statement sees what was committed before it started). A row that is seen stays (nothing deletes today's), so
+        # one more UPDATE tells which: it matches only while there is room, and it waits for a concurrent writer of the row (D75).
+        return _increment(db, seeker_id, day, kind)
     _create(db, seeker_id, day, kind, cap)
     return _increment(db, seeker_id, day, kind)
 

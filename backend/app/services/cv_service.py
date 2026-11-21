@@ -164,11 +164,12 @@ def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
         pdf = extract_text(data)
     except PdfError as e:
         raise AppError(422, e.code, e.message) from e
-    masked = mask_pii(pdf.text, [user.display_name] if user.display_name else [], ai_runtime.skills())
+    # PostgreSQL text cannot hold U+0000, and a PDF or a file name can carry one: dropped before anything is made from it, never refused (D74)
+    masked = mask_pii(pdf.text.replace("\x00", ""), [user.display_name] if user.display_name else [], ai_runtime.skills())
     profile, method = structure_cv(masked.text, ai_runtime.skills(), ai_runtime.llm())
     doc = CvDocument(
         seeker_id=user.id,
-        file_name=file_name[:255] or "cv.pdf",
+        file_name=file_name.replace("\x00", "")[:255] or "cv.pdf",
         sha256=hashlib.sha256(data).hexdigest(),
         pages=pdf.pages,
         masked_text=masked.text,

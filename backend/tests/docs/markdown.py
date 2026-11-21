@@ -19,6 +19,9 @@ ALLOWLIST = Path(__file__).with_name("allowlist.yaml")
 EXCLUDED = ("docs/archive/", "AUDIT_REPORT.md", "ai/prompts/")
 # Design docs: checked for links only
 LINK_ONLY = ("DESIGN.md", "PRODUCT.md")
+# Working tracker, not a source of decisions (D72): only the guards on language, test counts and referenced IDs pass
+# it as `skip` to guarded_docs; every other guard still reads it
+TRACKER = ("PROJECT_PROGRESS.md",)
 
 INLINE_CODE = re.compile(r"`[^`\n]*`")
 CODE_SPAN = re.compile(r"`([^`\n]+)`")
@@ -75,8 +78,8 @@ def markdown_files(root: Path = ROOT) -> list[str]:
     return [f for f in files if not f.startswith(EXCLUDED)]
 
 
-def guarded_docs(root: Path = ROOT) -> list[Doc]:
-    return [load(f, root) for f in markdown_files(root) if f not in LINK_ONLY]
+def guarded_docs(root: Path = ROOT, skip: tuple[str, ...] = ()) -> list[Doc]:
+    return [load(f, root) for f in markdown_files(root) if f not in LINK_ONLY and f not in skip]
 
 
 def link_docs(root: Path = ROOT) -> list[Doc]:

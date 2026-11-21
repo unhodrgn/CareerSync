@@ -147,7 +147,8 @@ def test_pg_in_rules_mode_parallel_requests_store_one_report_and_all_return_it(d
     install(monkeypatch, None)
     results = parallel(db, 8, lambda s, i: attempt(lambda: ensure_in(s, uid, sid, clock)))
     assert all(r[0] == "ok" and r[1].final and r[1].method == "rules" for r in results), results
-    assert len({repr(r[1].data) for r in results}) == 1
+    # by content, not by repr: the request that stored the report returns its own dict, the others the one jsonb gave back, with its keys in jsonb's order
+    assert all(r[1].data == results[0][1].data for r in results)
     r = row(db, sid)
     assert r.feedback == results[0][1].data and r.feedback_attempts == 0 and feedback_used(db, world, clock) == 0
 
@@ -165,7 +166,7 @@ def test_pg_a_session_whose_third_attempt_died_is_recovered_once_by_parallel_req
     db.commit()
     results = parallel(db, 6, lambda s, i: attempt(lambda: ensure_in(s, uid, sid, clock)))
     assert all(r[0] == "ok" and r[1].final and r[1].method == "rules" for r in results), results
-    assert len({repr(r[1].data) for r in results}) == 1
+    assert all(r[1].data == results[0][1].data for r in results)  # by content, as above
     assert llm.calls == [] and feedback_used(db, world, clock) == 0 and row(db, sid).feedback_lease_token is None
 
 

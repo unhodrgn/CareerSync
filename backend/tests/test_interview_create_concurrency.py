@@ -1,7 +1,7 @@
 """Real parallel `create_session` calls of one seeker (M4 S3c): PostgreSQL only.
 
 These need `TEST_DATABASE_URL=postgresql+psycopg://…/<name>_pgtest` on this machine (a throwaway database: the fixture drops every table)
-and are SKIPPED without it. They were written, not run; no other test covers the partial unique index `uq_interview_sessions_active`
+and are SKIPPED without it. They ran and passed on PostgreSQL on 2026-11-22 (D77); no other test covers the partial unique index `uq_interview_sessions_active`
 under real concurrency, and the SQLite fixture cannot (it is one connection).
 
 What must hold however the requests interleave: one request wins and the others are told there is an active session (409

@@ -1,7 +1,9 @@
 """API test fixtures. Uses SQLite in memory by default; set TEST_DATABASE_URL to run against PostgreSQL.
 
 The `db` fixture DROPS EVERY APPLICATION TABLE of the database before and after each test. A PostgreSQL URL is therefore accepted only
-for a disposable local database whose name ends in `_pgtest` (`db_safety.py`); anything else is refused before a connection is made."""
+for a local database that is meant to be wiped (`db_safety.py`): a name ending in `_pgtest`, or any other name that the person running the
+tests approved by typing it twice. Anything else is refused before a connection is made, and the first connection must answer with the
+approved name before a single table is touched."""
 from datetime import UTC, datetime
 
 import pytest
@@ -14,12 +16,14 @@ from app.db.session import Base, get_db
 from app.main import app
 from app.models import Company, JobPosting, User
 
-from .db_safety import make_test_engine
+from .db_safety import make_test_engine, verify_identity
 
 
 @pytest.fixture
 def db():
-    engine = make_test_engine(env_or_default("TEST_DATABASE_URL", "sqlite://"))  # refuses an unsafe PostgreSQL URL before any connection
+    url = env_or_default("TEST_DATABASE_URL", "sqlite://")
+    engine = make_test_engine(url)  # refuses an unsafe PostgreSQL URL before any connection
+    verify_identity(engine, url)  # PostgreSQL: SELECT current_database() must name the approved database, before anything is dropped
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
