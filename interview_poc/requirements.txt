@@ -1,0 +1,7 @@
+# Standalone AI avatar interview proof of concept. Separate virtualenv: interview_poc\.venv (never the CareerSync backend env).
+# Direct pins only; the full resolved set is in requirements.lock.txt.
+#
+# livekit-agents 1.8.12 requires livekit-api<2 (livekit-api 2.0.0 exists but is not compatible with it).
+livekit-agents[anam,groq,silero]==1.8.12
+livekit-api>=1.2.2,<2
+python-dotenv>=1.0,<2

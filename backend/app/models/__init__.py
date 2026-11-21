@@ -11,6 +11,7 @@ from app.models.cv import (
     CvProjectTech,
     CvSkill,
 )
+from app.models.interview import InterviewQuota, InterviewSession, InterviewTurn
 from app.models.job import JobPosting
 from app.models.matching import (
     CompanyProject,
@@ -41,6 +42,9 @@ __all__ = [
     "CvReview",
     "CvSkill",
     "Evaluation",
+    "InterviewQuota",
+    "InterviewSession",
+    "InterviewTurn",
     "JobCriterion",
     "JobPosting",
     "SeekerJobKeyword",

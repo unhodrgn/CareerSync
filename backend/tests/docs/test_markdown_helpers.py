@@ -1,7 +1,7 @@
 """The doc guards' parsers and comparisons on small samples, broken ones included: each guard is shown to fail, with
 a message that names the doc place, the code place and the side to fix. The IDs and names here are made up."""
 from .claims import Claim
-from .markdown import Allowlist, Doc, anchors, tables
+from .markdown import TRACKER, Allowlist, Doc, anchors, guarded_docs, link_docs, tables
 from .test_doc_api import Route, api_problems, public_sentence_problems, row_operations, who_kinds
 from .test_doc_constants import claim_problems, constant_problems
 from .test_doc_env import UNKNOWN, Compose, Reader, compose_vars, env_block_problems, env_problems, example_vars, readers_in
@@ -34,6 +34,15 @@ def test_table_cells_keep_escaped_pipes_and_code_blocks_are_not_tables():
     d = doc("a.md", "| A | B |\n|---|---|\n| `x`\\|`y` | 2 |\n\n```\n| C | D |\n|---|---|\n```")
     [table] = tables(d)
     assert table.header == ("A", "B") and table.rows == ((3, ("`x`|`y`", "2")),)
+
+
+def test_skip_drops_only_the_named_docs_from_the_guarded_set(tmp_path):
+    for name in ("README.md", "PROJECT_PROGRESS.md"):
+        (tmp_path / name).write_text("# Title\n", encoding="utf-8")
+    names = lambda docs: [d.rel for d in docs]  # noqa: E731
+    assert names(guarded_docs(tmp_path)) == ["PROJECT_PROGRESS.md", "README.md"]
+    assert names(guarded_docs(tmp_path, skip=TRACKER)) == ["README.md"]
+    assert names(link_docs(tmp_path)) == ["PROJECT_PROGRESS.md", "README.md"]  # links stay checked
 
 
 def test_allowlist_entries_need_a_reason_and_must_still_be_needed():
