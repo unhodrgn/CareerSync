@@ -4,11 +4,19 @@ They fail when the registered routes differ from the stage's list (so a route ca
 route falls outside the `no-store` path pattern, and when something in the application stack could let a response bypass the header.
 `EXPECTED_INTERVIEW_ROUTES` grows with each stage and `test_interview_api.COVERED_ROUTES` must equal it."""
 import re
+from unittest.mock import patch
 
+import pytest
+from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from starlette.routing import Router
+
+try:
+    from starlette.middleware.body_limit import RequestBodyLimitMiddleware  # Starlette 1.6+, which FastAPI 0.164+ needs
+except ImportError:  # an older Starlette has no request body limit, so none can be configured
+    RequestBodyLimitMiddleware = None
 
 from app.api.v1 import interview_sessions
 from app.core.no_store import INTERVIEW_PATH, NoStoreMiddleware
@@ -78,12 +86,85 @@ def stack_layers() -> list[str]:
     return names
 
 
-def test_the_only_layers_in_front_of_the_middleware_are_the_two_that_cannot_make_a_response_it_would_miss():
-    """`ServerErrorMiddleware` makes the 500, which the registered handler covers; the telemetry layer only observes and re-raises. A
-    library upgrade or a middleware added after `install` that puts another layer in front fails here and has to be reviewed."""
+BODY_LIMIT_LAYER = "AppBodyLimitMiddleware"  # FastAPI 0.164+ puts it in front of every user middleware (docs/DECISIONS.md D78)
+ALWAYS_IN_FRONT = ["ServerErrorMiddleware", "ExceptionTelemetryMiddleware"]
+
+
+def test_the_only_layers_in_front_of_the_middleware_cannot_make_a_response_it_would_miss():
+    """`ServerErrorMiddleware` makes the 500, which the registered handler covers; the telemetry layer only observes and re-raises. FastAPI
+    0.164+ adds `AppBodyLimitMiddleware` right after them: it answers (a 413, outside `NoStoreMiddleware`) only when a request body limit
+    is set on the application, so it is accepted only while there is none (D78). The stack is also accepted without it, on an older
+    FastAPI. A limit on a router or a route is refused by the probe below. A library upgrade or a middleware added after `install` that
+    puts any other layer in front, or changes the order, fails here and has to be reviewed."""
     names = stack_layers()
-    assert names[: names.index("NoStoreMiddleware")] == ["ServerErrorMiddleware", "ExceptionTelemetryMiddleware"]
+    in_front = names[: names.index("NoStoreMiddleware")]
+    if BODY_LIMIT_LAYER in in_front:  # checked first: with a limit the layer also puts the limiter itself in front, and this says why
+        assert app.max_body_size is None, "a limit on the application makes the layer send its 413 outside NoStoreMiddleware (D78)"
+    assert in_front in (ALWAYS_IN_FRONT, [*ALWAYS_IN_FRONT, BODY_LIMIT_LAYER])
     assert names.index("ExceptionMiddleware") > names.index("NoStoreMiddleware")  # the handlers of 401, 404, 405, 422 and AppError are inside
+
+
+# ── No request body limit anywhere (D78) ──
+# A configured limit (FastAPI 0.164+) would put a 413 in front of the middleware: with a limit on the application, a declared
+# Content-Length over it is answered by the layer above, without `Cache-Control: no-store` and in Starlette's plain-text shape. A limit
+# on a router, an `include_router` call or a route is answered inside the stack and is covered, but it is refused too: one rule, no case
+# to reason about. Setting a limit needs a new decision that also puts its 413 behind no-store (D67 (4)), and then this guard changes.
+
+needs_limiter = pytest.mark.skipif(RequestBodyLimitMiddleware is None, reason="this Starlette has no request body limit")
+FEEDBACK = [("POST", "/api/interview-sessions/{session_id}/feedback")]
+
+
+def limited_operations(application: FastAPI, operations) -> list[tuple[str, str]]:
+    """The operations whose requests pass through a request body limiter, wherever the limit is set: the application, a router, an
+    `include_router` call or a route. Each of them is Starlette's `RequestBodyLimitMiddleware`, so one empty, unauthenticated request
+    is sent to every operation and the calls to that class are counted."""
+    if RequestBodyLimitMiddleware is None:
+        return []
+    calls, found, original = [], [], RequestBodyLimitMiddleware.__call__
+
+    async def counting(self, scope, receive, send):
+        calls.append(scope["path"])
+        await original(self, scope, receive, send)
+
+    with patch.object(RequestBodyLimitMiddleware, "__call__", counting):
+        client = TestClient(application, raise_server_exceptions=False)  # no `with`: the lifespan (model warm-up) does not run
+        for method, path in operations:
+            before = len(calls)
+            client.request(method, re.sub(r"\{[^}]*\}", "1", path))
+            if len(calls) > before:
+                found.append((method, path))
+    return found
+
+
+@pytest.mark.usefixtures("client")  # only for its database override: the public routes read the database
+def test_no_request_body_limit_is_configured_on_any_route_of_the_application():
+    assert limited_operations(app, code_routes()) == [], "a request body limit is set; its 413 would bypass the no-store header (D78)"
+
+
+def probe_app(level: str | None) -> FastAPI:
+    """A throwaway application with one route and a body limit at `level` (app, router, include or route), or none."""
+    limit = {"max_body_size": 1000}
+    application = FastAPI(**(limit if level == "app" else {}))
+    router = APIRouter(**(limit if level == "router" else {}))
+
+    def feedback(session_id: int):
+        return {}
+
+    router.post(FEEDBACK[0][1], **(limit if level == "route" else {}))(feedback)
+    application.include_router(router, **(limit if level == "include" else {}))
+    return application
+
+
+@needs_limiter
+@pytest.mark.parametrize("level", ["app", "router", "include", "route"])
+def test_the_probe_finds_a_body_limit_wherever_it_is_set(level):
+    """If this fails, the guard above has gone blind: it would pass with a limit set."""
+    assert limited_operations(probe_app(level), FEEDBACK) == FEEDBACK
+
+
+@needs_limiter
+def test_the_probe_finds_nothing_in_an_application_without_a_body_limit():
+    assert limited_operations(probe_app(None), FEEDBACK) == []
 
 
 def test_the_middleware_is_the_outermost_user_middleware():
