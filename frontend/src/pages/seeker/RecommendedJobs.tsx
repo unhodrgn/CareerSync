@@ -1,29 +1,42 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { generatePath, Link } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { aiConsentWithdrawn, useAuth } from '@/auth/AuthContext';
 import { AiBusy } from '@/components/common/Ai';
 import { AiNotice } from '@/components/common/AiNotice';
+import { formatDate } from '@/components/common/format';
 import { ClockIcon, MapPinIcon, PencilIcon, RefreshIcon, TargetIcon } from '@/components/common/icons';
-import { employmentLabel } from '@/components/common/Labels';
+import { employmentLabel, JobMeta } from '@/components/common/Labels';
 import { cx, PageHead } from '@/components/common/Page';
-import { Blocked, Loading } from '@/components/common/States';
+import { Blocked, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
 import JobCard, { JobCardList } from '@/components/seeker/JobCard';
-import { preferenceStatus, ScoreNote, type PreferenceStatus } from '@/components/seeker/Match';
+import JdText from '@/components/seeker/JdText';
+import { MatchReasons, preferenceStatus, ScoreNote, type PreferenceStatus } from '@/components/seeker/Match';
 import SeekerGate from '@/components/seeker/SeekerGate';
 import s from '@/components/seeker/seeker.module.css';
+import h from '@/styles/hiring.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
+import { Gaps } from './JobPrep';
 import type { JobListItem } from '@/types/job';
 import type { PreferenceOut } from '@/types/preference';
-import type { RecommendationList } from '@/types/recommendation';
+import type { RecommendationList, RecommendedJob } from '@/types/recommendation';
 
 /** How many preference chips show before the rest fold into a "+N" chip. */
 const PREF_CHIPS_SHOWN = 6;
 // The API's maximum page, as on 공고 목록; recommended jobs are published ones, so they are in it
 const JOBS_LIMIT = 100;
+const PREVIEW_MEDIA = '(min-width: 1000px)';
+
+function subscribeToPreviewWidth(onChange: () => void) {
+  const media = window.matchMedia(PREVIEW_MEDIA);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+const hasPreviewWidth = () => window.matchMedia(PREVIEW_MEDIA).matches;
 
 /** What the recommendation response does not carry, read from the job list by id. */
 interface JobFacts {
@@ -49,8 +62,8 @@ export default function RecommendedJobs() {
   const facts = jobsState.status === 'ok' && Array.isArray(jobsState.data.items) ? factsById(jobsState.data.items) : null;
 
   return (
-    <div className={ui.page}>
-      <PageHead tabTitle title={t('reco.title')} lead={t('reco.lead')} extra={state.status === 'ok' && <TalentHint prefs={prefs} />} />
+    <div className={cx(ui.page, h.page)}>
+      <PageHead title={t('reco.title')} lead={t('reco.lead')} extra={state.status === 'ok' && <TalentHint prefs={prefs} />} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && (
         <SeekerGate
@@ -110,7 +123,7 @@ function PendingLine({ count, onRefresh }: { count: number; onRefresh: () => voi
  * The seeker's preferences (D15) as a row of chips above the result, with a pencil that opens 희망 조건 (DESIGN.md
  * Preference chips). The chips only explain the list: Pref is computed on the server, nothing here filters.
  */
-function PreferenceBar({ prefs, count }: { prefs: PreferenceOut; count: number }) {
+function PreferenceBar({ prefs }: { prefs: PreferenceOut }) {
   const labelId = useId();
   const [showAll, setShowAll] = useState(false);
   // "+N" goes away once pressed; focus moves on to the pencil, which stays
@@ -162,7 +175,6 @@ function PreferenceBar({ prefs, count }: { prefs: PreferenceOut; count: number }
         <PencilIcon width={16} height={16} />
         {chips.length === 0 && t('reco.prefs.set')}
       </Link>
-      {count > 0 && <p className={s.prefCount}>{t('jobs.count', { n: count })}</p>}
     </div>
   );
 }
@@ -180,7 +192,18 @@ function Result({
   facts: Map<number, JobFacts> | null;
   onRefresh: () => void;
 }) {
-  const bar = prefs && <PreferenceBar prefs={prefs} count={data.items.length} />;
+  const showPreview = useSyncExternalStore(subscribeToPreviewWidth, hasPreviewWidth);
+  const [selection, setSelection] = useState<number | null>(null);
+  const selected = data.items.find((job) => job.job_id === selection) ?? data.items[0];
+  const previewRef = useRef<HTMLElement>(null);
+  const open = (event: MouseEvent<HTMLAnchorElement>, id: number) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (!showPreview) return;
+    event.preventDefault();
+    setSelection(id);
+    previewRef.current?.focus();
+  };
+  const bar = prefs && <PreferenceBar prefs={prefs} />;
 
   if (data.items.length === 0 && data.pending_count === 0) {
     return (
@@ -207,31 +230,83 @@ function Result({
           </div>
         </section>
       ) : (
-        // In the server's order (Final, highest first); each card carries its score, band and what it is made of (D42)
-        <JobCardList label={t('reco.title')}>
-          {data.items.map((r) => (
-            <JobCard
-              key={r.job_id}
-              to={generatePath(paths.jobDetail, { jobId: String(r.job_id) })}
-              // The criteria count and experience come from the job list; without them the card leaves them out
-              job={{ ...r, ...facts?.get(r.job_id) }}
-              scores={r}
-              prefs={prefsStatus}
-              gate={r.required_gate}
-              actions={
-                <Link
-                  to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })}
-                  className={cx(ui.btn, ui.secondary, ui.small)}
-                  // Each card's link names its job; the visible label stays 준비하기 and is part of the name
-                  aria-label={t('reco.prepFor', { title: r.title })}
-                >
-                  {t('reco.prep')}
-                </Link>
-              }
-            />
-          ))}
-        </JobCardList>
+        <section aria-labelledby="recommended-count">
+          <h2 id="recommended-count" className={h.resultsTitle}>{t('jobs.count', { n: data.items.length })}</h2>
+          <div className={h.jobsSplit}>
+            <JobCardList label={t('reco.title')}>
+              {data.items.map((r) => (
+                <JobCard
+                  key={r.job_id}
+                  to={generatePath(paths.jobDetail, { jobId: String(r.job_id) })}
+                  job={{ ...r, ...facts?.get(r.job_id) }}
+                  scores={r}
+                  gate={r.required_gate}
+                  selected={showPreview && selected.job_id === r.job_id}
+                  onOpen={(event) => open(event, r.job_id)}
+                  actions={
+                    <Link
+                      to={generatePath(paths.seeker.jobPrep, { jobId: String(r.job_id) })}
+                      className={cx(ui.btn, ui.secondary, ui.small)}
+                      aria-label={t('reco.prepFor', { title: r.title })}
+                    >
+                      {t('reco.prep')}
+                    </Link>
+                  }
+                />
+              ))}
+            </JobCardList>
+            {showPreview && (
+              <aside ref={previewRef} tabIndex={-1} className={ui.panel} aria-label={t('jobs.preview')}>
+                <JobPreview key={selected.job_id} job={selected} facts={facts?.get(selected.job_id)} prefs={prefsStatus} />
+              </aside>
+            )}
+          </div>
+        </section>
       )}
+    </>
+  );
+}
+
+function JobPreview({ job, facts, prefs }: { job: RecommendedJob; facts?: JobFacts; prefs: PreferenceStatus }) {
+  const [showPrep, setShowPrep] = useState(false);
+  const jobId = String(job.job_id);
+  const { state, reload } = useApi(() => api.job(job.job_id), [job.job_id]);
+
+  return (
+    <>
+      <h2 className={h.previewTitle}>{job.title}</h2>
+      <JobMeta company={job.company_name} location={job.location} employmentType={job.employment_type} minExperienceYears={facts?.min_experience_years} />
+      <div className={h.previewActions}>
+        <Link to={generatePath(paths.jobDetail, { jobId })} className={cx(ui.btn, ui.primary, ui.small)}>
+          {t('jobs.preview')}
+        </Link>
+        <button
+          type="button"
+          className={cx(ui.btn, ui.secondary, ui.small)}
+          aria-expanded={showPrep}
+          aria-controls="recommended-prep"
+          onClick={() => setShowPrep((show) => !show)}
+        >
+          {t('reco.prepPreview')}
+        </button>
+      </div>
+      <MatchReasons categories={job.categories} preference={job.preference_score} prefs={prefs} criteriaCount={facts?.criteria_count} />
+      <section id="recommended-prep" className={h.previewBody} hidden={!showPrep} aria-label={t('reco.prepPreview')}>
+        {showPrep && <Gaps jobId={job.job_id} compact />}
+      </section>
+      <div className={h.previewBody}>
+        {state.status === 'loading' && <Loading rows={3} panel={false} />}
+        {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} panel={false} />}
+        {state.status === 'ok' && (
+          <>
+            <dl className={s.facts}>
+              {state.data.salary_note && <div><dt>{t('job.salary')}</dt><dd>{state.data.salary_note}</dd></div>}
+              <div><dt>{t('job.deadline')}</dt><dd>{state.data.deadline ? formatDate(state.data.deadline) : t('common.always')}</dd></div>
+            </dl>
+            <JdText text={state.data.description} />
+          </>
+        )}
+      </div>
     </>
   );
 }

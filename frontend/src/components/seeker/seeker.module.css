@@ -1,24 +1,8 @@
 /* Seeker pages (and the public job pages), in the app design system (DESIGN.md): white cards on the gray panel,
-   one mint accent, the dark gradient for match scores and the guest banner. Amber still means a skill the CV
+   one mint accent and the dark gradient for match scores. Amber still means a skill the CV
    lacks, and nothing else. Job cards and the match panel have their own modules (jobCard, match). */
 
 /* ── Job list ── */
-
-.toolbar {
-  margin-bottom: var(--ds-space-4);
-  display: grid;
-  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--ds-space-4);
-}
-
-.toolbarCount {
-  margin: 0;
-  justify-self: end;
-  font-size: var(--ds-text-meta);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-muted);
-}
 
 .search {
   position: relative;
@@ -35,12 +19,6 @@
 .search input {
   padding-left: 44px;
   border-radius: var(--ds-radius-pill);
-}
-
-/* The job list: the cards themselves are the surface, so the section is only a stack */
-.jobPanel {
-  display: grid;
-  gap: var(--ds-space-3);
 }
 
 /* A job row in a list: the job icon tile, then the title and company */
@@ -74,36 +52,6 @@ a.jobTitle:hover {
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
-}
-
-/* Guests: the dark gradient band with the mint sign-up action */
-.guestBanner {
-  --focus-color: var(--ds-accent);
-  margin-bottom: var(--ds-space-5);
-  padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-4) var(--ds-space-6);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-6);
-  border-radius: calc(var(--ds-radius-card) + 4px);
-  background: linear-gradient(100deg, var(--ds-match-from) 0%, var(--ds-match-to) 100%);
-  color: var(--ds-on-match);
-}
-
-.guestBanner p {
-  margin: 0;
-  font-size: var(--ds-text-body);
-  line-height: 1.5;
-  color: var(--ds-on-match-muted);
-}
-
-.onField {
-  background: var(--ds-accent);
-  color: var(--ds-on-accent);
-}
-
-.onField:hover {
-  background: var(--ds-accent-hover);
 }
 
 /* ── Job detail ── */
@@ -464,14 +412,6 @@ a.jobTitle:hover {
 
 .prefNone {
   font-size: var(--ds-text-meta);
-  color: var(--ds-muted);
-}
-
-.prefCount {
-  flex: none;
-  margin: 0 0 0 auto;
-  font-size: var(--ds-text-meta);
-  font-weight: var(--ds-weight-medium);
   color: var(--ds-muted);
 }
 
@@ -1163,4 +1103,64 @@ a.jobTitle:hover {
 /* A link at the end of a caption moves to the next line whole instead of breaking inside */
 .inlineAction {
   white-space: nowrap;
+}
+
+@media (max-width: 880px) {
+  .detail, .prepGrid, .stepCols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+  }
+
+  .prefBar {
+    flex-wrap: wrap;
+  }
+}
+
+.accountGrid, .companyOverview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--ds-space-5);
+}
+
+.companyProjects {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 940px) {
+  .twoCol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 660px) {
+  .accountGrid, .companyOverview, .projectList, .entry, .editGrid,
+  .reviewCols, .offer, .offerPast, .dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .offerSide { justify-items: start; text-align: left; }
+  .offerActions, .saveBar, .saveRow, .cvHead, .toggleRow, .facts div { flex-wrap: wrap; }
+  .dl { gap: 4px; }
+  .dl dd { margin-bottom: 10px; overflow-wrap: anywhere; }
+}
+
+.applicationList {
+  display: grid;
+  gap: 12px;
+}
+
+.applicationList > li {
+  border: 1px solid var(--ds-line);
+}
+
+.applicationMeta {
+  display: flex;
+  gap: 8px 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
 }

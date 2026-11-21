@@ -1,142 +1,186 @@
-import { useEffect, useState } from 'react';
-import { generatePath, Link, useSearchParams } from 'react-router';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { generatePath, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { useAuth } from '@/auth/AuthContext';
-import { ArrowRightIcon, SearchIcon } from '@/components/common/icons';
-import { cx, PageHead } from '@/components/common/Page';
+import { SearchIcon } from '@/components/common/icons';
+import { employmentLabel } from '@/components/common/Labels';
+import { cx } from '@/components/common/Page';
 import { Empty, ErrorPanel, Loading } from '@/components/common/States';
 import ui from '@/components/common/ui.module.css';
-import { JobRow, JobRowList } from '@/components/seeker/JobRow';
+import JobCard, { JobCardList } from '@/components/seeker/JobCard';
 import { PreferenceUnsetNote, preferenceStatus, ScoreNote, type PreferenceStatus } from '@/components/seeker/Match';
 import s from '@/components/seeker/seeker.module.css';
+import h from '@/styles/hiring.module.css';
 import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
-import type { JobListItem } from '@/types/job';
+import { EMPLOYMENT_TYPES, type JobListItem } from '@/types/job';
 import type { PreferenceOut } from '@/types/preference';
 import type { JobScoreList } from '@/types/recommendation';
 
 // The API's maximum page; the demo has far fewer published jobs, and there is no paging design yet
 const LIMIT = 100;
 
-/**
- * Published, unexpired jobs (D4); search by title only (D33). Guests, seekers and companies share this page; a
- * seeker also sees the match scores that already exist (D43). Compact rows for browsing many jobs: what a score is
- * made of stays on 추천 공고 and job detail.
- */
-export default function JobList() {
+/** Published jobs and the existing title search, shared by the landing and discovery routes. */
+export function JobDiscovery({ sidebar, editorial = false }: { sidebar?: ReactNode; editorial?: boolean }) {
   const { user } = useAuth();
-  // The search is kept in the URL: it survives a reload and the switch to the guest shell when a session ends
+  const filterId = useId();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
+  const location = params.get('location') ?? '';
+  const experience = params.get('experience') ?? '';
+  const employment = params.get('employment') ?? '';
+  const filtered = Boolean(location || experience || employment);
   const [q, setQ] = useState(query);
 
-  // Search after typing pauses
   useEffect(() => {
     const id = setTimeout(() => {
       const next = q.trim();
-      if (next !== query) setParams(next ? { q: next } : {}, { replace: true });
+      if (next !== query) updateFilter('q', next);
     }, 300);
     return () => clearTimeout(id);
-  }, [q, query, setParams]);
+  }, [q, query, params, setParams]);
+
+  function updateFilter(name: string, value: string) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(name, value);
+    else next.delete(name);
+    setParams(next, { replace: true });
+  }
+
+  function reset() {
+    setQ('');
+    setParams({}, { replace: true });
+  }
 
   const { state, reload } = useApi(() => api.jobs({ q: query || undefined, limit: LIMIT }), [query, user?.id]);
+  const jobs = state.status === 'ok' ? state.data.items : [];
+  const locations = [...new Set([location, ...jobs.map(job => job.location)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const visibleJobs = filtered ? jobs.filter(job => {
+    const requiresExperience = (job.min_experience_years ?? 0) > 0;
+    return (!location || job.location === location)
+      && (!experience || experience === (requiresExperience ? 'experienced' : 'entry'))
+      && (!employment || job.employment_type === employment);
+  }) : jobs;
   const seeker = user?.role === 'seeker';
-  const scores = useListScores(state.status === 'ok' ? state.data.items : null, seeker);
+  const scores = useListScores(state.status === 'ok' ? visibleJobs : null, seeker);
   const scoresShown = scores != null && Array.isArray(scores.items) && scores.items.length > 0;
   const prefs = useListPreferences(seeker && scoresShown, seeker, user?.id);
 
   return (
-    <div className={ui.page}>
-      <PageHead title={t('jobs.title')} tabTitle />
-
-      {!user && (
-        <div className={s.guestBanner}>
-          <p>{t('jobs.guestLead')}</p>
-          <Link to={paths.register} className={cx(ui.btn, s.onField)}>
-            {t('jobs.registerCta')}
-            <ArrowRightIcon width={16} height={16} />
-          </Link>
-        </div>
-      )}
-
-      <div className={s.toolbar}>
-        <label className={s.search}>
-          <span className={ui.visuallyHidden}>{t('jobs.search')}</span>
-          <SearchIcon width={18} height={18} />
-          <input
-            className={ui.input}
-            type="search"
-            value={q}
-            maxLength={100}
-            placeholder={t('jobs.searchPlaceholder')}
-            onChange={(e) => setQ(e.target.value)}
-          />
+    <>
+      <form
+        className={cx(ui.panel, h.searchBar, editorial && h.editorialSearch)}
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const next = q.trim();
+          if (next !== query) updateFilter('q', next);
+        }}
+      >
+        <label className={h.searchField}>
+          <span>{t('jobs.search')}</span>
+          <span className={s.search}>
+            <SearchIcon width={17} height={17} />
+            <input className={ui.input} type="search" value={q} maxLength={100}
+              placeholder={t('jobs.searchExample')} onChange={e => setQ(e.target.value)} />
+          </span>
         </label>
-        {state.status === 'ok' && <p className={s.toolbarCount}>{t('jobs.count', { n: state.data.total })}</p>}
-      </div>
-
-      {state.status === 'loading' && <Loading />}
-      {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
-      {state.status === 'ok' && (
-        <section className={s.jobPanel} aria-label={t('jobs.title')}>
-          {state.data.items.length === 0 ? (
-            query ? (
-              <Empty
-                panel={false}
-                title={t('jobs.noResult', { q: query })}
-                body={t('jobs.noResultHint')}
-                action={
-                  <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} onClick={() => setQ('')}>
-                    {t('jobs.clear')}
-                  </button>
-                }
-              />
-            ) : (
-              <Empty panel={false} title={t('jobs.empty')} />
-            )
-          ) : (
-            <>
-              {/* A seeker sees the scores that already exist, with the AI notice and what a score is not (D42) */}
-              {scores && scoresShown && (
-                <div className={s.resultHead}>
-                  <ScoreNote notice={scores.notice} />
-                  {/* Once above the rows, only when the preferences API confirmed that none is set (D46) */}
-                  {prefs === 'unset' && <PreferenceUnsetNote />}
-                </div>
-              )}
-              <JobRows jobs={state.data.items} scores={scores} />
-              {state.data.total > state.data.items.length && (
-                <p className={ui.caption} style={{ marginTop: 12 }}>
-                  {t('jobs.more', { n: state.data.total, shown: state.data.items.length })}
-                </p>
-              )}
-            </>
+        <label className={h.searchField}>
+          <span id={`${filterId}-location`}>{t('jobs.filter.location')}</span>
+          <select className={ui.select} aria-labelledby={`${filterId}-location`} value={location} onChange={e => updateFilter('location', e.target.value)}>
+            <option value="">{t('jobs.filter.all')}</option>
+            {locations.map(value => <option key={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className={h.searchField}>
+          <span id={`${filterId}-experience`}>{t('jobs.filter.experience')}</span>
+          <select className={ui.select} aria-labelledby={`${filterId}-experience`} value={experience} onChange={e => updateFilter('experience', e.target.value)}>
+            <option value="">{t('jobs.filter.all')}</option>
+            <option value="entry">{t('common.newcomer')}</option>
+            <option value="experienced">{t('jobs.filter.experienced')}</option>
+          </select>
+        </label>
+        <label className={h.searchField}>
+          <span id={`${filterId}-employment`}>{t('jobs.filter.employment')}</span>
+          <select className={ui.select} aria-labelledby={`${filterId}-employment`} value={employment} onChange={e => updateFilter('employment', e.target.value)}>
+            <option value="">{t('jobs.filter.all')}</option>
+            {EMPLOYMENT_TYPES.map(value => <option key={value} value={value}>{employmentLabel(value)}</option>)}
+          </select>
+        </label>
+        <button type="submit" className={cx(ui.btn, ui.primary)}>
+          <SearchIcon width={16} height={16} /> {t('jobs.submitSearch')}
+        </button>
+      </form>
+      <div className={sidebar ? h.discovery : undefined}>
+        <div className={h.discoveryResults}>
+          {state.status === 'ok' && (
+            <div className={h.resultBar}>
+              <h2 className={h.resultsTitle}>{t('jobs.count', { n: filtered ? visibleJobs.length : state.data.total })}</h2>
+              {filtered && visibleJobs.length > 0 && <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={reset}>{t('jobs.filter.reset')}</button>}
+            </div>
           )}
-        </section>
-      )}
-    </div>
+
+          {state.status === 'loading' && <Loading />}
+          {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
+          {state.status === 'ok' && (
+            <section className={h.results} aria-label={t('jobs.title')}>
+              {visibleJobs.length === 0 ? (
+                query || filtered ? (
+                  <Empty
+                    panel
+                    title={filtered ? t('jobs.filter.empty') : t('jobs.noResult', { q: query })}
+                    body={t('jobs.noResultHint')}
+                    action={
+                      <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} onClick={reset}>
+                        {t(filtered ? 'jobs.filter.reset' : 'jobs.clear')}
+                      </button>
+                    }
+                  />
+                ) : (
+                  <Empty panel title={t('jobs.empty')} />
+                )
+              ) : (
+                <>
+                  {/* A seeker sees the scores that already exist, with the AI notice and what a score is not (D42) */}
+                  {scores && scoresShown && (
+                    <div className={s.resultHead}>
+                      <ScoreNote notice={scores.notice} />
+                      {/* Once above the rows, only when the preferences API confirmed that none is set (D46) */}
+                      {prefs === 'unset' && <PreferenceUnsetNote />}
+                    </div>
+                  )}
+                  <JobCards jobs={visibleJobs} scores={scores} />
+                </>
+              )}
+              {state.data.total > jobs.length && (
+                <p className={ui.caption}>{t('jobs.more', { n: state.data.total, shown: jobs.length })}</p>
+              )}
+            </section>
+          )}
+        </div>
+        {sidebar && <aside className={h.discoveryAside}>{sidebar}</aside>}
+      </div>
+    </>
   );
 }
 
-function JobRows({ jobs, scores }: { jobs: JobListItem[]; scores: JobScoreList | null }) {
+function JobCards({ jobs, scores }: { jobs: JobListItem[]; scores: JobScoreList | null }) {
   // Malformed or missing items only leave the scores out (the row checks each score itself)
   const items = Array.isArray(scores?.items) ? scores.items : [];
   const byId = new Map(items.filter((item) => item != null).map((item) => [item.job_id, item]));
-  // The score column appears once any listed job has a score, so a seeker without any sees no empty column
-  const scoreColumn = byId.size > 0;
   return (
-    <JobRowList label={t('jobs.title')}>
+    <JobCardList grid count={jobs.length} label={t('jobs.title')}>
       {jobs.map((job) => (
-        <JobRow
+        <JobCard
           key={job.id}
           to={generatePath(paths.jobDetail, { jobId: String(job.id) })}
           job={job}
-          scoreColumn={scoreColumn}
+          browse
           scores={byId.get(job.id)}
         />
       ))}
-    </JobRowList>
+    </JobCardList>
   );
 }
 
@@ -167,5 +211,5 @@ function useListScores(jobs: JobListItem[] | null, seeker: boolean): JobScoreLis
     () => (seeker && ids.length > 0 ? api.recommendationMatches(ids) : Promise.resolve(null)),
     [key, seeker],
   );
-  return state.status === 'ok' ? state.data : null;
+  return seeker && state.status === 'ok' ? state.data : null;
 }

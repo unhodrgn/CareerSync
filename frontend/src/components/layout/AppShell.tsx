@@ -11,7 +11,6 @@ import {
   LogOutIcon,
   UserIcon,
 } from '@/components/common/icons';
-import { ShellHeaderContext } from '@/components/common/Page';
 import { AiMark, AiRailBadge, AiSectionLabel } from '@/components/common/Ai';
 import ui from '@/components/common/ui.module.css';
 import { t, type MessageKey } from '@/i18n';
@@ -206,11 +205,12 @@ export default function AppShell({ role }: { role: Role }) {
   const groupBadge = (g: NavGroup) => (g.items.some((i) => i.badge === 'offers') ? pendingOffers : 0);
 
   return (
-    <div className={s.shell} data-theme="app">
+    <div className={s.shell} data-theme="app" data-role={role}>
       <SkipLink />
       <header className={s.rail}>
         <Link to={homeFor(role)} className={s.brand} aria-label={t('shell.home')}>
           <LogoMark width={36} height={36} />
+          {role === 'company' && <span className={s.railBrandName}>{t('app.name')}</span>}
         </Link>
         <nav className={s.railNav} aria-label={t('shell.nav')}>
           <ul className={s.railList}>
@@ -313,10 +313,7 @@ export default function AppShell({ role }: { role: Role }) {
           <div className={s.stage}>
             {/* Keyed by path: a new page enters once; tab and query changes inside a page do not replay it */}
             <div key={location.pathname} className={s.page}>
-              {/* The header names the group and the tab, so tab pages leave their own H1 visually out */}
-              <ShellHeaderContext.Provider value={true}>
                 <Outlet context={{ refreshOffers } satisfies ShellContext} />
-              </ShellHeaderContext.Provider>
             </div>
           </div>
         </main>
@@ -330,6 +327,7 @@ export function GuestShell() {
   const location = useLocation();
   const next = encodeURIComponent(`${location.pathname}${location.search}`);
   useRouteFocus();
+  if (location.pathname === paths.jobs) return <Outlet />;
   return (
     <div className={s.guestShell} data-theme="app">
       <SkipLink />

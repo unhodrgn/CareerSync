@@ -40,7 +40,6 @@ export default function SentOffers() {
   return (
     <div className={ui.page}>
       <PageHead
-        tabTitle
         title={t('page.company.sentOffers.title')}
         count={state.status === 'ok' && state.data.length ? state.data.length : undefined}
         lead={t('sent.lead')}

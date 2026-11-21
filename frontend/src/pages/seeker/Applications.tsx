@@ -20,7 +20,7 @@ export default function Applications() {
 
   return (
     <div className={ui.page}>
-      <PageHead tabTitle title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
+      <PageHead title={t('apps.title')} count={state.status === 'ok' && state.data.length > 0 ? state.data.length : undefined} lead={t('apps.lead')} />
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <ErrorPanel error={state.error} onRetry={reload} />}
       {state.status === 'ok' &&
@@ -35,40 +35,25 @@ export default function Applications() {
             }
           />
         ) : (
-          <section className={ui.panel} aria-label={t('apps.title')}>
-            <table className={ui.table}>
-              <thead>
-                <tr>
-                  <th>{t('apps.col.job')}</th>
-                  <th>{t('apps.col.applied')}</th>
-                  <th>{t('apps.col.status')}</th>
-                </tr>
-              </thead>
-              <tbody className={ui.stagger}>
-                {state.data.map((a) => (
-                  <tr key={a.id}>
-                    <td>
-                      <span className={s.jobCell}>
-                        <JobIconTile title={a.job_title} size="sm" />
-                        <span className={s.jobMain}>
-                          <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={s.jobTitle}>
-                            {a.job_title}
-                          </Link>
-                          <span className={ui.meta}>
-                            <strong>{a.company_name}</strong>
-                          </span>
-                        </span>
-                      </span>
-                    </td>
-                    <td className={ui.num}>{formatDate(a.created_at)}</td>
-                    <td>
-                      <ApplicationStatusTag status={a.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          <ul className={cx(ui.recordList, s.applicationList)} aria-label={t('apps.title')}>
+            {state.data.map(a => (
+              <li key={a.id} className={ui.recordRow}>
+                <div className={s.jobCell}>
+                  <JobIconTile title={a.job_title} size="sm" />
+                  <div className={s.jobMain}>
+                    <Link to={generatePath(paths.jobDetail, { jobId: String(a.job_id) })} className={cx(s.jobTitle, ui.stretched)}>
+                      {a.job_title}
+                    </Link>
+                    <span className={ui.caption}>{a.company_name}</span>
+                  </div>
+                </div>
+                <div className={s.applicationMeta}>
+                  <span className={cx(ui.caption, ui.num)}>{t('apl.applied', { date: formatDate(a.created_at) })}</span>
+                  <ApplicationStatusTag status={a.status} />
+                </div>
+              </li>
+            ))}
+          </ul>
         ))}
     </div>
   );
