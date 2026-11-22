@@ -86,6 +86,11 @@ class PosterTextOut(BaseModel):
     text: str
 
 
+class JobPdfTextOut(BaseModel):
+    text: str
+    pages: int
+
+
 class JdDraftIn(BaseModel):
     keywords: list[str] = Field(default_factory=list, max_length=10)
     notes: str = Field("", max_length=1000)

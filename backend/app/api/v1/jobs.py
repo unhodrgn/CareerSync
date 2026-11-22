@@ -7,8 +7,8 @@ from fastapi import APIRouter, Query, Response, UploadFile, status
 from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
 from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
-from app.schemas.cv import CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, PosterTextOut
-from app.services import jd_service, job_service, poster_service
+from app.schemas.cv import CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, PosterTextOut, JobPdfTextOut
+from app.services import jd_service, job_service, poster_service, job_pdf_service
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -85,6 +85,13 @@ def list_my_jobs(db: DbSession, user: CompanyUser):
 @router.post("/criteria-preview", response_model=CriteriaPreviewOut, summary="Suggest criteria from unsaved job or project text (not persisted)")
 def preview_criteria(body: CriteriaPreviewIn, user: CompanyUser):
     return jd_service.preview(body)
+
+
+@router.post("/pdf-text", response_model=JobPdfTextOut, summary="Extract editable JD text from a text-layer PDF")
+async def pdf_text(file: UploadFile, user: CompanyUser):
+    document = await file.read(job_pdf_service.MAX_PDF_BYTES + 1)
+    parsed = job_pdf_service.extract_text(document, file.content_type)
+    return JobPdfTextOut(text=parsed.text, pages=parsed.pages)
 
 
 @router.post("/poster-text", response_model=PosterTextOut, summary="Extract editable Korean/English text from a hiring poster")

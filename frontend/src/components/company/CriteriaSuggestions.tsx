@@ -44,13 +44,31 @@ export default function CriteriaSuggestions({
       </div>
       <AiBox kind="generated">
         <AiNotice notice={result.notice} method={result.method} inBox />
+        {!!result.analysis.requirements?.length && (
+          <details style={{ marginBottom: 12 }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+              공고에서 찾은 요구사항 {result.analysis.requirements.length}개 (검토용)
+            </summary>
+            <ul className={ui.list}>
+              {result.analysis.requirements.map((item, index) => (
+                <li key={index} className={ui.listRow}>
+                  <span>{item.kind === 'required' ? '필수' : item.kind === 'preferred' ? '우대' : '담당업무'} · {item.text}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         {result.analysis.criteria.length === 0 ? (
           <p className={ui.caption}>{t('editor.suggest.none')}</p>
         ) : (
           <div className={ui.stagger}>
             {result.analysis.criteria.map((c) => (
               <div key={c.name} className={s.suggestRow}>
-                <span className={s.suggestName}>{c.name}</span>
+                <div className={s.suggestName}>
+                  <div>{c.name}</div>
+                  {!!c.reason && <p className={ui.caption}>{c.reason}</p>}
+                  {!!c.source && <p className={ui.caption} style={{ overflowWrap: 'anywhere' }}>원문 근거: {c.source}</p>}
+                </div>
                 <span className={ui.categoryText}>{t(`category.${asCategory(c.category)}`)}</span>
                 <span className={s.weightText}>{c.weight}%</span>
                 <button

@@ -68,6 +68,16 @@ export interface SuggestedCriterion {
   description: string;
   category: string;
   weight: number;
+  /** Source and reason are available with the enhanced JD analyzer. */
+  source?: string;
+  reason?: string;
+}
+
+export interface JdRequirement {
+  kind: 'required' | 'preferred' | 'responsibility';
+  text: string;
+  source: string;
+  alternatives: string[];
 }
 
 export interface BlockedSuggestion {
@@ -79,7 +89,7 @@ export interface BlockedSuggestion {
 
 export interface JdAnalysisOut {
   job_id: number;
-  analysis: { profile: Record<string, unknown>; criteria: SuggestedCriterion[] };
+  analysis: { profile: Record<string, unknown>; criteria: SuggestedCriterion[]; requirements?: JdRequirement[] };
   blocked: BlockedSuggestion[];
   method: string;
   notice: string;
@@ -96,6 +106,7 @@ export interface CriteriaPreviewIn {
 
 export type CriteriaPreviewOut = Omit<JdAnalysisOut, 'job_id'>;
 export interface PosterTextOut { text: string; }
+export interface JobPdfTextOut { text: string; pages: number; }
 
 export interface JdDraftIn {
   keywords: string[];
