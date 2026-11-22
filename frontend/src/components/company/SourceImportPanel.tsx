@@ -41,7 +41,7 @@ export default function SourceImportPanel({
     setBusy('pdf');
     try {
       const extracted = await api.extractJobPdfText(file);
-      setSourceType('job_posting');
+      // Keep the selected type: PDFs may contain job postings or project specs.
       setSourceText(extracted.text);
     } catch (e) {
       setError(e);
