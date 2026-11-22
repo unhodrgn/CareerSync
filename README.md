@@ -52,6 +52,7 @@ Demo accounts (password `demo1234` for all):
 | Company | `hr@cloudlab.test` | One published data engineer job |
 | Seeker | `seeker@demo.test` | No CV yet: upload `data/demo/demo_cv.pdf`, confirm it, set preferences, apply |
 | Seeker | `seeker2@demo.test` | Ready-made: demo CV confirmed, preferences set, in the talent pool |
+| Seeker | `seeker3@demo.test` | Demo CV confirmed only (no preferences, not in the talent pool): a second account for the practice interview's live checks |
 
 A typical demo:
 

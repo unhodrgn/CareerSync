@@ -33,7 +33,7 @@ def test_each_gap_is_derived_from_the_marks():
     timing = SessionTiming(7, clock=clock)
     one_turn(timing, clock)
     (turn,) = timing.summary()["turns"]
-    assert turn["stt_delay_s"] == 0.4 and turn["endpointing_s"] == 3.2 and turn["processing_s"] == 1.1 and turn["tts_start_s"] == 0.6
+    assert turn["stt_final_after_stop_s"] == 0.4 and turn["endpointing_s"] == 3.2 and turn["processing_s"] == 1.1 and turn["tts_start_s"] == 0.6
     assert turn["gap_s"] == 4.9 and turn["model"] == {"outcome": "ok", "seconds": 0.8}
 
 
@@ -53,8 +53,26 @@ def test_a_pause_inside_an_answer_does_not_leave_an_orphan_turn_and_the_last_sto
     clock.advance(0.5)
     timing.agent_started_speaking()
     (turn,) = timing.summary()["turns"]
-    assert turn["stt_delay_s"] == 0.5 and turn["endpointing_s"] == 3.0 and turn["gap_s"] == 3.5
+    assert turn["stt_final_after_stop_s"] == 0.5 and turn["endpointing_s"] == 3.0 and turn["gap_s"] == 3.5
     assert turn["model"] == {"outcome": "skipped", "seconds": None}  # the rules decided alone
+
+
+def test_each_answer_gets_its_own_final_transcript_even_when_it_arrives_before_the_stop_or_after_the_commit():
+    """Live run of session 3: the recognizer finalized before the stop opened the record, so each final was credited to the previous answer
+    (10 to 18 s, the interviewer's line plus the next answer) and the last answer had none."""
+    clock = Clock()
+    timing = SessionTiming(7, clock=clock)
+    for _ in range(2):
+        timing.mark("stt_final")  # before the stop: the answer is already final
+        clock.advance(0.6)
+        timing.mark("user_stopped")
+        clock.advance(2.4)
+        timing.mark("turn_committed")
+        clock.advance(0.2)
+        timing.mark("stt_final")  # a late final after the commit: not this answer's, and it never rewrites it
+        clock.advance(10)  # the interviewer's line and the next answer
+    first, second = timing.summary()["turns"]
+    assert first["stt_final_after_stop_s"] == -0.6 and second["stt_final_after_stop_s"] == -0.6
 
 
 def test_marks_without_an_open_turn_are_dropped_and_the_first_time_of_a_mark_stays():

@@ -176,3 +176,94 @@ def test_the_hook_masks_again_hands_the_answer_over_and_never_asks_for_a_reply()
 
     asyncio.run(go())
     assert received and "박서준" not in received[0] and "멱등성은 중요합니다" in received[0] and message.text_content == received[0]
+
+
+# ── A failed setup ──
+
+
+class FakeJobContext:
+    """What `run_voice_interview` uses of a JobContext. `shutdown` only records: the test runs the shutdown callbacks itself, as the SDK would."""
+
+    def __init__(self):
+        self.job = SimpleNamespace(metadata='{"session_id": 12}')
+        self.room = SimpleNamespace(name="room-12", on=lambda *a: None)
+        self.proc = SimpleNamespace(userdata={"vad": object()})
+        self.callbacks, self.reasons, self.deleted = [], [], 0
+
+    def is_fake_job(self):
+        return False
+
+    async def connect(self, **_):
+        pass
+
+    def add_shutdown_callback(self, callback):
+        self.callbacks.append(callback)
+
+    def shutdown(self, reason=""):
+        self.reasons.append(reason)
+
+    async def delete_room(self):
+        self.deleted += 1
+
+
+def run_job(monkeypatch, env=None):
+    reports = []
+    monkeypatch.setattr(voice, "load_voice_settings", lambda: settings(**(env or {})))
+    monkeypatch.setattr(voice.SessionTiming, "write", lambda self: reports.append(self.outcome) or Path("report.json"))
+    ctx = FakeJobContext()
+
+    async def main():
+        await voice.run_voice_interview(ctx)
+        for callback in ctx.callbacks:
+            await callback(ctx.reasons[-1])
+
+    asyncio.run(main())
+    return ctx, reports
+
+
+def test_a_model_client_that_fails_to_build_ends_the_job_and_deletes_the_room_so_the_candidate_can_join_again(monkeypatch):
+    """The live crash of S4: the Groq client failed inside the job, before the shutdown callback existed, so the room stayed and a new join
+    could not dispatch again."""
+    def broken(**_):
+        raise RuntimeError("Plugins must be registered on the main thread")
+
+    monkeypatch.setattr(voice, "GroqTurnClient", broken)
+    ctx, reports = run_job(monkeypatch, {"AI_MODE": "llm", "GROQ_API_KEY": "gsk_test"})
+    assert ctx.reasons == ["setup_failed: RuntimeError"] and ctx.deleted == 1 and reports == ["setup_failed: RuntimeError"]
+
+
+def test_a_session_that_fails_to_start_closes_the_client_leaves_through_the_runner_and_deletes_the_room(monkeypatch):
+    http = SimpleNamespace(closed=False)
+
+    async def aclose():
+        http.closed = True
+
+    http.aclose = aclose
+    left = []
+
+    class FakeRunner:
+        names, timings = (), []
+
+        def __init__(self, *_, **__):
+            pass
+
+        async def open(self):
+            pass
+
+        async def leave(self, reason):
+            left.append(reason)  # the real runner posts nothing here: no turn was stored
+
+    class BrokenSession:
+        turn_detection = "turn-detector-v1"
+
+        def on(self, _name):
+            return lambda fn: fn
+
+        async def start(self, **_):
+            raise ConnectionError("no room")
+
+    monkeypatch.setattr(voice, "make_clients", lambda *_: (http, None))
+    monkeypatch.setattr(voice, "InterviewRunner", FakeRunner)
+    monkeypatch.setattr(voice, "build_session", lambda *_: BrokenSession())
+    ctx, _reports = run_job(monkeypatch)
+    assert ctx.reasons == ["setup_failed: ConnectionError"] and left == ["agent_error"] and http.closed and ctx.deleted == 1

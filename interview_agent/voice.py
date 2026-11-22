@@ -26,6 +26,9 @@ Rules kept here (and tested offline in interview_agent/tests):
   unfinished transcript (`preemptive_generation` off). While the interviewer speaks, the SDK does not deliver the candidate's turn.
 - **Stops on a departure.** The candidate leaving for ANY reason (a dropped connection is not among the SDK's `close_on_disconnect` reasons)
   makes the runner post the aborted end; the room is deleted when the session closes, so a new join creates a room and dispatches again.
+- **A failed setup deletes the room.** Any error before the session starts ends the job (`setup_failed`) and deletes the room, so the candidate
+  can join the same session again within its join time (a new dispatch, no quota). Nothing was stored, and the backend cannot end a `created`
+  session, so no end event is posted (Q in docs/DECISIONS.md).
 - **Silence is not an error.** The tick is the controller's: nudge, skip, wrap-up, and the status poll of the session.
 
 Written against livekit-agents 1.8.12 (D78). Nothing here runs without a LiveKit project; the offline tests cover the wiring and the audio
@@ -34,6 +37,7 @@ path with a scripted recognizer and a fake microphone, and the live checklist of
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import sys
@@ -53,6 +57,7 @@ from interview_agent.controller import VoiceController
 from interview_agent.rooms import session_id_from_metadata
 from interview_agent.runner import InterviewRunner, Stopped
 from interview_agent.timing import SessionTiming
+from interview_agent.turn_model import GroqTurnClient  # at the top: imports the Groq plugin on the main thread when the worker starts
 
 log = logging.getLogger("interview_agent.voice")
 
@@ -161,6 +166,18 @@ async def wait_candidate_ready(room: rtc.Room, timeout: float = READY_TIMEOUT_SE
         room.off("participant_connected", check)
 
 
+def make_clients(agent_settings, loop: asyncio.AbstractEventLoop) -> tuple[httpx.AsyncClient, GroqTurnClient | None]:
+    """The backend's HTTP client and, in the model mode, the Groq client. Runs in a worker thread: the plugin is already registered."""
+    http = httpx.AsyncClient(base_url=agent_settings.backend_url, timeout=10.0)
+    if not agent_settings.uses_model:
+        return http, None
+    model = GroqTurnClient(
+        model=agent_settings.llm_model, timeout=agent_settings.llm_timeout, loop=loop,
+        api_key=agent_settings.groq_api_key, reasoning_effort=agent_settings.reasoning_effort,
+    )
+    return http, model
+
+
 async def run_voice_interview(ctx: JobContext) -> None:
     try:
         settings = load_voice_settings()
@@ -175,126 +192,134 @@ async def run_voice_interview(ctx: JobContext) -> None:
         ctx.shutdown(reason="no session id")
         return
 
-    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     agent_settings = settings.agent
+    # Both clients make an SSL context (0.2-0.6 s of blocking work): built in a thread while the room connects, not on the job's event loop
+    clients = asyncio.create_task(asyncio.to_thread(make_clients, agent_settings, asyncio.get_running_loop()))
     timing = SessionTiming(session_id)
     timing.settings = {
         "stt_model": settings.stt_model, "tts_model": settings.tts_model, "endpointing_min_s": settings.endpoint_min,
         "endpointing_max_s": settings.endpoint_max, "turn_detector": TURN_DETECTOR_VERSION, "ai_mode": agent_settings.ai_mode,
         "llm_timeout_s": agent_settings.llm_timeout if agent_settings.uses_model else None, "console": fake,
     }
-    http = httpx.AsyncClient(base_url=agent_settings.backend_url, timeout=10.0)
-    model = None
-    if agent_settings.uses_model:
-        from interview_agent.turn_model import GroqTurnClient
-
-        model = GroqTurnClient(
-            model=agent_settings.llm_model, timeout=agent_settings.llm_timeout, loop=asyncio.get_running_loop(),
-            api_key=agent_settings.groq_api_key, reasoning_effort=agent_settings.reasoning_effort,
-        )
-    client = SessionClient(http, agent_settings.secret, session_id, room=None if fake else ctx.room.name)
-    runner = InterviewRunner(client, data_dir=agent_settings.data_dir, model=model, llm_timeout=agent_settings.llm_timeout)
+    runner: InterviewRunner | None = None
     controller: VoiceController | None = None
     session: AgentSession | None = None  # built after the runner has opened; the shutdown callback may run before
 
     async def on_shutdown(reason: str) -> None:
         timing.outcome = (controller.outcome if controller is not None else None) or reason or "job_shutdown"
-        timing.note_llm(runner.timings)
+        if runner is not None:
+            timing.note_llm(runner.timings)
         if session is not None:
             timing.note_detector(requested=TURN_DETECTOR_VERSION, now=turn_detection_label(session))
         path = timing.write()
         log.info("timing report written to %s", path)
         log.info("session summary: %s", json.dumps(timing.summary(), ensure_ascii=False))  # numbers and codes only
-        await http.aclose()
+        with contextlib.suppress(Exception):  # the clients may have failed to build: then there is nothing to close
+            http, _model = await clients
+            await http.aclose()
         try:
             await ctx.delete_room()  # the browser sees the end; a new join creates the room again and dispatches again
         except Exception:  # noqa: BLE001
             log.debug("room already gone", exc_info=True)
 
-    ctx.add_shutdown_callback(on_shutdown)
+    ctx.add_shutdown_callback(on_shutdown)  # before anything that can fail, so a failed setup still deletes the room
     try:
-        await runner.open()  # nothing is spoken for a session that is gone, over, or not joinable
-    except Stopped as stop:
-        log.info("not started: %s", stop.reason)
-        ctx.shutdown(reason=f"not started: {stop.reason}")
+        await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+        http, model = await clients
+        client = SessionClient(http, agent_settings.secret, session_id, room=None if fake else ctx.room.name)
+        runner = InterviewRunner(client, data_dir=agent_settings.data_dir, model=model, llm_timeout=agent_settings.llm_timeout)
+        try:
+            await runner.open()  # nothing is spoken for a session that is gone, over, or not joinable
+        except Stopped as stop:
+            log.info("not started: %s", stop.reason)
+            ctx.shutdown(reason=f"not started: {stop.reason}")
+            return
+
+        vad = ctx.proc.userdata.get("vad") or silero.VAD.load()
+        session = build_session(settings, vad)
+        agent = InterviewerAgent(runner.names)
+        closed = asyncio.Event()
+        background: set[asyncio.Task] = set()
+
+        def spawn(coro) -> None:
+            task = asyncio.create_task(coro)
+            background.add(task)
+            task.add_done_callback(background.discard)
+
+        async def say(text: str) -> bool:
+            try:
+                handle = session.say(text, allow_interruptions=False, add_to_chat_ctx=False)
+            except RuntimeError:
+                log.warning("the session is closing; not speaking")
+                return False
+            try:
+                await handle.wait_for_playout()
+            except Exception:  # noqa: BLE001
+                log.warning("speech failed", exc_info=True)
+                return False
+            return not handle.interrupted and handle.exception() is None
+
+        controller = VoiceController(
+            runner, say=say, interrupt=lambda: session.interrupt(force=True), status_poll_seconds=settings.status_poll, timing=timing
+        )
+        agent.on_turn = lambda text: (timing.mark("turn_committed"), controller.submit(text))
+        timing.note_detector(requested=TURN_DETECTOR_VERSION, at_start=turn_detection_label(session))
+        log.info(
+            "voice session %s: stt=%s tts=%s detector=%s endpointing min=%.1fs max=%.1fs ai_mode=%s",
+            session_id, settings.stt_model, settings.tts_model, turn_detection_label(session), settings.endpoint_min, settings.endpoint_max, agent_settings.ai_mode,
+        )
+
+        def watch_detector(where: str) -> None:
+            before = timing.detector.get("model_at_end") or timing.detector.get("model_at_start")
+            now = turn_detection_label(session)
+            timing.note_detector(requested=TURN_DETECTOR_VERSION, now=now)
+            if before and now != before:
+                log.warning("turn detector fell back: %s -> %s (noticed at %s); the rest of this session runs on the local model", before, now, where)
+
+        @session.on("user_state_changed")
+        def _user_state(event) -> None:
+            watch_detector("user_state")
+            controller.set_candidate_speaking(event.new_state == "speaking")
+            if event.old_state == "speaking" and event.new_state != "speaking":
+                timing.mark("user_stopped")
+
+        @session.on("user_input_transcribed")
+        def _transcribed(event) -> None:
+            if event.is_final:
+                timing.mark("stt_final")
+
+        @session.on("agent_state_changed")
+        def _agent_state(event) -> None:
+            watch_detector("agent_state")
+            if event.new_state == "speaking":
+                timing.agent_started_speaking()
+
+        @session.on("error")
+        def _error(event) -> None:
+            log.error("session error from %s: %s", type(event.source).__name__, type(event.error).__name__)  # types only: a message can quote data
+
+        @session.on("close")
+        def _close(event) -> None:
+            closed.set()
+            if not controller.done.is_set():
+                spawn(controller.candidate_left(f"session_closed:{getattr(event.reason, 'value', event.reason)}"))
+
+        def on_participant_disconnected(participant) -> None:
+            if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD:
+                spawn(controller.candidate_left("candidate_left"))
+
+        ctx.room.on("participant_disconnected", on_participant_disconnected)
+
+        await session.start(agent=agent, room=ctx.room, room_options=room_options(), record=False)
+    except Exception as error:
+        # Nothing was spoken or stored yet, and the backend cannot end a `created` session. Deleting the room (the shutdown callback) lets the
+        # candidate join the same session again within its join time, which dispatches a new job and takes no quota.
+        log.exception("setup failed (%s); the room is deleted so that the candidate can join the same session again", type(error).__name__)
+        if runner is not None:
+            with contextlib.suppress(Exception):
+                await runner.leave("agent_error")  # posts the aborted end only if a turn was stored, so never a second end event
+        ctx.shutdown(reason=f"setup_failed: {type(error).__name__}")
         return
-
-    vad = ctx.proc.userdata.get("vad") or silero.VAD.load()
-    session = build_session(settings, vad)
-    agent = InterviewerAgent(runner.names)
-    closed = asyncio.Event()
-    background: set[asyncio.Task] = set()
-
-    def spawn(coro) -> None:
-        task = asyncio.create_task(coro)
-        background.add(task)
-        task.add_done_callback(background.discard)
-
-    async def say(text: str) -> bool:
-        try:
-            handle = session.say(text, allow_interruptions=False, add_to_chat_ctx=False)
-        except RuntimeError:
-            log.warning("the session is closing; not speaking")
-            return False
-        try:
-            await handle.wait_for_playout()
-        except Exception:  # noqa: BLE001
-            log.warning("speech failed", exc_info=True)
-            return False
-        return not handle.interrupted and handle.exception() is None
-
-    controller = VoiceController(
-        runner, say=say, interrupt=lambda: session.interrupt(force=True), status_poll_seconds=settings.status_poll, timing=timing
-    )
-    agent.on_turn = lambda text: (timing.mark("turn_committed"), controller.submit(text))
-    timing.note_detector(requested=TURN_DETECTOR_VERSION, at_start=turn_detection_label(session))
-    log.info(
-        "voice session %s: stt=%s tts=%s detector=%s endpointing min=%.1fs max=%.1fs ai_mode=%s",
-        session_id, settings.stt_model, settings.tts_model, turn_detection_label(session), settings.endpoint_min, settings.endpoint_max, agent_settings.ai_mode,
-    )
-
-    def watch_detector(where: str) -> None:
-        before = timing.detector.get("model_at_end") or timing.detector.get("model_at_start")
-        now = turn_detection_label(session)
-        timing.note_detector(requested=TURN_DETECTOR_VERSION, now=now)
-        if before and now != before:
-            log.warning("turn detector fell back: %s -> %s (noticed at %s); the rest of this session runs on the local model", before, now, where)
-
-    @session.on("user_state_changed")
-    def _user_state(event) -> None:
-        watch_detector("user_state")
-        controller.set_candidate_speaking(event.new_state == "speaking")
-        if event.old_state == "speaking" and event.new_state != "speaking":
-            timing.mark("user_stopped")
-
-    @session.on("user_input_transcribed")
-    def _transcribed(event) -> None:
-        if event.is_final:
-            timing.mark("stt_final")
-
-    @session.on("agent_state_changed")
-    def _agent_state(event) -> None:
-        watch_detector("agent_state")
-        if event.new_state == "speaking":
-            timing.agent_started_speaking()
-
-    @session.on("error")
-    def _error(event) -> None:
-        log.error("session error from %s: %s", type(event.source).__name__, type(event.error).__name__)  # types only: a message can quote data
-
-    @session.on("close")
-    def _close(event) -> None:
-        closed.set()
-        if not controller.done.is_set():
-            spawn(controller.candidate_left(f"session_closed:{getattr(event.reason, 'value', event.reason)}"))
-
-    def on_participant_disconnected(participant) -> None:
-        if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD:
-            spawn(controller.candidate_left("candidate_left"))
-
-    ctx.room.on("participant_disconnected", on_participant_disconnected)
-
-    await session.start(agent=agent, room=ctx.room, room_options=room_options(), record=False)
     if not fake:
         await wait_candidate_ready(ctx.room)
 

@@ -1,6 +1,9 @@
 """The Groq adapter with a fake plugin LLM: what it sends, the timeout, an empty answer. No network."""
 import asyncio
+import subprocess
+import sys
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -80,3 +83,31 @@ def test_the_real_plugin_client_is_built_without_a_network_call():
 
     client = asyncio.run(main())
     assert client.model == "openai/gpt-oss-120b" and type(client._llm).__module__.startswith("livekit.plugins.groq")
+
+
+# The worker runs each job off the main thread (the thread executor, the default on Windows), and LiveKit registers a plugin only on the main
+# thread when the plugin is first imported. A fresh process, because this one may have imported the plugin already (the test above does).
+JOB_THREAD = """
+import asyncio, threading
+import interview_agent.voice  # what the worker process loads at start, on its main thread
+from livekit.agents import Plugin
+from interview_agent.turn_model import GroqTurnClient
+
+errors = []
+def job():
+    try:
+        GroqTurnClient(model="openai/gpt-oss-120b", timeout=3.0, loop=asyncio.new_event_loop(), api_key="gsk_test", reasoning_effort="low")
+    except BaseException as e:
+        errors.append(repr(e))
+t = threading.Thread(target=job)
+t.start(); t.join()
+print(sorted(type(p).__module__.split(".")[2] for p in Plugin.registered_plugins), errors)
+assert not errors, errors
+"""
+
+
+def test_the_worker_registers_the_groq_plugin_at_start_so_a_job_thread_can_build_the_client():
+    root = Path(__file__).resolve().parents[2]
+    done = subprocess.run([sys.executable, "-c", JOB_THREAD], cwd=root, capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, done.stdout + done.stderr[-2000:]
+    assert "'groq'" in done.stdout and "'openai'" in done.stdout, done.stdout

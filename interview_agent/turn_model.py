@@ -8,12 +8,18 @@ the schema check and the token budget is fixed here.
 
 `ask` is synchronous and the plugin is async: the runner calls `ask` in a worker thread, and `complete_json` hands the plugin call back to
 the agent's event loop and waits at most `timeout` seconds, then cancels it. It never retries: after a timeout the rules decide (D54, D79).
-LiveKit is imported when a client is made, not when this module is imported, so code that never uses a model needs no LiveKit package.
+The Groq plugin is imported with this module, at the top: LiveKit registers a plugin only on the main thread, when the plugin is first imported,
+and the worker runs each job off the main thread. `voice.py` imports this module at the top, so the worker registers the plugin when it starts,
+before any job (in a job process too: it imports the worker's module on its main thread first). Only the agent's own code imports this module.
 `ai/llm/client.py` is not used and not changed, and nothing here imports Anthropic.
 """
 import asyncio
 import concurrent.futures
 import logging
+
+from livekit.agents import APIConnectOptions
+from livekit.agents.llm import ChatContext
+from livekit.plugins import groq
 
 log = logging.getLogger("interview_agent.turn_model")
 
@@ -30,8 +36,6 @@ class TurnModelError(RuntimeError):
 
 
 def groq_llm(*, model: str, api_key: str, reasoning_effort: str):
-    from livekit.plugins import groq
-
     kwargs = {"base_url": GROQ_BASE_URL, "max_completion_tokens": MAX_OUTPUT_TOKENS}
     if reasoning_effort:
         kwargs["reasoning_effort"] = reasoning_effort
@@ -40,11 +44,6 @@ def groq_llm(*, model: str, api_key: str, reasoning_effort: str):
 
 class GroqTurnClient:
     def __init__(self, *, model: str, timeout: float, loop: asyncio.AbstractEventLoop, api_key: str = "", reasoning_effort: str = "", llm=None):
-        # Imported here, once, and not inside the call: a cold import of the SDK takes about a second, which would eat the per-turn timeout
-        from livekit.agents import APIConnectOptions
-        from livekit.agents.llm import ChatContext
-
-        self._options, self._context = APIConnectOptions, ChatContext
         self.model = model
         self.timeout = timeout
         self._loop = loop
@@ -60,11 +59,11 @@ class GroqTurnClient:
             raise TurnModelError("timeout") from e
 
     async def _complete(self, system: str, user: str) -> str:
-        ctx = self._context()
+        ctx = ChatContext()
         ctx.add_message(role="system", content=system)
         ctx.add_message(role="user", content=user)
         parts: list[str] = []
-        async with self._llm.chat(chat_ctx=ctx, conn_options=self._options(max_retry=0, retry_interval=0.1, timeout=self.timeout)) as stream:
+        async with self._llm.chat(chat_ctx=ctx, conn_options=APIConnectOptions(max_retry=0, retry_interval=0.1, timeout=self.timeout)) as stream:
             async for chunk in stream:
                 delta = chunk.delta
                 if delta is not None and delta.content:
