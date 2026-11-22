@@ -199,6 +199,8 @@ Every test must pass. Some are skipped: the PostgreSQL tests (see `TEST_DATABASE
 
 To run the tests against PostgreSQL instead, set `TEST_DATABASE_URL`. The tests drop every application table before and after each test, so point it at a database that may be wiped, never at your working database. `backend/tests/db_safety.py` refuses a URL that is not a loopback PostgreSQL before any connection. Two modes pass it: a database whose name ends in `_pgtest`, or any other name that you approve by typing `TEST_DATABASE_EXPECTED_NAME` (the name) and `TEST_DATABASE_CONFIRM_DESTRUCTIVE` (`drop-all-tables-in:` and the name) in the same terminal, with an explicit port in the URL. Run the checker first (`python backend/tests/db_safety.py`), keep the libpq `PG*` variables and `DATABASE_URL` unset while pytest runs, and run one pytest process at a time. A test that is skipped has not run, so a PostgreSQL run counts only when no test is skipped. Afterwards the database has no application tables: rebuild it with `alembic stamp --purge base` and `alembic upgrade head` (see [PostgreSQL test database](../../PROJECT_DOCUMENTATION.md#9-environment-and-configuration) for the full steps).
 
+The Interview Agent (`interview_agent/`, M5) has its own virtual environment and its own tests. `python scripts/run_all_tests.py -q` runs both suites, each in its own environment. Setting up the agent's environment and running its text driver against a local backend are described in `interview_agent/README.md`. The backend and the agent need the same `INTERVIEW_AGENT_SECRET` (at least 32 characters).
+
 Frontend type check and production build:
 
 ```bash

@@ -133,6 +133,10 @@ class Settings:
     INTERVIEW_MAX_TURN_CHARS: int = 4000  # of a stored (masked) turn: the same limit as the CHECK on interview_turns.text
     INTERVIEW_MAX_RAW_TURN_CHARS: int = 8000  # of a text as received, before masking; over it is refused, never cut
     INTERVIEW_COVERAGE_MAX_BYTES: int = 4096  # of a validated coverage snapshot as stored
+    # Interview Agent (M5, docs/DECISIONS.md D58, D79): the shared secret of the internal agent API. Unset, or shorter than the
+    # minimum, refuses every internal call (fail closed). Never logged or returned
+    INTERVIEW_AGENT_SECRET: str = env_or_default("INTERVIEW_AGENT_SECRET", "")
+    INTERVIEW_AGENT_SECRET_MIN_CHARS: int = 32
 
 
 settings = Settings()

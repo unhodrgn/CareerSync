@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from starlette.routing import Router
 
 from app.api.v1 import interview_sessions
-from app.core.no_store import INTERVIEW_PATH, NoStoreMiddleware
+from app.core.no_store import AGENT_PATH, INTERVIEW_PATH, NoStoreMiddleware
 from app.main import app
 
 from .docs.test_doc_api import code_routes
@@ -56,8 +56,19 @@ def test_every_registered_interview_route_has_its_cases_in_the_route_tests():
     assert COVERED_ROUTES == EXPECTED_INTERVIEW_ROUTES
 
 
-def test_there_is_no_agent_endpoint_and_no_placeholder_route():
-    assert not [path for _method, path in code_routes() if "/internal" in path or "agent" in path.lower()]
+EXPECTED_AGENT_ROUTES = {
+    ("GET", "/api/internal/interview-sessions/{session_id}/context"),
+    ("POST", "/api/internal/interview-sessions/{session_id}/events"),
+}  # M5 S1 (D79): the Interview Agent's two internal routes, and no other
+AGENT_ROUTER_FILE = "backend/app/api/v1/internal_interview.py"
+
+
+def test_the_only_agent_routes_are_the_two_internal_ones_of_their_own_module_and_no_route_is_a_placeholder():
+    agent = {op: route for op, route in code_routes().items() if "/internal" in op[1] or "agent" in op[1].lower()}
+    assert set(agent) == EXPECTED_AGENT_ROUTES
+    assert all(AGENT_ROUTER_FILE in route.place.replace(chr(92), "/") for route in agent.values())
+    assert all(AGENT_PATH.match(path) and not INTERVIEW_PATH.match(path) for _method, path in agent), "agent paths get no-store through AGENT_PATH"
+    assert {route.kind for route in agent.values()} == {"public"}, "the agent routes take the agent secret, never a JWT"
     for route in interview_sessions.router.routes:
         assert route.status_code != 501 and "501" not in (route.responses or {}), route.path
 

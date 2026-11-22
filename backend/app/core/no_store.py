@@ -43,6 +43,8 @@ NO_STORE = "no-store"
 # `/api/jobs/{id}/interview-questions` is another feature and is not matched. A route that is outside this pattern is not covered,
 # which a test checks for every route of the interview router.
 INTERVIEW_PATH = re.compile(r"^/api/(?:interview-consent|interview-sessions|jobs/[^/]+/interview-sessions)(?:/|\Z)")
+# The internal routes of the Interview Agent (M5, D79) carry the plan and masked turns too: the same header, and the same sanitized 422
+AGENT_PATH = re.compile(r"^/api/internal/interview-sessions(?:/|\Z)")
 
 
 def route_path(scope: Scope) -> str:
@@ -57,7 +59,8 @@ def route_path(scope: Scope) -> str:
 
 
 def is_interview_path(scope: Scope) -> bool:
-    return INTERVIEW_PATH.match(route_path(scope)) is not None
+    path = route_path(scope)
+    return INTERVIEW_PATH.match(path) is not None or AGENT_PATH.match(path) is not None
 
 
 class NoStoreMiddleware:
