@@ -204,12 +204,14 @@ EXPECTED_CALLERS = {  # every file that refers to `complete_json`, with its reas
     "ai/career/cv_review.py", "ai/career/interview.py", "ai/career/roadmap.py", "ai/jd/draft.py", "ai/parsing/extract.py",
     "ai/scoring/scorers.py",  # the existing seeker features (D21, D24, D25, structuring, scoring): unchanged, Q24 applies
     "ai/interview/boundary.py",  # the interview's one call, `ask`
+    "ai/career/verification.py",  # recruiter CV-verification questions (main PR #30, D85): no interview data, the cleaned masked CV only
 }
 EXPECTED_RUNTIME_USERS = {  # backend services that take the model client from `ai_runtime.llm()`
     "backend/app/services/career_service.py", "backend/app/services/cv_review_service.py", "backend/app/services/cv_service.py",
     "backend/app/services/evaluation_service.py", "backend/app/services/jd_service.py",
     "backend/app/services/interview_service.py",  # M4 S2: takes the client for the planning model call and hands it to interview_plan_service
     "backend/app/services/interview_feedback_service.py",  # M4 S3b: takes the client for the one feedback call and hands it to make_feedback
+    "backend/app/services/verification_service.py",  # D85: hands the client to ai.career.verification
 }
 INTERVIEW_BACKEND = {  # the modules outside ai/interview that import it: S2 plan and lifecycle, S3a ingest, S3b feedback; a new one is a review point
     "backend/app/services/interview_plan_service.py", "backend/app/services/interview_service.py", "backend/app/services/interview_ingest_service.py",
@@ -417,7 +419,7 @@ def test_the_scanners_flag_what_they_exist_to_flag(source, scanner, expected):
 # allow-list, not a blacklist: anything not listed (cv_chunks, cv_excerpts, make_questions, split_sections, chunk_sections,
 # retrieve, find_gaps, structure_cv, mask_pii, a whole-module import, a new helper) is a way to read the stored CV and belongs
 # in cv_context.py behind clean_cv. What is listed works on one line or one short text, or is not about the CV at all.
-CV_ADJACENT_PREFIXES = ("ai.parsing", "ai.scoring", "ai.career", "ai.jd")
+CV_ADJACENT_PREFIXES = ("ai.parsing", "ai.scoring", "ai.career", "ai.jd", "ai.guardrails.cv_clean")  # cv_clean: the CV cleaner (D85)
 ALLOWED_CV_ADJACENT = {
     "ai.career.interview": {"CriterionInfo", "Question", "Kind", "allowed", "interview_rules", "_URL"},  # types and D21 templates
     "ai.parsing.sections": {"heading_key"},  # is this one line a heading
@@ -535,7 +537,9 @@ def test_the_cv_reader_guard_is_not_vacuous():
     """The authorized reader really reads (so the allow-list has something to protect), and the pass-through rule has uses to
     check in the three modules that accept the stored CV."""
     modules = _interview_modules()
-    assert cv_import_violations(modules["cv_context.py"]) == ["ai.career.interview.make_questions"]  # the reader, and only it
+    assert cv_import_violations(modules["cv_context.py"]) == [  # the reader and the cleaner, and only they
+        "ai.career.interview.make_questions", "ai.guardrails.cv_clean.CleanCv", "ai.guardrails.cv_clean.clean_cv",
+    ]
     carriers = {n for n, t in modules.items() if any(isinstance(x, ast.Name) and x.id in CV_TEXT_PARAMS for x in ast.walk(t))}
     assert carriers == {"cv_context.py", "plan.py", "engine.py", "validate.py"}
 
