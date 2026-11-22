@@ -85,6 +85,18 @@ export interface JdAnalysisOut {
   notice: string;
 }
 
+export type SourceType = 'job_posting' | 'project_spec';
+
+export interface CriteriaPreviewIn {
+  source_type: SourceType;
+  title: string;
+  text: string;
+  min_experience_years: number | null;
+}
+
+export type CriteriaPreviewOut = Omit<JdAnalysisOut, 'job_id'>;
+export interface PosterTextOut { text: string; }
+
 export interface JdDraftIn {
   keywords: string[];
   notes: string;

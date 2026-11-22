@@ -12,9 +12,9 @@ MAX_OCR_TEXT = 10_000
 def extract_text(data: bytes, mime: str | None) -> str:
     if not data or len(data) > MAX_IMAGE_BYTES:
         raise AppError(422, "POSTER_SIZE", "이미지는 5MB 이하로 업로드해 주세요.")
-    if data.startswith(b"\x89PNG\r\n\\x1a\n"):
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
         suffix, expected = ".png", "image/png"
-    elif data.startswith(b"\xff\\xd8\\xff"):
+    elif data.startswith(b"\xff\xd8\xff"):
         suffix, expected = ".jpg", "image/jpeg"
     else:
         raise AppError(422, "POSTER_FORMAT", "PNG 또는 JPEG 이미지만 업로드해 주세요.")

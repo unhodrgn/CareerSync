@@ -5,7 +5,7 @@ import { cx } from '@/components/common/Page';
 import ui from '@/components/common/ui.module.css';
 import { t } from '@/i18n';
 import { CATEGORIES, type Category } from '@/types/criteria';
-import type { JdAnalysisOut, SuggestedCriterion } from '@/types/job';
+import type { CriteriaPreviewOut, SuggestedCriterion } from '@/types/job';
 import s from './company.module.css';
 
 const asCategory = (c: string): Category => (CATEGORIES.includes(c as Category) ? (c as Category) : 'other');
@@ -19,13 +19,15 @@ export default function CriteriaSuggestions({
   existing,
   full,
   onAdd,
+  onAddAll,
   onClose,
 }: {
-  result: JdAnalysisOut;
+  result: CriteriaPreviewOut;
   existing: string[];
   /** The set already has 10 criteria. */
   full: boolean;
   onAdd: (c: { name: string; description: string; category: Category; weight: number }) => void;
+  onAddAll: (items: SuggestedCriterion[]) => void;
   onClose: () => void;
 }) {
   const has = (c: SuggestedCriterion) => existing.some((n) => n.trim().toLowerCase() === c.name.trim().toLowerCase());
@@ -62,6 +64,12 @@ export default function CriteriaSuggestions({
               </div>
             ))}
           </div>
+        )}
+        {result.analysis.criteria.some((c) => !has(c)) && (
+          <button type="button" className={cx(ui.btn, ui.secondary, ui.small)}
+            disabled={full} onClick={() => onAddAll(result.analysis.criteria.filter((c) => !has(c)))}>
+            추천 평가 기준 한 번에 추가
+          </button>
         )}
         {result.blocked.length > 0 && (
           <div>

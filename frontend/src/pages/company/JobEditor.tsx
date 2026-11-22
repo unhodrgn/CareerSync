@@ -10,6 +10,7 @@ import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
 import { AiBusy, AiMark } from '@/components/common/Ai';
 import CriteriaSuggestions from '@/components/company/CriteriaSuggestions';
+import SourceImportPanel from '@/components/company/SourceImportPanel';
 import JdDraftPanel from '@/components/company/JdDraftPanel';
 import JobHeader from '@/components/company/JobHeader';
 import s from '@/components/company/company.module.css';
@@ -17,7 +18,7 @@ import { t, type MessageKey } from '@/i18n';
 import { paths } from '@/routes/paths';
 import { useDocumentTitle } from '@/routes/title';
 import { CATEGORIES, type Category, type CriteriaSetOut, type GuardrailHit, type Importance } from '@/types/criteria';
-import { EMPLOYMENT_TYPES, type EmploymentType, type JdAnalysisOut, type JobCreate, type JobOut } from '@/types/job';
+import { EMPLOYMENT_TYPES, type EmploymentType, type CriteriaPreviewOut, type JobCreate, type JobOut } from '@/types/job';
 
 const MAX_CRITERIA = 10;
 const WEIGHT_TOTAL = 100;
@@ -155,7 +156,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
   // A new job's first save moves to its own page and publishes there: not a failure
   const handedOff = useRef(false);
   const [draftOpen, setDraftOpen] = useState(handoff?.then === 'draft');
-  const [analysis, setAnalysis] = useState<JdAnalysisOut | null>(null);
+  const [analysis, setAnalysis] = useState<CriteriaPreviewOut | null>(null);
   const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLParagraphElement>(confirm !== null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   // The latest rows, for answers that arrive after the user typed on (live guardrail check)
@@ -194,6 +195,34 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
   const addRow = (r?: Partial<Row>) => {
     if (rows.length >= MAX_CRITERIA) return;
     setRows((rs) => [...rs, { key: nextKey++, name: '', description: '', category: 'skill', weight: '', ...r }]);
+    setNotice(null);
+  };
+  /** Add unique suggestions and normalize all in-editor weights to 100, retaining the recruiter's ability to edit. */
+  const addAll = (suggestions: { name: string; description: string; category: string; weight: number }[]) => {
+    setRows((old) => {
+      const seen = new Set(old.map((r) => r.name.trim().toLowerCase()));
+      const fresh = suggestions.filter((s) => {
+        const name = s.name.trim().toLowerCase();
+        if (!name || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      }).slice(0, MAX_CRITERIA - old.length).map((s) => ({
+        key: nextKey++, name: s.name, description: s.description,
+        category: (CATEGORIES.includes(s.category as Category) ? s.category : 'other') as Category,
+        weight: String(s.weight),
+      }));
+      if (fresh.length === 0) return old;
+      const combined = [...old, ...fresh];
+      const raw = combined.map((r) => Math.max(1, Number(r.weight) || 1));
+      const total = raw.reduce((a, b) => a + b, 0);
+      const exact = raw.map((v) => v / total * (WEIGHT_TOTAL - combined.length));
+      const units = exact.map(Math.floor);
+      const remain = WEIGHT_TOTAL - combined.length - units.reduce((a, b) => a + b, 0);
+      const order = exact.map((v, i) => ({ i, rem: v - units[i] })).sort((a, b) => b.rem - a.rem || a.i - b.i);
+      for (let j = 0; j < remain; j++) units[order[j].i] += 1;
+      return combined.map((r, i) => ({ ...r, weight: String(1 + units[i]) }));
+    });
+    setTotalError(false);
     setNotice(null);
   };
   const removeRow = (key: number) => (setRows((rs) => rs.filter((r) => r.key !== key)), setNotice(null));
@@ -625,6 +654,11 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
             )}
           </section>
 
+          {!basicsLocked && <SourceImportPanel
+            title={form.title}
+            minExperienceYears={form.min_experience_years}
+            onSuggested={setAnalysis}
+          />}
           <section className={ui.panel} aria-labelledby="criteria-title">
             <div className={s.sectionHead}>
               <div>
@@ -711,6 +745,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                 full={rows.length >= MAX_CRITERIA}
                 onClose={() => setAnalysis(null)}
                 onAdd={(c) => addRow({ name: c.name, description: c.description, category: c.category, weight: String(c.weight) })}
+                onAddAll={addAll}
               />
             )}
           </section>
