@@ -15,6 +15,7 @@ import ui from '@/components/common/ui.module.css';
 import CandidateAvatar from './CandidateAvatar';
 import { t } from '@/i18n';
 import type { ApplicantRow, ApplicationStatus } from '@/types/application';
+import type { VerificationOut } from '@/types/verification';
 import { CATEGORIES, type Category } from '@/types/criteria';
 import s from './company.module.css';
 
@@ -100,6 +101,20 @@ export default function ApplicantDetail({
   const [retryBusy, setRetryBusy] = useState(false);
   const [retryNote, setRetryNote] = useState<unknown>(null);
   const [retried, setRetried] = useState(false);
+  const [verification, setVerification] = useState<VerificationOut | null>(null);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationError, setVerificationError] = useState<unknown>(null);
+  const requestVerification = async () => {
+    setVerificationBusy(true);
+    setVerificationError(null);
+    try {
+      setVerification(await api.verificationQuestions(row.application_id));
+    } catch (e) {
+      setVerificationError(e);
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!focusRequest) return;
@@ -334,6 +349,31 @@ export default function ApplicantDetail({
                 ))}
               </div>
             </AiBox>
+          )}
+        </section>
+        <section className={s.detailSection} aria-label="면접관용 이력서 검증 질문">
+          <h3 className={ui.sectionTitle}>면접관용 이력서 검증 질문</h3>
+          <p className={ui.caption}>이력서의 기술·프로젝트 경험 중 면접에서 확인할 부분을 최대 3개 추천합니다.</p>
+          <button type="button" className={cx(ui.btn, ui.secondary, ui.small)}
+            disabled={verificationBusy} onClick={() => void requestVerification()}>
+            {verificationBusy ? '질문 생성 중…' : '이력서 검증 질문 추천'}
+          </button>
+          {verificationError != null && <InlineError>{errorText(verificationError)}</InlineError>}
+          {verification && (
+            <div className={ui.stack}>
+              <AiNotice notice={verification.notice} method={verification.method} />
+              {verification.questions.length === 0 ? (
+                <p className={ui.caption}>검증 질문의 근거가 될 문장을 찾지 못했습니다.</p>
+              ) : verification.questions.map((item, index) => (
+                <div key={`${item.criterion_id}-${index}`} className={ui.panel}>
+                  <h4 className={ui.sectionTitle}>질문 {index + 1} · {item.criterion_name}</h4>
+                  <p>{item.question}</p>
+                  <blockquote>{item.cv_quote}</blockquote>
+                  <p className={ui.caption}>{item.reason}</p>
+                  <ul className={ui.list}>{item.check_points.map((point) => <li key={point}>{point}</li>)}</ul>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       </div>

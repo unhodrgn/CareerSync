@@ -5,6 +5,7 @@ import type { ApplicantFilters, ApplicantList, ApplicationOut, ApplicationStatus
 import type { ConsentIn, LoginIn, RegisterIn, TokenOut, UserOut } from '@/types/auth';
 import type { InterviewOut, RoadmapOut } from '@/types/career';
 import type { AppErrorBody, ValidationIssue } from '@/types/common';
+import type { VerificationOut } from '@/types/verification';
 import type { CompanyOut, CompanyProjectIn, CompanyProjectOut, CompanyPublicOut, CompanyUpdate } from '@/types/company';
 import type { CheckResult, CriteriaSetOut, CriteriaView, CriterionIn } from '@/types/criteria';
 import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
@@ -169,6 +170,7 @@ export const api = {
     return request<ApplicantList>('GET', `/jobs/${jobId}/applications${text ? `?${text}` : ''}`);
   },
   evaluation: (applicationId: number) => request<EvaluationOut>('GET', `/applications/${applicationId}/evaluation`),
+  verificationQuestions: (applicationId: number) => request<VerificationOut>('POST', `/applications/${applicationId}/verification-questions`),
   retryEvaluation: (applicationId: number) => request<EvaluationOut>('POST', `/applications/${applicationId}/evaluation/retry`),
   setApplicationStatus: (applicationId: number, status: ApplicationStatus) =>
     request<ApplicationOut>('PUT', `/applications/${applicationId}/status`, { status }),
