@@ -17,6 +17,7 @@ from app.core.config import REPO_ROOT, settings
 from app.db.session import get_db
 from app.main import app
 from app.models import InterviewSession
+from app.services import consent_service
 from interview_agent.backend_client import SessionClient
 from interview_agent.runner import InterviewRunner, Stopped
 
@@ -301,12 +302,14 @@ class FakeModel:
 
     model = "fake-groq"
 
-    def __init__(self, reply=None, delay=0.0, error=None):
-        self.reply, self.delay, self.error = reply, delay, error
+    def __init__(self, reply=None, delay=0.0, error=None, on_call=None):
+        self.reply, self.delay, self.error, self.on_call = reply, delay, error, on_call
         self.calls: list[tuple[str, str]] = []
 
     def complete_json(self, system, user, schema, max_tokens=4000):
         self.calls.append((system, user))
+        if self.on_call:  # runs inside the call, in the worker thread: something else happens while the model is being asked
+            self.on_call()
         if self.delay:
             time.sleep(self.delay)
         if self.error:
@@ -378,6 +381,132 @@ def test_a_valid_model_analysis_is_used_and_recorded_with_its_method(wired, db, 
     runner = drive(go)
     assert runner.timings[0][0] == "ok", runner.timings
     assert first_answer_method(db, sid) == "llm:fake-groq"
+
+
+# ── Consent withdrawal (D80, Q39) ──
+
+
+def withdraw_now(db, world, clock):
+    consent_service.withdraw_ai(db, world.user, now=clock.now)
+
+
+def valid_reply(runner):
+    ids = [p.id for p in runner.engine.state.current.rubric]
+    return lambda user: json.dumps({"answer_type": "answered", "points": [{"id": i, "level": "demonstrated"} for i in ids], "quotes": [], "follow_up": None})
+
+
+def ended_row(db, sid):
+    session = db.get(InterviewSession, sid)
+    db.refresh(session)
+    return session.status, session.end_reason
+
+
+def test_a_withdrawal_before_the_model_call_stops_the_runner_and_no_model_is_asked(wired, db, world, sid, clock):
+    model = FakeModel()
+
+    async def go(http):
+        runner = make_runner(http, sid, clock, model=model)
+        await runner.open()
+        await runner.start()
+        withdraw_now(db, world, clock)
+        clock.advance(20)
+        with pytest.raises(Stopped) as stop:
+            await runner.answer(ANSWER)
+        return runner, stop.value.reason
+
+    runner, reason = drive(go)
+    assert reason == "consent_withdrawn" and runner.stopped == "consent_withdrawn"
+    assert model.calls == [], "no new AI inference may start after the consent is withdrawn (D65 (5))"
+    assert [r.kind for r in turn_rows(db, sid)] == ["question"]  # the answer was not processed or stored
+    assert ended_row(db, sid) == ("aborted", "consent_withdrawn")
+
+
+def test_a_model_call_that_started_before_the_withdrawal_is_refused_when_it_is_posted(wired, db, world, sid, clock):
+    model = FakeModel(on_call=lambda: withdraw_now(db, world, clock))
+
+    async def go(http):
+        runner = make_runner(http, sid, clock, model=model)
+        await runner.open()
+        await runner.start()
+        model.reply = valid_reply(runner)
+        clock.advance(20)
+        with pytest.raises(Stopped) as stop:
+            await runner.answer(ANSWER)
+        return runner, stop.value.reason
+
+    runner, reason = drive(go)
+    assert len(model.calls) == 1 and runner.timings[0][0] == "ok", "the call was already running, and finished"
+    assert reason == "ended_elsewhere", "its result was refused by the backend, so the runner stops"
+    assert [r.kind for r in turn_rows(db, sid)] == ["question"], "nothing of the answer or of the model's analysis was stored"
+    assert ended_row(db, sid) == ("aborted", "consent_withdrawn")
+
+
+def test_a_seeker_without_consent_whose_session_is_still_active_is_aborted_by_the_agent_with_no_model_call(wired, db, world, sid, clock):
+    model = FakeModel()
+
+    async def go(http):
+        runner = make_runner(http, sid, clock, model=model)
+        await runner.open()
+        await runner.start()
+        world.user.consent_ai_at = None  # the moment between two statements: the consent is gone, the session has not been ended yet
+        db.commit()
+        clock.advance(20)
+        with pytest.raises(Stopped) as stop:
+            await runner.answer(ANSWER)
+        return runner, stop.value.reason
+
+    runner, reason = drive(go)
+    assert reason == "consent_withdrawn" and runner.stopped == "consent_withdrawn" and model.calls == []
+    assert [r.kind for r in turn_rows(db, sid)] == ["question"]
+    assert ended_row(db, sid) == ("aborted", "session_closed"), "the agent's own end: a free-form reason is never stored (the part before the colon)"
+
+
+def test_the_rules_mode_needs_no_check_and_still_stops_on_the_refused_post(wired, db, world, sid, clock):
+    async def go(http):
+        runner = make_runner(http, sid, clock)  # no model
+        await runner.open()
+        await runner.start()
+        withdraw_now(db, world, clock)
+        clock.advance(20)
+        with pytest.raises(Stopped) as stop:
+            await runner.answer(ANSWER)
+        return stop.value.reason
+
+    assert drive(go) == "ended_elsewhere"
+    assert [r.kind for r in turn_rows(db, sid)] == ["question"] and ended_row(db, sid) == ("aborted", "consent_withdrawn")
+
+
+def test_the_status_check_names_the_withdrawal(wired, db, world, sid, clock):
+    async def go(http):
+        runner = make_runner(http, sid, clock)
+        await runner.open()
+        await runner.start()
+        assert (await runner.check())["ai_consent"] is True
+        withdraw_now(db, world, clock)
+        with pytest.raises(Stopped) as stop:
+            await runner.check()
+        return stop.value.reason
+
+    assert drive(go) == "consent_withdrawn"
+
+
+def test_a_context_that_cannot_be_read_means_no_model_call_and_the_rules_decide(wired, db, sid, clock):
+    down = {"on": False}
+    transport = FlakyTransport(lambda request, body: down["on"] and request.method == "GET")
+    model = FakeModel()
+
+    async def go(http):
+        runner = make_runner(http, sid, clock, model=model)
+        await runner.open()
+        await runner.start()
+        down["on"] = True  # from now on the context cannot be read; the events still go through
+        clock.advance(20)
+        await runner.answer(ANSWER)
+        return runner
+
+    runner = drive(go, transport)
+    assert model.calls == [] and not runner.finished and transport.failed == 1, "one attempt, no retry delay"
+    assert first_answer_method(db, sid) == "rules"
 
 
 @pytest.fixture

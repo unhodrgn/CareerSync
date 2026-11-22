@@ -18,6 +18,12 @@ Rules it keeps:
 - **The model** (D52, D79 (5)): only through the engine's flow, `prepare_turn` → `ask` → `parse_turn`, with the per-turn timeout (default
   3 s, never above the session's `turn_llm_deadline_seconds`). A timeout, an error or a rejected answer means the rules for that turn (D54);
   only the outcome and the time are logged, never a text.
+- **Consent withdrawal** (D80, Q39). When the seeker withdraws the AI consent, the backend ends the session (`consent_withdrawn`), so the
+  next post is refused and the status check stops the runner like any other end. In the model mode the runner also reads the context right
+  before every model call (one attempt, no retry): a session that is no longer active stops it; a seeker without the current AI consent
+  whose session is still active (the moment between two statements) makes it post an aborted end (`session_closed:consent_withdrawn`) and
+  stop; a context it cannot read means no model call for that turn (the rules decide). A model call that started before the withdrawal
+  may finish, but its answer is refused when posted, so nothing of it is stored. The rules mode makes no inference and needs no check.
 - **Personal data.** The engine masks every answer (with the seeker's display name from the context) before it is stored, posted or shown
   to a model; the name lives in the engine's memory only and is never logged or posted (D79 (3)). The backend masks again before storing.
 """
@@ -39,11 +45,12 @@ log = logging.getLogger("interview_agent.runner")
 BLOCKLIST_FILES = ("blocklist.yaml", "interview_blocklist.yaml")
 FINAL = (Phase.ENDED, Phase.ABORTED)
 ACTIVE = ("created", "live")
+CONSENT_WITHDRAWN = "consent_withdrawn"  # the backend's end reason (D80), and the reason this runner stops with
 
 
 class Stopped(Exception):
-    """The runner stopped and posts nothing more. `reason`: completed, aborted, gone, ended_elsewhere, refused, unreachable, not_joinable,
-    plan_mismatch."""
+    """The runner stopped and posts nothing more. `reason`: completed, aborted, gone, ended_elsewhere, consent_withdrawn, refused, unreachable,
+    not_joinable, plan_mismatch."""
 
     def __init__(self, reason: str):
         super().__init__(reason)
@@ -62,6 +69,7 @@ class InterviewRunner:
         self.llm_timeout = llm_timeout
         self.clock = clock
         self.engine: InterviewEngine | None = None
+        self.names: tuple[str, ...] = ()  # the seeker's display name from the context: in memory only, for masking (D79 (3)); never logged or posted
         self.stopped: str | None = None
         self.timings: list[tuple[str, float]] = []  # (outcome, seconds) of each model call, for the latency report
         self._plan: InterviewPlan | None = None
@@ -83,7 +91,8 @@ class InterviewRunner:
             raise self._stop("not_joinable")
         plan = InterviewPlan.from_dict(context["plan"])
         limits = InterviewLimits(**context["limits"])
-        engine = InterviewEngine(plan, blocklists=load_blocklists(self.data_dir), limits=limits, names=list(context.get("mask_names") or ()))
+        self.names = tuple(context.get("mask_names") or ())
+        engine = InterviewEngine(plan, blocklists=load_blocklists(self.data_dir), limits=limits, names=list(self.names))
         if engine.plan_issues:  # the stored plan is a fixed point of validation; another plan would shift the item indexes
             raise self._stop("plan_mismatch")
         self.engine, self._plan = engine, plan
@@ -124,7 +133,7 @@ class InterviewRunner:
     async def check(self) -> dict | None:
         """The status poll: `Stopped` when the session is gone or no longer active; None when the backend did not answer (try again later)."""
         try:
-            context = await self.client.context()
+            context = await self.client.context(retry=False)
         except Transient:
             return None
         except Gone:
@@ -132,7 +141,7 @@ class InterviewRunner:
         except (Ended, Refused, SeqGap):
             raise self._stop("refused") from None
         if context.get("status") not in ACTIVE:
-            raise self._stop("ended_elsewhere")
+            raise self._stop(CONSENT_WITHDRAWN if context.get("end_reason") == CONSENT_WITHDRAWN else "ended_elsewhere")
         return context
 
     # ── Internals ──
@@ -167,6 +176,8 @@ class InterviewRunner:
         request = prepare_turn(self.engine, text)
         if request is None:  # the rules decide this answer (empty, very short, a request to repeat): no model is asked
             return None
+        if not await self._may_ask_the_model():
+            return None
         started = time.perf_counter()
         raw, outcome = None, "ok"
         try:
@@ -185,6 +196,20 @@ class InterviewRunner:
         self.timings.append((outcome, elapsed))
         log.info("turn analysis: %s in %.2f s", outcome, elapsed)
         return analysis
+
+    async def _may_ask_the_model(self) -> bool:
+        """The check right before a model call (D80). `Stopped` when the session is gone or no longer active (the withdrawal itself ends it);
+        an aborted end and `Stopped` when it is active but the seeker has no current AI consent; False (the rules decide this turn) when the
+        context cannot be read, because the consent cannot be shown to stand."""
+        context = await self.check()
+        if context is None:
+            log.warning("turn analysis: the context could not be read; no model call, the rules decide")
+            return False
+        if not context.get("ai_consent"):
+            await self.leave(f"session_closed:{CONSENT_WITHDRAWN}")
+            self.stopped = CONSENT_WITHDRAWN
+            raise Stopped(CONSENT_WITHDRAWN)
+        return True
 
     def _event_turn(self, turn, coverage: dict | None) -> dict:
         items = self._plan.items

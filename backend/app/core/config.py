@@ -137,6 +137,14 @@ class Settings:
     # minimum, refuses every internal call (fail closed). Never logged or returned
     INTERVIEW_AGENT_SECRET: str = env_or_default("INTERVIEW_AGENT_SECRET", "")
     INTERVIEW_AGENT_SECRET_MIN_CHARS: int = 32
+    # Voice interview (M5 S4, D56, D79): the LiveKit Cloud project the join token is signed for, and the name of the agent that token
+    # dispatches. The key and secret sign a token locally (no network call) and are never logged or returned. Any of the first three unset,
+    # or no agent secret: the join route answers 503
+    LIVEKIT_URL: str = env_or_default("LIVEKIT_URL", "")
+    LIVEKIT_API_KEY: str = env_or_default("LIVEKIT_API_KEY", "")
+    LIVEKIT_API_SECRET: str = env_or_default("LIVEKIT_API_SECRET", "")
+    INTERVIEW_AGENT_NAME: str = env_or_default("INTERVIEW_AGENT_NAME", "careersync-interviewer")
+    INTERVIEW_JOIN_TOKEN_TTL_SECONDS: int = 120  # a join token is valid this long at most, and never past the join deadline of the session
 
 
 settings = Settings()

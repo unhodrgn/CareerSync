@@ -7,6 +7,7 @@ environment variable and has no LiveKit. Each scanner has a self-test: it flags 
 Like the other guards it sees names and calls, not meaning: a CV text copied into another variable under a name nobody scans,
 or code that lives outside the scanned files, is not seen."""
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -18,9 +19,11 @@ PLAN = SERVICES / "interview_plan_service.py"
 LIFECYCLE = SERVICES / "interview_service.py"
 INTERVIEW_SERVICES = sorted(SERVICES.glob("interview_*.py"))
 INTERVIEW_ROUTER = APP / "api" / "v1" / "interview_sessions.py"  # the seeker API (S4): the one module that serves the interview paths
+AGENT_ROUTER = APP / "api" / "v1" / "internal_interview.py"  # the Interview Agent's internal API (M5 S1, D79)
 INTERVIEW_SCHEMAS = APP / "schemas" / "interview.py"
 INTERVIEW_CODE = [
     *INTERVIEW_SERVICES, APP / "models" / "interview.py", ROOT / "scripts" / "purge_interviews.py", INTERVIEW_ROUTER, INTERVIEW_SCHEMAS,
+    AGENT_ROUTER, APP / "schemas" / "interview_internal.py", APP / "core" / "agent_auth.py",
 ]
 CV_NAMES = frozenset({"stored_cv", "masked_cv", "cv_text", "masked_text"})
 
@@ -184,16 +187,22 @@ def imports_the_new_interview_code(tree: ast.AST) -> list[str]:
     ]
 
 
+# The one use of the interview code from outside it (M5 S3, D80): withdrawing the AI consent ends the seeker's sessions that are in progress.
+# `consent_service` imports that single function and nothing else of the interview code; a second use is a review point.
+CONSENT_WITHDRAWAL_USE = {"backend/app/services/consent_service.py": ["app.services.interview_service.abort_for_consent_withdrawal"]}
+
+
 def test_no_other_backend_code_imports_the_interview_models_or_services():
     """Not the existing seeker features, not the scoring, not a company route or service: only the interview services, the model
-    module, the package that re-exports the models, and the one interview router (which imports services, never the models)."""
-    allowed = {*INTERVIEW_SERVICES, APP / "models" / "interview.py", APP / "models" / "__init__.py", INTERVIEW_ROUTER}
+    module, the package that re-exports the models, the interview routers (the seeker's, and the agent's internal one since M5 S1,
+    which import services, never the models), and the one named use of D80 (`CONSENT_WITHDRAWAL_USE`)."""
+    allowed = {*INTERVIEW_SERVICES, APP / "models" / "interview.py", APP / "models" / "__init__.py", INTERVIEW_ROUTER, AGENT_ROUTER}
     found = {
-        str(path.relative_to(ROOT)): imports_the_new_interview_code(tree_of(path))
+        path.relative_to(ROOT).as_posix(): imports_the_new_interview_code(tree_of(path))
         for path in sorted(APP.rglob("*.py"))
         if path not in allowed and "__pycache__" not in path.parts
     }
-    assert {file: uses for file, uses in found.items() if uses} == {}
+    assert {file: uses for file, uses in found.items() if uses} == CONSENT_WITHDRAWAL_USE
     assert imports_the_new_interview_code(tree_of(LIFECYCLE))  # not vacuous: the allowed modules do import them
 
 
@@ -226,10 +235,10 @@ def names_in(tree: ast.AST) -> set[str]:
 
 def test_the_seeker_api_is_one_router_module_that_main_wires_and_no_other_api_module_touches_the_interview_code():
     api = APP / "api" / "v1"
-    assert [p.name for p in api.glob("*interview*")] == ["interview_sessions.py"]
-    assert {"interview_sessions", "no_store", "validation_errors", "install"} <= names_in(tree_of(APP / "main.py"))  # the router and the two installs
+    assert sorted(p.name for p in api.glob("*interview*")) == ["internal_interview.py", "interview_sessions.py"]
+    assert {"interview_sessions", "internal_interview", "no_store", "validation_errors", "install"} <= names_in(tree_of(APP / "main.py"))
     for path in api.glob("*.py"):
-        if path != INTERVIEW_ROUTER:
+        if path not in (INTERVIEW_ROUTER, AGENT_ROUTER):
             assert not any("interview" in module.lower() for module, _ in imports(tree_of(path))), path.name
 
 
@@ -239,8 +248,9 @@ ROUTER_IMPORTS = {
     ("app.core.allowed_methods", "all_methods_route_class"),
     ("app.core.deps", "CurrentUser"), ("app.core.deps", "DbSession"), ("app.core.deps", "get_current_user"), ("app.core.errors", "AppError"),
     ("app.schemas.interview", "ConsentTextOut"), ("app.schemas.interview", "CreatedSessionOut"), ("app.schemas.interview", "HistoryPageOut"),
-    ("app.schemas.interview", "FeedbackOut"), ("app.schemas.interview", "InterviewCreateIn"), ("app.schemas.interview", "SessionOut"),
+    ("app.schemas.interview", "FeedbackOut"), ("app.schemas.interview", "InterviewCreateIn"), ("app.schemas.interview", "JoinOut"), ("app.schemas.interview", "SessionOut"),
     ("app.services", "interview_consent_service"), ("app.services", "interview_feedback_service"), ("app.services", "interview_service"),
+    ("app.services", "interview_join_service"),  # M5 S4: the join token
     ("app.services.interview_time", "Clock"), ("app.services.interview_time", "utcnow"),  # the clock the router hands to the services
 }
 SCHEMA_IMPORTS = {
@@ -293,17 +303,47 @@ def test_the_interview_code_reads_no_environment_variable():
     for n in ast.walk(tree_of(APP / "core" / "config.py")):
         if isinstance(n, ast.Call) and call_name(n) in ENV_READERS and n.args and isinstance(n.args[0], ast.Constant):
             names.append(n.args[0].value)
-    assert [x for x in names if x.startswith(("INTERVIEW_", "LIVEKIT_"))] == ["INTERVIEW_BLOCKLIST_PATH"]
+    # M5 S1 (D79) added the agent's shared secret; S4 adds the LiveKit project the join token is signed for and the agent's name
+    assert sorted(x for x in names if x.startswith(("INTERVIEW_", "LIVEKIT_"))) == [
+        "INTERVIEW_AGENT_NAME", "INTERVIEW_AGENT_SECRET", "INTERVIEW_BLOCKLIST_PATH", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL",
+    ]
 
 
-def test_nothing_of_livekit_or_the_agent_is_in_the_backend():
-    scanned = [*APP.rglob("*.py"), *(ROOT / "backend" / "migrations").rglob("*.py"), ROOT / "backend" / "requirements.txt", *(ROOT / "scripts").glob("*.py")]
+AGENT_SECRET_READERS = {"core/config.py", "core/agent_auth.py"}  # M5 S1 (D79): read in config, checked in the one auth module
+
+
+LIVEKIT_SECRET_READERS = {"core/config.py", "services/interview_join_service.py"}  # M5 S4: read in config, used to sign the join token
+JOIN_SERVICE = APP / "services" / "interview_join_service.py"
+
+
+def calls_logger(tree: ast.AST) -> bool:
+    return any(
+        isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name) and n.func.value.id in ("log", "logger")
+        for n in ast.walk(tree)
+    )
+
+
+def test_livekit_is_in_the_backend_only_as_the_pinned_token_signer_and_the_backend_never_imports_the_agent():
+    """M5 S4 (D56, D78, D79): the backend uses one LiveKit package, `livekit-api`, pinned, in one module (`interview_join_service`), only to
+    sign a token (`from livekit import api`, no network call). At no stage does it import the agent's code (the agent reaches it over
+    HTTP only). Only the settings and the auth module know the agent's secret, and only the settings and the join service the LiveKit
+    secret, which the join service never logs."""
+    scanned = [*APP.rglob("*.py"), *(ROOT / "backend" / "migrations").rglob("*.py"), *(ROOT / "scripts").glob("*.py")]
     for path in scanned:
         if "__pycache__" in path.parts:
             continue
-        text = path.read_text(encoding="utf-8").lower()
-        assert "livekit" not in text and "interview_agent" not in text and "agent_secret" not in text, path.name
-    assert not (ROOT / "interview_agent").exists()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert not any(m.split(".")[0] == "interview_agent" for m, _ in imports(tree) if m), path.name
+        livekit_imports = {(m, name) for m, name in imports(tree) if m.split(".")[0] == "livekit"}
+        assert livekit_imports == ({("livekit", "api")} if path == JOIN_SERVICE else set()), path.name
+    requirements = (ROOT / "backend" / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    pins = [line for line in requirements if "livekit" in line.lower() and not line.startswith("#")]
+    assert len(pins) == 1 and re.fullmatch(r"livekit-api==\d+\.\d+\.\d+", pins[0]) and int(pins[0].split("==")[1].split(".")[0]) < 2, pins
+    sources = {p.relative_to(APP).as_posix(): p.read_text(encoding="utf-8") for p in APP.rglob("*.py")}
+    assert {name for name, text in sources.items() if "INTERVIEW_AGENT_SECRET" in text} == AGENT_SECRET_READERS
+    assert {name for name, text in sources.items() if "LIVEKIT_API_SECRET" in text} == LIVEKIT_SECRET_READERS
+    join = ast.parse(JOIN_SERVICE.read_text(encoding="utf-8"))
+    assert "logging" not in {m for m, _ in imports(join)} and not calls_logger(join), "the join service logs nothing: it holds the LiveKit secret"
 
 
 @pytest.mark.parametrize("source, expected", [("import os\nos.getenv('A')\n", True), ("from x import env_or_default\nenv_or_default('A', '')\n", True), ("x = 1\n", False)])

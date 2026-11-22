@@ -1,0 +1,10 @@
+body { font-family: system-ui, "Malgun Gothic", sans-serif; max-width: 52rem; margin: 1rem auto; padding: 0 1rem; line-height: 1.5; }
+h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin-top: 1.5rem; } h3 { font-size: 1rem; }
+.tag { font-size: .75rem; background: #fde68a; padding: .1rem .5rem; border-radius: .5rem; vertical-align: middle; }
+.note, .hint { color: #555; font-size: .9rem; }
+label { display: block; margin: .5rem 0; } input[type=email], input[type=password], input[type=number] { display: block; padding: .3rem; min-width: 16rem; }
+.check { display: flex; gap: .5rem; align-items: flex-start; }
+.buttons { display: flex; gap: .5rem; margin: 1rem 0; } button { padding: .5rem 1rem; }
+.status { font-weight: 600; } .error { color: #b91c1c; font-weight: 600; }
+#transcript { padding-left: 1.5rem; } #transcript li { margin: .3rem 0; } .agent { color: #1d4ed8; } .candidate { color: #111; }
+pre { background: #f3f4f6; padding: .75rem; overflow: auto; white-space: pre-wrap; }

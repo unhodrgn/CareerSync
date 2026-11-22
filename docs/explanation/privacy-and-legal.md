@@ -14,7 +14,7 @@ What can still reach the LLM, and is tracked: unlabeled names of other people an
 
 - Registration needs consent to personal data processing and to AI analysis. AI consent is required to upload a CV and to apply.
 - Job recommendation uses a CV for jobs the seeker did not apply to, so it needs consent to the current consent text (D16); a user who consented to an older text consents again on the consent screen.
-- A seeker can withdraw AI consent at any time: every new AI use of their data stops (CV analysis, applying, recommendation, a company's 다시 분석 (re-analyze)), and they leave the talent pool. Stored CVs, evaluations and applications stay, and a run queued before the withdrawal finishes.
+- A seeker can withdraw AI consent at any time: every new AI use of their data stops (CV analysis, applying, recommendation, a company's 다시 분석 (re-analyze)), and they leave the talent pool. A practice interview in progress ends at once (D80): the Interview Agent makes no further model call, and what was said after that is not processed. Stored CVs, evaluations, applications and interview transcripts stay, and a run queued before the withdrawal finishes.
 - Appearing in talent recommendation needs a separate opt-in. Companies see an anonymous profile only, and contact details only after the seeker accepts an offer (D3, D19, D20).
 
 The AI never decides: it gives scores and evidence, and every status change (서류 검토 (reviewing), 면접 예정 (interview), 합격 (passed), 불합격 (rejected) …) is a recruiter's click.

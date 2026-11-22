@@ -88,15 +88,17 @@ class SessionClient:
         self.http, self.session_id, self.delays = http, session_id, tuple(delays)
         self.headers = {SECRET_HEADER: secret, ROOM_HEADER: room if room is not None else room_name(session_id, secret)}
 
-    async def context(self) -> dict:
-        return await self._request("GET", f"{BASE}/{self.session_id}/context")
+    async def context(self, *, retry: bool = True) -> dict:
+        """The session's context. `retry=False`: one attempt, for the status poll and the consent check before a model call, which must not
+        hold a turn for the retry delays (about 7.5 s) when the backend does not answer."""
+        return await self._request("GET", f"{BASE}/{self.session_id}/context", delays=None if retry else ())
 
     async def post_event(self, body: dict) -> dict:
         return await self._request("POST", f"{BASE}/{self.session_id}/events", json=body)
 
-    async def _request(self, method: str, path: str, **kw) -> dict:
+    async def _request(self, method: str, path: str, *, delays: tuple[float, ...] | None = None, **kw) -> dict:
         last: BackendError | None = None
-        for attempt, delay in enumerate((0.0, *self.delays)):
+        for attempt, delay in enumerate((0.0, *(self.delays if delays is None else delays))):
             if delay:
                 await asyncio.sleep(delay)
             try:

@@ -79,3 +79,19 @@ def test_a_retry_that_succeeds_returns_the_answer():
         return httpx.Response(502) if count["n"] == 1 else httpx.Response(200, json={"outcome": "duplicate"})
 
     assert run(lambda c: c.post_event({"type": "turn"}), handler) == {"outcome": "duplicate"}
+
+
+def test_a_context_read_without_retry_makes_one_attempt_and_the_default_retries():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(503)
+
+    with pytest.raises(Transient):
+        run(lambda c: c.context(retry=False), handler)
+    assert len(calls) == 1  # the status poll and the check before a model call never hold a turn for the retry delays
+    calls.clear()
+    with pytest.raises(Transient):
+        run(lambda c: c.context(), handler)
+    assert len(calls) == 3  # the first attempt and the two retries of `run` (delays=(0.0, 0.0))

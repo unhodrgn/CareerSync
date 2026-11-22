@@ -71,6 +71,9 @@ async def run(args: argparse.Namespace, read=input, write=print) -> int:
         if session_id is None:
             password = os.environ.get("INTERVIEW_DEMO_PASSWORD") or getpass.getpass("password: ")
             session_id = await create_session(http, args.job_id, args.email, password, args.consent)
+            if args.create_only:  # for `python -m interview_agent.voice console`: a created session that nobody has joined yet
+                write(f"created session {session_id}; INTERVIEW_AGENT_CONSOLE_SESSION_ID={session_id}")
+                return 0
         model = None
         if settings.uses_model:
             from interview_agent.turn_model import GroqTurnClient
@@ -112,9 +115,12 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--job-id", type=int)
     parser.add_argument("--email", help="the seeker to log in as, with --job-id")
     parser.add_argument("--consent", action="store_true", help="accept the transcript consent text, with --job-id")
+    parser.add_argument("--create-only", action="store_true", help="with --job-id: create the session, print its id and stop (for the voice worker's console mode)")
     args = parser.parse_args(argv)
     if args.job_id is not None and not args.email:
         parser.error("--job-id needs --email")
+    if args.create_only and args.job_id is None:
+        parser.error("--create-only goes with --job-id")
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     try:
         return asyncio.run(run(args))

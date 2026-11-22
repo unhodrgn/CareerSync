@@ -27,7 +27,8 @@ COVERED_ROUTES = {
     ("POST", "/api/interview-sessions/{session_id}/end"),
     ("DELETE", "/api/interview-sessions/{session_id}"),
     ("POST", "/api/interview-sessions/{session_id}/feedback"),
-}  # grows with each stage
+    ("POST", "/api/interview-sessions/{session_id}/join"),
+}  # grows with each stage; the join route (M5 S4) has its cases in test_interview_api_join.py
 
 CONSENT = "/api/interview-consent"
 SECRET = "SECRET-MARKER-답변-내용"

@@ -29,3 +29,8 @@ def test_a_missing_secret_exits_with_2_and_names_the_setting(monkeypatch, capsys
 def test_job_mode_needs_an_email():
     with pytest.raises(SystemExit):
         main(["--job-id", "3"])
+
+
+def test_create_only_goes_with_a_job_and_not_with_an_existing_session():
+    with pytest.raises(SystemExit):
+        main(["--session-id", "1", "--create-only"])

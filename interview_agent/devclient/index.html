@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>모의 면접 음성 테스트 (개발용)</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- livekit-client 2.24.1, pinned and checked with a Subresource Integrity hash (the hash of the PoC page, same file) -->
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.24.1/dist/livekit-client.umd.js"
+          integrity="sha384-GpoGEkJlx2sLomFuCCD/fOOaQojhrcwfW03ncXAYsWGWrC3G72awbt2c21WDrOvH"
+          crossorigin="anonymous"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>모의 면접 음성 테스트 <span class="tag">개발용</span></h1>
+    <p class="note" role="note">개발자가 음성 면접을 시험해 보는 페이지입니다. 서비스 화면이 아닙니다. 가상의 계정과 가상의 답변만 쓰세요. 마이크 음성만 전달되고, 카메라는 쓰지 않습니다.</p>
+  </header>
+  <main>
+    <section id="login-box" aria-label="로그인">
+      <h2>1. 로그인 (가상의 구직자 계정)</h2>
+      <label>이메일 <input id="email" type="email" autocomplete="off"></label>
+      <label>비밀번호 <input id="password" type="password" autocomplete="off"></label>
+      <button id="login" type="button">로그인</button>
+    </section>
+    <section id="start-box" aria-label="면접 시작" hidden>
+      <h2>2. 동의 확인과 시작</h2>
+      <h3 id="consent-title"></h3>
+      <ul id="consent-items"></ul>
+      <label class="check"><input id="agree" type="checkbox"> 위 내용을 확인했고, 이 모의 면접에 동의합니다.</label>
+      <label>공고 번호 <input id="job-id" type="number" min="1" value="1"></label>
+      <label>기존 세션 번호 <span class="hint">(비워 두면 새로 만듭니다. 이미 만든 세션에 다시 입장해 볼 때만 적습니다.)</span>
+        <input id="session-id" type="number" min="1"></label>
+      <div class="buttons">
+        <button id="start" type="button" disabled>면접 시작</button>
+        <button id="end" type="button" disabled>종료</button>
+        <button id="feedback" type="button" disabled>피드백 보기</button>
+      </div>
+    </section>
+    <p id="status" class="status" role="status" aria-live="polite">대기 중</p>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section aria-label="대화 기록">
+      <h2>대화 기록 <span class="hint">(서버에 저장된, 개인정보가 가려진 텍스트)</span></h2>
+      <ol id="transcript"></ol>
+    </section>
+    <section aria-label="측정값">
+      <h2>이 브라우저에서 잰 값</h2>
+      <pre id="metrics">아직 없음</pre>
+      <p class="hint">말이 끝난 뒤 면접관이 말하기까지의 시간은 이 페이지가 아니라 에이전트가 <code>interview_agent/.runs/</code>에 적는 보고서에 있습니다.</p>
+    </section>
+    <section aria-label="피드백" id="feedback-box" hidden>
+      <h2>피드백 (규칙 기반 또는 모델)</h2>
+      <pre id="feedback-text"></pre>
+    </section>
+  </main>
+  <div id="remote-audio" hidden></div>
+</body>
+</html>
