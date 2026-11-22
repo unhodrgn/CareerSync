@@ -1,4 +1,4 @@
-"""Text driver of the Interview Agent: a developer tool, not a seeker feature (M5 S2; docs/DECISIONS.md D79 (1)).
+"""Text driver of the Interview Agent: a developer tool, not a seeker feature (M5 S2; docs/DECISIONS.md D80 (1)).
 
 It runs the same runner the voice worker will run, with typed lines instead of speech. Two ways to start, from the repository root, in the
 agent's virtual environment (or the backend's: the rules mode needs no LiveKit package):

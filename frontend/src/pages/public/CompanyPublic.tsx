@@ -59,20 +59,19 @@ export default function CompanyPublic() {
   return (
     <div className={ui.page}>
       <PageHead title={c.name} back={back} />
-      <article className={ui.panel}>
-        <div className={ui.stack} style={{ gap: 18 }}>
-          <section>
+      <div className={s.companyOverview}>
+          <section className={ui.panel}>
             <h2 className={cx(ui.panelTitle, s.publicSectionTitle)}>{t('job.company')}</h2>
             <p className={ui.body}>{c.intro || t('job.companyIntroNone')}</p>
           </section>
           {c.talent_profile && (
-            <section>
+            <section className={ui.panel}>
               <h2 className={cx(ui.panelTitle, s.publicSectionTitle)}>{t('job.talentProfile')}</h2>
               <p className={ui.body}>{c.talent_profile}</p>
             </section>
           )}
           {c.projects.length > 0 && (
-            <section>
+            <section className={cx(ui.panel, s.companyProjects)}>
               <h2 className={cx(ui.panelTitle, s.publicSectionTitle)}>{t('job.projects')}</h2>
               <ul className={ui.list}>
                 {c.projects.map((p) => (
@@ -93,8 +92,7 @@ export default function CompanyPublic() {
               </ul>
             </section>
           )}
-        </div>
-      </article>
+      </div>
     </div>
   );
 }

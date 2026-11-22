@@ -198,7 +198,7 @@ def test_the_views_cut_a_hostile_transcript():
 
 # ── Architecture: who may call a model, acquire a client, import an SDK or read the raw transcript ──
 
-SCAN_ROOTS = ("ai", "backend/app", "interview_agent")  # interview_agent/: M5 S2 (D79), added on purpose by the tripwire below
+SCAN_ROOTS = ("ai", "backend/app", "interview_agent")  # interview_agent/: M5 S2 (D80), added on purpose by the tripwire below
 MODEL_SDKS = frozenset({"anthropic", "openai", "groq", "mistralai", "cohere", "ollama", "google"})
 EXPECTED_CALLERS = {  # every file that refers to `complete_json`, with its reason
     "ai/career/cv_review.py", "ai/career/interview.py", "ai/career/roadmap.py", "ai/jd/draft.py", "ai/parsing/extract.py",
@@ -214,7 +214,7 @@ EXPECTED_RUNTIME_USERS = {  # backend services that take the model client from `
 INTERVIEW_BACKEND = {  # the modules outside ai/interview that import it: S2 plan and lifecycle, S3a ingest, S3b feedback; a new one is a review point
     "backend/app/services/interview_plan_service.py", "backend/app/services/interview_service.py", "backend/app/services/interview_ingest_service.py",
     "backend/app/services/interview_feedback_service.py",
-    "interview_agent/runner.py",  # M5 S2 (D79): the agent runs the engine in-process (D56)
+    "interview_agent/runner.py",  # M5 S2 (D80): the agent runs the engine in-process (D56)
     "interview_agent/voice.py",  # M5 S4: the worker masks what it hears with the engine's `mask_spoken`; it calls no model and holds no LLM
 }
 CLIENT_OWNERS = {"backend/app/services/ai_runtime.py"}  # takes `get_llm_client` (ai/llm/client.py defines it and the SDK use)
@@ -358,7 +358,7 @@ def _agent(predicate) -> set[str]:
 
 
 def test_the_agent_calls_its_model_in_one_module_and_sends_it_only_what_ask_hands_over():
-    """M5 S2 (D52, D62 (B), D79 (5)): the agent's per-turn model is reached in one module, which holds no interview data (it imports
+    """M5 S2 (D52, D62 (B), D80 (5)): the agent's per-turn model is reached in one module, which holds no interview data (it imports
     neither the interview package nor the backend), and the only code of the agent that sends anything to a model is the runner's `ask`
     of a ModelInput that `prepare_turn` built. So what Groq receives is `ModelInput.system` and `ModelInput.user`, nothing else."""
     assert _agent(_imports_groq_plugin) == {AGENT_MODEL_CLIENT}

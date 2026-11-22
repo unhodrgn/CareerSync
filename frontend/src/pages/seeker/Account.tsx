@@ -43,8 +43,8 @@ export default function Account() {
 
   return (
     <div className={ui.page}>
-      <PageHead title={t('account.title')} tabTitle />
-      <div className={ui.stack}>
+      <PageHead title={t('account.title')} />
+      <div className={s.accountGrid}>
         <section className={ui.panel}>
           <div className={ui.panelHead}>
             <h2 className={ui.panelTitle}>{t('account.profile')}</h2>

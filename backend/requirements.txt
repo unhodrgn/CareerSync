@@ -1,4 +1,4 @@
-# The web framework and its two companions are pinned (docs/DECISIONS.md D78): a newer FastAPI changes the middleware stack that the no-store
+# The web framework and its two companions are pinned (docs/DECISIONS.md D79): a newer FastAPI changes the middleware stack that the no-store
 # guard (D67) reviews, so an upgrade is a decision, made with that guard. pydantic is the version the Interview Agent pins too.
 fastapi==0.142.4
 starlette==1.7.0
@@ -13,7 +13,7 @@ pyyaml>=6.0
 python-multipart>=0.0.9
 python-dotenv>=1.0
 
-# Voice interview (M5 S4, D56, D78): signs the join token of the Interview Agent's room. Pinned like the agent's own lock; it must stay below 2
+# Voice interview (M5 S4, D56, D79): signs the join token of the Interview Agent's room. Pinned like the agent's own lock; it must stay below 2
 # because livekit-agents 1.8.12 requires livekit-api<2.
 livekit-api==1.2.3
 

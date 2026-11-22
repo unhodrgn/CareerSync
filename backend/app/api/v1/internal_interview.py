@@ -1,4 +1,4 @@
-"""Internal API of the practice interview, for the Interview Agent only (M5 S1; docs/DECISIONS.md D56, D58, D79).
+"""Internal API of the practice interview, for the Interview Agent only (M5 S1; docs/DECISIONS.md D56, D58, D80).
 
 Two routes, both bound to one session's room and authenticated with the shared agent secret (`app/core/agent_auth.py`), never with a JWT:
 

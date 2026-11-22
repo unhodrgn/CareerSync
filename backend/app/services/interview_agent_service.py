@@ -1,12 +1,12 @@
-"""What the Interview Agent may read of a session (M5 S1; docs/DECISIONS.md D58, D79).
+"""What the Interview Agent may read of a session (M5 S1; docs/DECISIONS.md D58, D80).
 
 The internal context route calls `context`. It takes a session id and no user: the route authenticates the agent and binds it to the
 session's room first (`app/core/agent_auth.py`). It is a read: nothing is settled, purged or written, and no model is called.
 
 What the agent gets: the plan the backend stored (canonical, no CV quote, no weight), its digest, the limits the session runs with, the
 effective status and deadlines (`interview_time.derive`, so a session past its deadline reads `aborted`), the last stored sequence number,
-whether the seeker has the current AI consent (D80), and the seeker's display name as `mask_names`, so that the agent masks the name before
-any model sees an answer (D79 (3); the agent keeps it in memory only). Never: the CV, the email, a weight, the feedback, the coverage.
+whether the seeker has the current AI consent (D81), and the seeker's display name as `mask_names`, so that the agent masks the name before
+any model sees an answer (D80 (3); the agent keeps it in memory only). Never: the CV, the email, a weight, the feedback, the coverage.
 An unknown, deleted or expired session is 404 `INTERVIEW_NOT_FOUND`, as everywhere in the interview API.
 """
 from dataclasses import dataclass

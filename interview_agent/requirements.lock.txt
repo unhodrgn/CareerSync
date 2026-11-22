@@ -1,5 +1,5 @@
 # Full resolved set for requirements.txt (runtime only; pytest and its own iniconfig and pluggy are in requirements-dev.txt).
-# Resolved 2026-11-22 with Python 3.12.10 on Windows (win_amd64) by "pip install -r requirements-dev.txt" in a new virtual environment, then "pip freeze" (docs/DECISIONS.md D78).
+# Resolved 2026-11-22 with Python 3.12.10 on Windows (win_amd64) by "pip install -r requirements-dev.txt" in a new virtual environment, then "pip freeze" (docs/DECISIONS.md D79).
 # Reinstall exactly:  pip install -r requirements.lock.txt
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1

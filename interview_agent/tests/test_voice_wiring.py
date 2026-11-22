@@ -1,4 +1,4 @@
-"""How the voice worker is wired (M5 S4; docs/DECISIONS.md D52, D79). Real SDK objects where they are cheap to build; no room, audio, network or key.
+"""How the voice worker is wired (M5 S4; docs/DECISIONS.md D52, D80). Real SDK objects where they are cheap to build; no room, audio, network or key.
 
 Honest limit: nothing here talks to LiveKit. Dispatch into a room, the real recognizer and synthesizer, the turn detector on real Korean speech
 and the latency are the live checklist of `interview_agent/README.md`; the offline audio path (a scripted recognizer, a fake microphone) is in

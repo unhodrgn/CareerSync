@@ -1,8 +1,8 @@
-"""Re-consent and withdrawal of AI-analysis consent (docs/DECISIONS.md D17, D80).
+"""Re-consent and withdrawal of AI-analysis consent (docs/DECISIONS.md D17, D81).
 
 No history is kept: `users.consent_*` hold the latest consent only. Withdrawing AI consent stops
 every new AI use of the seeker's data (CV upload, apply, recommendation, 다시 분석, a new practice interview or feedback) and takes the
-seeker out of the talent pool. A practice interview that is in progress ends with it (D80): the seeker's planning, created and live
+seeker out of the talent pool. A practice interview that is in progress ends with it (D81): the seeker's planning, created and live
 sessions become `aborted` with the reason `consent_withdrawn`, in the same transaction, so the Interview Agent and every reader see one state.
 Data already stored stays, and a scoring run already queued finishes.
 """
@@ -37,7 +37,7 @@ def consent(db: Session, user: User, data: ConsentIn) -> User:
 
 def withdraw_ai(db: Session, user: User, *, now: datetime | None = None) -> User:
     """Keeps `consent_version` (the version last agreed to); turns the talent-pool opt-in off; ends the seeker's practice interviews that are
-    in progress (D80). All of it is one transaction. `now`: for tests; the real clock by default."""
+    in progress (D81). All of it is one transaction. `now`: for tests; the real clock by default."""
     if user.role != "seeker":
         raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
     user.consent_ai_at = None

@@ -1,4 +1,4 @@
-"""Schemas of the internal agent API of the practice interview (M5 S1; docs/DECISIONS.md D58, D79).
+"""Schemas of the internal agent API of the practice interview (M5 S1; docs/DECISIONS.md D58, D80).
 
 Only the Interview Agent calls these routes. The fields of an event are deliberately untyped (`object`): `interview_ingest_service`
 checks every type strictly (an integer that is not a bool, a string, a mapping) and answers with its own codes, so a typed field here

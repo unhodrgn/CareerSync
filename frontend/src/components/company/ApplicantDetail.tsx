@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { api } from '@/api/client';
 import { errorCode, errorText } from '@/api/errors';
 import { useApi } from '@/api/useApi';
@@ -15,6 +15,7 @@ import ui from '@/components/common/ui.module.css';
 import CandidateAvatar from './CandidateAvatar';
 import { t } from '@/i18n';
 import type { ApplicantRow, ApplicationStatus } from '@/types/application';
+import type { VerificationOut } from '@/types/verification';
 import { CATEGORIES, type Category } from '@/types/criteria';
 import s from './company.module.css';
 
@@ -25,67 +26,6 @@ const PROGRESS: ApplicationStatus[] = ['submitted', 'reviewing', 'interview'];
 const OUTCOME: ApplicationStatus[] = ['on_hold', 'passed', 'rejected'];
 type Confirmable = 'passed' | 'rejected';
 const needsConfirm = (x: ApplicationStatus): x is Confirmable => x === 'passed' || x === 'rejected';
-
-/**
- * The panel is CSS sticky (top) with its natural height, so the page is the only scroll container. CSS cannot keep a
- * panel taller than the window in view both ways, so only then this moves the sticky top with the scroll, once per
- * frame: down until the panel's bottom is in view, up until its top is, and nothing in between. A panel that fits
- * is left to CSS. Listeners, the observer and any pending frame are removed when the panel goes away.
- */
-function useStickyPanel(ref: RefObject<HTMLElement | null>) {
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const BOTTOM_GAP = 16;
-    const topGap = parseFloat(getComputedStyle(el).top) || 24;
-    let frame = 0;
-    let following = false;
-    let lastY = window.scrollY;
-    let prevTop = el.getBoundingClientRect().top;
-
-    const update = () => {
-      frame = 0;
-      const y = window.scrollY;
-      const minTop = Math.min(topGap, window.innerHeight - el.offsetHeight - BOTTOM_GAP);
-      const next = Math.min(topGap, Math.max(minTop, prevTop - (y - lastY)));
-      lastY = y;
-      el.style.top = `${next}px`;
-      prevTop = el.getBoundingClientRect().top;
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(update);
-    };
-    const stop = () => {
-      window.removeEventListener('scroll', onScroll);
-      cancelAnimationFrame(frame);
-      frame = 0;
-      el.style.top = '';
-      following = false;
-    };
-    // Re-checked whenever the panel or the window changes size (evaluation loaded, confirm opened, resize)
-    const sync = () => {
-      const tall = el.offsetHeight > window.innerHeight - topGap - BOTTOM_GAP;
-      if (tall && !following) {
-        lastY = window.scrollY;
-        prevTop = el.getBoundingClientRect().top;
-        window.addEventListener('scroll', onScroll, { passive: true });
-        following = true;
-      } else if (!tall && following) {
-        stop();
-      }
-      if (following) onScroll();
-    };
-    const observer = new ResizeObserver(sync);
-    observer.observe(el);
-    window.addEventListener('resize', sync);
-    sync();
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', sync);
-      stop();
-    };
-  }, [ref]);
-}
 
 /** True while the element is outside the window (the observer is removed with the element). */
 function useOutOfView(ref: RefObject<HTMLElement | null>) {
@@ -108,8 +48,8 @@ export interface DetailFocus {
 }
 
 /**
- * The selected applicant: the per-criterion evaluation with its CV evidence first, then the status in a footer
- * pinned to the bottom of the window while the panel runs past it (the page is the only scroll container). Status changes only by the recruiter's click (AI rule 5): 합격 and 불합격
+ * The selected applicant: criterion evaluations and CV evidence, followed by status controls.
+ * Status changes only by the recruiter's click (AI rule 5): 합격 and 불합격
  * ask first, every change can be undone once, and nothing reverts on its own. Remounts per applicant, so the
  * undo ends when another applicant is chosen.
  */
@@ -144,8 +84,6 @@ export default function ApplicantDetail({
   const gateTitleId = useId();
   // The evaluation's full gate (D50) once it has loaded; the row's (the same server helper) meanwhile
   const gate = (evaluation.state.status === 'ok' ? evaluation.state.data.required_gate : undefined) ?? row.required_gate;
-  const panelRef = useRef<HTMLElement>(null);
-  useStickyPanel(panelRef);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const headingAway = useOutOfView(headingRef);
   const prevRef = useRef<HTMLButtonElement>(null);
@@ -163,12 +101,28 @@ export default function ApplicantDetail({
   const [retryBusy, setRetryBusy] = useState(false);
   const [retryNote, setRetryNote] = useState<unknown>(null);
   const [retried, setRetried] = useState(false);
+  const [verification, setVerification] = useState<VerificationOut | null>(null);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationError, setVerificationError] = useState<unknown>(null);
+  const requestVerification = async () => {
+    setVerificationBusy(true);
+    setVerificationError(null);
+    try {
+      setVerification(await api.verificationQuestions(row.application_id));
+    } catch (e) {
+      setVerificationError(e);
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!focusRequest) return;
     const wanted = focusRequest.target === 'prev' ? prevRef.current : focusRequest.target === 'next' ? nextRef.current : null;
     // At the first or last applicant that button is disabled: the heading takes focus and announces the name
-    (wanted && !wanted.disabled ? wanted : headingRef.current)?.focus({ preventScroll: true });
+    const target = wanted && !wanted.disabled ? wanted : headingRef.current;
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: 'nearest' });
   }, [focusRequest]);
 
   const apply = async (status: ApplicationStatus, mode: 'change' | 'undo') => {
@@ -259,7 +213,7 @@ export default function ApplicantDetail({
   };
 
   return (
-    <aside ref={panelRef} className={cx(s.detail, ui.reveal)} aria-labelledby={headingId} onKeyDown={onKeyDown}>
+    <aside className={cx(s.detail, ui.reveal)} aria-labelledby={headingId} onKeyDown={onKeyDown}>
       <div className={s.detailNav} role="group" aria-label={t('apl.nav.label')}>
         <span className={s.navPosition}>{t('apl.nav.position', { n: position, total })}</span>
         {/* The heading says the name to assistive tech; this copy is only for the eye */}
@@ -395,6 +349,31 @@ export default function ApplicantDetail({
                 ))}
               </div>
             </AiBox>
+          )}
+        </section>
+        <section className={s.detailSection} aria-label="면접관용 이력서 검증 질문">
+          <h3 className={ui.sectionTitle}>면접관용 이력서 검증 질문</h3>
+          <p className={ui.caption}>이력서의 기술·프로젝트 경험 중 면접에서 확인할 부분을 최대 3개 추천합니다.</p>
+          <button type="button" className={cx(ui.btn, ui.secondary, ui.small)}
+            disabled={verificationBusy} onClick={() => void requestVerification()}>
+            {verificationBusy ? '질문 생성 중…' : '이력서 검증 질문 추천'}
+          </button>
+          {verificationError != null && <InlineError>{errorText(verificationError)}</InlineError>}
+          {verification && (
+            <div className={ui.stack}>
+              <AiNotice notice={verification.notice} method={verification.method} />
+              {verification.questions.length === 0 ? (
+                <p className={ui.caption}>검증 질문의 근거가 될 문장을 찾지 못했습니다.</p>
+              ) : verification.questions.map((item, index) => (
+                <div key={`${item.criterion_id}-${index}`} className={ui.panel}>
+                  <h4 className={ui.sectionTitle}>질문 {index + 1} · {item.criterion_name}</h4>
+                  <p>{item.question}</p>
+                  <blockquote>{item.cv_quote}</blockquote>
+                  <p className={ui.caption}>{item.reason}</p>
+                  <ul className={ui.list}>{item.check_points.map((point) => <li key={point}>{point}</li>)}</ul>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       </div>

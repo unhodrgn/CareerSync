@@ -1,4 +1,4 @@
-"""The microphone-only LiveKit token of a practice interview (M5 S4; docs/DECISIONS.md D56, D58, D79 (4)).
+"""The microphone-only LiveKit token of a practice interview (M5 S4; docs/DECISIONS.md D56, D58, D80 (4)).
 
 `issue` is what `POST /api/interview-sessions/{id}/join` calls. It signs a token for the browser of the owning seeker, locally: no network
 call, no model, no quota (the create already took the reservation), no database write. The token:

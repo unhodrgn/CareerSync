@@ -1,4 +1,4 @@
-"""The internal agent API of the practice interview (M5 S1; docs/DECISIONS.md D58, D79), on the real application.
+"""The internal agent API of the practice interview (M5 S1; docs/DECISIONS.md D58, D80), on the real application.
 
 `GET /api/internal/interview-sessions/{id}/context` and `POST …/events`: the shared secret and the room binding (`app/core/agent_auth.py`),
 what the context gives and never gives, and that the events route keeps the ingestion service's contract over HTTP. A real engine plays
@@ -198,7 +198,7 @@ def test_the_context_follows_the_session(api, db, world, sid, clock):
     assert body["status"] == "live" and body["last_seq"] == len(turn_rows(db, sid)) and body["last_seq"] >= 3
     db.get(User, world.user.id).consent_ai_at = None
     db.commit()
-    assert context(api, sid).json()["ai_consent"] is False  # read by the agent before each model call (D80, stage S3)
+    assert context(api, sid).json()["ai_consent"] is False  # read by the agent before each model call (D81, stage S3)
 
 
 def test_the_context_of_a_deleted_or_expired_session_is_404(api, db, world, sid, clock):

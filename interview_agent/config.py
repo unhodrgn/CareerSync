@@ -1,4 +1,4 @@
-"""Settings of the Interview Agent, from environment variables only (M5; docs/DECISIONS.md D52, D79).
+"""Settings of the Interview Agent, from environment variables only (M5; docs/DECISIONS.md D52, D80).
 
 The agent reads no `.env` file: the shell, Compose or the process manager sets its environment. The secret and the Groq key are never
 logged or printed.
@@ -6,11 +6,11 @@ logged or printed.
 | Name | Default | Meaning |
 |---|---|---|
 | `INTERVIEW_AGENT_BACKEND_URL` | `http://localhost:8000` | Base URL of the backend's internal agent API |
-| `INTERVIEW_AGENT_SECRET` | none (required) | The shared secret of the internal API, at least 32 characters (D79) |
+| `INTERVIEW_AGENT_SECRET` | none (required) | The shared secret of the internal API, at least 32 characters (D80) |
 | `AI_MODE` | `rules` | `rules`: no model call, the engine's rules for every turn; `llm`: Groq per turn (D52) |
 | `GROQ_API_KEY` | none | Required in `llm` mode |
 | `INTERVIEW_AGENT_LLM_MODEL` | `openai/gpt-oss-120b` | The Groq model (D52); a Claude model name is refused (the agent never calls Anthropic) |
-| `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` | `3` | Per-turn model timeout; the rules decide at once after it (D79). Never above the session's limit |
+| `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` | `3` | Per-turn model timeout; the rules decide at once after it (D80). Never above the session's limit |
 | `INTERVIEW_AGENT_REASONING_EFFORT` | `low` for `openai/gpt-oss-*`, else none | Sent to Groq as `reasoning_effort` |
 | `INTERVIEW_AGENT_DATA_DIR` | the repository's `data/` | Where `blocklist.yaml` and `interview_blocklist.yaml` are read |
 """
@@ -100,7 +100,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> AgentSettings:
 # | `INTERVIEW_AGENT_TTS_VOICE` | a Cartesia sample voice | The voice id; listen to the Korean output and change it if it sounds wrong |
 # | `INTERVIEW_AGENT_ENDPOINT_MIN_SECONDS` | `3.0` | Wait after the candidate's last speech when the turn detector thinks the sentence is complete |
 # | `INTERVIEW_AGENT_ENDPOINT_MAX_SECONDS` | `6.0` | Wait when it thinks the candidate is not done; the turn ends after this whatever it says |
-# | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | `5` | How often the worker asks the backend whether the session is still active (D79) |
+# | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | `5` | How often the worker asks the backend whether the session is still active (D80) |
 # | `INTERVIEW_AGENT_CONSOLE_SESSION_ID` | none | `console` mode only: the session to run (a console job carries no metadata) |
 DEFAULT_AGENT_NAME = "careersync-interviewer"  # the default of the backend's INTERVIEW_AGENT_NAME; a backend test checks that they agree
 DEFAULT_STT_MODEL = "deepgram/nova-3"

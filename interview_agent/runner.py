@@ -1,4 +1,4 @@
-"""The interview loop of the Interview Agent, independent of the transport (M5 S2; docs/DECISIONS.md D54, D56, D58, D62, D79).
+"""The interview loop of the Interview Agent, independent of the transport (M5 S2; docs/DECISIONS.md D54, D56, D58, D62, D80).
 
 The engine of `ai/interview/` makes every decision; the runner carries: it reads the session's context, runs the engine over the plan the
 backend stored, posts every line and answer to the internal API, and hands back the lines to speak. The text driver (`text_cli.py`) and
@@ -14,18 +14,18 @@ Rules it keeps:
 - **Stop.** A 404 (deleted, expired, or not this room), or `INTERVIEW_ALREADY_ENDED` / `INTERVIEW_NOT_ACTIVE` (ended by the seeker, time
   over): `Stopped` is raised and nothing more is posted. A permanent refusal (a 422, a conflict) or a backend that stays unreachable after
   the client's retries: the runner tries to post an `aborted` end with the reason `agent_error`, then stops. `check()` is the status poll
-  (about every 5 s in the voice worker, D79 (6)).
-- **The model** (D52, D79 (5)): only through the engine's flow, `prepare_turn` → `ask` → `parse_turn`, with the per-turn timeout (default
+  (about every 5 s in the voice worker, D80 (6)).
+- **The model** (D52, D80 (5)): only through the engine's flow, `prepare_turn` → `ask` → `parse_turn`, with the per-turn timeout (default
   3 s, never above the session's `turn_llm_deadline_seconds`). A timeout, an error or a rejected answer means the rules for that turn (D54);
   only the outcome and the time are logged, never a text.
-- **Consent withdrawal** (D80, Q39). When the seeker withdraws the AI consent, the backend ends the session (`consent_withdrawn`), so the
+- **Consent withdrawal** (D81, Q39). When the seeker withdraws the AI consent, the backend ends the session (`consent_withdrawn`), so the
   next post is refused and the status check stops the runner like any other end. In the model mode the runner also reads the context right
   before every model call (one attempt, no retry): a session that is no longer active stops it; a seeker without the current AI consent
   whose session is still active (the moment between two statements) makes it post an aborted end (`session_closed:consent_withdrawn`) and
   stop; a context it cannot read means no model call for that turn (the rules decide). A model call that started before the withdrawal
   may finish, but its answer is refused when posted, so nothing of it is stored. The rules mode makes no inference and needs no check.
 - **Personal data.** The engine masks every answer (with the seeker's display name from the context) before it is stored, posted or shown
-  to a model; the name lives in the engine's memory only and is never logged or posted (D79 (3)). The backend masks again before storing.
+  to a model; the name lives in the engine's memory only and is never logged or posted (D80 (3)). The backend masks again before storing.
 """
 import asyncio
 import logging
@@ -45,7 +45,7 @@ log = logging.getLogger("interview_agent.runner")
 BLOCKLIST_FILES = ("blocklist.yaml", "interview_blocklist.yaml")
 FINAL = (Phase.ENDED, Phase.ABORTED)
 ACTIVE = ("created", "live")
-CONSENT_WITHDRAWN = "consent_withdrawn"  # the backend's end reason (D80), and the reason this runner stops with
+CONSENT_WITHDRAWN = "consent_withdrawn"  # the backend's end reason (D81), and the reason this runner stops with
 
 
 class Stopped(Exception):
@@ -69,7 +69,7 @@ class InterviewRunner:
         self.llm_timeout = llm_timeout
         self.clock = clock
         self.engine: InterviewEngine | None = None
-        self.names: tuple[str, ...] = ()  # the seeker's display name from the context: in memory only, for masking (D79 (3)); never logged or posted
+        self.names: tuple[str, ...] = ()  # the seeker's display name from the context: in memory only, for masking (D80 (3)); never logged or posted
         self.stopped: str | None = None
         self.timings: list[tuple[str, float]] = []  # (outcome, seconds) of each model call, for the latency report
         self._plan: InterviewPlan | None = None
@@ -198,7 +198,7 @@ class InterviewRunner:
         return analysis
 
     async def _may_ask_the_model(self) -> bool:
-        """The check right before a model call (D80). `Stopped` when the session is gone or no longer active (the withdrawal itself ends it);
+        """The check right before a model call (D81). `Stopped` when the session is gone or no longer active (the withdrawal itself ends it);
         an aborted end and `Stopped` when it is active but the seeker has no current AI consent; False (the rules decide this turn) when the
         context cannot be read, because the consent cannot be shown to stand."""
         context = await self.check()

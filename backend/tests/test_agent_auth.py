@@ -1,4 +1,4 @@
-"""The Interview Agent's authentication helpers (M5 S1; docs/DECISIONS.md D79): the room name and the configured secret."""
+"""The Interview Agent's authentication helpers (M5 S1; docs/DECISIONS.md D80): the room name and the configured secret."""
 import hashlib
 import hmac
 

@@ -1,6 +1,6 @@
 # Interview Agent (M5)
 
-The realtime interviewer of the seeker practice interview (`docs/DECISIONS.md` D51–D58, D79, D80). It is a separate runtime with its own
+The realtime interviewer of the seeker practice interview (`docs/DECISIONS.md` D51–D58, D80, D81). It is a separate runtime with its own
 virtual environment (D56). It runs the engine of `ai/interview/` in-process and reaches the backend only through the internal agent API. It never
 touches the database and never imports the backend. Stages S0 to S4 exist: the agent core, a text driver, the consent-withdrawal rule, and the
 audio-only LiveKit voice worker with a developer test page. **The voice worker has not been run against a LiveKit project yet**: everything
@@ -21,15 +21,15 @@ below under "Live run" is still to do, and no latency figure exists.
     (`consent_withdrawn`).
 
   After a stop, nothing more is posted and the speech is interrupted by force (a plain interrupt would let an uninterruptible line play on).
-- **Consent withdrawal** (D80, Q39). The backend ends the seeker's active sessions when the AI consent is withdrawn, so the next post is refused
+- **Consent withdrawal** (D81, Q39). The backend ends the seeker's active sessions when the AI consent is withdrawn, so the next post is refused
   and the runner stops. In `AI_MODE=llm` the runner also reads the context right before every model call (one attempt, no retry): an ended session
   stops it; an active session whose seeker has no current consent gets an aborted end and a stop; an unreadable context means no model call for that
   turn. A call already running may finish, but its answer is refused when posted and nothing of it is stored.
-- **The model** (D52, D79 (5), D82). Groq `openai/gpt-oss-120b`, through the LiveKit Groq plugin, only in `AI_MODE=llm`. A turn goes only through
+- **The model** (D52, D80 (5), D83). Groq `openai/gpt-oss-120b`, through the LiveKit Groq plugin, only in `AI_MODE=llm`. A turn goes only through
   `prepare_turn` → `ai.interview.boundary.ask` → `parse_turn`. `turn_model.py` sends exactly `ModelInput.system` and `ModelInput.user`. The per-turn
   timeout defaults to 3 s and is never above the session's limit. After a timeout, an error or an invalid answer, the engine's rules decide at once.
 - **The voice session has no LLM.** `AgentSession` is built without `llm`: the SDK then still runs the hook that receives the answer and skips the
-  reply, so no transcript can reach a model except through `turn_model`. LiveKit's speech services are not LLMs (D79, Q35).
+  reply, so no transcript can reach a model except through `turn_model`. LiveKit's speech services are not LLMs (D80, Q35).
 - **Personal data.** Every transcript, interim and final, is masked in the speech-recognition node before anything else sees it, and again in the hook
   and by the engine, with the seeker's display name from the context (held in memory only). Logs carry codes and timings, never a text, a name, the
   secret or a key. `session.start(record=False)`: nothing is uploaded to LiveKit Cloud. Only the microphone is subscribed.
@@ -55,7 +55,7 @@ LiveKit's Inference data-processing terms to say (Q35); the consent drafts carry
 
 ## Setup (once)
 
-PowerShell, from the repository root. Python 3.12. The versions are pinned (D78).
+PowerShell, from the repository root. Python 3.12. The versions are pinned (D79).
 
 ```powershell
 py -3.12 -m venv interview_agent\.venv
@@ -64,7 +64,7 @@ interview_agent\.venv\Scripts\python.exe -m interview_agent.voice download-files
 ```
 
 `requirements.txt` holds the direct pins. `requirements.lock.txt` holds the full resolved set (`pip install -r interview_agent\requirements.lock.txt`
-reinstalls it exactly). `livekit-agents` stays at 1.8.12 (D78).
+reinstalls it exactly). `livekit-agents` stays at 1.8.12 (D79).
 
 ## Environment variables
 

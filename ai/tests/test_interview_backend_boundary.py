@@ -19,7 +19,7 @@ PLAN = SERVICES / "interview_plan_service.py"
 LIFECYCLE = SERVICES / "interview_service.py"
 INTERVIEW_SERVICES = sorted(SERVICES.glob("interview_*.py"))
 INTERVIEW_ROUTER = APP / "api" / "v1" / "interview_sessions.py"  # the seeker API (S4): the one module that serves the interview paths
-AGENT_ROUTER = APP / "api" / "v1" / "internal_interview.py"  # the Interview Agent's internal API (M5 S1, D79)
+AGENT_ROUTER = APP / "api" / "v1" / "internal_interview.py"  # the Interview Agent's internal API (M5 S1, D80)
 INTERVIEW_SCHEMAS = APP / "schemas" / "interview.py"
 INTERVIEW_CODE = [
     *INTERVIEW_SERVICES, APP / "models" / "interview.py", ROOT / "scripts" / "purge_interviews.py", INTERVIEW_ROUTER, INTERVIEW_SCHEMAS,
@@ -187,7 +187,7 @@ def imports_the_new_interview_code(tree: ast.AST) -> list[str]:
     ]
 
 
-# The one use of the interview code from outside it (M5 S3, D80): withdrawing the AI consent ends the seeker's sessions that are in progress.
+# The one use of the interview code from outside it (M5 S3, D81): withdrawing the AI consent ends the seeker's sessions that are in progress.
 # `consent_service` imports that single function and nothing else of the interview code; a second use is a review point.
 CONSENT_WITHDRAWAL_USE = {"backend/app/services/consent_service.py": ["app.services.interview_service.abort_for_consent_withdrawal"]}
 
@@ -195,7 +195,7 @@ CONSENT_WITHDRAWAL_USE = {"backend/app/services/consent_service.py": ["app.servi
 def test_no_other_backend_code_imports_the_interview_models_or_services():
     """Not the existing seeker features, not the scoring, not a company route or service: only the interview services, the model
     module, the package that re-exports the models, the interview routers (the seeker's, and the agent's internal one since M5 S1,
-    which import services, never the models), and the one named use of D80 (`CONSENT_WITHDRAWAL_USE`)."""
+    which import services, never the models), and the one named use of D81 (`CONSENT_WITHDRAWAL_USE`)."""
     allowed = {*INTERVIEW_SERVICES, APP / "models" / "interview.py", APP / "models" / "__init__.py", INTERVIEW_ROUTER, AGENT_ROUTER}
     found = {
         path.relative_to(ROOT).as_posix(): imports_the_new_interview_code(tree_of(path))
@@ -303,13 +303,13 @@ def test_the_interview_code_reads_no_environment_variable():
     for n in ast.walk(tree_of(APP / "core" / "config.py")):
         if isinstance(n, ast.Call) and call_name(n) in ENV_READERS and n.args and isinstance(n.args[0], ast.Constant):
             names.append(n.args[0].value)
-    # M5 S1 (D79) added the agent's shared secret; S4 adds the LiveKit project the join token is signed for and the agent's name
+    # M5 S1 (D80) added the agent's shared secret; S4 adds the LiveKit project the join token is signed for and the agent's name
     assert sorted(x for x in names if x.startswith(("INTERVIEW_", "LIVEKIT_"))) == [
         "INTERVIEW_AGENT_NAME", "INTERVIEW_AGENT_SECRET", "INTERVIEW_BLOCKLIST_PATH", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "LIVEKIT_URL",
     ]
 
 
-AGENT_SECRET_READERS = {"core/config.py", "core/agent_auth.py"}  # M5 S1 (D79): read in config, checked in the one auth module
+AGENT_SECRET_READERS = {"core/config.py", "core/agent_auth.py"}  # M5 S1 (D80): read in config, checked in the one auth module
 
 
 LIVEKIT_SECRET_READERS = {"core/config.py", "services/interview_join_service.py"}  # M5 S4: read in config, used to sign the join token
@@ -324,7 +324,7 @@ def calls_logger(tree: ast.AST) -> bool:
 
 
 def test_livekit_is_in_the_backend_only_as_the_pinned_token_signer_and_the_backend_never_imports_the_agent():
-    """M5 S4 (D56, D78, D79): the backend uses one LiveKit package, `livekit-api`, pinned, in one module (`interview_join_service`), only to
+    """M5 S4 (D56, D79, D80): the backend uses one LiveKit package, `livekit-api`, pinned, in one module (`interview_join_service`), only to
     sign a token (`from livekit import api`, no network call). At no stage does it import the agent's code (the agent reaches it over
     HTTP only). Only the settings and the auth module know the agent's secret, and only the settings and the join service the LiveKit
     secret, which the join service never logs."""

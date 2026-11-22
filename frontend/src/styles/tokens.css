@@ -70,14 +70,13 @@
   --shadow-card: 3px 5px 30px 0 rgb(0 0 0 / 0.22);
 
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
-  --focus-color: var(--color-seeker);
+  --focus-color: var(--ds-focus);
 
-  /* ── App design system (every page except the landing; DESIGN.md). One mint palette for both roles. ──
-     The landing keeps the tokens above; nothing above changes value. */
+  /* Shared CareerSync theme */
 
   /* Surfaces */
   --ds-bg: #ffffff; /* page, rail, header */
-  --ds-panel: #f4f5f7; /* the large rounded content panel behind the cards */
+  --ds-panel: #eef3f7; /* the large rounded content panel behind the cards */
   --ds-surface: #ffffff; /* cards */
   --ds-sunken: #f7f8fa; /* fills inside cards */
   --ds-chip: #eceef1; /* filter chips, neutral tags */
@@ -85,30 +84,30 @@
   --ds-tag: #eef3f1; /* small meta tags on cards */
 
   /* Text and lines */
-  --ds-ink: #111111;
-  --ds-ink-2: #3a3a3c;
-  --ds-muted: #646b78; /* meta and captions; passes 4.5:1 on white (5.4:1) and on the panel (4.9:1) */
-  --ds-line: #ececee;
-  --ds-line-strong: #dcdfe3; /* input borders, outlined buttons at rest */
+  --ds-ink: #172c46;
+  --ds-ink-2: #354d65;
+  --ds-muted: #52677d; /* meta and captions; passes 4.5:1 on white (5.4:1) and on the panel (4.9:1) */
+  --ds-line: #dce5ee;
+  --ds-line-strong: #c4d1de; /* input borders, outlined buttons at rest */
 
-  /* Accent: the one primary action, rings and selected states. Text on the accent is ink, never white. */
-  --ds-accent: #00eb9c; /* measured from the reference's APPLY NOW buttons */
-  --ds-accent-hover: #00d48c;
-  --ds-on-accent: #0b0b0b;
-  --ds-accent-soft: #b2fae2; /* the reference's highlighted chat bubble */
-  --ds-accent-wash: #eef8f3; /* the current rail item */
-  --ds-ring: #2dd4a7; /* progress rings */
-  --ds-accent-text: #067a55; /* accent-colored text and links on white (4.9:1) */
-  --ds-focus: #0b8f6c; /* focus outlines (3:1 or more on white and the panel) */
-  --ds-halo: 0 0 0 4px rgb(0 235 156 / 0.3); /* the focus halo around inputs, checkboxes and radios */
+  /* Navy actions and teal match indicators */
+  --ds-accent: #193653; /* measured from the reference's APPLY NOW buttons */
+  --ds-accent-hover: #254968;
+  --ds-on-accent: #ffffff;
+  --ds-accent-soft: #d5eeea; /* the reference's highlighted chat bubble */
+  --ds-accent-wash: #eaf6f4; /* the current rail item */
+  --ds-ring: #148577; /* progress rings */
+  --ds-accent-text: #11645d; /* accent-colored text and links on white (4.9:1) */
+  --ds-focus: #13776e; /* focus outlines (3:1 or more on white and the panel) */
+  --ds-halo: 0 0 0 4px rgb(19 119 110 / 0.25); /* the focus halo around inputs, checkboxes and radios */
 
   /* Disabled controls: a gray fill with muted text, never a faded accent */
   --ds-disabled: #e7e9ec;
   --ds-on-disabled: #8b9099;
 
   /* The dark match panel */
-  --ds-match-from: #07120f;
-  --ds-match-to: #0f5e4a;
+  --ds-match-from: #142c48;
+  --ds-match-to: #105b55;
   --ds-on-match: #ffffff;
   --ds-on-match-muted: rgb(255 255 255 / 0.78);
 
@@ -117,7 +116,7 @@
   --ds-weight-medium: 500;
   --ds-weight-bold: 700;
   --ds-text-section: 24px; /* the section name in the shell header */
-  --ds-text-title: 22px; /* page H1 */
+  --ds-text-title: clamp(24px, 3vw, 32px); /* page H1 */
   --ds-text-card-title: 18px;
   --ds-text-heading: 18px;
   --ds-text-body: 15px;

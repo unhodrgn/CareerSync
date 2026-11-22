@@ -68,12 +68,12 @@ _T = InterviewTurn.__table__
 _ACTIVE = InterviewStatus.ACTIVE
 
 NOT_FOUND = "INTERVIEW_NOT_FOUND"
-CONSENT_WITHDRAWN = "consent_withdrawn"  # the end reason of a session that ended because the seeker withdrew the AI consent (D80)
+CONSENT_WITHDRAWN = "consent_withdrawn"  # the end reason of a session that ended because the seeker withdrew the AI consent (D81)
 CONSENT_REQUIRED = "AI_CONSENT_REQUIRED"
 
 
 def consent_required_error() -> AppError:
-    """A practice interview without the current AI consent (D17, D65 (5), D80): one error for every place that refuses it by name, the join
+    """A practice interview without the current AI consent (D17, D65 (5), D81): one error for every place that refuses it by name, the join
     route (M5 S4) and a session whose planning a withdrawal ended. Its code is the one of the other AI features."""
     return AppError(409, CONSENT_REQUIRED, "모의 면접을 하려면 최신 AI 분석 동의가 필요합니다.")
 
@@ -524,7 +524,7 @@ def delete(db: Session, user: User, session_id: int, *, clock: Clock = utcnow) -
 
 
 def abort_for_consent_withdrawal(db: Session, seeker_id: int, now: datetime) -> int:
-    """The seeker withdrew the global AI consent (D17, D65 (5), D80): every planning, created or live session of theirs that is still inside
+    """The seeker withdrew the global AI consent (D17, D65 (5), D81): every planning, created or live session of theirs that is still inside
     its time becomes `aborted` with the reason `consent_withdrawn`, `ended_at` now. The number of sessions ended.
 
     The rules are those of the seeker's own End: a session past its deadline (a live one: past the end grace) is not claimed here and keeps

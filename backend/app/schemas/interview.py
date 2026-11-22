@@ -29,7 +29,7 @@ class ConsentTextOut(BaseModel):
 
 
 class JoinOut(BaseModel):
-    """What the browser needs to join the room of a created session (M5 S4, D79 (4)): the LiveKit URL, a microphone-only token for that one
+    """What the browser needs to join the room of a created session (M5 S4, D80 (4)): the LiveKit URL, a microphone-only token for that one
     room, the room name, and when the token stops being valid. No AI result, so no `notice`."""
 
     model_config = ConfigDict(from_attributes=True)

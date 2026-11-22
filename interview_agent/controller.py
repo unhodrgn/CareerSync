@@ -1,4 +1,4 @@
-"""The conversation around the runner, independent of LiveKit (M5 S4; docs/DECISIONS.md D54, D55, D79).
+"""The conversation around the runner, independent of LiveKit (M5 S4; docs/DECISIONS.md D54, D55, D80).
 
 `VoiceController` is everything the voice worker does that is not audio: it holds the rules of who may talk when, and it calls the runner.
 The worker (`voice.py`) gives it three things, so it needs no room, no microphone and no network, and the backend suite runs it against the
@@ -13,7 +13,7 @@ a clock.
 - **Silence.** `tick()`, called about once a second, hands the engine the seconds of silence since the interviewer's last question or the
   candidate's last word, while nobody is speaking: the engine decides on a nudge, a skip or, when time is short, the wrap-up.
 - **Status.** About every `status_poll_seconds` it reads the context (`runner.check()`): a deleted session, one the seeker ended, or one ended
-  by a consent withdrawal (D80) stops everything within that time, even while the candidate is silent or speaking.
+  by a consent withdrawal (D81) stops everything within that time, even while the candidate is silent or speaking.
 - **Ending.** The runner posts the one end event; the controller speaks the closing line, if there is one, and finishes. On a stop it
   interrupts the speech, posts nothing, and finishes. `done` is set once, with `outcome`.
 

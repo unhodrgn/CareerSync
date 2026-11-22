@@ -9,7 +9,7 @@
 }
 
 .head {
-  margin-bottom: 14px;
+  margin-bottom: 20px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -51,16 +51,6 @@
   color: var(--ds-muted);
 }
 
-/* The shell's header carries the title: only the lead and actions are left */
-.headCompact {
-  align-items: center;
-  margin-bottom: var(--ds-space-4);
-}
-
-.leadFirst {
-  margin-top: 0;
-}
-
 .actions {
   flex: none;
   display: flex;
@@ -80,6 +70,7 @@
   min-width: 0;
   padding: var(--ds-space-6);
   border-radius: calc(var(--ds-radius-card) + 4px);
+  border: 1px solid var(--ds-line);
   background: var(--ds-surface);
   box-shadow: var(--ds-shadow-card);
 }
@@ -311,7 +302,7 @@
   gap: 6px;
   padding: 5px 12px;
   border-radius: var(--ds-radius-pill);
-  background: var(--ds-ink);
+  background: var(--ds-accent-text);
   color: var(--ds-bg);
   font-size: var(--ds-text-tiny);
   font-weight: var(--ds-weight-bold);
@@ -324,7 +315,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--ds-accent);
+  background: currentColor;
 }
 
 .band[data-size='lg'] {
@@ -1463,5 +1454,27 @@
   /* A <details> disclosure: its content drops into place when it opens (closing is immediate) */
   .disclosure[open] > :not(summary) {
     animation: drop 200ms var(--ease-out) backwards;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    --ds-space-6: 16px;
+    --ds-space-7: 20px;
+    padding-bottom: 28px;
+  }
+
+  .head, .panelHead {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .recordRow, .facts {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

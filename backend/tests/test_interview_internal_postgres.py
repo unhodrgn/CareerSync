@@ -1,4 +1,4 @@
-"""Real parallel requests against the internal agent API (M5 S1; docs/DECISIONS.md D79): PostgreSQL only.
+"""Real parallel requests against the internal agent API (M5 S1; docs/DECISIONS.md D80): PostgreSQL only.
 
 These need `TEST_DATABASE_URL=postgresql+psycopg://…` (a throwaway database: the fixture drops every table) and are SKIPPED without it.
 Each request gets its own database session, as in production, and the threads are released together. The ingestion service's own races

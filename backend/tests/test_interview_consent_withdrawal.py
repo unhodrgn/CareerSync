@@ -1,4 +1,4 @@
-"""Withdrawing the AI consent ends the practice interviews in progress (M5 S3; docs/DECISIONS.md D17, D65 (5), D80; resolves Q39).
+"""Withdrawing the AI consent ends the practice interviews in progress (M5 S3; docs/DECISIONS.md D17, D65 (5), D81; resolves Q39).
 
 `consent_service.withdraw_ai` settles the seeker's planning, created and live sessions to `aborted` with the reason `consent_withdrawn`, in
 the same transaction as the withdrawal. These tests show which sessions it claims and which it leaves alone, that it is one transaction,

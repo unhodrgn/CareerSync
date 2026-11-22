@@ -30,10 +30,10 @@ const GATE_CODES = ['AI_CONSENT_REQUIRED', 'CV_NOT_CONFIRMED', 'CV_NOT_FOUND'];
 const isGate = (error: unknown) => GATE_CODES.includes(errorCode(error) ?? '');
 
 /** Reports a gate error to the page (once per error) instead of drawing it inside the tab. */
-function useGate(error: unknown, onGate: (e: unknown) => void) {
-  const gated = error != null && isGate(error);
+function useGate(error: unknown, onGate?: (e: unknown) => void) {
+  const gated = onGate !== undefined && error != null && isGate(error);
   useEffect(() => {
-    if (gated) onGate(error);
+    if (gated) onGate?.(error);
   }, [gated, error, onGate]);
   return gated;
 }
@@ -148,13 +148,13 @@ export default function JobPrep() {
   );
 }
 
-function Gaps({ jobId, onGate }: { jobId: number; onGate: (e: unknown) => void }) {
+export function Gaps({ jobId, onGate, compact }: { jobId: number; onGate?: (e: unknown) => void; compact?: boolean }) {
   const { state, reload } = useApi(() => api.roadmap(jobId), [jobId]);
   const gated = useGate(state.error, onGate);
   if (state.status === 'loading') return <AiLoading text={t('ai.working.roadmap')} />;
   if (gated) return null;
   if (state.status === 'error') return <PrepError error={state.error} onRetry={reload} />;
-  return <Roadmap data={state.data} />;
+  return <Roadmap data={state.data} compact={compact} />;
 }
 
 /** A tab's AI result is being made: the blue working line over skeleton rows. */
@@ -173,7 +173,7 @@ function PrepError({ error, onRetry }: { error: unknown; onRetry: () => void }) 
   return <SeekerGate error={error} onRetry={onRetry} />;
 }
 
-function Roadmap({ data }: { data: RoadmapOut }) {
+function Roadmap({ data, compact }: { data: RoadmapOut; compact?: boolean }) {
   if (data.gaps.length === 0) {
     return (
       <div className={ui.stack}>
@@ -195,7 +195,7 @@ function Roadmap({ data }: { data: RoadmapOut }) {
     <div className={ui.stack}>
       <AiNotice notice={data.notice} method={data.method} />
       {data.limited && <p className={ui.caption}>{t('common.limited')}</p>}
-      <div className={s.prepGrid}>
+      <div className={compact ? ui.stack : s.prepGrid}>
         {/* Skill gaps: what the AI pipeline found missing in the CV text */}
         <AiBox card>
           <div className={ui.panelHead}>

@@ -1,120 +1,91 @@
-import type { ReactNode } from 'react';
+import type { MouseEventHandler, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { experienceLabel } from '@/components/common/format';
-import { BriefcaseIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@/components/common/icons';
+import { experienceLabel, formatDate } from '@/components/common/format';
+import { BriefcaseIcon, CalendarIcon, ChevronRightIcon, ClockIcon, MapPinIcon } from '@/components/common/icons';
 import { Deadline, employmentLabel } from '@/components/common/Labels';
-import { JobIconTile } from '@/components/common/JobIconTile';
 import { cx } from '@/components/common/Page';
 import { GateTag, hasGate } from '@/components/common/RequiredGate';
 import ui from '@/components/common/ui.module.css';
+import { t } from '@/i18n';
 import type { RequiredGateOut } from '@/types/gate';
 import type { EmploymentType } from '@/types/job';
 import type { MatchScores } from '@/types/recommendation';
-import { isScore, MatchReasons, MatchSummary, type PreferenceStatus } from './Match';
+import { isScore, MatchPanel, MatchSummary } from './Match';
 import c from './jobCard.module.css';
 
-export interface JobCardJob {
+interface JobCardJob {
   title: string;
   company_name: string;
   location: string;
   employment_type: EmploymentType;
-  /** `undefined` = not known for this item (left out); `null` = 신입 가능. */
   min_experience_years?: number | null;
   deadline: string | null;
   expired?: boolean;
-  /** How many criteria the company set; `undefined` = not known (left out). */
-  criteria_count?: number;
+  published_at?: string | null;
 }
 
-/**
- * A recommended job as a white card (DESIGN.md Job card): the job-type icon tile, title and company, one row of
- * facts, then what the match is made of (the company's criteria by category and the seeker's preferences, D42) with
- * the card's own actions beside it. With a valid match score the score and its band sit on the right, on white
- * behind a hairline; missing or partial scores only hide those parts.
- * The title link is stretched over the whole card and is its only link to the job, so the card has one tab stop
- * for the job; the card's own `actions` sit above it, so nothing interactive is nested in a link.
- */
 export default function JobCard({
-  to,
-  job,
-  scores,
-  prefs,
-  actions,
-  gate,
+  to, job, scores, actions, gate, selected, onOpen, browse = false,
 }: {
   to: string;
   job: JobCardJob;
-  scores?: Partial<MatchScores> | null;
-  /** Whether the seeker has preferences (D46): the preference score shows as a number only when they do. */
-  prefs: PreferenceStatus;
+  scores?: MatchScores | null;
   actions?: ReactNode;
-  /** Required criteria gate (D50): shown with the job's facts, apart from the match score; nothing without a check. */
   gate?: RequiredGateOut | null;
+  selected?: boolean;
+  browse?: boolean;
+  onOpen?: MouseEventHandler<HTMLAnchorElement>;
 }) {
-  const scored = scores != null && isScore(scores.match_score);
-  const reasons = scores ? (
-    <MatchReasons categories={scores.categories} preference={scores.preference_score} prefs={prefs} criteriaCount={job.criteria_count} />
-  ) : null;
+  const hasMatch = !browse && scores != null && isScore(scores.match_score);
   return (
-    <li className={c.card} data-scored={scored || undefined}>
-      <div className={c.body}>
+    <li className={cx(c.card, browse && c.browseCard)} data-selected={selected || undefined} data-match={hasMatch || undefined}>
+      <div className={c.cardBody}>
         <div className={c.head}>
-          <JobIconTile title={job.title} />
+          <div className={c.identity}>
+            <span className={c.monogram} aria-hidden="true">{Array.from(job.company_name.trim())[0]?.toUpperCase() || '·'}</span>
+            {browse && job.published_at && <time dateTime={job.published_at}>{formatDate(job.published_at)}</time>}
+          </div>
           <div className={c.headText}>
-            <Link to={to} className={c.title}>
-              {job.title}
-            </Link>
+            <h3 className={c.title}>{job.title}</h3>
             <p className={c.company}>{job.company_name}</p>
           </div>
         </div>
 
         <ul className={c.facts}>
-          <li>
-            <MapPinIcon width={17} height={17} />
-            {job.location}
-          </li>
-          <li>
-            <ClockIcon width={17} height={17} />
-            {employmentLabel(job.employment_type)}
-          </li>
+          {job.location && <li><MapPinIcon width={16} height={16} />{job.location}</li>}
+          <li><ClockIcon width={16} height={16} />{employmentLabel(job.employment_type)}</li>
           {job.min_experience_years !== undefined && (
-            <li>
-              <BriefcaseIcon width={17} height={17} />
-              {experienceLabel(job.min_experience_years)}
-            </li>
+            <li><BriefcaseIcon width={16} height={16} />{experienceLabel(job.min_experience_years)}</li>
           )}
-          {hasGate(gate) && (
-            <li>
-              <GateTag status={gate.status} />
-            </li>
-          )}
-          <li>
-            <CalendarIcon width={17} height={17} />
-            <Deadline job={job} />
-          </li>
+          <li><CalendarIcon width={16} height={16} /><Deadline job={job} /></li>
+          {hasGate(gate) && <li><GateTag status={gate.status} /></li>}
         </ul>
 
-        {(reasons || actions) && (
-          <div className={c.foot}>
-            {reasons}
-            {actions && <div className={c.actions}>{actions}</div>}
+        <div className={c.foot}>
+          {scores && <span className={c.inlineMatch}><MatchSummary score={scores.match_score} level={scores.match_level} size="sm" /></span>}
+          <div className={c.actions}>
+            {actions}
+            <Link
+              to={to}
+              className={cx(ui.btn, ui.primary, ui.small, c.open)}
+              aria-label={t('jobs.detailsFor', { title: job.title })}
+              aria-current={selected || undefined}
+              onClick={onOpen}
+            >
+              {t('jobs.details')} <ChevronRightIcon width={15} height={15} />
+            </Link>
           </div>
-        )}
+        </div>
       </div>
-      {scored && (
-        <div className={c.side}>
-          <MatchSummary score={scores.match_score} level={scores.match_level} />
+      {hasMatch && (
+        <div className={c.matchTile}>
+          <MatchPanel score={scores.match_score} level={scores.match_level} compact />
         </div>
       )}
     </li>
   );
 }
 
-/** The list the cards sit in. */
-export function JobCardList({ children, label }: { children: ReactNode; label?: string }) {
-  return (
-    <ul className={cx(c.list, ui.stagger)} aria-label={label}>
-      {children}
-    </ul>
-  );
+export function JobCardList({ children, label, grid = false, count }: { children: ReactNode; label: string; grid?: boolean; count?: number }) {
+  return <ul className={cx(c.list, grid && c.grid, grid && count === 2 && c.two)} aria-label={label}>{children}</ul>;
 }

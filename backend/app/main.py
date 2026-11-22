@@ -65,7 +65,7 @@ app.include_router(recommendations.router, prefix="/api")
 app.include_router(talent.router, prefix="/api")
 app.include_router(career.router, prefix="/api")
 app.include_router(interview_sessions.router, prefix="/api")
-app.include_router(internal_interview.router, prefix="/api")  # the Interview Agent only (M5, D79)
+app.include_router(internal_interview.router, prefix="/api")  # the Interview Agent only (M5, D80)
 
 
 @app.exception_handler(AppError)

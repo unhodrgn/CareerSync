@@ -1,4 +1,4 @@
-"""The room of a session and the dispatch metadata (docs/DECISIONS.md D58, D79): the room is `HMAC-SHA256(secret, session id)`, the formula of the backend's
+"""The room of a session and the dispatch metadata (docs/DECISIONS.md D58, D80): the room is `HMAC-SHA256(secret, session id)`, the formula of the backend's
 `app/core/agent_auth.py`. The agent never imports the backend (D56), so it is written here again; a backend test checks that both agree."""
 import hashlib
 import hmac

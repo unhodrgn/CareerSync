@@ -1,4 +1,4 @@
-"""The rules of the voice conversation (M5 S4; docs/DECISIONS.md D54, D79), with a fake runner and a fake voice: no LiveKit, no backend.
+"""The rules of the voice conversation (M5 S4; docs/DECISIONS.md D54, D80), with a fake runner and a fake voice: no LiveKit, no backend.
 
 The same controller runs against the real runner and the real application in backend/tests/test_interview_voice_controller.py."""
 import asyncio

@@ -5,10 +5,11 @@ import type { ApplicantFilters, ApplicantList, ApplicationOut, ApplicationStatus
 import type { ConsentIn, LoginIn, RegisterIn, TokenOut, UserOut } from '@/types/auth';
 import type { InterviewOut, RoadmapOut } from '@/types/career';
 import type { AppErrorBody, ValidationIssue } from '@/types/common';
+import type { VerificationOut } from '@/types/verification';
 import type { CompanyOut, CompanyProjectIn, CompanyProjectOut, CompanyPublicOut, CompanyUpdate } from '@/types/company';
 import type { CheckResult, CriteriaSetOut, CriteriaView, CriterionIn } from '@/types/criteria';
 import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
-import type { JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate } from '@/types/job';
+import type { CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate, PosterTextOut } from '@/types/job';
 import type { PreferenceIn, PreferenceOut } from '@/types/preference';
 import type { JobMatch, JobScoreList, RecommendationList } from '@/types/recommendation';
 import type { OfferCreate, SeekerOffer, SentOffer, TalentList } from '@/types/talent';
@@ -150,6 +151,12 @@ export const api = {
   saveCriteria: (jobId: number, items: CriterionIn[]) => request<CriteriaSetOut>('PUT', `/jobs/${jobId}/criteria`, { items }),
   checkCriterion: (name: string, description: string) => request<CheckResult>('POST', '/criteria/check', { name, description }),
   analyzeJob: (jobId: number) => request<JdAnalysisOut>('POST', `/jobs/${jobId}/analyze`),
+  previewCriteria: (body: CriteriaPreviewIn) => request<CriteriaPreviewOut>('POST', '/jobs/criteria-preview', body),
+  extractPosterText: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<PosterTextOut>('POST', '/jobs/poster-text', form);
+  },
   draftJd: (jobId: number, body: JdDraftIn) => request<JdDraftOut>('POST', `/jobs/${jobId}/jd-draft`, body),
 
   // Company: applicants and evaluation (status changes only from a recruiter's click, AI rule 5)
@@ -163,6 +170,7 @@ export const api = {
     return request<ApplicantList>('GET', `/jobs/${jobId}/applications${text ? `?${text}` : ''}`);
   },
   evaluation: (applicationId: number) => request<EvaluationOut>('GET', `/applications/${applicationId}/evaluation`),
+  verificationQuestions: (applicationId: number) => request<VerificationOut>('POST', `/applications/${applicationId}/verification-questions`),
   retryEvaluation: (applicationId: number) => request<EvaluationOut>('POST', `/applications/${applicationId}/evaluation/retry`),
   setApplicationStatus: (applicationId: number, status: ApplicationStatus) =>
     request<ApplicationOut>('PUT', `/applications/${applicationId}/status`, { status }),

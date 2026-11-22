@@ -1,4 +1,4 @@
-"""`POST /api/interview-sessions/{session_id}/join` (M5 S4; docs/DECISIONS.md D56, D58, D79 (4)): the microphone-only LiveKit token.
+"""`POST /api/interview-sessions/{session_id}/join` (M5 S4; docs/DECISIONS.md D56, D58, D80 (4)): the microphone-only LiveKit token.
 
 The route calls `interview_join_service.issue`. These tests decode the token it signs and show what it can and cannot do: one room (the
 room of the session, an HMAC of its id), the microphone only, no data, a short life that never outlasts the join time, a random identity, and

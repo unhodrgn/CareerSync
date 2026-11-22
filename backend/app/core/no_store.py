@@ -19,10 +19,15 @@ miss one response, so there are two parts, installed together by `install(app)`:
    Outside the interview paths the response is untouched. The handler logs nothing and swallows nothing: Starlette re-raises after it, so
    the server logs the error as it always did.
 
-Nothing else is outside the middleware. The layers in front of it in FastAPI's stack are `ServerErrorMiddleware` (the 500, above) and an
-exception-telemetry layer that only observes and re-raises; a test walks the real stack and fails if a library upgrade adds another one, or
-if a middleware is added after this one (the last added is the outermost). Debug mode would show a traceback page before any handler, so a
-test asserts that the application is not in debug mode.
+Nothing else is outside the middleware. The layers in front of it in FastAPI's stack are `ServerErrorMiddleware` (the 500, above), an
+exception-telemetry layer that only observes and re-raises, and, from FastAPI 0.164, `AppBodyLimitMiddleware`, which FastAPI adds
+unconditionally in front of every user middleware (docs/DECISIONS.md D78). That layer is a pass-through while no request body limit is
+configured: it installs Starlette's limiter only when `FastAPI(max_body_size=...)` is set, and neither the application nor a router nor a
+route sets one. With a limit on the application, the limiter answers an oversized declared Content-Length with a plain-text 413 outside
+this middleware and without the header, so a configured limit is not safe here until that 413 is covered too. A test walks the real stack
+and fails if a library upgrade adds another layer or reorders them, if a middleware is added after this one (the last added is the
+outermost), or if a request body limit is configured anywhere. Debug mode would show a traceback page before any handler, so a test
+asserts that the application is not in debug mode.
 """
 import functools
 import inspect
@@ -43,7 +48,7 @@ NO_STORE = "no-store"
 # `/api/jobs/{id}/interview-questions` is another feature and is not matched. A route that is outside this pattern is not covered,
 # which a test checks for every route of the interview router.
 INTERVIEW_PATH = re.compile(r"^/api/(?:interview-consent|interview-sessions|jobs/[^/]+/interview-sessions)(?:/|\Z)")
-# The internal routes of the Interview Agent (M5, D79) carry the plan and masked turns too: the same header, and the same sanitized 422
+# The internal routes of the Interview Agent (M5, D80) carry the plan and masked turns too: the same header, and the same sanitized 422
 AGENT_PATH = re.compile(r"^/api/internal/interview-sessions(?:/|\Z)")
 
 

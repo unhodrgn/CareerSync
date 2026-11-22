@@ -1,4 +1,4 @@
-"""The per-turn model of the Interview Agent: Groq through the LiveKit Groq plugin (M5 S2; docs/DECISIONS.md D52, D62, D79).
+"""The per-turn model of the Interview Agent: Groq through the LiveKit Groq plugin (M5 S2; docs/DECISIONS.md D52, D62, D80).
 
 The one place in the agent that talks to a model. `GroqTurnClient` has the shape of `ai.llm.client.LLMClient` (`model` and
 `complete_json`), so the runner sends a turn only through the engine's flow: `prepare_turn` builds a `ModelInput` from `SafeText`,
@@ -7,7 +7,7 @@ those two strings as one system and one user message, nothing else (D62 (B)); it
 the schema check and the token budget is fixed here.
 
 `ask` is synchronous and the plugin is async: the runner calls `ask` in a worker thread, and `complete_json` hands the plugin call back to
-the agent's event loop and waits at most `timeout` seconds, then cancels it. It never retries: after a timeout the rules decide (D54, D79).
+the agent's event loop and waits at most `timeout` seconds, then cancels it. It never retries: after a timeout the rules decide (D54, D80).
 The Groq plugin is imported with this module, at the top: LiveKit registers a plugin only on the main thread, when the plugin is first imported,
 and the worker runs each job off the main thread. `voice.py` imports this module at the top, so the worker registers the plugin when it starts,
 before any job (in a job process too: it imports the worker's module on its main thread first). Only the agent's own code imports this module.

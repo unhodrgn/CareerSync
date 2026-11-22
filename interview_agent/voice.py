@@ -1,4 +1,4 @@
-"""The LiveKit voice worker of the Interview Agent, audio only (M5 S4; docs/DECISIONS.md D52, D54, D55, D56, D62, D79).
+"""The LiveKit voice worker of the Interview Agent, audio only (M5 S4; docs/DECISIONS.md D52, D54, D55, D56, D62, D80).
 
 Run, from the repository root with the agent's virtual environment and the environment variables of `interview_agent/README.md`:
 
@@ -17,8 +17,8 @@ is spoken; the controller says who may talk when. This module only connects them
 Rules kept here (and tested offline in interview_agent/tests):
 
 - **The session has no LLM.** `AgentSession` is built without `llm`: with none, the SDK still runs `on_user_turn_completed` and then skips
-  the reply. So no transcript can reach a model except through `turn_model` (D52, rule 2 of CLAUDE.md, D82). LiveKit's speech services
-  (recognition, synthesis, turn detection, voice activity detection) are not LLMs and are governed by D79 and Q35.
+  the reply. So no transcript can reach a model except through `turn_model` (D52, rule 2 of CLAUDE.md, D83). LiveKit's speech services
+  (recognition, synthesis, turn detection, voice activity detection) are not LLMs and are governed by D80 and Q35.
 - **No recording.** `session.start(record=False)`: nothing is uploaded to LiveKit Cloud (audio, transcript, traces, logs). Only the microphone
   is subscribed (`AutoSubscribe.AUDIO_ONLY`, no video input), and the token of the page allows a microphone track only.
 - **Masked text only.** Every transcript, interim and final, is masked in the STT node before anything else sees it, and again in the hook.
@@ -31,7 +31,7 @@ Rules kept here (and tested offline in interview_agent/tests):
   session, so no end event is posted (Q in docs/DECISIONS.md).
 - **Silence is not an error.** The tick is the controller's: nudge, skip, wrap-up, and the status poll of the session.
 
-Written against livekit-agents 1.8.12 (D78). Nothing here runs without a LiveKit project; the offline tests cover the wiring and the audio
+Written against livekit-agents 1.8.12 (D79). Nothing here runs without a LiveKit project; the offline tests cover the wiring and the audio
 path with a scripted recognizer and a fake microphone, and the live checklist of `interview_agent/README.md` covers the rest.
 """
 from __future__ import annotations

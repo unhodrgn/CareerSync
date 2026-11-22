@@ -1,5 +1,5 @@
 """Run both test suites: the backend and AI suite in the repository's environment, and the Interview Agent's suite in the agent's own
-environment (docs/DECISIONS.md D79 (7)). From the repository root, with any Python:
+environment (docs/DECISIONS.md D80 (7)). From the repository root, with any Python:
 
     python scripts/run_all_tests.py [pytest arguments for both suites, e.g. -q]
 

@@ -287,12 +287,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 20px;
+  padding: 16px 20px;
   font-size: 13px;
   color: var(--ds-muted);
 }
 
 .filterGroup {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -331,7 +333,7 @@
 
 .board {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 20px;
 }
@@ -344,100 +346,42 @@
   gap: 12px;
 }
 
-/* Fixed columns: rank, the applicant (takes what is left, never under 168 px) and Fit keep their room; the criteria
-   share the rest equally, 40–96 px each (--crit-w, set by Applicants from the table width), so the table never grows
-   past its panel or under the detail panel. Keep these widths in step with RESERVED in Applicants.tsx. */
-.ranking {
-  table-layout: fixed;
+.rankingScroll {
+  margin-top: 14px;
+  overflow-x: auto;
+  border: 1px solid var(--ds-line);
+  border-radius: 12px;
 }
 
-/* Every header sits on the bottom line, so 순위 / 지원자 / Fit stay below the angled names above them */
 .ranking th {
-  vertical-align: bottom;
+  padding: 11px 12px;
+  background: #f1f5f9;
 }
 
-.colRank {
-  width: 40px;
-}
+.board .ranking :is(th, td):first-child { padding-left: 12px; }
+.board .ranking :is(th, td):last-child { padding-right: 12px; }
 
-.colFit {
-  width: 72px;
-}
-
-.colCrit {
-  width: var(--crit-w, 64px);
-}
-
-/* The minimum-experience gate (D50), only for a job with a minimum: after the criteria, set off by a hairline so it
-   never reads as one more criterion score. Keep the width in step with GATE_COLUMN in Applicants.tsx */
-.colGate {
-  width: 88px;
-}
-
-.board th.gateHead,
-.board td.gateCell {
-  padding-left: 14px;
-  border-left: 1px solid var(--ds-line);
-  white-space: nowrap;
-}
-
-.board th.critHead,
-.board td.scoreCell {
-  padding-left: 2px;
-  padding-right: 2px;
-  text-align: center;
-}
-
-.board th.critHead {
-  white-space: normal;
-  vertical-align: bottom;
-}
-
-/* Comfortable (columns of 80 px or more): the name on up to two lines, broken only between words; the weight below */
-.critHeadName {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-height: 1.35;
-  color: var(--ds-ink-2);
-  word-break: keep-all;
-  overflow-wrap: normal;
-}
-
-.critHeadWeight {
-  display: block;
-  margin-top: 2px;
-  font-weight: var(--ds-weight-regular);
+.fitRing {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--ds-ink);
+  font-weight: var(--ds-weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
-/* Dense (narrower columns): each name on one line at 45°, running down into its column from the upper left, so the
-   labels use the empty space above 지원자 and Fit and never reach past the last column into the detail panel.
-   Neighbours sit a column width × sin 45° apart (28 px or more), wider than a line, so they never touch. */
-.ranking[data-dense] th.critHead {
-  position: relative;
-  height: 136px;
+.fitRing > span {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: inherit;
+  background: var(--ds-surface);
 }
 
-.ranking[data-dense] .critHeadName {
-  position: absolute;
-  right: calc(50% - 4px);
-  bottom: 26px;
-  display: block;
-  max-width: 128px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transform: rotate(45deg);
-  transform-origin: 100% 100%;
-}
-
-.ranking[data-dense] .critHeadWeight {
-  margin-top: 0;
-}
-
-.ranking[data-dense] .scoreCell .score {
+.score {
   gap: 4px;
 }
 
@@ -447,12 +391,6 @@
   gap: 6px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-}
-
-/* In the ranking the criterion scores are evidence: the square carries met / partial / missing, the number stays quiet */
-.scoreCell .score {
-  font-size: 12.5px;
-  color: var(--ds-muted);
 }
 
 .applicantRow {
@@ -522,46 +460,14 @@
   white-space: nowrap;
 }
 
-/* Status and experience side by side when there is room, on two lines when not; neither is ever cut short */
-.nameFacts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 10px;
-  line-height: 1.4;
-}
-
-.nameFacts > * {
-  white-space: nowrap;
-}
-
-/* Rows a little tighter than the default table, so more applicants are in view */
 .board .applicantRow td {
   padding-top: 12px;
   padding-bottom: 12px;
-}
-
-.board th.fitHead,
-.board td.fitCell {
-  padding-right: 20px;
   white-space: nowrap;
 }
 
-.fit {
-  font-size: 20px;
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* The applicant panel: a prev/next strip, the evidence, then the status. It keeps its natural height and moves
-   with the page (the page is the only scroll container): sticky at the top while it fits the window, and when it is
-   taller ApplicantDetail moves that sticky top so it stays in view both ways. The strip sticks to the top of the
-   window and the status to the bottom while the panel runs past them. No overflow here: it would turn the panel
-   into a scroll container and stop both from sticking to the window. */
 .detail {
-  position: sticky;
-  top: calc(var(--shell-top, 0px) + 24px);
+  border: 1px solid var(--ds-line);
   min-width: 0;
   border-radius: calc(var(--ds-radius-card) + 4px);
   background: var(--ds-surface);
@@ -646,18 +552,13 @@
   border-radius: 4px;
 }
 
-/* Sticks to the bottom of the window while the panel continues below it; floats over the evidence */
 .statusFoot {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   display: grid;
   gap: 10px;
   padding: 14px 20px 16px;
   border-top: 1px solid var(--ds-line);
   border-radius: 0 0 calc(var(--ds-radius-card) + 4px) calc(var(--ds-radius-card) + 4px);
   background: var(--ds-surface);
-  box-shadow: 0 -8px 24px rgb(16 24 40 / 0.06);
 }
 
 .statusHead {
@@ -1071,4 +972,136 @@
 
 .noticeWrap:focus {
   outline: none;
+}
+
+.mobileLabel {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .ranking {
+    display: block;
+  }
+
+  .ranking thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ranking tbody {
+    display: grid;
+  }
+
+  .ranking .applicantRow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--ds-line);
+  }
+
+  .ranking .applicantRow:last-child {
+    border-bottom: 0;
+  }
+
+  .ranking .applicantRow[data-selected] {
+    background: var(--ds-accent-wash);
+    box-shadow: inset 3px 0 var(--ds-accent-text);
+  }
+
+  .board .ranking .applicantRow td {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .rankCell { grid-column: 1; grid-row: 1; }
+  .personCell { grid-column: 2; grid-row: 1; }
+  .fitCell { grid-column: 3; grid-row: 1; justify-self: end; }
+  .dateCell { grid-column: 2 / -1; justify-self: end; }
+  .gateCell { grid-column: 1 / 3; }
+
+  .openCell {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .mobileLabel {
+    display: inline;
+    margin-right: 5px;
+    color: var(--ds-muted);
+    font-size: var(--ds-text-tiny);
+  }
+
+  .ranking .person {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 370px) {
+  .ranking .person > :first-child {
+    display: none;
+  }
+}
+
+.managedJobs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.managedJobs > li {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  border: 1px solid var(--ds-line);
+  padding: 20px;
+}
+
+.jobRowHead, .jobRowSide, .jobTitle {
+  flex-wrap: wrap;
+}
+
+.jobRowSide {
+  gap: 8px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ds-line);
+}
+
+.jobRowSide > svg {
+  margin-left: auto;
+}
+
+@media (max-width: 1080px) {
+  .editor, .profileGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 740px) {
+  .managedJobs, .grid3, .grid2, .offerRow, .talentRow, .projectRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .span2 { grid-column: auto; }
+  .sectionHead, .critFoot, .confirmActions, .confirmBar { flex-wrap: wrap; }
+  .crit { grid-template-columns: 22px minmax(0, 1fr) minmax(64px, 0.5fr); }
+  .crit > :nth-child(2) { grid-column: 2 / -1; }
+  .crit > :nth-child(3) { grid-column: 2; }
+  .crit > :nth-child(5) { grid-column: 3; justify-self: end; }
+  .suggestRow { grid-template-columns: minmax(0, 1fr) auto; }
+  .talentSide { justify-items: start; text-align: left; }
+}
+
+.rankingHeading {
+  margin: 0 0 12px;
+  font-size: 24px;
+  letter-spacing: -0.035em;
+}
+
+.rankingPanel .ranking td {
+  padding-block: 9px;
 }

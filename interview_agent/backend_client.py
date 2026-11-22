@@ -1,4 +1,4 @@
-"""The agent's client of the backend's internal API, for one session (M5 S2; docs/DECISIONS.md D58, D79).
+"""The agent's client of the backend's internal API, for one session (M5 S2; docs/DECISIONS.md D58, D80).
 
 Every call carries the shared secret and the session's room. Answers are sorted into what the runner has to do:
 

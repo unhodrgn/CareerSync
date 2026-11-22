@@ -1,4 +1,4 @@
-"""The Interview Agent's runner against the real application (M5 S2; docs/DECISIONS.md D54, D79).
+"""The Interview Agent's runner against the real application (M5 S2; docs/DECISIONS.md D54, D80).
 
 `interview_agent.runner.InterviewRunner` and its `SessionClient` talk to the app in-process (`httpx.ASGITransport`), on the SQLite test
 database and the test clock, so every rule of the internal API and the ingestion applies for real. No model, no network, no LiveKit: the
@@ -383,7 +383,7 @@ def test_a_valid_model_analysis_is_used_and_recorded_with_its_method(wired, db, 
     assert first_answer_method(db, sid) == "llm:fake-groq"
 
 
-# ── Consent withdrawal (D80, Q39) ──
+# ── Consent withdrawal (D81, Q39) ──
 
 
 def withdraw_now(db, world, clock):

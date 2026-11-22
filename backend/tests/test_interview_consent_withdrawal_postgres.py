@@ -1,9 +1,9 @@
-"""A turn racing the withdrawal of the AI consent (M5 S3; docs/DECISIONS.md D80): PostgreSQL only.
+"""A turn racing the withdrawal of the AI consent (M5 S3; docs/DECISIONS.md D81): PostgreSQL only.
 
 These need `TEST_DATABASE_URL=postgresql+psycopg://…` (a throwaway database: the fixture drops every table) and are SKIPPED without it.
 The withdrawal and the agent's turn run in two threads with a session each, released together. Whichever wins, the end state is one
 consistent thing: the session is `aborted` with the reason `consent_withdrawn`, the consent is withdrawn, and a turn is either stored
-before that or refused with `INTERVIEW_NOT_ACTIVE`, never stored after it. The SQLite tests of D80 show the logic; only these show it
+before that or refused with `INTERVIEW_NOT_ACTIVE`, never stored after it. The SQLite tests of D81 show the logic; only these show it
 under real parallel requests, and only when they run."""
 import pytest
 

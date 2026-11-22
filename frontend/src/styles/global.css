@@ -8,9 +8,8 @@
 
 body {
   margin: 0;
-  /* Desktop web only */
-  min-width: 1280px;
-  background: var(--color-canvas);
+  min-width: 0;
+  background: var(--ds-panel);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -43,5 +42,5 @@ button {
 }
 
 html {
-  scrollbar-color: var(--color-axis) var(--color-canvas);
+  scrollbar-color: var(--color-axis) var(--ds-panel);
 }

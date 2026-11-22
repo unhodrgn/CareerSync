@@ -1,4 +1,4 @@
-"""The voice stage against the real application (M5 S4; docs/DECISIONS.md D54, D79, D80): the conversation rules and the join contract.
+"""The voice stage against the real application (M5 S4; docs/DECISIONS.md D54, D80, D81): the conversation rules and the join contract.
 
 The real `VoiceController` and the real `InterviewRunner` run in-process against the application (`httpx.ASGITransport`), on the SQLite test
 database and the test clock; only the voice is a fake (`say` and `interrupt`). No LiveKit, no network, no model. What the agent's own suite

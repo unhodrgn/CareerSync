@@ -1,150 +1,222 @@
-/* Job card (DESIGN.md Job card): a compact white card on the gray content panel; with a score, the score and its
-   band on the right, on the same white behind a hairline (no dark panel on lists). The title link stretches over the
-   whole card and is its only link to the job. */
-
 .list {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: 16px;
+}
+
+.grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@container (max-width: 900px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (max-width: 560px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .card {
   position: relative;
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--ds-space-2);
-  padding: 6px;
-  border-radius: calc(var(--ds-radius-card) + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: clamp(16px, 2.2vw, 24px);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-card);
   background: var(--ds-surface);
-  box-shadow: var(--ds-shadow-card);
-  transition:
-    box-shadow 200ms var(--ease-out),
-    transform 150ms var(--ease-out);
-}
-
-.card[data-scored] {
-  grid-template-columns: minmax(0, 1fr) 168px;
+  overflow-wrap: anywhere;
 }
 
 .card:hover {
-  box-shadow: var(--ds-shadow-pop);
+  border-color: #9db0c2;
 }
 
-.card:has(.title:active) {
-  transform: scale(0.995);
-}
-
-.body {
-  min-width: 0;
-  padding: var(--ds-space-3) var(--ds-space-4) var(--ds-space-3);
-  display: grid;
-  gap: var(--ds-space-3);
-  align-content: start;
+.card[data-selected] {
+  border-color: #147a73;
+  box-shadow: inset 3px 0 #147a73;
 }
 
 .head {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-3);
+  gap: 14px;
+}
+
+.monogram {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #d8e6ed;
+  border-radius: 12px;
+  background: #edf5f8;
+  color: #203c57;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .headText {
   min-width: 0;
-  display: grid;
-  gap: 2px;
 }
 
-/* 20/700 (DESIGN.md Job card): the title leads the card, as in the reference */
 .title {
+  margin: 0;
   font-size: 20px;
-  font-weight: var(--ds-weight-bold);
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: var(--ds-ink);
-  text-decoration: none;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
 }
 
-/* The whole card opens the job */
-.title::after {
+.company {
+  margin: 3px 0 0;
+  color: var(--ds-muted);
+  font-size: 14px;
+}
+
+.facts {
+  margin: 0 0 auto;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--ds-ink-2);
+  font-size: 14px;
+}
+
+.facts li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.facts svg {
+  flex: none;
+  color: var(--ds-muted);
+}
+
+.foot, .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.foot {
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--ds-line);
+}
+
+.actions {
+  margin-left: auto;
+}
+
+.open::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
 }
 
-.title:focus-visible {
-  outline: none;
-}
-
-.card:has(.title:focus-visible) {
-  outline: 2px solid var(--focus-color);
-  outline-offset: 3px;
-}
-
-.card:hover .title {
-  text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.2em;
-}
-
-.company {
-  margin: 0;
-  font-size: var(--ds-text-meta);
-  color: var(--ds-muted);
-}
-
-/* One row of facts, wrapping only when the card is narrow */
-.facts {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-1) var(--ds-space-6);
-  font-size: var(--ds-text-meta);
-  color: var(--ds-ink);
-}
-
-.facts li {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.facts svg {
-  flex: none;
-  color: var(--ds-ink-2);
-}
-
-/* What the match is made of, with the card's own actions at the end of the same line */
-.foot {
-  padding-top: var(--ds-space-3);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-4);
-  border-top: 1px solid var(--ds-line);
-}
-
-/* Buttons and links in the footer sit above the card's stretched link */
-.actions {
+.actions > :not(.open) {
   position: relative;
   z-index: 1;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
 }
 
-/* The score and band, centred on white; the hairline stops short of the card's edges */
-.side {
-  margin: var(--ds-space-4) 0;
-  padding: 0 var(--ds-space-3);
+.identity {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.browseCard {
+  border-radius: 18px;
+  gap: 13px;
+}
+
+.browseCard .head {
   display: grid;
-  place-items: center;
-  border-left: 1px solid var(--ds-line);
+  gap: 12px;
+}
+
+.browseCard .headText {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+}
+
+.browseCard .company {
+  margin: 0;
+}
+
+.browseCard time {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ds-sunken);
+  color: var(--ds-muted);
+  font-size: 12px;
+}
+
+.browseCard .facts {
+  gap: 5px 10px;
+  font-size: 13px;
+}
+
+.browseCard .foot {
+  padding-top: 10px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (max-width: 560px) {
+  .grid.two { grid-template-columns: minmax(0, 1fr); }
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: inherit;
+  min-width: 0;
+}
+
+.browseCard {
+  padding: 22px;
+  box-shadow: 0 3px 10px rgb(34 45 60 / 0.035);
+}
+
+.browseCard .title {
+  font-size: 21px;
+  font-weight: 740;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+
+.browseCard .company {
+  color: var(--ds-muted);
+  font-size: 13px;
+}
+
+.matchTile { display: none; }
+
+@media (min-width: 1000px) {
+  .card[data-match] { flex-direction: row; gap: 16px; }
+  .card[data-match] .inlineMatch { display: none; }
+  .matchTile {
+    display: flex;
+    flex: 0 0 122px;
+  }
+  .matchTile > div {
+    flex: 1;
+    border-radius: 13px;
+    padding-inline: 8px;
+  }
 }

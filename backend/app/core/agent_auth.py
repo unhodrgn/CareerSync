@@ -1,4 +1,4 @@
-"""Authentication of the Interview Agent on the internal API (M5 S1; docs/DECISIONS.md D58, D79).
+"""Authentication of the Interview Agent on the internal API (M5 S1; docs/DECISIONS.md D58, D80).
 
 The agent is a separate runtime with no database access (D56). It calls the internal routes with two headers:
 
@@ -33,7 +33,7 @@ def configured_secret() -> str | None:
 
 
 def room_name(session_id: int, secret: str) -> str:
-    """The LiveKit room of a session (D79). `interview_agent/rooms.py` computes the same; a test checks that both agree."""
+    """The LiveKit room of a session (D80). `interview_agent/rooms.py` computes the same; a test checks that both agree."""
     return ROOM_PREFIX + hmac.new(secret.encode("utf-8"), str(session_id).encode("ascii"), hashlib.sha256).hexdigest()
 
 
