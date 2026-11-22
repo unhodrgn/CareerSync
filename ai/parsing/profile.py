@@ -3,6 +3,8 @@
 The same Pydantic models are the LLM's JSON output schema, the DB payload and the API body,
 so a seeker's edits go through the same validation as the model's output.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 CV_SCHEMA_VERSION = "cv_profile.v1"
@@ -59,13 +61,24 @@ class JdProfile(BaseModel):
     education: str = ""
 
 
+class JdRequirement(BaseModel):
+    """Explicit JD requirement, including a verbatim passage and OR alternatives."""
+    kind: Literal["required", "preferred", "responsibility"]
+    text: str = Field(min_length=1, max_length=500)
+    source: str = Field(min_length=1, max_length=500)
+    alternatives: list[str] = Field(default_factory=list, max_length=8)
+
+
 class SuggestedCriterion(BaseModel):
     name: str = Field(max_length=50)
     description: str = Field("", max_length=500)
     category: str = Field(description="skill | experience | project | certificate | education | other")
     weight: int = Field(ge=1, le=100)
+    source: str = Field("", max_length=500)
+    reason: str = Field("", max_length=200)
 
 
 class JdAnalysis(BaseModel):
     profile: JdProfile
     criteria: list[SuggestedCriterion]
+    requirements: list[JdRequirement] = Field(default_factory=list, max_length=60)
