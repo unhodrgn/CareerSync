@@ -17,8 +17,9 @@ from app.schemas.application import (
     StatusUpdate,
 )
 from app.schemas.gate import GateStatusT
+from app.schemas.verification import VerificationOut
 from app.services import application_service as svc
-from app.services import evaluation_service
+from app.services import evaluation_service, verification_service
 
 router = APIRouter(tags=["applications"])
 
@@ -78,6 +79,14 @@ def retry_evaluation(application_id: int, background: BackgroundTasks, db: DbSes
     ev, token = svc.retry(db, user, application_id)
     evaluation_service.queue(background, db, ev.id, token)
     return svc.evaluation(db, user, application_id)
+
+@router.post(
+    "/applications/{application_id}/verification-questions",
+    response_model=VerificationOut,
+    summary="Up to three CV-grounded questions for the recruiter's interview",
+)
+def recruiter_verification_questions(application_id: int, db: DbSession, user: CompanyUser):
+    return verification_service.generate(db, user, application_id)
 
 
 @router.put("/applications/{application_id}/status", response_model=ApplicationOut, summary="Recruiter changes the status")
