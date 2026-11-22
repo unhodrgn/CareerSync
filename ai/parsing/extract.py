@@ -21,6 +21,7 @@ from ai.parsing.profile import (
     Project,
     SuggestedCriterion,
 )
+from ai.parsing.jd_requirements import criteria_from_requirements, extract_requirements
 from ai.parsing.sections import split_sections
 
 log = logging.getLogger(__name__)
@@ -425,7 +426,9 @@ def analyze_jd_rules(title: str, text: str, min_years: int | None, skills: Skill
     profile = JdProfile(
         required_skills=required, preferred_skills=preferred, min_years=min_years, certificates=certs, education=""
     )
-    return JdAnalysis(profile=profile, criteria=suggest_criteria(profile))
+    requirements = extract_requirements(text)
+    criteria = criteria_from_requirements(requirements) or suggest_criteria(profile)
+    return JdAnalysis(profile=profile, criteria=criteria, requirements=requirements)
 
 
 def suggest_criteria(profile: JdProfile) -> list[SuggestedCriterion]:
@@ -471,7 +474,16 @@ def analyze_jd(title: str, text: str, min_years: int | None, skills: SkillDictio
             result.profile.preferred_skills = skills.normalize_list(result.profile.preferred_skills)
             if min_years is not None:
                 result.profile.min_years = min_years
-            result.criteria = fix_weights(result.criteria) or suggest_criteria(result.profile)
+            # The model may suggest a label, but a cited source must actually exist in the JD.
+            for item in result.criteria:
+                if item.source and not line_in_text(item.source, text):
+                    item.source = ""
+            result.requirements = [
+                item for item in result.requirements if line_in_text(item.source, text)
+            ] or extract_requirements(text)
+            result.criteria = fix_weights(result.criteria) or (
+                criteria_from_requirements(result.requirements) or suggest_criteria(result.profile)
+            )
             return result, f"llm:{llm.model}"
         except LLMError as e:
             log.warning("JD analysis by LLM failed, using rules: %s", e)
