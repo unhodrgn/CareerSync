@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -66,6 +67,23 @@ class JdAnalysisOut(BaseModel):
     blocked: list[BlockedSuggestion] = []
     method: str
     notice: str = AI_NOTICE
+
+class CriteriaPreviewIn(BaseModel):
+    source_type: Literal["job_posting", "project_spec"]
+    title: str = Field(min_length=1, max_length=200)
+    text: str = Field(min_length=1, max_length=10000)
+    min_experience_years: int | None = Field(default=None, ge=0, le=30)
+
+
+class CriteriaPreviewOut(BaseModel):
+    analysis: JdAnalysis
+    blocked: list[BlockedSuggestion]
+    method: str
+    notice: str = AI_NOTICE
+
+
+class PosterTextOut(BaseModel):
+    text: str
 
 
 class JdDraftIn(BaseModel):

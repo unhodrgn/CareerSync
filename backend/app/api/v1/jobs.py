@@ -2,13 +2,13 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Response, UploadFile, status
 
 from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
 from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
-from app.schemas.cv import JdAnalysisOut, JdDraftIn, JdDraftOut
-from app.services import jd_service, job_service
+from app.schemas.cv import CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, PosterTextOut
+from app.services import jd_service, job_service, poster_service
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -81,6 +81,16 @@ def list_jobs(
 @router.get("/mine", response_model=list[JobListItem], summary="Own company's jobs in every status")
 def list_my_jobs(db: DbSession, user: CompanyUser):
     return _items(db, job_service.list_mine(db, user))
+
+@router.post("/criteria-preview", response_model=CriteriaPreviewOut, summary="Suggest criteria from unsaved job or project text (not persisted)")
+def preview_criteria(body: CriteriaPreviewIn, user: CompanyUser):
+    return jd_service.preview(body)
+
+
+@router.post("/poster-text", response_model=PosterTextOut, summary="Extract editable Korean/English text from a hiring poster")
+async def poster_text(file: UploadFile, user: CompanyUser):
+    image = await file.read(poster_service.MAX_IMAGE_BYTES + 1)
+    return PosterTextOut(text=poster_service.extract_text(image, file.content_type))
 
 
 @router.get("/{job_id}", response_model=JobOut, summary="Job detail; no login needed (guests: published, unexpired; owner also sees drafts and closed jobs)")

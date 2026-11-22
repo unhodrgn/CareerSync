@@ -21,7 +21,7 @@ from app.core.config import settings
 from app.core.errors import AppError
 from app.models import Company, CompanyProject, User
 from app.models.job import JobStatus
-from app.schemas.cv import BlockedSuggestion, DroppedSentence, JdAnalysisOut, JdDraftIn, JdDraftOut, JdDraftSections
+from app.schemas.cv import BlockedSuggestion, DroppedSentence, CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, JdDraftSections
 from app.services import ai_runtime, criteria_service, job_service
 
 KST = timezone(timedelta(hours=9))
@@ -49,6 +49,16 @@ def analyze(db: Session, user: User, job_id: int) -> JdAnalysisOut:
     analysis, method = analyze_jd(job.title, job.description, job.min_experience_years, ai_runtime.skills(), ai_runtime.llm())
     analysis.criteria, blocked = screen_suggestions(analysis.criteria)
     return JdAnalysisOut(job_id=job.id, analysis=analysis, blocked=blocked, method=method)
+
+def preview(body: CriteriaPreviewIn) -> CriteriaPreviewOut:
+    """Analyze unsaved source material; internal specifications are never published or stored."""
+    label = "내부 프로젝트 기술서" if body.source_type == "project_spec" else "채용공고 원문"
+    analysis, method = analyze_jd(
+        body.title, f"{label}\n{body.text}", body.min_experience_years,
+        ai_runtime.skills(), ai_runtime.llm(),
+    )
+    analysis.criteria, blocked = screen_suggestions(analysis.criteria)
+    return CriteriaPreviewOut(analysis=analysis, blocked=blocked, method=method)
 
 
 # ── /jd-draft ──
