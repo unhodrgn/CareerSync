@@ -55,17 +55,28 @@ def test_pdf_import_rejects_scan_without_text():
         raise AssertionError("Image-only PDF should fail with a clear message")
 
 
-def test_pdf_import_rejects_long_source():
-    # The preview API has a 10,000-character limit; never silently truncate text.
-    document = pymupdf.open()
-    page = document.new_page()
-    for i in range(130):
-        page.insert_text((48, 48 + i * 4), "Required: " + ("TypeScript Vue React API " * 7), fontsize=4)
-    data = document.tobytes()
-    document.close()
-    try:
-        job_pdf_service.extract_text(data, "application/pdf")
-    except Exception as exc:
-        assert getattr(exc, "code", None) in ("JD_PDF_TOO_LONG", "JD_PDF_NO_TEXT")
-    else:
-        raise AssertionError("Long extraction should be refused, not silently truncated")
+def test_pdf_import_rejects_long_source(monkeypatch):
+    import pytest
+    from app.core.errors import AppError
+
+    class FakePage:
+        def get_text(self, *_args, **_kwargs):
+            return "X" * 10_001
+
+    class FakeDocument:
+        needs_pass = False
+        page_count = 1
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def __iter__(self):
+            return iter((FakePage(),))
+
+    monkeypatch.setattr(job_pdf_service.pymupdf, "open", lambda **_kwargs: FakeDocument())
+    with pytest.raises(AppError) as caught:
+        job_pdf_service.extract_text(b"%PDF-mock", "application/pdf")
+    assert caught.value.code == "JD_PDF_TOO_LONG"
