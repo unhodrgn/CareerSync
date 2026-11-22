@@ -17,7 +17,7 @@ export default function SourceImportPanel({
 }) {
   const [sourceType, setSourceType] = useState<SourceType>('job_posting');
   const [sourceText, setSourceText] = useState('');
-  const [busy, setBusy] = useState<'ocr' | 'analyze' | null>(null);
+  const [busy, setBusy] = useState<'ocr' | 'pdf' | 'analyze' | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   const recognize = async (file: File | undefined) => {
@@ -26,6 +26,21 @@ export default function SourceImportPanel({
     setBusy('ocr');
     try {
       const extracted = await api.extractPosterText(file);
+      setSourceType('job_posting');
+      setSourceText(extracted.text);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const recognizePdf = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setBusy('pdf');
+    try {
+      const extracted = await api.extractJobPdfText(file);
       setSourceType('job_posting');
       setSourceText(extracted.text);
     } catch (e) {
@@ -72,12 +87,17 @@ export default function SourceImportPanel({
             onChange={(e) => { void recognize(e.target.files?.[0]); e.target.value = ''; }} />
         </label>
         <label className={ui.field}>
-          <span>분석할 텍스트 — 포스터에서 추출한 내용은 분석 전에 수정할 수 있습니다</span>
+          <span>채용공고 PDF (텍스트 포함, 5MB·10페이지 이하)</span>
+          <input type="file" accept="application/pdf,.pdf" disabled={busy !== null}
+            onChange={(e) => { void recognizePdf(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+        <label className={ui.field}>
+          <span>분석할 텍스트 — 이미지·PDF에서 추출한 내용은 분석 전에 수정할 수 있습니다</span>
           <textarea className={ui.textarea} rows={7} maxLength={10000} value={sourceText}
             onChange={(e) => setSourceText(e.target.value)}
             placeholder="채용공고나 프로젝트 기술서를 붙여넣으세요." />
         </label>
-        {busy && <AiBusy>{busy === 'ocr' ? '포스터에서 텍스트를 추출하는 중…' : '평가 기준과 가중치를 분석하는 중…'}</AiBusy>}
+        {busy && <AiBusy>{busy === 'ocr' ? '포스터에서 텍스트를 추출하는 중…' : busy === 'pdf' ? 'PDF에서 텍스트를 추출하는 중…' : '평가 기준과 가중치를 분석하는 중…'}</AiBusy>}
         {error != null && <p role="alert" className={ui.notice}>{errorText(error)}</p>}
         <button type="button" className={ui.btn} disabled={busy !== null || !sourceText.trim()} onClick={() => void analyze()}>
           평가 기준·가중치 추천
