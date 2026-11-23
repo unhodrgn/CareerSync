@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ai.jd.draft import DraftInput, ProjectInfo, make_draft
 from ai.parsing.extract import analyze_jd, fix_weights
+from ai.parsing.pii import mask_pii
 from ai.parsing.profile import SuggestedCriterion
 from ai.scoring.scorers import education_target
 from app.core.config import settings
@@ -53,10 +54,17 @@ def analyze(db: Session, user: User, job_id: int) -> JdAnalysisOut:
 def preview(body: CriteriaPreviewIn) -> CriteriaPreviewOut:
     """Analyze unsaved source material; internal specifications are never published or stored."""
     label = "내부 프로젝트 기술서" if body.source_type == "project_spec" else "채용공고 원문"
+    llm = ai_runtime.llm()
+    if body.require_llm and llm is None:
+        raise AppError(503, "JD_LLM_REQUIRED", "로컬 .env에 AI_MODE=llm 및 LLM_API_KEY를 설정해 주세요.")
+    # Only the LLM path uses the PII-masked copy; the user still edits their local text.
+    source = mask_pii(body.text).text if body.require_llm else body.text
     analysis, method = analyze_jd(
-        body.title, f"{label}\n{body.text}", body.min_experience_years,
-        ai_runtime.skills(), ai_runtime.llm(),
+        body.title, f"{label}\n{source}", body.min_experience_years,
+        ai_runtime.skills(), llm,
     )
+    if body.require_llm and not method.startswith("llm:"):
+        raise AppError(503, "JD_LLM_FAILED", "LLM 분석에 실패했습니다. 규칙 기반 결과로 대체하지 않았습니다. API 연결 및 모델을 확인해 주세요.")
     analysis.criteria, blocked = screen_suggestions(analysis.criteria)
     return CriteriaPreviewOut(analysis=analysis, blocked=blocked, method=method)
 

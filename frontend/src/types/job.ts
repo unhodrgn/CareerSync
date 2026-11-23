@@ -102,6 +102,23 @@ export interface CriteriaPreviewIn {
   title: string;
   text: string;
   min_experience_years: number | null;
+  require_llm?: boolean;
+}
+
+export interface PdfScopeOut {
+  title: string;
+  company: string;
+  summary: string;
+  roles: string[];
+  start_page: number;
+  end_page: number;
+  excerpt: string;
+}
+
+export interface PdfScopesOut {
+  pages: number;
+  scopes: PdfScopeOut[];
+  method: string;
 }
 
 export type CriteriaPreviewOut = Omit<JdAnalysisOut, 'job_id'>;

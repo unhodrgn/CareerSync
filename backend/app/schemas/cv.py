@@ -73,6 +73,7 @@ class CriteriaPreviewIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     text: str = Field(min_length=1, max_length=10000)
     min_experience_years: int | None = Field(default=None, ge=0, le=30)
+    require_llm: bool = False  # True for the document-understanding UI; never silently fall back.
 
 
 class CriteriaPreviewOut(BaseModel):
@@ -89,6 +90,22 @@ class PosterTextOut(BaseModel):
 class JobPdfTextOut(BaseModel):
     text: str
     pages: int
+
+
+class DocumentScopeOut(BaseModel):
+    title: str
+    company: str
+    summary: str
+    roles: list[str]
+    start_page: int
+    end_page: int
+    excerpt: str
+
+
+class DocumentScopesOut(BaseModel):
+    pages: int
+    scopes: list[DocumentScopeOut]
+    method: str
 
 
 class JdDraftIn(BaseModel):

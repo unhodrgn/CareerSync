@@ -3,12 +3,13 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
 from app.schemas.job import JobCreate, JobListItem, JobOut, JobPage, JobUpdate
-from app.schemas.cv import CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, PosterTextOut, JobPdfTextOut
-from app.services import jd_service, job_service, poster_service, job_pdf_service
+from app.schemas.cv import CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, PosterTextOut, JobPdfTextOut, DocumentScopesOut
+from app.services import jd_service, job_service, poster_service, job_pdf_service, job_document_service, ai_runtime
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -92,6 +93,15 @@ async def pdf_text(file: UploadFile, user: CompanyUser):
     document = await file.read(job_pdf_service.MAX_PDF_BYTES + 1)
     parsed = job_pdf_service.extract_text(document, file.content_type)
     return JobPdfTextOut(text=parsed.text, pages=parsed.pages)
+
+
+@router.post("/pdf-understand", response_model=DocumentScopesOut, summary="LLM detects companies, projects, and roles in a PDF")
+async def understand_pdf(file: UploadFile, user: CompanyUser):
+    data = await file.read(job_document_service.MAX_PDF_BYTES + 1)
+    # Model calls are blocking SDK requests: keep them out of the FastAPI event loop.
+    return await run_in_threadpool(
+        job_document_service.discover_pdf, data, file.content_type, ai_runtime.llm()
+    )
 
 
 @router.post("/poster-text", response_model=PosterTextOut, summary="Extract editable Korean/English text from a hiring poster")

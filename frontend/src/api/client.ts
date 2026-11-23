@@ -9,7 +9,7 @@ import type { VerificationOut } from '@/types/verification';
 import type { CompanyOut, CompanyProjectIn, CompanyProjectOut, CompanyPublicOut, CompanyUpdate } from '@/types/company';
 import type { CheckResult, CriteriaSetOut, CriteriaView, CriterionIn } from '@/types/criteria';
 import type { CvOut, CvReviewOut, CvUpdate } from '@/types/cv';
-import type { CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate, PosterTextOut, JobPdfTextOut } from '@/types/job';
+import type { CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, JobCreate, JobListItem, JobOut, JobPage, JobUpdate, PosterTextOut, JobPdfTextOut, PdfScopesOut } from '@/types/job';
 import type { PreferenceIn, PreferenceOut } from '@/types/preference';
 import type { JobMatch, JobScoreList, RecommendationList } from '@/types/recommendation';
 import type { OfferCreate, SeekerOffer, SentOffer, TalentList } from '@/types/talent';
@@ -152,6 +152,11 @@ export const api = {
   checkCriterion: (name: string, description: string) => request<CheckResult>('POST', '/criteria/check', { name, description }),
   analyzeJob: (jobId: number) => request<JdAnalysisOut>('POST', `/jobs/${jobId}/analyze`),
   previewCriteria: (body: CriteriaPreviewIn) => request<CriteriaPreviewOut>('POST', '/jobs/criteria-preview', body),
+  understandJobPdf: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<PdfScopesOut>('POST', '/jobs/pdf-understand', form);
+  },
   extractJobPdfText: (file: File) => {
     const form = new FormData();
     form.append('file', file);

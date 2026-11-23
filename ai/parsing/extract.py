@@ -468,7 +468,7 @@ def analyze_jd(title: str, text: str, min_years: int | None, skills: SkillDictio
     if llm is not None:
         try:
             result = llm.complete_json(
-                _prompt("jd_analyze.md"), f"<title>{title}</title>\n<jd>\n{text}\n</jd>", JdAnalysis, max_tokens=4000
+                _prompt("jd_analyze.md"), f"<title>{title}</title>\n<jd>\n{text}\n</jd>", JdAnalysis, max_tokens=8000
             )
             result.profile.required_skills = skills.normalize_list(result.profile.required_skills)
             result.profile.preferred_skills = skills.normalize_list(result.profile.preferred_skills)

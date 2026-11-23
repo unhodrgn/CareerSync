@@ -11,7 +11,10 @@ GROUPS = {
 }
 HEADINGS = {name.lower(): kind for kind, names in GROUPS.items() for name in names}
 STRIP = re.compile(r"^[\s#*■□●○◆◇▶▷•\-\[\]【】<>()]+|[\s:：\[\]【】<>()]+$")
-OR_FRAMEWORK = re.compile(r"\b(Vue|React)\s*(?:또는|or|/|혹은)\s*(React|Vue)\b", re.I)
+OR_FRAMEWORK = re.compile(
+    r"(?<![A-Za-z])(Vue|React)\s*(?:또는|or|/|혹은)\s*(React|Vue)(?![A-Za-z])",
+    re.I
+)
 
 
 def extract_requirements(text: str) -> list[JdRequirement]:
