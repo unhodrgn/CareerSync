@@ -1,7 +1,8 @@
 """Environment variables: the names and defaults the code reads (AST over the backend, ai/, scripts/ and the test
 fixture file; the Vite config), docker-compose.yml, .env.example and the docs agree. A table whose first column is
 "Variable" is an env table; those with a Default column are the reference (PROJECT_DOCUMENTATION.md §9) and must list
-every variable the code or Compose reads."""
+every variable the code or Compose reads. The Interview Agent (`interview_agent/`) reads its settings through `_get(env, "NAME", default)`;
+those readers count as known, and need a reference row only when Compose sets the variable."""
 import ast
 import re
 from dataclasses import dataclass
@@ -14,6 +15,11 @@ from .markdown import ROOT, Allowlist, Doc, Table, code_spans, guarded_docs, rep
 READER_DIRS = ("backend/app", "ai", "scripts")
 READER_FILES = ("backend/tests/conftest.py",)
 READER_SKIP = ("ai/tests/",)
+AGENT_DIR = "interview_agent/"  # own settings module: `_get(env, "NAME", default)` and `_number(env, "NAME", default, low, high)`
+AGENT_HELPERS = ("_get", "_number")
+AGENT_FILES = ("interview_agent/*.py", "interview_agent/devclient/*.py")
+# Read by Compose only, to decide another variable's value: no code reads them (docker-compose.yml says so next to them)
+COMPOSE_ONLY = ("INTERVIEW_AGENT_AI_MODE",)
 VITE_CONFIG = "frontend/vite.config.ts"
 COMPOSE = "docker-compose.yml"
 EXAMPLE = ".env.example"
@@ -57,10 +63,17 @@ def _value(node: ast.AST | None, constants: dict[str, str]) -> object:
     return UNKNOWN
 
 
-def _env_name(node: ast.AST) -> str | None:
-    """The variable a call or subscript reads: env_or_default("X"), os.getenv("X"), os.environ.get("X"), os.environ["X"]."""
+def _agent_helper(node: ast.AST) -> bool:
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in AGENT_HELPERS and len(node.args) > 1
+
+
+def _env_name(node: ast.AST, agent: bool = False) -> str | None:
+    """The variable a call or subscript reads: env_or_default("X"), os.getenv("X"), os.environ.get("X"), os.environ["X"];
+    in the agent also _get(env, "X", default)."""
     arg = None
-    if isinstance(node, ast.Call):
+    if agent and _agent_helper(node):
+        arg = node.args[1]
+    elif isinstance(node, ast.Call):
         func = node.func
         name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
         environ_get = name == "get" and isinstance(func, ast.Attribute) and isinstance(func.value, ast.Attribute) and func.value.attr == "environ"
@@ -79,11 +92,14 @@ def readers_in(source: str, rel: str) -> list[Reader]:
     constants = _constants(tree)
     parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
     out = []
+    agent = rel.startswith(AGENT_DIR)
     for node in ast.walk(tree):
-        name = _env_name(node)
+        name = _env_name(node, agent)
         if name is None:
             continue
-        if isinstance(node, ast.Call) and len(node.args) > 1:
+        if agent and _agent_helper(node):
+            default = _value(node.args[2], constants) if len(node.args) > 2 else None
+        elif isinstance(node, ast.Call) and len(node.args) > 1:
             default = _value(node.args[1], constants)
         else:
             # (os.getenv("X") or "").strip() or DEFAULT → DEFAULT: the last value of the outermost `or` around the read
@@ -99,6 +115,7 @@ def readers_in(source: str, rel: str) -> list[Reader]:
 def code_readers(root: Path = ROOT) -> list[Reader]:
     files = [p for top in READER_DIRS for p in sorted((root / top).rglob("*.py"))]
     files += [root / f for f in READER_FILES]
+    files += [p for pattern in AGENT_FILES for p in sorted(root.glob(pattern))]
     out = []
     for path in files:
         rel = path.relative_to(root).as_posix()
@@ -172,7 +189,9 @@ def env_problems(
     read = {}
     for r in readers:
         read.setdefault(r.name, []).append(r)
-    known = set(read) | {n for n in compose.substitutions if n.startswith("COMPOSE_")}
+    known = set(read) | {n for n in compose.substitutions if n.startswith("COMPOSE_") or n in COMPOSE_ONLY}
+    # settings only the agent reads are documented in its README; Compose passing one on makes it a reference variable
+    agent_only = {n for n, rs in read.items() if all(r.where.startswith(AGENT_DIR) for r in rs)} - set(compose.substitutions) - set(compose.environment)
 
     def code_default(name: str) -> tuple[object, str]:
         if name.startswith("COMPOSE_") and name in compose.substitutions:
@@ -207,7 +226,7 @@ def env_problems(
                 if value is not UNKNOWN and value is not None and m.group(1) != value:
                     problems.append(f"{where} says {names[0]} defaults to {m.group(1)!r}; it defaults to {value!r} at {code_where}. Fix the doc or the code (D11).")
     for name in sorted(set(read) | set(compose.substitutions) | set(compose.environment)):
-        if name not in reference and not allowed.covers(name):
+        if name not in reference and name not in agent_only and not allowed.covers(name):
             source = read[name][0].where if name in read else compose.substitutions.get(name, (None, compose.environment.get(name)))[1]
             problems.append(
                 f"{name} is read or set at {source} but has no row in an env table with a Default column "
@@ -220,7 +239,7 @@ def env_problems(
         if name not in read:
             problems.append(f"{where} sets {name} for the container, but no code reads it. Remove it from {COMPOSE} or read it in the code.")
     for name, (_value, no, _commented) in sorted(example.items()):
-        if name not in read:
+        if name not in known:
             problems.append(f"{EXAMPLE}:{no} lists {name}, which no code reads. Remove it from {EXAMPLE} or read it in the code.")
     return problems
 

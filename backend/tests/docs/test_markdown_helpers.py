@@ -212,6 +212,30 @@ def test_env_readers_and_their_defaults_from_the_ast():
     assert got == {("A", "1"), ("B", "x"), ("C", "d"), ("D", None), ("F", "data/f.yaml"), ("G", "?")}
 
 
+def test_agent_readers_use_the_get_helper_and_only_in_the_agent_folder():
+    source = """
+def f(env):
+    a = _get(env, "A_ONE", "x")
+    b = _get(env, "B_TWO")
+    c = _number(env, "C_THREE", 3.0, 1, 5)
+    d = _get(env, name)
+"""
+    got ={(r.name, "?" if r.default is UNKNOWN else r.default) for r in readers_in(source, "interview_agent/config.py")}
+    assert got == {("A_ONE", "x"), ("B_TWO", None), ("C_THREE", "?")}
+    assert readers_in(source, "backend/app/x.py") == []  # `_get` means something else elsewhere
+
+
+def test_env_guard_wants_a_reference_row_for_an_agent_setting_only_when_compose_sets_it():
+    readers = [Reader("AGENT_ONLY", "interview_agent/config.py:3", None), Reader("AGENT_PASSED", "interview_agent/config.py:4", None)]
+    compose = Compose({"AGENT_PASSED": ("", "docker-compose.yml:9"), "INTERVIEW_AGENT_AI_MODE": ("x", "docker-compose.yml:10")}, {})
+    example = {"INTERVIEW_AGENT_AI_MODE": ("", 7, True)}  # a Compose-only name is known to .env.example as well
+    table = "| Variable | Default | Notes |\n|---|---|---|\n| `INTERVIEW_AGENT_AI_MODE` | — | |"
+    assert env_problems([doc("PROJECT_DOCUMENTATION.md", table)], readers, compose, example, empty("env_undocumented", "name")) == [
+        "AGENT_PASSED is read or set at interview_agent/config.py:4 but has no row in an env table with a Default column "
+        "(PROJECT_DOCUMENTATION.md §9). Add the row, or allowlist it in backend/tests/docs/allowlist.yaml [env_undocumented] with a reason.",
+    ]
+
+
 def test_compose_substitutions_and_the_environment_of_built_services_only():
     compose = compose_vars(COMPOSE)
     assert {k: v[0] for k, v in compose.substitutions.items()} == {"APP_PORT": "8000", "DB_USER": "postgres", "COMPOSE_PORT": "3000"}

@@ -15,8 +15,8 @@ from .markdown import ROOT, Allowlist, Doc, guarded_docs, report
 ROOT_LINE = "CareerSync/"
 DEPTH = 2  # folders down to this many levels below the repo root must be listed
 # Local, generated or secret, so never listed; hidden folders are tool folders (.claude, .impeccable, …) except these.
-# test_data is the git-ignored local AI matching dataset: present locally, absent in a clean checkout.
-SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__", "test_data"}
+# test_data is the git-ignored local AI matching dataset, graphify-out the git-ignored output of the graphify tool: present locally, absent in a clean checkout.
+SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "dist", "__pycache__", "test_data", "graphify-out"}
 HIDDEN_KEPT = {".github"}
 # Local secrets; the untracked audit report; untracked local tool config (MCP servers, installed agent skills): present
 # on a developer's machine, absent in a clean checkout, so an allowlist entry for them would fail there as stale

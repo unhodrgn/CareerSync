@@ -17,6 +17,12 @@ x-backend: &backend
     LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
     # docs/DECISIONS.md D26: the demo uses e5 (about 1 GB, downloaded once into the model-cache volume)
     EMBEDDING_MODEL: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-base}
+    # M5 voice interview: the backend signs the seeker's join token with these; the `agent` service gets the same values.
+    # Empty counts as unset: the join route then answers 503 and the rest of the app is unaffected
+    INTERVIEW_AGENT_SECRET: ${INTERVIEW_AGENT_SECRET:-}
+    LIVEKIT_URL: ${LIVEKIT_URL:-}
+    LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+    LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
   volumes:
     - model-cache:/root/.cache/huggingface
 
@@ -62,6 +68,30 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    restart: unless-stopped
+
+  # The voice interviewer (M5 S5; docs/DECISIONS.md D56, D80, D86). Only with `--profile voice`, so a plain `docker compose up` needs no LiveKit keys.
+  # It reads no .env file: Compose passes these variables. It reaches the backend over the Compose network (not the published port).
+  agent:
+    profiles: ["voice"]
+    build:
+      context: .
+      dockerfile: interview_agent/Dockerfile
+    environment:
+      INTERVIEW_AGENT_BACKEND_URL: http://backend:8000
+      INTERVIEW_AGENT_SECRET: ${INTERVIEW_AGENT_SECRET:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # The agent's mode is its own: INTERVIEW_AGENT_AI_MODE when set, else the backend's AI_MODE. This lets the agent use Groq
+      # (llm) while the backend stays in rules mode, so the live run needs no Anthropic key
+      AI_MODE: ${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-rules}}
+      # Empty means the agent's default (3 s)
+      INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS: ${INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS:-}
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

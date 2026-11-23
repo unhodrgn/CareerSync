@@ -9,3 +9,6 @@ venv
 **/__pycache__
 **/.pytest_cache
 **/*.pyc
+# The agent's own virtual environment and timing reports (interview_agent/ is copied into its image whole)
+**/.venv
+interview_agent/.runs

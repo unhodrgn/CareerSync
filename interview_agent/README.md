@@ -2,9 +2,10 @@
 
 The realtime interviewer of the seeker practice interview (`docs/DECISIONS.md` D51–D58, D80, D81). It is a separate runtime with its own
 virtual environment (D56). It runs the engine of `ai/interview/` in-process and reaches the backend only through the internal agent API. It never
-touches the database and never imports the backend. Stages S0 to S4 exist: the agent core, a text driver, the consent-withdrawal rule, and the
-audio-only LiveKit voice worker with a developer test page. **The voice worker has not been run against a LiveKit project yet**: everything
-below under "Live run" is still to do, and no latency figure exists.
+touches the database and never imports the backend. Stages S0 to S5 exist: the agent core, a text driver, the consent-withdrawal rule, the
+audio-only LiveKit voice worker with a developer test page, and the Compose `agent` service. The voice worker ran once live (22/11/2026: C1, C3
+and C4 passed; the numbers are in `PROJECT_PROGRESS.md` §5.9); the other checks under "Live run" are still to do. The Compose image has not
+been built or run yet.
 
 ## What it does, and the rules it keeps
 
@@ -93,6 +94,42 @@ in the terminal that starts it.
 
 Never put a key in a file you commit. The agent prints the names of missing variables and never a value.
 
+## Run it with Docker Compose
+
+`docker compose --profile voice up --build -d` starts the agent next to the backend (service `agent`, built from `interview_agent/Dockerfile`; a
+plain `docker compose up` leaves it out and needs no LiveKit key). The step-by-step walk-through, with the test page, is in
+[`docs/how-to/run-locally.md`](../docs/how-to/run-locally.md#voice-interview-with-docker-compose). What matters here:
+
+- **Variables.** The container reads no `.env`. Compose takes `INTERVIEW_AGENT_SECRET`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
+  `GROQ_API_KEY` and `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` from the repository `.env` or the shell and hands them to the agent (the backend gets
+  the secret and the three `LIVEKIT_*` names), and sets `INTERVIEW_AGENT_BACKEND_URL=http://backend:8000` itself. Every other variable of the
+  table above keeps its default under Compose.
+- **The agent's mode.** `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) is read by Compose only: the container's `AI_MODE` is that value when it is
+  set, otherwise the backend's `AI_MODE`. So the agent can run `llm` (Groq) while the backend runs `rules` and needs no Anthropic key. Shell
+  variables win over `.env`; the backend and the agent can only differ when the shell or `.env` says so.
+- **Change only the agent.** Set the variable, then `docker compose --profile voice up -d --no-deps agent`. `--no-deps` leaves the backend alone
+  even when your shell differs from the one you started in.
+- **Models.** `python -m livekit.agents download-files` runs at build time and a second command loads Silero VAD and the local turn-detector
+  fallback, so a missing model file fails the build. In livekit-agents 1.8.12 nothing is downloaded (Silero ships in its wheel, `v1-mini` in
+  `livekit-local-inference`); the check is what the build gives you. The speech models run in LiveKit Inference, not in the image.
+- **Health.** The worker's own endpoint (port 8081 in the container) is the image's healthcheck: `healthy` means registered with LiveKit.
+  An agent that keeps restarting has a missing or short variable; `docker compose --profile voice logs agent` names it (never its value).
+- **Reports.** Timing reports are written in the container (`/app/interview_agent/.runs`) and are lost with it. Copy them out before you
+  recreate or remove the container: `docker compose --profile voice cp agent:/app/interview_agent/.runs/. interview_agent/.runs/`. The same
+  numbers are logged as `session summary: {...}`.
+- **Clock.** LiveKit rejects tokens when the clock is off by more than about a minute (`401`):
+  [troubleshooting](../docs/how-to/troubleshooting.md#livekit-answers-401-in-the-voice-interview-although-the-keys-are-right).
+- **The lock.** The image installs `requirements.lock.txt`, which was resolved on Windows. pip still resolves, so Linux-only packages are added,
+  and `pip check` fails the build on a conflict; every pin has a Linux x86_64 wheel on PyPI (checked 23/11/2026), but a first build is the real
+  test. **Follow-up, after the first successful Linux build:** freeze the set the image really has, so later builds are reproducible:
+
+  ```powershell
+  docker compose --profile voice run --rm -T --no-deps agent python -m pip freeze | Set-Content -Encoding utf8 interview_agent\requirements.linux.lock.txt
+  ```
+
+  Then install that file in the Dockerfile with `--no-deps` instead of the Windows lock, and keep `pip check`. The Windows lock stays the lock of
+  the local virtual environment.
+
 ## Run it
 
 Four terminals, from the repository root. The accounts are the documented synthetic ones (`docs/how-to/run-locally.md`): `seeker2@demo.test` has a
@@ -139,8 +176,8 @@ Use synthetic answers only. The run sends your voice to LiveKit and its speech p
 writes `interview_agent/.runs/session-<id>-<UTC>.json` (git-ignored; numbers and codes only) and logs the same figures as `session summary: {...}`.
 Do not run the worker with `--log-level debug`: the SDK then prints transcript lines.
 
-**Plan the sessions** (3 per account per day): session A (seeker2): C1, C3, C4, C7. Session B (seeker2): C2. Session C (seeker2): C5 and C6a.
-A second day, or `seeker3@demo.test` (seeded with the demo CV confirmed): sessions D, E, F for C6b, C6c, C6d.
+**Plan the sessions** (3 per account per day): the checks that are still open fit into four sessions on the Compose stack, set out step by step
+under the table ("The remaining checks in four sessions"). The first session of 22/11/2026 (manual run, `seeker2@demo.test`) passed C1, C3 and C4.
 
 **Status** (the results and their numbers are recorded in `PROJECT_PROGRESS.md` §5.9, "S4 live run"): session 3 on 22/11/2026 (seeker2) passed
 C1, C3 and C4; C7 was not confirmed in it; the other checks have not run.
@@ -158,6 +195,118 @@ C1, C3 and C4; C7 was not confirmed in it; the other checks have not run.
 | C6d | Consent withdrawal stops it | Session F: `DELETE /api/users/me/consent/ai` in Swagger mid-interview; afterwards consent again (`POST /api/users/me/consent`) | The agent stops within about 5 s with no further model call; the session reads `aborted` (`consent_withdrawn`) | Seconds to silence; the worker log; no Groq call after the withdrawal | Pending |
 | C7 | Masking in the live path | Session A: "제 이름은 홍길동이고 전화번호는 공일공 일이삼사 오육칠팔입니다 …" | The page's stored transcript shows `[이름]` and a phone placeholder, not the words | The page's line; confirm that the worker log holds no part of what you said | Pending (not confirmed in session 3) |
 | C8 | A second session after the first | Start a session right after one ended | It works, in a new room | Whether the first attempt after an ended session connected | Pending |
+
+### The remaining checks in four sessions (Compose)
+
+Open: C2, C5, C6a to C6d, C7 (not confirmed in the first session) and C8. The four ways a session can be stopped (C6a to C6d) each end one
+session, so **four sessions** is the minimum; C2, C5, C7 and C8 ride along. Accounts: `seeker3@demo.test` for sessions 1 to 3 (its 3 sessions of
+the day), then `seeker@demo.test`; every demo password is `demo1234`. Use only the synthetic sentences below. The quota is counted per
+database, and the Compose database (host port 5434) is separate from a manual one (5433).
+
+**Before session 1** (once). Window 1 is the Compose window: keep it open all day, because its variables decide what Compose passes on.
+
+```powershell
+# Window 1, repo root
+$env:AI_MODE = "rules"                  # the backend: no Anthropic key needed
+$env:INTERVIEW_AGENT_AI_MODE = "llm"    # the agent: Groq per turn (GROQ_API_KEY in .env)
+docker compose --profile voice up --build -d
+docker compose --profile voice ps -a                       # the agent reads "healthy" about a minute after it started
+docker compose --profile voice logs agent                  # contains "registered worker"
+docker compose --profile voice exec agent date -u          # compare with the next line: within a few seconds, or LiveKit answers 401
+(Get-Date).ToUniversalTime()
+
+# Window 2, repo root: the test page (standard library only), open http://127.0.0.1:8788/ in Chrome
+python -m interview_agent.devclient.serve
+
+# Window 3: helpers for the API calls of C6b to C6d
+$base = "http://127.0.0.1:8000"
+function Get-SeekerHeaders($email) {
+    $body = @{ email = $email; password = "demo1234" } | ConvertTo-Json
+    $login = Invoke-RestMethod -Method Post -Uri "$base/api/auth/login" -ContentType "application/json" -Body $body
+    @{ Authorization = "Bearer $($login.access_token)" }
+}
+function Show-Sessions { (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).items | Select-Object id, status, end_reason, created_at }
+```
+
+On the page: log in, tick the consent, job id `1`, press **면접 시작** (Start interview), allow the microphone. **기존 세션 번호** (existing session
+number) stays empty for a new session; **종료** (End) ends it. The status line shows `세션 N: …` (the session number N). A new session needs a
+reloaded page (F5) and a new login. The join window of a created session is 5 minutes.
+
+After every session, before you recreate the agent container, copy the timing reports out and collect the log lines (the commands are the same
+each time; use the session's `--since`):
+
+```powershell
+docker compose --profile voice cp agent:/app/interview_agent/.runs/. interview_agent/.runs/
+docker compose --profile voice logs --no-color --since 20m agent | Select-String "voice session|turn analysis|runner stopped|session summary|WARNING|ERROR|Traceback"
+```
+
+**Session 1: `seeker3@demo.test`, C2, C7, C5, C6a.** The agent runs `llm` with a 0.2 s model timeout from step 3.
+
+1. Window 1: `docker compose --profile voice stop agent`. There is no worker now.
+2. Page, tab 1: log in as seeker3, tick the consent, **면접 시작**. Note N. Leave tab 1 open: it keeps the room alive. The 5 minutes start now.
+   Wait for the page's 20-second message (no interviewer arrived) before step 3.
+3. Window 1: `$env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS = "0.2"`, then `docker compose --profile voice up -d --no-deps agent`. Wait until `ps` says healthy.
+4. Tab 2 (a new tab on the same page address): log in, tick the consent, type N into **기존 세션 번호**, **면접 시작**. The room exists, so by LiveKit's
+   documentation no interviewer is dispatched: the page shows its 20-second message. **Record: did an interviewer join (yes or no).** (C2 (4))
+5. Close tab 1 and tab 2. Wait 40 s: an empty room expires after 30 s. (C2 (5))
+6. Tab 3: log in, tick the consent, type N, **면접 시작**. **Record the seconds** to "the interviewer joined" and to the first audio (the page's
+   measurements). A 409 `INTERVIEW_NOT_JOINABLE` means the 5 minutes passed: record that, and do not repeat it with a new session. (C2 (5))
+7. Answer the first question with this, in Korean, then stay silent (C7): "제 이름은 홍길동이고 전화번호는 공일공 일이삼사 오육칠팔입니다. 이메일은
+   hong 골뱅이 example 점 com 입니다. 같이 일한 한도윤 님과 주문 API를 개발하면서 멱등성 키를 적용했습니다." When the interviewer has answered, the
+   page's transcript line must read like "제 이름은 [이름]이고 전화번호는 [전화번호]입니다. 이메일은 [이메일] 입니다. …" with none of 홍길동, 한도윤 or the
+   digits. The recognizer may write the number in digits: it is masked either way. **Record the line exactly as the page shows it.**
+8. Answer the next two questions in full sentences, 15 to 30 s each (a very short answer is decided by the rules alone and asks no model). The
+   interviewer must answer every time and the page shows no error. (C5)
+9. While the interviewer is speaking its next line, press **종료**. **Record the seconds from the click to silence.** The page reads `aborted (seeker_ended)`. (C6a)
+
+Send back: N; yes or no (step 4); the seconds (step 6); the transcript line (step 7); the seconds (step 9); the log lines of the command above
+(`turn analysis: timeout in 0.2x s` for each answer that asked the model: a very short answer asks none and writes no such line; and `runner stopped: <reason>`); the report file `interview_agent/.runs/session-N-*.json`.
+
+**Session 2: `seeker3@demo.test`, C8, C6b.** Do not restart anything between session 1 and 2 (C8 is about the same worker taking the next room).
+
+1. Window 3: `$h = Get-SeekerHeaders "seeker3@demo.test"`. Reload the page, log in, tick the consent, **면접 시작** with **기존 세션 번호** empty, within a minute
+   of the end of session 1. **Record whether the interviewer joined on this first attempt, and the seconds.** (C8) The session count is now 2 of 3.
+2. Window 3: `$id = (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).active.id`
+3. Answer the first question. When the interviewer starts speaking its next line, run
+   `Invoke-RestMethod -Method Delete -Uri "$base/api/interview-sessions/$id" -Headers $h` and start counting. **Record the seconds to silence.** (C6b)
+   The page shows an error about a session that is not found and stops.
+
+Send back: yes or no and the seconds (step 1); the seconds (step 3); the log lines, which must hold `runner stopped: gone`; the report file.
+
+**Session 3: `seeker3@demo.test`, C6c, and a voice interview through Compose in `rules` mode.**
+
+1. Copy the reports and the logs of session 2 first (the commands above). Then Window 1:
+   `$env:INTERVIEW_AGENT_AI_MODE = "rules"; Remove-Item Env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS; docker compose --profile voice up -d --no-deps agent`.
+   Wait until healthy. A session's log line must now say `ai_mode=rules`.
+2. Reload the page, log in as seeker3, tick the consent, **면접 시작** (the third session). Window 3:
+   `$id = (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).active.id` (a 401 means the token of `$h` expired after 2 hours: run
+   `Get-SeekerHeaders` again). Answer the first two questions normally: the interviewer must answer from the engine's rules, with no model call
+   (`turn analysis` does not appear in the log).
+3. While you are speaking a third answer, close the browser tab. (C6c) In Window 3, repeat `Show-Sessions` every few seconds. **Record the seconds until
+   the session reads `aborted` with `candidate_left`**, and check that no interviewer line follows your last answer:
+   `(Invoke-RestMethod "$base/api/interview-sessions/$id" -Headers $h).turns | Select-Object role, seq`.
+
+Send back: the seconds, the end reason, the last turns' roles, the log lines, the report file. That the interview worked in `rules` mode is also the
+"done" condition of stage S5.
+
+**Session 4: `seeker@demo.test`, C6d.** The account has no CV: this part costs no interview session.
+
+1. Browser, http://localhost:3000 (the Compose frontend): log in as `seeker@demo.test`, open 내 이력서 (My CV), upload `data/demo/demo_cv.pdf`, confirm it.
+2. Copy the reports and the logs of session 3. Then Window 1: `$env:INTERVIEW_AGENT_AI_MODE = "llm"; docker compose --profile voice up -d --no-deps agent`
+   (the timeout variable was removed in session 3, so the default of 3 s applies). Wait until healthy. Window 3: `$h = Get-SeekerHeaders "seeker@demo.test"`.
+3. Test page: reload, log in as `seeker@demo.test`, tick the consent, **면접 시작**. Answer the first question normally (its model call should be `ok`).
+4. When the interviewer starts speaking its next line, withdraw the AI consent and start counting, then stay silent:
+   `Invoke-RestMethod -Method Delete -Uri "$base/api/users/me/consent/ai" -Headers $h` (C6d). **Record the seconds to silence.** The page must read
+   `aborted (consent_withdrawn)`, and no model call may follow the withdrawal.
+5. Give the consent back, so the account works again:
+   `$me = Invoke-RestMethod -Uri "$base/api/users/me" -Headers $h`, then
+   `Invoke-RestMethod -Method Post -Uri "$base/api/users/me/consent" -Headers $h -ContentType "application/json" -Body (@{ version = $me.current_consent_version; consent_privacy = $true; consent_ai = $true } | ConvertTo-Json)`.
+
+Send back: the seconds; the page's last status line; the log lines (`runner stopped: consent_withdrawn`; no `turn analysis` line may come after the
+withdrawal, so their number cannot exceed the answers you gave before it); the report file.
+
+If something fails: write down what the page and the log said and stop; do not retry with a new session, each one is counted. If the first
+build or the health check fails, send the output of `docker compose --profile voice logs agent` and `docker compose --profile voice build agent`.
 
 If an agent does not join within 20 s: the worker is not running or is registered under another name (`INTERVIEW_AGENT_NAME`), the LiveKit project
 differs between the backend's token and the worker, or the room already existed (C2). If a join answers 503: a `LIVEKIT_*` or the agent secret is
@@ -185,7 +334,9 @@ interview_agent\.venv\Scripts\python.exe -m pytest interview_agent/tests -q   # 
 python scripts/run_all_tests.py -q                                              # the backend suite and this one
 ```
 
-The runner and the controller are also tested against the real application in `backend/tests/test_interview_agent_runner.py` and
+The Compose wiring (the `voice` profile, the backend URL, the shared secret, the agent's mode variable, the two Dockerfiles, `.dockerignore`) is checked
+statically by `backend/tests/docs/test_compose_agent.py`; it cannot build an image. The runner and the controller are also tested against the real
+application in `backend/tests/test_interview_agent_runner.py` and
 `backend/tests/test_interview_voice.py` (the backend suite). No test makes a model, Groq, LiveKit or network call. What no test covers is the
 live checklist above: dispatch into a real room, the real recognizer and synthesizer, the turn detector on real Korean speech, and the latency.
 
@@ -203,4 +354,5 @@ live checklist above: dispatch into a real room, the real recognizer and synthes
 | `config.py` | Settings from the environment |
 | `text_cli.py` | The text driver |
 | `devclient/` | The developer test page and its server (localhost only; forwards `/api/`, never `/api/internal/`) |
+| `Dockerfile` | The Compose image: the pinned lock, `pip check`, the local-model check at build time, the worker as the command, its health endpoint as the healthcheck |
 | `tests/` | Offline tests (agent environment) |
