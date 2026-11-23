@@ -192,7 +192,7 @@ The PostgreSQL rows ran with the hashing embedder and the fake LLM (no model cal
 - [x] Session retention uses 30-day logical read hiding plus lazy purge
 - [ ] Configure an external scheduler for physical retention purge *(outside the current implementation scope)*
 - [ ] Implement realtime-agent reaction to session deletion in M5
-- [ ] Implement agent-owned closing-turn/event recording in M5
+- [x] Implement agent-owned closing-turn/event recording in M5 *(S2)*
 
 ---
 
@@ -878,18 +878,291 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 
 **Mục tiêu:** Implement the realtime interview agent and connect it to the M4 session lifecycle.
 
-- [ ] Review and approve the M5 implementation plan
-- [ ] Implement the planned LiveKit realtime agent
-- [ ] Connect the agent to the existing interview session API/services
-- [ ] Implement agent-owned `record_end` behavior for closing turn/event persistence
-- [ ] Detect session deletion/404 and stop or disconnect the agent
-- [ ] Ensure consent and session lifecycle rules are respected
-- [ ] Add tests for disconnect, deletion and end-of-session behavior
-- [ ] Verify model/agent boundaries and avoid bypassing the approved `compose()` / `ask()` flow
+- [x] Review and approve the M5 implementation plan *(approved by Long, 22/11/2026, with changes: D79, D80, D81, D82)*
+- [ ] Implement the planned LiveKit realtime agent *(S4: the worker, the join route and a test page are implemented and tested offline; the worker ran live against LiveKit on 22/11/2026 (session 3) and on the Compose stack on 23/11/2026 (session 6); the live checks C6b to C6d and C8 are still pending, so it is not marked done)*
+- [x] Connect the agent to the existing interview session API/services *(S1 and S2: the internal agent API and the runner, locally verified with the text driver; the LiveKit transport is S4)*
+- [x] Implement agent-owned `record_end` behavior for closing turn/event persistence *(S2, locally verified; the voice worker reuses the runner)*
+- [ ] Detect session deletion/404 and stop or disconnect the agent *(implemented: the controller polls the status about every 5 s, a 404 or an ended session stops it, the speech is interrupted by force and the room is deleted; tested offline against the real application; the live check C6b is pending)*
+- [x] Ensure consent and session lifecycle rules are respected *(Q39 / D81 in S3; the join route's consent, ownership, status and join-time checks in S4; tested on SQLite, and the gated tests on PostgreSQL)*
+- [x] Add tests for disconnect, deletion and end-of-session behavior *(offline, against the real application: deletion, the seeker's End, leaving, a closed transport, time, consent withdrawal; a real LiveKit disconnect is the live check C6c)*
+- [x] Verify model/agent boundaries and avoid bypassing the approved `compose()` / `ask()` flow *(S2: `interview_agent/` is in the architecture scans; D80)*
 
 **Important:** `interview_poc/` is a separate avatar/realtime proof of concept. Its existence or successful manual avatar testing does not mean M5 is implemented or production-ready.
 
-**Status:** Not Started
+**Status:** In progress. Plan (§5.1 to §5.8) approved by Long on 22/11/2026 with changes (D79, D80, D81; Q35 widened). Stages S0 to S4 implemented and locally verified (§5.9); the voice stage ran live against LiveKit twice (session 3, 22/11/2026: C1, C3 and C4 of the live checklist in `interview_agent/README.md` passed; session 6, 23/11/2026, on the Compose stack: C2 (a variant result), C5, C6a and C7 done, C6b to C6d and C8 pending; §5.9 "S4 live run" and "Live run on the Compose stack"); S5 (Compose) done on 23/11/2026: `docker compose --profile voice up --build -d` built both images, all services came up, the agent was `healthy` with `registered worker`, and session 6 ran on the stack (§5.9); the Linux lock freeze is still an open follow-up. Not production-ready.
+
+**Milestone order after M5 (Long, 23/11/2026).** (1) The Anam avatar on the interview agent, tested with the developer client (`interview_agent/devclient/`); then (2) M6, which is now a full rebuild of the frontend that includes the interview UI (§6). Neither is planned in detail yet: each gets its own plan, approved before work starts. This is an order, not a decision record: nothing about it is in `docs/DECISIONS.md` (D55 still calls the avatar optional).
+
+### 5.9 Progress of the stages
+
+| Stage | Status | What exists |
+|---|---|---|
+| S0 — decisions and pins | Done 22/11/2026 | D79 (pinning: `livekit-agents` 1.8.12, exact agent pins and a full lock), D80 (the M5 architecture as approved, including the 3-second configurable per-turn timeout and the display name in the context), D81 (Q39 resolved, option (c), to be implemented in S3), Q35 widened to every party that receives seeker data. `interview_agent/requirements.txt`, `requirements-dev.txt` and `requirements.lock.txt`, resolved in a new Python 3.12 virtual environment (`interview_agent\.venv`, git-ignored) |
+| S1 — internal agent API | Done 22/11/2026; locally verified | `core/agent_auth.py` (shared secret of at least 32 characters, room name `HMAC-SHA256(secret, session id)`, constant-time comparisons, 401 before path and body validation, a wrong room is the 404 of an unknown session), `GET /api/internal/interview-sessions/{id}/context` and `POST …/events` (`api/v1/internal_interview.py`, `services/interview_agent_service.py`, `schemas/interview_internal.py`), `INTERVIEW_AGENT_SECRET` and `INTERVIEW_AGENT_SECRET_MIN_CHARS` in `core/config.py`, the no-store and D68 sanitizing path match extended to the internal paths. The ingestion service is unchanged |
+| S2 — agent core and text driver | Done 22/11/2026; locally verified; first demo run | `interview_agent/`: `runner.py` (store then speak, one end event, stop on 404 and on the ended or not-active 409, a status check, abort with `agent_error` after a permanent refusal, sequence-gap repair), `backend_client.py` (retries with the same payload), `turn_model.py` (Groq through the LiveKit Groq plugin behind `ask`, only `system` and `user` sent, no retry, cancelled at the timeout), `config.py`, `rooms.py`, `text_cli.py`, `README.md`, offline tests. `scripts/run_all_tests.py` runs both suites. Architecture scans extended to `interview_agent/` |
+| Before S3 (Long's instructions of 22/11/2026) | Done | **D82**: `backend/requirements.txt` pins `fastapi==0.142.4`, `starlette==1.7.0` and `pydantic==2.14.4`; the repository venv was reinstalled from it (`pip check` clean); the middleware guard failure is gone with its expected list unchanged. **Consent wording and the Q38 text**: drafted for Long's review, not applied (see the report of that day; nothing in `ko.ts`, `interview_consent_service.py`, `config.py` or `CLAUDE.md` has changed for them) |
+| S3 — consent withdrawal (D81, Q39) | Done 22/11/2026; locally verified; PostgreSQL race test not run | `interview_service.abort_for_consent_withdrawal` (no commit; ends the seeker's `planning`, `created` and `live` sessions inside their time with the reason `consent_withdrawn`), called by `consent_service.withdraw_ai` in the same transaction (the new optional `now` is for tests); the import guard names that one use (`CONSENT_WITHDRAWAL_USE`). Agent: in `AI_MODE=llm` the runner reads the context right before every model call (one attempt, no retry delays): an ended session stops it, an active session without consent gets an aborted end (`session_closed`) and a stop, an unreadable context means the rules decide the turn; `check()` names `consent_withdrawn`. The ingestion is unchanged. Tests: `test_interview_consent_withdrawal.py` (18), six new runner tests, one agent client test, and `test_interview_consent_withdrawal_postgres.py` (5, gated) |
+| After S3 (Long's instructions of 22/11/2026, second round) | Done | `CLAUDE.md` rule 2 names the Interview Agent's one Groq call and says that it covers LLM text-generation calls only (**D83**, Q38 closed; rules 3 and 8 unchanged). `create_session` answers 409 `AI_CONSENT_REQUIRED` (one shared `interview_service.consent_required_error`, the join route's error too) when a withdrawal ended the session while it was being planned; a seeker who consented again still gets `INTERVIEW_PLANNING_EXPIRED`. The gated tests ran on PostgreSQL (below). The consent drafts were restructured as asked (privacy text: no vendor; AI-analysis consent: Anthropic; per-session consent: all interview recipients) and are **not applied**; they wait for the providers to be confirmed live |
+| S4 — voice, audio only | Done 22/11/2026; locally verified; **partly run live** (C1, C3, C4 passed in session 3; C2 variant, C5, C6a, C7 done in session 6; C6b to C6d and C8 pending; see "S4 live run" and "Live run on the Compose stack" below) | Backend: `POST /api/interview-sessions/{id}/join` (`interview_join_service`: one room, microphone only, no data, 120 s at most and never past the join deadline, random identity, dispatches the agent with only the session id; 409 consent before status, 503 when unconfigured), the settings `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `INTERVIEW_AGENT_NAME`, `INTERVIEW_JOIN_TOKEN_TTL_SECONDS`, and `livekit-api==1.2.3` pinned. Agent: `voice.py` (a session **with no LLM**, masking in the speech-recognition node, `record=False`, audio only, not interruptible, forced interrupt on a stop), `controller.py` (opening, one answer at a time, silence, status poll, ending), `timing.py` (numbers-only report per session), `devclient/` (test page and a localhost server that never forwards `/api/internal/`), `text_cli --create-only`, and the live checklist in `interview_agent/README.md`. The three guards that name LiveKit in the backend were rewritten on purpose (only `livekit-api`, pinned, only in the join service, never logged) |
+| S5 — Compose | Done 23/11/2026; checked statically (`docker compose config`, the new guards), then built and run: both images built, all services up, the agent `healthy` with `registered worker`, and session 6 ran on the stack (agent `llm`, backend `rules`); **the Linux lock freeze is still open** (follow-up 1) | `interview_agent/Dockerfile` (the pinned lock, `pip check`, `download-files` and a load check of the local models at build time, the worker's health endpoint as the healthcheck, `python -m interview_agent.voice start`); the `agent` service of `docker-compose.yml` (profile `voice`; `INTERVIEW_AGENT_BACKEND_URL=http://backend:8000`; the secret and `LIVEKIT_*` shared with the backend; `GROQ_API_KEY`; its mode is `INTERVIEW_AGENT_AI_MODE`, else `AI_MODE`; `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS`; no `model-cache` mount); the backend service now also gets the secret and `LIVEKIT_*` (without them the Compose backend answered 503 on join); `.dockerignore` leaves out `**/.venv` and `interview_agent/.runs`; `.env.example` (the voice variables, `DB_HOST=127.0.0.1`); `run-locally.md`, `run-with-docker.md`, `troubleshooting.md` (clock skew; `localhost` on Windows) and `interview_agent/README.md` (Compose, the four-session live plan, the Linux-lock follow-up); the guard `backend/tests/docs/test_compose_agent.py`, and the env guard now reads the agent's settings |
+
+**Test results after S4 (22/11/2026, local, `python scripts/run_all_tests.py -q`: SQLite, `AI_MODE=rules`, database, secret and key variables removed; no model, Groq or LiveKit call).**
+
+| Suite | Result |
+|---|---|
+| `ai/tests` (repository venv) | **1,498 passed**, none skipped (75 s; run on its own, and part of the next row) |
+| `backend/tests` (repository venv) | **2,159 passed**, 147 skipped (the 140 earlier PostgreSQL-gated tests, the 2 of `test_interview_internal_postgres.py` and the 5 of `test_interview_consent_withdrawal_postgres.py`); the next row minus the row above |
+| `ai/tests` and `backend/tests` together (`pytest` from the root; the first command of the script) | **3,657 passed, 147 skipped, 0 failed** (272 s) |
+| Interview Agent (`interview_agent/tests`, agent venv; the second command of the script) | **116 passed** (30 s) |
+| `backend/tests/docs` | 44 passed (inside the second row) |
+
+**PostgreSQL (22/11/2026; approved by Long for this run).** Docker Desktop was not running and was started. The project's own container `careersync-db-1` (`careersync_db`, port 5434) came up with it and was **not used**. A throwaway container `careersync-pgtest-m5` (image `postgres:16`, PostgreSQL 16.15, `127.0.0.1:5441`, database `careersync_pgtest`, data in tmpfs, a random password kept out of every file of the repository) ran the 22 test files that mention `TEST_DATABASE_URL` (the safety guard `backend/tests/db_safety.py` passed first, in both modes). The same files on SQLite: 205 passed, 147 skipped, so the 147 skips of the full suite are all inside them. On PostgreSQL: **352 passed, 0 skipped, 0 failed** (143.6 s, before the S4 code; 155.0 s again after it): all 147 gated tests executed, the 140 earlier ones and the 7 of M5. No code or test was changed to make them pass. The race tests allow either order of two requests, so a pass shows that no interleaving that happened broke an invariant, not that both interleavings were seen.
+
+Mutation checks (throwaway plugins outside the repository): with the abort turned into a no-op 9 of 18 backend tests fail; with the withdrawal committed before the sessions are ended the one-transaction test fails; with the agent's check always answering yes 3 runner tests fail; with the speech-recognition masking turned off the pipeline test fails.
+
+**Text-driver demo (22/11/2026).** The backend ran under uvicorn on 127.0.0.1 against a scratch SQLite file with synthetic data (no `.env`, no PostgreSQL), in `AI_MODE=rules`, with a throwaway agent secret; the driver ran in the agent venv. Session 1: 10 scripted inputs (answers, a 25-second silence, "don't know") and `/quit`: 18 turns stored, the seeker's display name masked as `[이름]` in the stored answer, `aborted` with `candidate_left`, feedback (rules) final. Session 2: answers until the plan ended: `completed` with the closing line. No model call (rules mode).
+
+**S3 demo over real HTTP (22/11/2026).** The backend ran on the pinned FastAPI against the same scratch SQLite file. A runner in the model mode (a counting fake model, not Groq) started a session and answered once (1 model call); the seeker then withdrew the consent through `DELETE /api/users/me/consent/ai`: the seeker's detail read `aborted` / `consent_withdrawn` with 3 turns stored; the next `answer()` stopped with `consent_withdrawn`, the model was not called again, and no turn was stored afterwards.
+
+**S4 live run (22/11/2026, 16:27 UTC; session 3, `seeker2@demo.test`, `AI_MODE=llm`).** The first attempt crashed in every job before anything was spoken: the LiveKit Groq plugin was imported inside the job, off the main thread, and LiveKit registers a plugin only on the main thread. Fixed before this run: `turn_model.py` imports the plugin at the top and `voice.py` imports it when the worker starts; a setup failure now ends the job (`setup_failed`) and deletes the room so the seeker can join the same session again (Q43). Results, from the timing report (`interview_agent/.runs`, numbers only) and Long's own assessment:
+
+| Item | Result |
+|---|---|
+| Outcome | `completed`, 177 s, 10 candidate turns, 0 dropped turns, 0 speech failures, 0 nudges |
+| C1 dispatch into a new room | **Passed.** The agent joined 0.24 s after the seeker; the first interviewer audio came 1.2 s after the opening line was handed to speech (`opening.say_to_first_audio_s` 1.218) |
+| C3 Korean turn detection | **Passed.** `turn-detector-v1` from start to end, no fallback; `endpointing_s` about 2.4 s on eight turns and about 5.4 s on two (the 6.0 s maximum delay: the detector judged those answers incomplete); Long noticed no answer split or interrupted |
+| C4 end-to-end latency | **Passed.** `gap_s` (last word to first sound) min 2.74, median 3.55, max 5.75 s; `processing_s` (Groq, engine, two posts) 0.5 to 1.3 s with a model call and about 0.05 s without; `tts_start_s` about 0.27 s. Long judged the wait acceptable and wants no change |
+| Groq per-turn model | 6 calls, 6 `ok`, 0.50 to 1.25 s (3 s timeout). The other 4 turns (5, 7, 9, 10) are `skipped`: the rules decided alone and no model was asked (`prepare_turn` returns no request for an answer the rules classify as empty, too short, or a request to repeat or clarify, or one only about age, gender or military service) |
+| Korean recognition | Good, by Long's assessment (`deepgram/nova-3` through LiveKit Inference) |
+| C7 masking in the live path | **Not confirmed** in this run |
+| C2, C5, C6a to C6d, C8 | **Pending.** They need more sessions, and seeker2's daily quota was used up; `seeker3@demo.test` is seeded for them (demo CV confirmed only) |
+
+The report field `stt_delay_s` of this run (10 to 18 s) was wrong: the recognizer finalizes an answer before the voice activity detector declares the stop, so each final transcript was credited to the previous answer's record (the interviewer's line plus the next answer), and the last answer had none. Fixed after the run: the last final before the commit belongs to the answer, and the field is now `stt_final_after_stop_s` (negative when the transcript was final before the stop). The other fields were not affected. The defaults this run used are approved in D84.
+
+**Not verified** (as of session 3; C2, C5, C6a and C7 ran later, in session 6, below). Of the voice stage: what happens when the room already exists (C2; LiveKit's documentation says the token's room settings are then ignored), the masking of spoken personal data in the live path (C7), the Groq timeout fallback live (C5), the stops by the seeker's End, a deletion, a closed tab and a consent withdrawal (C6a to C6d), a second session right after the first (C8), and the console mode. The synthesized Korean voice (the default `cartesia/sonic-3` voice is a sample voice with no Korean claim) was not assessed on its own; Long wanted no change after the run. Groq's share of `ok` over more sessions and its quality of analysis. Which companies actually process the audio behind LiveKit Inference (Q35). The exact wording and the facts of the consent drafts. Not changed: an answer spoken over the interviewer is not heard (the SDK does not deliver it; the controller drops one that arrives while it is busy).
+
+**S5 — Compose (23/11/2026).** The table below is the static checks and the suites, done before anything ran in Docker; the build and the live run follow it ("Live run on the Compose stack").
+
+| Check | Result |
+|---|---|
+| `docker compose config`, with a synthetic env file (no real `.env` read) | Valid with no voice variable set. Without a profile the services are `db`, `init`, `backend`, `frontend`; with `--profile voice` `agent` is added. The agent's `AI_MODE`: neither variable set gives `rules`; `AI_MODE=llm` alone gives `llm`; `INTERVIEW_AGENT_AI_MODE=llm` with `AI_MODE=rules` gives agent `llm` and backend `rules`; the reverse gives agent `rules` and backend `llm`; an empty `INTERVIEW_AGENT_AI_MODE` follows `AI_MODE`. The backend's `DB_HOST` stays `db` |
+| The 79 packages of `requirements.lock.txt` on PyPI | Each has a Linux x86_64 cp312 wheel or a pure-Python wheel (aarch64 not checked) |
+| Local models (agent venv) | `python -m livekit.agents download-files` exits 0 and finds nothing to download in livekit-agents 1.8.12 (Silero VAD ships in its wheel; the `v1-mini` fallback is inside `livekit-local-inference`); `silero.VAD.load()` and `EOT()` load. The Dockerfile repeats that load, so a missing model file fails the build |
+| `python scripts/run_all_tests.py -q -rs` (after the follow-ups of Long's review) | backend and ai: **3,685 passed, 152 skipped, 0 failed**; agent: **120 passed**. Of the 152 skips, 147 need `TEST_DATABASE_URL` on PostgreSQL (as after S4) and 5 are probes of the body-limit guard that skip by design on the pinned FastAPI 0.142.4 (D82), which has no `max_body_size`; they came in with main's D78 guard, merged on 23/11, after the S4 count |
+| `backend/tests/docs` | 63 passed |
+| The tree guard | The untracked `graphify-out/` folder first failed `test_doc_tree.py::test_folder_tree_matches_the_files`. Fixed on Long's review: `graphify-out/` is in `.gitignore` and in the guard's `SKIP_DIRS` (the guard walks the files, not git, so the ignore alone is not enough), and not in the §8 tree |
+| New tests | `backend/tests/docs/test_compose_agent.py` (17: the profile, the build, the network URL, the shared secret and `LIVEKIT_*`, no default value for a key, the mode variable, each service's own model key, the backend's OCR packages, the agent image's lock and model check, `.dockerignore`), two helper tests for the env guard, and `test_no_personal_data_reaches_the_llm_on_the_company_verification_path` (the recruiter's verification questions send the model only masked text; with the name unmasked in front of the module the test fails) |
+
+**Not verified** (after the build and the live run, below). The Linux lock is not frozen (follow-up 1); aarch64 wheels and a Compose host other than this Windows machine were not checked; the live checks C6b to C6d and C8 are prepared as sessions 2 to 4 in `interview_agent/README.md` and have not run. Now verified by the build and session 6: the agent image build (it runs the lock install, `pip check` and the model load check), the healthcheck, and a voice interview through Compose; C2, C5, C6a and C7 ran in session 6.
+
+**Follow-ups.** (1) Still open (the first Linux build succeeded on 23/11/2026; the lock file made from it was removed, and this is redone together with the later Dockerfile switch): freeze the Linux lock from the image (`docker compose --profile voice run --rm -T --no-deps agent python -m pip freeze | Set-Content -Encoding utf8 interview_agent\requirements.linux.lock.txt`), install that file in the Dockerfile with `--no-deps` and keep `pip check`, so later builds are reproducible; the image today is the Windows lock plus whatever pip adds on Linux. (2) Run the remaining live checks (C6b to C6d and C8). (3) `INTERVIEW_AGENT_AI_MODE` (Compose only), the lock approach and the `.env.example` database host are recorded in D86.
+
+**Live run on the Compose stack (23/11/2026; session 6, which is session 1 of the four-session plan in `interview_agent/README.md`; `seeker3@demo.test`, the agent in `llm` with `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` 0.2).** Results as reported by Long; only the figures below were reported.
+
+| Check | Result |
+|---|---|
+| Build and stack (S5) | `docker compose --profile voice up --build -d` built both images (backend and agent); all services came up; the agent was `healthy` with `registered worker`. Session 6 ran on this stack (agent `llm`, backend `rules`) |
+| C2 dispatch when the room exists | **Variant result; steps (4) and (5) were not done as written.** The worker was stopped when the seeker joined (the room was created, no agent). After the worker restarted, the agent joined **that same existing room 57.6 s after the seeker joined**, with no new tab: a pending dispatch was delivered when the worker registered |
+| C5 Groq timeout falls back to the rules | **Passed.** 3 of 3 model calls ended `timeout` at 0.20 s; the interviewer answered every turn from the rules; `gap_s` 2.97 to 3.02 s |
+| C6a the seeker's End stops the voice | **Passed functionally:** `aborted` with `seeker_ended`, log line `runner stopped: ended_elsewhere`. Seconds from the click to silence: not measured |
+| C7 masking in the live path | The seeker's own name, phone number and email were masked. A third-party name was misrecognized (한도윤 heard as 한도율) and not masked; accepted as a recognizer limit, no change |
+
+**Recognizer limit (known; no change now).** In Korean mode the recognizer drops Latin-script and loanword technical terms: "파이썬과 FastAPI로 REST API를 만들었고, PostgreSQL로 데이터를 관리했습니다" was stored as "과 로 를 만들었고 를 데이터를 관리했습니다". Two such sentences run offline through every masking and cleaning step a candidate line passes (`mask_spoken` in the STT node, the hook, the engine and the backend ingest; `strip_sensitive`, `cut_sensitive`, `for_model`; both `data/` blocklists) came out unchanged, so the loss is the recognizer's. A possible later option is keyword boosting, if LiveKit Inference supports it for the model in use (not checked).
+
+Still pending: C6b to C6d and C8.
+
+### 5.1 M5 plan — Stack options
+
+Read for this plan: this tracker (Phase 5, §4.3, open items), `docs/DECISIONS.md` (D51 to D58, D62, D64, D65, D67, D69, Q35, Q38, Q39), `PROJECT_DOCUMENTATION.md` §2.1, §3.7, §4.2, §6.2 and §9, `backend/app/services/interview_*.py`, `consent_service.py`, `backend/app/api/v1/interview_sessions.py`, `ai/interview/` (engine, `llm.py`, `boundary.py`, views) and all of `interview_poc/`. LiveKit versions checked through the LiveKit docs MCP on 22/11/2026.
+
+Binding constraints from the decisions, which both options must keep: the agent is its own runtime in `interview_agent/` and never touches the database (D56); it reaches FastAPI only through internal endpoints with a service secret, bound to the session's room, in a module of its own, `core/security.py` and `core/deps.py` unchanged (D58); the engine `ai/interview/` makes every interview decision (D56); per-turn analysis is Groq `openai/gpt-oss-120b` through the LiveKit Groq plugin, the one exception to AI rule 2, with only `ModelInput.system` and `ModelInput.user` sent (D52, D62); a failed call degrades one turn (D54); audio-only must work, the avatar is optional (D55); planning and feedback stay on the `ai_runtime.llm()` gateway in the backend, and `ai/llm/client.py` is not changed (D52).
+
+| | (A) LiveKit realtime voice agent (the current plan) | (B) Text-first: the same agent loop driven by typed text, voice added later as a layer |
+|---|---|---|
+| What it is | A LiveKit worker: LiveKit Inference STT (Deepgram nova-3, Korean) and turn detection (`v1`, local `v1-mini` fallback), the engine, Groq per turn, LiveKit Inference TTS (Cartesia), optional Anam avatar; a microphone-only token from the backend; the browser joins a room | The transport-free part of (A) only: a runner that reads the session context, drives the engine, makes the Groq call (or the rules) and posts each turn and the end to the internal API, with a developer text driver (`stdin` in, agent lines out). No LiveKit room, no STT or TTS |
+| Effort (one developer, rough) | About 10 to 14 working days: internal API, runner, Groq adapter, LiveKit worker, token endpoint, developer join page, Compose service, live checks | About 5 to 7 working days: internal API, runner, Groq adapter, text driver. (A) afterwards adds about 5 to 7 more, so (B) then (A) costs about the same as (A) alone |
+| Risk | High: Korean STT quality, end-of-turn on Korean speech (PoC README: unmeasured, one-second pauses split turns at the SDK defaults), Groq JSON reliability and time to first token unmeasured, LiveKit job dispatch and room lifecycle, plus the backend contract, all in one first slice | Low: everything is in-process and testable offline in `AI_MODE=rules` against the real backend app; the only unmeasured part is the Groq call, and it degrades to the rules |
+| Latency per turn | End of speech plus 3.0 s (`min_delay`) to 6.0 s (`max_delay`) endpointing, plus the Groq call (unmeasured; capped at `INTERVIEW_TURN_LLM_DEADLINE_SECONDS` = 8), plus one local POST to the backend, plus TTS start. PoC estimate: about 4.3 to 4.4 s from the last word to the first audio at 3.0 s endpointing (without the Groq analysis, which the PoC did not do); worst case on a slow model call about 12 to 15 s | The Groq call (≤ 8 s) plus one local POST; about 0.1 s in rules mode |
+| Failure points | LiveKit Cloud connection; Inference STT, turn detector, TTS (three upstream calls, quota: 7,500 `v1` predictions a month on the development allowance); Groq; the backend internal API; agent dispatch; browser microphone permission; the candidate's network | Groq (degrades to the rules); the backend internal API |
+| External processors (Q35) | In `AI_MODE=llm`: LiveKit Cloud (media relay), LiveKit Inference (STT via Deepgram, turn detection, TTS via Cartesia), Groq (masked text), Anthropic (planning and feedback, already in M4), Anam if the avatar is on. In `AI_MODE=rules` still LiveKit Cloud and LiveKit Inference: voice cannot run without them. Q35 today names Groq and LiveKit Inference STT and turn detection only, not TTS (open question 7 in §5.7) | `AI_MODE=llm`: Groq and Anthropic (already in M4). `AI_MODE=rules`: none, nothing leaves the laptop |
+| Laptop Docker Compose demo | Internet and a LiveKit Cloud project (keys in `.env`); a new `agent` service (Python 3.12, CPU, VAD and the local turn-detector model downloaded at image build); a browser page that joins the room (M6 is the real one, so M5 needs a developer page); a microphone. A self-hosted `livekit-server --dev` container is possible for the media, but LiveKit Inference still needs Cloud keys, so two key sets: not recommended | `docker compose run --rm agent python -m interview_agent.text_cli …` against the running stack in rules mode; no keys, no internet |
+| PoC reuse | Patterns, not imports (D56 freezes the PoC): the STT-node masking and the turn hook, `build_session` (turn detector `v1`, 3.0 s / 6.0 s, preemptive generation off), `record=False`, `AUDIO_ONLY`, `delete_room_on_close`, the candidate-left handler, the ready attribute, the shutdown hook, `TurnDetectorWatch`, the Groq plugin wrapper and `complete_text`, the token grants and `SessionGate` idea of `token_server.py`, the pinned `livekit-client` page of `web/`, the offline pipeline test with scripted STT. Not reused: `conductor.py`, `prompts.py` and the PoC's own masking and screens (the engine and `ai/interview/` replace them), Anam (out of M5) | The Groq wrapper (`groq_llm.py` pattern) only |
+
+**Recommendation: a staged path, (B) first, then (A), inside one milestone.** (B) is not a separate product mode: it is the core of (A) built and proven first, with a text driver for developers. Reasons: (1) the parts that carry the decided rules (the internal API, its authentication and binding, the event order, `record_end`, the 404 and 409 handling, consent, the Groq boundary) are all transport-free and get their tests and a demo before any voice risk is taken; (2) a failure in the voice stage is then a voice problem, not a contract problem; (3) the total effort is about the same; (4) the text demo runs with no key and no internet, which suits Compose; (5) D51 still asks for a real-time voice interview, and (A) stays the target: M5 is done only when the voice stage passes its live checks. A seeker-facing text mode would be a new product decision and is not proposed (open question 1).
+
+### 5.2 M5 plan — Scope
+
+**In M5.**
+
+1. Internal agent API in the backend: `GET /api/internal/interview-sessions/{id}/context` and `POST /api/internal/interview-sessions/{id}/events` (the working names of `PROJECT_DOCUMENTATION.md` §4.2), calling the existing `interview_ingest_service.record_turn` and `record_end` unchanged; the agent's authentication and room binding in a new module.
+2. `interview_agent/`: the runner over the engine, the backend client, the Groq adapter behind `ask()`, the text driver (developer tool), and the LiveKit voice worker (audio only).
+3. The seeker's microphone-only LiveKit token: a new route (open question 2), with `livekit-api<2` in the backend as D56 allows.
+4. Agent-owned end: the closing line and the final event through `record_end` for every way an interview ends.
+5. Stop and disconnect on 404 (deleted or expired session) and on 409 (ended by the seeker, deadline passed, permanent refusal).
+6. The Q39 policy, once Long decides it (§5.4).
+7. A developer join page for the voice demo, and an `agent` service in Compose.
+8. Tests at each stage, architecture scans extended to `interview_agent/`, and the documentation of each stage (`PROJECT_DOCUMENTATION.md` §2.1, §4, §8, §9; `docs/how-to/run-locally.md`).
+
+**Explicitly out of M5.** The React interview room and feedback page (M6, `livekit-client` in `frontend/`, D56); the Anam avatar (D55: optional, and Anam Free's 3 minutes are shorter than a 600-second session; the PoC stays the reference); a seeker-facing text interview; reconnect or resume after the candidate or the agent drops (the session ends, as in the PoC); agent hosting on LiveKit Cloud (the agent runs as our own worker); any change to `ai/llm/client.py`, `core/security.py`, `core/deps.py`, the seven seeker routes of D67, the plan or feedback services, or the schema (no migration is planned, see §5.3); recording audio or video (never, D53); plan-time rubric enrichment (`rubric_request` stays unwired); a scheduler for the purge (D65); resolving Q24 or Q35 (M5 makes Q35 more concrete but does not decide it); production readiness.
+
+### 5.3 M5 plan — Architecture
+
+**Components and where they run.**
+
+| Component | Runs | Talks to |
+|---|---|---|
+| Browser (developer page in M5, React in M6) | the seeker's machine | backend (JWT): create, join token, detail, end, delete, feedback; LiveKit Cloud: microphone audio only |
+| Backend (FastAPI, one process, unchanged layout) | Compose `backend` | PostgreSQL; LiveKit server API only to sign tokens (local signing, no network call); `ai_runtime.llm()` for planning and feedback as today |
+| Interview Agent (`interview_agent/`) | Compose `agent`, a self-hosted LiveKit worker (Python 3.12) | LiveKit Cloud (outbound WebSocket; jobs dispatched by agent name); LiveKit Inference (STT, turn detection, TTS); Groq (masked text, `AI_MODE=llm` only); backend internal API at `http://backend:8000` |
+| Engine `ai/interview/` | imported in-process by the agent (and by the backend, as today) | nothing: no I/O |
+
+**Authentication and binding (D58).** New module `app/core/agent_auth.py` in `backend/`, a FastAPI dependency used only by the internal router. Two headers on every internal call: the service secret (`INTERVIEW_AGENT_SECRET`, compared with `hmac.compare_digest`; unset means every internal call is refused, fail closed) and the room name the agent is in. The room name is not stored (no room column, §3.7): it is derived, `room_name(session_id) = "cs-iv-" + HMAC-SHA256(INTERVIEW_AGENT_SECRET, str(session_id))[:20]`, by the backend when it signs the join token and again on every internal call, so no migration is needed. A wrong or missing secret is 401 with a fixed body; a room that does not match the session is the same 404 `INTERVIEW_NOT_FOUND` as an unknown session, so nothing is revealed. The internal routes are left out of the OpenAPI document (`include_in_schema=False`), carry `Cache-Control: no-store` and the D68 validation sanitizer (the `is_interview_path` pattern gains `/api/internal/interview-sessions`), and never accept a JWT. The binding stops one agent job from writing into another session; it does not protect against someone who holds the secret, which only the backend and agent containers have.
+
+**Internal endpoints.**
+
+- `GET …/context` returns what the engine needs and nothing else: the stored canonical plan and its `plan_sha256`, the session's `limits`, the effective status and deadlines (`interview_time.derive`), the last stored `seq`, `ai_consent` (bool, for Q39), and `mask_names` (open question 4). No CV, no weights, no feedback, no email. It is also the agent's status poll.
+- `POST …/events` takes `{"type": "turn", …TurnEvent}` or `{"type": "end", …EndEvent}` and returns the service's result. Status codes are the service's (`INTERVIEW_SEQ_GAP` with `expected_seq`, `INTERVIEW_SEQ_CONFLICT`, `INTERVIEW_ALREADY_ENDED`, `INTERVIEW_NOT_FOUND`, `INTERVIEW_BAD_TURN`, the not-active 409); the router adds nothing.
+
+**Seeker join token** (open question 2: new route recommended). `POST /api/interview-sessions/{id}/join` → `{url, token, room, expires_at}`. Owner only, session `created` and joinable, current AI consent. The token: one room (`room_name(id)`), `can_publish_sources=["microphone"]`, subscribe allowed, random identity and fixed display name (no personal data), TTL until the join deadline, and a `RoomConfiguration` that dispatches agent `INTERVIEW_AGENT_NAME` with metadata `{"session_id": id}` only (the browser can read it; nothing secret, D58). No quota (the create already took it), no model call, no AI result, so no `AI_NOTICE`.
+
+**Model access.** The agent never calls Claude. Per-turn analysis goes through the existing flow: `prepare_turn` → `compose` → `ask` → `parse_turn`, i.e. `ai.interview.llm.analyze_turn(client, engine, text)`. The client is a small adapter in `interview_agent/turn_model.py` with the `LLMClient` shape (`model`, `complete_json(system, user, schema, max_tokens)`) that sends exactly `system` and `user` to the LiveKit Groq plugin (pattern of the PoC's `complete_text`) and returns the text for `parse_turn`. `ask` is synchronous and the plugin is async, so the runner calls `analyze_turn` in a worker thread (`asyncio.to_thread`) and the adapter hands the plugin call back to the event loop (`run_coroutine_threadsafe(...).result(timeout)`); the whole turn is under `asyncio.wait_for(…, INTERVIEW_TURN_LLM_DEADLINE_SECONDS)`, and a late or failed answer means the rules (D54). `AI_MODE=rules`, or no `GROQ_API_KEY`, gives no client and the engine's rules. `ai/llm/client.py` is not changed; nothing in `interview_agent/` imports `anthropic` or `app.*`.
+
+**Data flow per turn (voice).**
+
+1. The candidate speaks; LiveKit Inference STT returns text; the agent's `stt_node` masks it at once (`ai.interview.mask_spoken`, with `mask_names`), interim and final, as the PoC does.
+2. The turn ends (turn detector and endpointing); `on_user_turn_completed` hands the masked text to the runner and stops any default reply.
+3. The runner: in `AI_MODE=llm` a pre-check (Q39, §5.4), then `analyze_turn` with the deadline, then `engine.on_answer(text, now, analysis)` → the next `Action`.
+4. The runner posts the candidate turn (`seq` n, `answer`, item index, topic echo, masked text, method, analysis, masked kinds, the coverage snapshot in phase `listening`), then the agent line (`seq` n+1, with its snapshot). **Persist, then speak:** a refused post means nothing more is said.
+5. The agent speaks the line (`session.say`, not interruptible, `add_to_chat_ctx=False`) through LiveKit Inference TTS.
+6. When the engine ends (plan done or time), the runner posts the end event (`phase` `ended`, the closing line) and only then speaks the closing line, then deletes the room and shuts the job down.
+
+Silence: the runner calls `engine.on_silence` from a one-second tick while the candidate is not speaking (PoC watchdog pattern). The greeting and AI disclosure (a fixed Korean line) are spoken before the first question and are not a stored turn; the first stored turn is the engine's first question (`seq` 1), which starts the session (`created` → `live`).
+
+**Text driver flow (stage S2).** The same runner, with typed lines instead of STT and printed lines instead of TTS. `python -m interview_agent.text_cli --session-id N` computes the room name with the same formula (a backend test checks both sides agree) and runs the interview against the backend; a seeker session is created first through the normal API (Swagger, or a `--login` helper that uses the synthetic seed account).
+
+### 5.4 M5 plan — Required behaviours
+
+**Agent-owned end (`record_end`).** Every interview the agent runs ends with exactly one end event, posted before anything is torn down:
+
+| Situation | Event | Closing line |
+|---|---|---|
+| Plan finished, or the engine wraps up for time | `phase` `ended`, `end_reason` `plan_exhausted` / `time` / `empty_plan` | yes, posted in the event, then spoken |
+| Candidate leaves (any departure, as in the PoC) | `phase` `aborted`, `candidate_left` (via `engine.abort`) | no |
+| LiveKit session closes for another reason | `aborted`, `session_closed` | no |
+| A permanent refusal (422, `INTERVIEW_SEQ_CONFLICT`) or an agent bug | `aborted`, `agent_error` | no |
+| 404 or `INTERVIEW_ALREADY_ENDED` | none: the session is gone or already over | no |
+
+A transient failure (connection error, 5xx, timeout) is retried with the same payload, which the service treats as a duplicate, with backoff until the end grace (`INTERVIEW_END_GRACE_SECONDS` = 30) runs out; after that the session is left to `stale_live`, which every reader already shows as `aborted`. `INTERVIEW_SEQ_GAP` is answered by resending from `expected_seq` when the agent still holds those events, otherwise it aborts with `agent_error`.
+
+**Deletion and 404.** Deleting a live session only removes rows (S4.4). The agent learns it (1) on its next post (404) and (2) from a status poll of the context endpoint every `AGENT_STATUS_POLL_SECONDS` (recommended 5, an agent constant), so a deletion during a long answer is noticed within about 5 s. On 404: stop speaking at once (`session.interrupt()`), post nothing more, no end event, delete the room (the browser sees the end), shut the job down. Not proposed for M5: making the backend delete the LiveKit room from `interview_service.delete` and `end` (immediate, but it adds an external call to the seeker's delete path; a later option).
+
+**Seeker's End.** The seeker's End aborts the session (`seeker_ended`) and writes no closing line (S4.4). The agent sees `INTERVIEW_ALREADY_ENDED` or the not-active 409 on its next post, or `aborted` in the poll, treats it as final, posts nothing, and leaves as for a 404.
+
+**Consent and lifecycle.** The join route refuses without the current AI consent and for a session that is not `created` and joinable. The agent starts only for a dispatched job whose context reads `created` and joinable; anything else ends the job without speaking. The 600-second budget and the end grace are the backend's (by its clock at receipt); the engine's 45-second wrap-up reserve keeps the last answer inside the budget, and a turn refused for time leads straight to the end event.
+
+**Quota.** No new quota. The session reservation is taken at create (D57, `INTERVIEW_DAILY_SESSIONS` = 3), and the join route never takes one. Per session the Groq calls are bounded by the engine (5 questions, 2 follow-ups and 1 clarification each: about 20 calls at most) and by `INTERVIEW_MAX_TURNS` (120); the LiveKit Inference minutes by 600 s per session and 3 sessions per seeker per day. The project's 7,500 `v1` predictions a month (PoC README) is a project-level limit; past it the turn detector falls back to `v1-mini`, which the agent logs.
+
+**Q39 — consent withdrawal during a live session (decision needed before stage S3).** D65 (5): once the global AI consent is withdrawn, no new AI inference and no AI processing of a transcript may start, for a live session too.
+
+| Option | What changes | Window in which a new model call can still start | Cost |
+|---|---|---|---|
+| (a) Refuse turns | `interview_ingest_service` checks the seeker's consent on every turn and end; new 409 code; the agent aborts | The agent has already made its Groq call for the answer it posts, so one analysis after the withdrawal leaks every time | A consent read per event; a new error code; the end event must stay allowed |
+| (b) End the session on withdrawal | `consent_service.withdraw_ai` (D17) also settles the seeker's `planning`, `created` and `live` sessions to `aborted` with a new reason `consent_withdrawn`, in the same transaction. The ingestion then refuses every further turn by its existing status check; a planning reservation fails at its compare-and-set | Until the agent notices: the next post or the next poll (≤ 5 s) | Touches a D17 function (a new decision); no change to the ingestion |
+| (c) = (b) plus an agent pre-check | (b), and in `AI_MODE=llm` the agent reads the context (`ai_consent` and status) right before each Groq call and skips the call, aborting, when either says stop | A few milliseconds between the pre-check and the call | (b), plus one local GET per model call |
+
+**Recommendation: (c).** The withdrawal is then one state change that every reader sees (history, detail, the agent), the ingestion needs no new rule because an aborted session already refuses turns, and the pre-check closes the window that (b) leaves. In-flight work that started before the withdrawal (a Groq call already running, or a planning model call) is allowed to finish but its result is refused at storage. The feedback already refuses a new generation without consent (D64). This needs a new decision record (it changes what `withdraw_ai` does); the S3a ingestion stays as it is.
+
+### 5.5 M5 plan — Files
+
+New (all in later stages, none now):
+
+| File | Stage | Purpose |
+|---|---|---|
+| `app/core/agent_auth.py` (in `backend/`) | S1 | Service secret and room binding; `room_name(session_id)` |
+| `app/api/v1/internal_interview.py` (in `backend/`) | S1 | The two internal routes |
+| `app/schemas/interview_internal.py` (in `backend/`) | S1 | Context response; turn and end event bodies |
+| `test_interview_internal_api.py`, `test_agent_auth.py`, `test_interview_internal_postgres.py` (in `backend/tests/`) | S1 | Tests (the last PostgreSQL-gated) |
+| `interview_agent/__init__.py`, `config.py`, `backend_client.py`, `runner.py`, `turn_model.py`, `text_cli.py` | S2 | Agent core and the text driver |
+| `interview_agent/requirements.txt`, `requirements.lock.txt`, `README.md` | S2 | Pinned dependencies and how to run |
+| `test_interview_agent_runner.py` in `backend/tests/` (runner against the real app through `httpx.ASGITransport`), `interview_agent/tests/` (offline unit tests) | S2 | Tests |
+| `interview_agent/voice.py` | S4 | LiveKit worker: session, STT-node masking, turn hook, silence tick, candidate-left, shutdown |
+| `app/services/interview_join_service.py` (in `backend/`) | S4 | The join token |
+| `interview_agent/devclient/` (`index.html`, `app.js`, `serve.py`) | S4 | Developer join page, `livekit-client` pinned with SRI as in the PoC; `serve.py` serves it on 127.0.0.1 and forwards `/api` to the backend (no CORS change) |
+| `interview_agent/Dockerfile` | S5 | Agent image |
+
+Changed:
+
+| File | Stage | Change |
+|---|---|---|
+| `backend/app/main.py` | S1 | Register the internal router |
+| `backend/app/core/config.py` | S1, S4 | `INTERVIEW_AGENT_SECRET`; `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `INTERVIEW_AGENT_NAME` |
+| `backend/app/core/no_store.py` | S1 | `INTERVIEW_PATH` covers `/api/internal/interview-sessions` |
+| `backend/tests/test_interview_api_contract.py`, `test_interview_api.py` | S1, S4 | The stage lists of registered routes |
+| `ai/tests/test_interview_model_boundary.py`, `test_interview_backend_boundary.py` | S2 | Replace the two `interview_agent/` tripwires: scan `interview_agent/`, list the one Groq call site (D52), forbid `app.*` and `anthropic` imports there |
+| `pyproject.toml` | S2 | Add `interview_agent/tests` to `testpaths` (the agent tests must run in the repo venv too; open question 6) |
+| `backend/app/api/v1/interview_sessions.py` | S4 | The join route |
+| `backend/requirements.txt` | S4 | `livekit-api` pinned below 2 (D56) |
+| `backend/app/services/consent_service.py` | S3 | Q39 option (b) or (c), only after Long decides |
+| `docker-compose.yml` | S5 | `agent` service (a profile, so the default `docker compose up` needs no LiveKit keys) |
+| `PROJECT_DOCUMENTATION.md`, `docs/how-to/run-locally.md` | each stage | §2.1, §4.1/§4.2, §8 tree, §9 settings, the run steps |
+| `docs/DECISIONS.md` | after approval | The decisions of §5.7 that Long takes |
+
+Not changed: `ai/llm/client.py`, `core/security.py`, `core/deps.py`, `ai/interview/` (unless a stage finds a defect, which is then raised first), `interview_ingest_service.py`, the plan and feedback services, `backend/app/models/`, `backend/migrations/`, `interview_poc/`, `frontend/`.
+
+### 5.6 M5 plan — Stages
+
+Each stage is one reviewable change; every stage ends with `pytest` from the repo root green (SQLite, `AI_MODE=rules`, database variables unset), `pytest backend/tests/docs -q` green, and the matching documentation updated. No stage makes a real model, Groq or LiveKit call in tests.
+
+| Stage | Deliverable | Tests | Done when |
+|---|---|---|---|
+| S0 — decisions and pins (no product code) | Long's answers to §5.7 recorded in `docs/DECISIONS.md`; agent dependency pins and lock resolved in a clean venv | none beyond the existing suite | The decisions exist; `interview_agent/requirements.lock.txt` resolves |
+| S1 — internal agent API | `agent_auth.py`, the two internal routes, schemas, no-store and sanitizer coverage | API tests: secret missing, wrong, unset (401, fixed body), room mismatch (404), context shape and the absence of CV, weight, email and feedback; event mapping for turn and end (stored, duplicate, `SEQ_GAP` with `expected_seq`, `SEQ_CONFLICT`, `ALREADY_ENDED`, not-active 409, 404 after delete, 409 after the seeker's End, 422 for a bad turn); no-store and sanitized 422 on the internal paths; routes absent from OpenAPI; stage route lists. PostgreSQL-gated: two parallel HTTP posts of the same `seq` (one stored, one duplicate or conflict) and a post racing the seeker's delete | Suite green; a scripted sequence of HTTP events (start, turns, end) produces a `completed` session whose detail and feedback work |
+| S2 — agent core and text driver (**first demo**) | `interview_agent/` runner, backend client, Groq adapter, `text_cli`; architecture scans extended | Runner against the real app (`httpx.ASGITransport`, rules mode): a full interview ends `completed` with the closing line; the seeker deletes mid-interview → the runner stops, posts nothing more; the seeker ends mid-interview → stops; time runs out (injected clock) → end event `time`; a 422 → `agent_error`; a transient 5xx on the end → retried, stored once. Adapter: through `ask` only, only `system` and `user` sent (spy), a timeout and an exception give the rules, a late answer is discarded. Architecture: `interview_agent/` never imports `app.*` or `anthropic`; the one model call site is listed. PostgreSQL-gated: one full runner interview on PostgreSQL | `python -m interview_agent.text_cli` runs a full interview against a local backend in rules mode; detail shows the masked transcript; feedback returns a report |
+| S3 — Q39 | The option Long chose (recommended (c)) | Unit and API: withdrawal settles `planning`, `created` and `live` sessions with `consent_withdrawn`, leaves finished ones alone, still turns the talent pool off; the next agent post is refused; the runner's pre-check skips the Groq call and aborts. PostgreSQL-gated: withdrawal racing a turn post (one consistent outcome) | Suite green; a text-driver run with a withdrawal in the middle stops within one turn and makes no model call after it |
+| S4 — voice (audio only) | `voice.py`, the join route and service, `livekit-api` in the backend, the developer join page | Token tests (decoded: one room, microphone only, dispatch metadata is only the session id, TTL; join refused without consent, for another seeker's, an ended or a not-joinable session); offline pipeline test with scripted STT and a fake microphone (masking sits before the runner; no reply without the runner); voice wiring (`record=False`, `AUDIO_ONLY`, preemptive generation off, turn detector `v1` with fallback) | Live checklist with Long's keys (manual, recorded here): a full 5-question audio-only interview in Korean (D55), latency figures per turn, delete mid-interview stops the agent within about 5 s, the seeker's End stops it, closing the tab gives `candidate_left`, a second session works |
+| S5 — Compose and documentation | `agent` service and image; run instructions | Compose config test if one exists; the docs guards | `docker compose --profile voice up` with `AI_MODE=rules` gives a working voice interview; the text demo runs with `docker compose run` and no keys |
+
+The first demo-able slice is S2 (text, no keys). The first voice demo is S4.
+
+### 5.7 M5 plan — Risks, trade-offs and open questions
+
+**Risks and trade-offs.**
+
+- *Latency.* Persist-then-speak adds one local round trip per line (small), and a slow Groq call can hold the reply for up to 8 s on top of 3 to 6 s of endpointing. Measured in S4; the deadline (D57) can be lowered there if Long agrees.
+- *Turn-taking in Korean.* The PoC's 3.0 s / 6.0 s setting is not confirmed with real audio; a long pause still ends a turn and an interviewer line is not interruptible. Accepted for M5; tuned in S4 with the PoC's live checklist.
+- *Trust in the agent.* The ingestion trusts the agent for the coverage and the words (M4 S3a). The secret and the binding narrow who can post; a compromised agent can still forge statuses. Unchanged by M5.
+- *Groq reliability.* `gpt-oss-120b` returning the strict JSON reliably is unmeasured; every failure degrades to the rules (D54), so it costs quality, not correctness.
+- *Thread hop for `ask`.* Keeping the synchronous `ask` as the one call point costs a worker thread per turn; the alternative (an async twin of `ask` in `ai/interview/`) would change the engine package, so it is not proposed.
+- *Room name from a secret.* No migration, but rotating `INTERVIEW_AGENT_SECRET` changes every room name: a rotation during a live session ends it. Acceptable for a demo.
+- *Processors.* Voice cannot run in rules mode without LiveKit Cloud and LiveKit Inference, so "rules mode sends nothing out" is not true for the voice path. Q35 remains a production blocker.
+
+**Open questions for Long (needed before coding; S0).**
+
+1. Approve the staged path ((B) core and text driver first, then (A) voice) and confirm the text driver is a developer tool, not a seeker feature.
+2. The join token: a new route `POST /api/interview-sessions/{id}/join` (recommended), or the token in the create response (changes the S4.2 contract; D58's wording reads that way, §4.2 left it to M5).
+3. Q39: option (a), (b) or (c) (recommended (c)), and the end reason name `consent_withdrawn`.
+4. `mask_names`: may the context endpoint give the agent the seeker's display name, in memory only and never logged, so the name is masked before Groq sees it? Without it Groq can receive a name said without an introduction (the backend still masks it before storage). Recommended: yes.
+5. Deletion: the agent's 5-second status poll only (recommended), or also a best-effort room deletion by the backend after a delete or End.
+6. Agent tests in the repo venv: add `interview_agent/tests` to the root `pytest` (then the repo venv needs the agent's packages), or keep them in the agent's own venv like the PoC and keep only the runner-against-the-app tests in `backend/tests` (recommended: the latter; the runner tests need only `httpx`, which the backend already has, and `ai/`).
+7. Q35 scope: Q35 names LiveKit Inference STT and turn detection, but the agent also sends the interviewer's lines (plan questions, which can paraphrase the CV, §3.7 limit) to LiveKit Inference TTS, and Anthropic receives the transcript for feedback (S4.5 caveat). Should Q35 be widened to name TTS and Anthropic? (Recorded here only; not added to `docs/DECISIONS.md` without Long's OK.)
+8. Q38: update CLAUDE.md AI rule 2 to name the D52 exception when the Groq call site lands in S2?
+9. The developer join page in `interview_agent/devclient/` (recommended), or wait for M6 and verify voice in M5 with the LiveKit agent console mode only.
+10. "D78": the request for this plan cites D78 for unpinned requirements (recorded as D79: renumbered from D78 when main's own D78 was merged), but `docs/DECISIONS.md` ends at D77 and has no record about pinning. Should a decision on pinning be recorded (see §5.8)?
+
+### 5.8 M5 plan — Dependencies and pinning
+
+| Package | Where | Version | Note |
+|---|---|---|---|
+| `livekit-agents[groq,silero]` | `interview_agent/` | `==1.8.12` | The version the PoC runs and its lock resolved (2026-11-15). 1.8.13 (18/11/2026) exists; its breaking changes touch none of the plugins used here, but it is four days old: stay on 1.8.12 and re-evaluate in S4. No `anam` extra (avatar out) |
+| `livekit-api` | `interview_agent/` (transitive) and `backend/` | `>=1.2.2,<2` (lock 1.2.3) | D56 names `livekit-api<2` for the backend; `livekit-agents` 1.8.12 requires `<2` too. 2.0.1 exists and is not used |
+| `aiohttp` | `interview_agent/` | `==3.14.5` | Already in the PoC lock through LiveKit; pinned directly because the backend client uses it (no new package) |
+| `python-dotenv`, `pyyaml`, `pydantic` | `interview_agent/` | as resolved in the lock | `ai/` needs `pyyaml` and `pydantic`; the exact set is fixed in S0 by importing `ai.interview` in a clean venv |
+| `livekit-client` | not in M5 | — | M6 (D56); the developer page loads `livekit-client` 2.24.1 from a pinned CDN URL with an SRI hash, as the PoC page does, so `frontend/` does not change |
+| `pytest` | `interview_agent/requirements-dev.txt` | `>=8,<10` | As in the PoC |
+
+No new package in `backend/` other than `livekit-api`; no Groq SDK, no `openai` direct dependency (the Groq plugin brings what it needs).
+
+**Pinning.** `backend/requirements.txt` is unpinned (`>=` only); the PoC has exact pins and a full lock. Recommendation: **yes, before M5 coding**, in S0, but only for what M5 adds: `interview_agent/` gets exact direct pins and a full lock like the PoC (D56 already requires "a pinned compatible version" for each new dependency), and `livekit-api` enters `backend/requirements.txt` pinned. Pinning the whole backend (a lock of today's resolved set) is worth doing as its own small change before S1, so that M5 diffs never mix with resolver drift, but it is a separate decision for Long (open question 10) and is not part of M5.
 
 ---
 
@@ -905,6 +1178,8 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 - [ ] Integrate feedback display
 - [ ] Handle loading, errors, expired sessions and unavailable agent states
 - [ ] Add frontend tests and end-to-end coverage
+
+**Scope note (Long, 23/11/2026).** M6 is now a full rebuild of the frontend that includes the interview UI, and it comes after the Anam avatar step (§5, milestone order). The items above are the interview part of that rebuild. No detailed plan yet.
 
 **Status:** Not Started
 
@@ -1005,8 +1280,8 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 | M4 — Database and seeker API | Implemented, locally verified and verified on PostgreSQL; not production-ready | S1–S4.5 implemented; migration QA passed (D70); the gated tests, the JSONB diagnostics and the concurrency tests passed on PostgreSQL (D77). Q24, Q35, Q39 and M5 are open. |
 | PostgreSQL safety hardening | Completed; exercised on PostgreSQL | W1/W2/W3/W5 and 80 N1–N9 tests added; the guards ran in front of every PostgreSQL step and the N1–N9 tests passed on PostgreSQL (D77). |
 | PostgreSQL QA | Passed: migration QA (M0 + M1) 21/11/2026; test tiers, restore and `alembic check` 22/11/2026 | Tiers A, B and C passed after the fixes of D73 to D75 (outcome D77); the schema was restored, and `alembic check` exits 0 with the filter of D76. The database is at `0012` (28 application tables), no data, no seed. Scope in D71; procedures and results in §4A.4 and §4A.5. The close-out is complete (CO4, the docstrings of eight test files, done 22/11/2026). |
-| M5 — Realtime agent | Not Started | Planned around LiveKit. |
-| M6 — Frontend integration | Not Started | Depends on M5/API integration plan. |
+| M5 — Realtime agent | In progress: S0 to S5 done (§5.9; S0 to S4 locally verified, S5 built and run on Compose); the voice stage run live in part (sessions 3 and 6) | Internal agent API, the agent core, the consent-withdrawal rule, the join route and the voice worker with its controller and a test page exist; the 147 gated tests (the 7 of M5 included) passed on PostgreSQL; the live checklist (`interview_agent/README.md`) ran in part (C1, C3, C4, C5, C6a and C7 done, C2 as a variant result; C6b to C6d and C8 pending); Compose (S5) is done: both images built and a live session ran on the stack (23/11/2026). After M5: the Anam avatar, then M6 (§5, milestone order). |
+| M6 — Frontend integration | Not Started | Now a full frontend rebuild that includes the interview UI (Long, 23/11/2026); comes after the Anam avatar step; no detailed plan yet. |
 | Chatbot feature | In Progress | Part of CareerSync; task-level status needs synchronization. |
 | Platform integration/release | Not Started | Depends on QA, M5/M6 and open decisions. |
 
@@ -1016,7 +1291,7 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 
 ### Next Priority
 
-1. Phase 5 (M5): review and approve its plan. Q39 has to be decided before M5 (D65 binds M5 to it); Q35 before production model use; Q24 stays open.
+1. Phase 5 (M5): run the rest of the live checklist of `interview_agent/README.md` (C6b to C6d and C8; needs the LiveKit and Groq keys) and read the numbers it records; then approve, change or reject the consent drafts (they are finalized after the providers are confirmed) and decide the open points of §5.9; and freeze the Linux lock from the Compose `agent` image, together with the later Dockerfile switch (§5.9 follow-ups). After M5, in this order: the Anam avatar on the interview agent (tested with the developer client), then M6, a full frontend rebuild including the interview UI; neither is planned in detail yet. Q35 has to be decided before production model use; Q24 stays open.
 
 ### Open Items and Decisions
 
@@ -1024,7 +1299,7 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 |---|---|---|
 | Q24 | Open | Keep unresolved; use the authoritative decision record for exact scope. |
 | Q35 — processor disclosure / consent | Open — production blocker | Per D52 and Q35, PII-masked text goes to Groq (the Interview Agent's per-turn analysis), and the candidate's raw voice goes to LiveKit Inference for speech recognition and, with the turn detector pinned to `v1` in the PoC, for turn detection. Masking is best effort (D39, D53). Whether these processors need the same legal check as Q29, and a notice that names them to the candidate, is open. Current consent wording does not name the processors (D65). Resolve before production use; do not call current consent legal approval. |
-| Q39 — consent withdrawal during a live session | Open | Keep unresolved until explicitly decided and documented. |
+| Q39 — consent withdrawal during a live session | Closed 22/11/2026 (D81) | Option (c): withdrawing the AI consent ends the seeker's active sessions (`consent_withdrawn`), and the agent checks the context before each model call. Implemented in M5 stage S3 and locally verified; the PostgreSQL race test has not been run. |
 | Q41 — tracker vs doc-drift guards | Closed 21/11/2026 (D72) | Long excluded this tracker from the English-only, hand-typed-test-count and referenced-ID guards: it is a working tracker, not a source of decisions. One named entry, `TRACKER` in `backend/tests/docs/markdown.py`, applied by those three tests only; every other guard, the folder-tree guard included, still reads it. The tracker's own text is not changed by this. |
 | Q42 — `alembic check` false positive on `uq_job_criteria_job_name` | Closed 22/11/2026 (D76) | Cosmetic: PostgreSQL stores `lower(TRIM(BOTH FROM name))`; the model and migration `0002` write `lower(trim(name))`. Long decided (21/11/2026) to filter that one index name out of the comparison in `backend/migrations/env.py` and keep the model expression (SQLite cannot parse the `TRIM(BOTH FROM ...)` form). Applied on 22/11/2026; `alembic check` exits 0 at head and a comparison without `env.py` still shows exactly that pair. The Q42 row was removed from `docs/DECISIONS.md` §3. Limit: a real change to that index is hidden from autogenerate too, so review it by hand. |
 | D76 | Recorded 22/11/2026 | The Q42 decision and its implementation (the `include_object` filter, its scope and limit, the `alembic check` result). |
@@ -1033,8 +1308,8 @@ No pytest ran against PostgreSQL during the restore, so no `pg_stat_database` mo
 | D70 | Recorded 21/11/2026 | Outcome of the PostgreSQL migration QA (M0 + M1): the results, the eleven-difference comparison at `0011`, the accepted `uq_job_criteria_job_name` drift with the `pg_get_indexdef` evidence, and the end state `0012` with no data and no seed. It does not cover the guard mode, W1/W3/W5, the `_pgtest` documentation discrepancy or the PostgreSQL test tiers, which the earlier plan listed for D70. |
 | Feedback/Plan surrogate behavior in PostgreSQL JSONB | Closed (D73) | The diagnostics found it on PostgreSQL (two failed); D73 refuses a surrogate like a NUL at the feedback, the question bank and the sealing of a plan; the diagnostics and the service-level Plan test pass on PostgreSQL (D77). A guard at the service boundary: the Anthropic client already refuses a surrogate escape as invalid JSON. |
 | Physical retention purge | Not configured | 30-day logical read hiding and lazy purge exist; physical purge requires an external scheduler. |
-| M5 deletion handling | Not implemented | Future agent must detect deleted session/404 and stop or disconnect. |
-| M5 closing event | Not implemented | Future agent's `record_end` flow owns closing turn/agent event persistence. |
+| M5 deletion handling | Implemented (S2, S4); live check pending | The runner and the controller stop on a 404 and on the status poll (about every 5 s), interrupt the speech by force and the worker deletes the room; tested offline against the real application. Check C6b of the live checklist is the real-room proof. |
+| M5 closing event | Implemented (S2) | The runner's end event carries the closing line (`ended`) or none (`aborted`); locally verified. |
 | Chatbot task-level progress | Needs synchronization | Chatbot remains a CareerSync feature; do not create a separate project tracker. |
 
 ---
@@ -1082,6 +1357,11 @@ Use this section to record major completed or blocked batches. Record actual out
 | 21/11/2026 and 22/11/2026 | PostgreSQL test tiers S1 to S5 run; eleven failures fixed in three groups; D73, D74 and D75 written | First series: Tier A 3 failed and the JSONB diagnostics 2 failed (stop conditions 2 and 3). Remediation: the `jsonb` key-order and NUL tests fixed (test only), D73 (a surrogate refused like a NUL in the feedback and the plan), D74 (the CV upload drops U+0000). Second series: S1 194 passed; S2 five of five runs of 105 clean; S3 16 passed; S4 first run 6 failed (five test assumptions and one race in the daily-quota claim); five test fixes and D75 (one retry in `claim`); S4 second run 1488 passed; S5 (Tier C) 3665 passed, none skipped. Details in §4A.5 and D77. |
 | 22/11/2026 | Restore (go-3) and `alembic check`; Q42 change applied; close-out; D76 and D77 written | Guard `--app` passed; `alembic stamp --purge base` and `upgrade head` gave `0012 (head)`, one head, 28 application tables, all empty, the three interview tables as in D70. The Q42 filter was applied to `backend/migrations/env.py`: `alembic check` exit code 0; a comparison without `env.py` still showed exactly the `uq_job_criteria_job_name` pair. Runbook folded into `PROJECT_DOCUMENTATION.md` §9 and `docs/how-to/run-locally.md` §9; Q42 removed from `docs/DECISIONS.md` §3. Local after the edits (SQLite, database variables removed): full suite 3525 passed, 140 skipped; `backend/tests/docs` 44 passed. Not done: CO4. Waiting for Long to remove the `env` block. |
 | 22/11/2026 | CO4 done: eight test docstrings updated; `env` block removed by Long | In `test_interview_jsonb_postgres`, `_retention_postgres`, `_planner_race_postgres`, `_ingest_more_postgres`, `_cascade_postgres`, `_migration_postgres`, `_nul_postgres` and `test_interview_create_concurrency`, the sentence that said the tests were written, not run, now says they ran and passed on PostgreSQL on 2026-11-22 (D77). Only those docstring sentences changed. Local SQLite run (database variables removed from the command): the eight files collect 95 tests, all 95 skipped (all PostgreSQL-gated), none failed; `backend/tests/docs` 44 passed. The full suite was not rerun for this docstring-only change; its last result stays 3525 passed, 140 skipped. A presence check found none of the QA variables set in the session (state D). |
+
+| 22/11/2026 | M5 plan written (§5.1 to §5.8), planning only | Compared (A) LiveKit voice and (B) text-first; recommended (B) then (A) in one milestone, six stages S0 to S5, first demo at S2 (text, no keys). Q39 options with a recommendation; ten open questions. No code, test or other document changed; no model, Groq or LiveKit call. Waiting for Long's approval. |
+| 22/11/2026 | D83 (Q38 closed, `CLAUDE.md` rule 2); consent error for a withdrawal during planning; the gated tests on PostgreSQL; S4 implemented (voice, audio only); consent drafts restructured, not applied | Full runs: backend and AI 3,657 passed, 147 skipped, 0 failed; agent 116 passed. PostgreSQL (a throwaway Docker container, approved): 352 passed, 0 skipped, twice, no code changed for it. The voice worker was NOT run against LiveKit: the live checklist is in `interview_agent/README.md`. |
+| 22/11/2026 | D82 (web framework pinned); S3 implemented (D81, Q39); consent drafts and Q38 text prepared for review | Venv reinstalled from the pinned file; full runs: backend and AI 3,613 passed, 147 skipped, 0 failed; agent 36 passed. S3 demo over real HTTP (a counting fake model, not Groq). Consent wording and CLAUDE.md rule 2 NOT applied. PostgreSQL-gated tests (7 of M5) not run. |
+| 22/11/2026 | M5 plan approved with changes; S0, S1 and S2 implemented; D79, D80, D81 written, Q35 widened, Q39 closed | Full run (`scripts/run_all_tests.py`, SQLite, rules): backend and AI 3,588 passed, 1 failed, 142 skipped; agent 35 passed. The failure is the middleware-stack guard, tripped by FastAPI 0.165 installed in the repository venv before this work (§5.9). Text-driver demo against a local backend on a scratch SQLite file: one session `aborted` (`candidate_left`), one `completed`. PostgreSQL-gated tests and a real Groq call not run. |
 
 Add a new row whenever a coherent implementation, verification, migration, decision or blocker changes the project state.
 

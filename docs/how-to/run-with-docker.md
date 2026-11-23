@@ -39,7 +39,11 @@ the credentials already stored in PostgreSQL.
 The containers do not read .env themselves (CAREERSYNC_DOTENV=0). Compose takes
 only these variables from .env or the shell and passes them on: DB_USER,
 DB_PASSWORD, DB_NAME, JWT_SECRET_KEY, TALENT_ID_SECRET, AI_MODE, LLM_API_KEY,
-LLM_MODEL, EMBEDDING_MODEL, and the COMPOSE_* ports below. Anything else in .env,
+LLM_MODEL, EMBEDDING_MODEL, the voice interview variables (INTERVIEW_AGENT_SECRET,
+LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, and for the optional `agent`
+service GROQ_API_KEY, INTERVIEW_AGENT_AI_MODE, INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS;
+see "Voice interview with Docker Compose" in run-locally.md), and the COMPOSE_*
+ports below. Anything else in .env,
 such as LLM_EFFORT, JWT_EXPIRE_MINUTES, DATABASE_URL or the *_PATH overrides, has
 no effect under Compose (see docker-compose.yml).
 
@@ -56,6 +60,10 @@ docker compose down
 # Start again, preserving data:
 docker compose up --build -d
 ```
+
+The practice interview by voice is an optional extra service, `agent`, in the
+`voice` profile: a plain `docker compose up` does not start it and needs no LiveKit
+or Groq key. How to run it is in [run-locally.md](run-locally.md#voice-interview-with-docker-compose).
 
 For demo verification: log in as seeker, upload and confirm a text PDF CV,
 apply to the Nextcode job, then log in as hr@nextcode.test and view applicants.

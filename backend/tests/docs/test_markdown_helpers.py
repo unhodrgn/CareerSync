@@ -11,7 +11,7 @@ from .test_doc_links import link_problems, path_problems
 from .test_doc_numbers import account_problems, count_problems, migration_problems
 from .test_doc_tree import Entry, parse_tree, repo_paths, tree_problems, trees
 
-D11 = "The doc is the standard (D11)"
+REFERENCE = "The code is the reference (D87)"
 
 
 def doc(rel: str, text: str) -> Doc:
@@ -150,9 +150,9 @@ def test_api_guard_reports_a_wrong_who_a_phantom_and_an_undocumented_endpoint():
     routes = {("GET", "/api/a"): Route("optional", "backend/app/api/v1/a.py:10"), ("POST", "/api/b"): Route("login", "backend/app/api/v1/b.py:20")}
     assert api_problems(docs, routes, empty("api_undocumented", "endpoint")) == [
         "PROJECT_DOCUMENTATION.md:3 says GET /api/a is for 'Company' (needs a company user (CompanyUser)); the route takes an "
-        "optional token (OptionalUser) (backend/app/api/v1/a.py:10). The doc is the standard (D11): fix the route, unless the "
-        "doc is wrong (then fix the doc and tell Long).",
-        "PROJECT_DOCUMENTATION.md:4 documents GET /api/gone, which no route serves. Remove the row, or add the route if the doc is right (D11).",
+        "optional token (OptionalUser) (backend/app/api/v1/a.py:10). The code is the reference (D87): update the doc to match the route, "
+        "unless the route looks like a bug (then report it to Long).",
+        "PROJECT_DOCUMENTATION.md:4 documents GET /api/gone, which no route serves. Remove the row from the doc, or report the missing route to Long if its absence looks like a bug (D87).",
         "Undocumented endpoint POST /api/b (backend/app/api/v1/b.py:20). Add a row to the Method/Path/Who table in "
         "PROJECT_DOCUMENTATION.md §4.1, or allowlist it in backend/tests/docs/allowlist.yaml [api_undocumented] with a reason.",
     ]
@@ -212,6 +212,30 @@ def test_env_readers_and_their_defaults_from_the_ast():
     assert got == {("A", "1"), ("B", "x"), ("C", "d"), ("D", None), ("F", "data/f.yaml"), ("G", "?")}
 
 
+def test_agent_readers_use_the_get_helper_and_only_in_the_agent_folder():
+    source = """
+def f(env):
+    a = _get(env, "A_ONE", "x")
+    b = _get(env, "B_TWO")
+    c = _number(env, "C_THREE", 3.0, 1, 5)
+    d = _get(env, name)
+"""
+    got ={(r.name, "?" if r.default is UNKNOWN else r.default) for r in readers_in(source, "interview_agent/config.py")}
+    assert got == {("A_ONE", "x"), ("B_TWO", None), ("C_THREE", "?")}
+    assert readers_in(source, "backend/app/x.py") == []  # `_get` means something else elsewhere
+
+
+def test_env_guard_wants_a_reference_row_for_an_agent_setting_only_when_compose_sets_it():
+    readers = [Reader("AGENT_ONLY", "interview_agent/config.py:3", None), Reader("AGENT_PASSED", "interview_agent/config.py:4", None)]
+    compose = Compose({"AGENT_PASSED": ("", "docker-compose.yml:9"), "INTERVIEW_AGENT_AI_MODE": ("x", "docker-compose.yml:10")}, {})
+    example = {"INTERVIEW_AGENT_AI_MODE": ("", 7, True)}  # a Compose-only name is known to .env.example as well
+    table = "| Variable | Default | Notes |\n|---|---|---|\n| `INTERVIEW_AGENT_AI_MODE` | — | |"
+    assert env_problems([doc("PROJECT_DOCUMENTATION.md", table)], readers, compose, example, empty("env_undocumented", "name")) == [
+        "AGENT_PASSED is read or set at interview_agent/config.py:4 but has no row in an env table with a Default column "
+        "(PROJECT_DOCUMENTATION.md §9). Add the row, or allowlist it in backend/tests/docs/allowlist.yaml [env_undocumented] with a reason.",
+    ]
+
+
 def test_compose_substitutions_and_the_environment_of_built_services_only():
     compose = compose_vars(COMPOSE)
     assert {k: v[0] for k, v in compose.substitutions.items()} == {"APP_PORT": "8000", "DB_USER": "postgres", "COMPOSE_PORT": "3000"}
@@ -225,8 +249,8 @@ def test_env_guard_reports_a_wrong_default_a_phantom_an_undocumented_and_a_stale
     table = "| Variable | Default | Notes |\n|---|---|---|\n| `ALPHA` | `2` | |\n| `COMPOSE_PORT` | `3000` | |\n| `GHOST` | — | |"
     assert env_problems([doc("PROJECT_DOCUMENTATION.md", table)], readers, compose, example, empty("env_undocumented", "name")) == [
         "PROJECT_DOCUMENTATION.md:3 says ALPHA defaults to '2'; it defaults to '1' at backend/app/x.py:3. "
-        "The doc is the standard (D11): fix the code, unless the doc is wrong.",
-        "PROJECT_DOCUMENTATION.md:5 documents GHOST, which no code or Compose reads. Remove it from the doc, or add the reader if the doc is right (D11).",
+        "The code is the reference (D87): update the doc, unless the code looks like a bug (then report it to Long).",
+        "PROJECT_DOCUMENTATION.md:5 documents GHOST, which no code or Compose reads. Remove it from the doc, or report it to Long if the missing reader looks like a bug (D87).",
         "BETA is read or set at backend/app/x.py:4 but has no row in an env table with a Default column (PROJECT_DOCUMENTATION.md §9). "
         "Add the row, or allowlist it in backend/tests/docs/allowlist.yaml [env_undocumented] with a reason.",
         ".env.example:6 lists OLD_VAR, which no code reads. Remove it from .env.example or read it in the code.",
@@ -253,7 +277,7 @@ def test_constant_guard_reports_a_wrong_value_and_an_unknown_name():
     problems = constant_problems([d], empty("constants", "name"), env_names=set())
     assert len(problems) == 2
     assert problems[0].startswith("PROJECT_DOCUMENTATION.md:3 says RECO_MIN_FIT = 45; the code has 40 (backend/app/core/config.py:")
-    assert D11 in problems[0]
+    assert REFERENCE in problems[0]
     assert problems[1].startswith("PROJECT_DOCUMENTATION.md:5 names `NO_SUCH_LIMIT`, which is neither a Settings field")
 
 
@@ -261,8 +285,8 @@ def test_claim_guard_reports_a_changed_number_and_a_lost_sentence():
     claims = (Claim("fit", r"Fit ≥ (\d+)", lambda: (40,), "config.py RECO_MIN_FIT"), Claim("gone", r"never written (\d+)", lambda: (1,), "x"))
     problems = claim_problems([doc("README.md", "Recommend when Fit ≥ 45.")], claims)
     assert problems[0] == (
-        "README.md:1 says 'Fit ≥ 45'; the code has 40 (config.py RECO_MIN_FIT). The doc is the standard (D11): fix the code, "
-        "unless the doc is wrong (then fix the doc and tell Long)."
+        "README.md:1 says 'Fit ≥ 45'; the code has 40 (config.py RECO_MIN_FIT). The code is the reference (D87): update the doc to match the code, "
+        "unless the code looks like a bug (then report it to Long)."
     )
     assert problems[1].startswith("Claim 'gone' is not in any doc any more")
     assert len(problems) == 2

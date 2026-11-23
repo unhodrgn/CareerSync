@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 
 from ai.career.interview import CriterionInfo, allowed
 from ai.guardrails.blocklist import Blocklist
+from ai.guardrails.cv_clean import clean_cv
 from ai.guardrails.evidence import verify_quotes
-from ai.interview.cv_context import clean_cv
 from ai.llm.client import LLMClient, LLMError
 
 log = logging.getLogger(__name__)

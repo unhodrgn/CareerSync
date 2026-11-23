@@ -293,6 +293,35 @@ def test_no_personal_data_reaches_the_llm_on_any_seeker_path(client, db, world, 
             assert secret not in p.lower()
 
 
+def test_no_personal_data_reaches_the_llm_on_the_company_verification_path(client, db, world, job, monkeypatch):
+    """The recruiter's CV verification questions (`verification_service` -> `ai/career/verification.py`) send the model only the
+    masked and scrubbed CV. The call is recorded and then fails, so the questions fall back to the rules. One more claim line names
+    the account holder, so a line that carries personal data is among the quotes the prompt is built from."""
+    llm = FakeLLM()
+    monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
+    monkeypatch.setattr(ai_runtime, "mode", lambda: "llm")
+    h = seeker(db, "kim@seeker.test", "김지원")
+    db.query(User).filter_by(email="kim@seeker.test").update({"consent_version": settings.CONSENT_VERSION})
+    db.commit()
+    after = "- Kotlin, Spring, Redis로 결제 서비스 운영\n"
+    assert after in PRIVATE_CV
+    # it repeats the words of the 프로젝트 경험 criterion, so it ranks among the few quotes the prompt keeps
+    text = PRIVATE_CV.replace(after, after + "- 김지원 개인 명의로 추천 시스템이나 API 설계 구축 및 운영\n", 1)
+    confirm(client, h, upload(client, h, text).json())
+    app_id = client.post(f"/api/jobs/{job}/applications", headers=h).json()["id"]
+
+    llm.calls.clear()  # what upload and scoring sent is the seeker test's business
+    r = client.post(f"/api/applications/{app_id}/verification-questions", headers=world["recruiter"])
+    assert r.status_code == 200, r.json()
+    assert r.json()["method"] == "rules" and r.json()["questions"]  # the model call failed, the rules answered
+
+    assert len(llm.calls) == 1  # the verification prompt, and nothing else
+    prompt = llm.calls[0][1]
+    assert "이력서 인용문" in prompt and "[이름]" in prompt  # it was built from the masked claim lines, the named one included
+    for secret in ("jiwon.kim@example.com", "010-1234-5678", "테헤란로", "김지원", "jiwon kim", "kim ji-won", "박서준"):
+        assert secret not in prompt.lower()
+
+
 def test_jd_analysis_suggests_criteria(client, world):
     job_id = world["job"].id
     r = client.post(f"/api/jobs/{job_id}/analyze", headers=world["recruiter"])

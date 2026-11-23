@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Problems with the [manual setup](run-locally.md) and how to fix them. For Docker Compose, see [its guide](run-with-docker.md).
+Problems with the [manual setup](run-locally.md) and how to fix them. For Docker Compose, see [its guide](run-with-docker.md). The last two entries came out of the first live run of the voice interview ([how to run it](run-locally.md#voice-interview-with-docker-compose)).
 
 ## `password authentication failed for user "postgres"` or `connection ... port 5432 failed`
 
@@ -59,3 +59,17 @@ That is the rules mode (`AI_MODE=rules`, the default): CV extraction uses rules,
 ## `npm run dev` fails with a syntax or engine error
 
 Node is too old for Vite 8. Check `node --version` and install Node 22 LTS (or 20.19+ on the 20.x line).
+
+## LiveKit answers `401` in the voice interview although the keys are right
+
+LiveKit rejects a signed token whose time is too far from its own clock. The backend signs the seeker's join token, and the agent signs its requests to LiveKit, with the clock of the machine they run on. A clock that is off by more than about a minute gives a `401` from LiveKit, in the worker's log or when the page joins the room, with correct keys. A Windows clock that has drifted caused it in the live run.
+
+- Compare the time: PowerShell `(Get-Date).ToUniversalTime()` against any time source, or `w32tm /stripchart /computer:time.windows.com /samples:1 /dataonly` (it prints the offset).
+- Fix: sync the Windows clock (Settings, Time & language, Date & time, **Sync now**; or `w32tm /resync` in an administrator PowerShell). Then try again; the backend signs a new token on every join.
+- Under Docker Compose the containers use the clock of Docker Desktop's virtual machine, which can lag behind Windows, for example after sleep. Compare `docker compose --profile voice exec agent date -u` with `(Get-Date).ToUniversalTime()`. If they still differ after the sync, restart Docker Desktop.
+
+## The backend hangs on the database connection on Windows with `DB_HOST=localhost`
+
+The backend (or `alembic`, or the seed script) does not answer and does not fail. On Windows `localhost` resolves to `::1` (IPv6) first, and Docker publishes PostgreSQL only on `127.0.0.1` (IPv4), so the first connection attempt waits instead of being refused.
+
+Set `DB_HOST=127.0.0.1` in `.env` (`.env.example` has it), or use `127.0.0.1` in `DATABASE_URL`, and start again. The code default is still `localhost`, so a `.env` copied before this change needs the edit. A shell variable wins over `.env`: check `Get-ChildItem Env:DB_*` as in the first entry. Docker Compose is not affected: its backend connects to the service name `db`.

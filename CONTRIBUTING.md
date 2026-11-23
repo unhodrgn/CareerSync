@@ -11,7 +11,7 @@ Setup and the full command list: [Run locally](docs/how-to/run-locally.md).
 
 ## Doc rules
 
-- **The doc is the standard (D11).** Priority: `docs/DECISIONS.md` > `PROJECT_DOCUMENTATION.md` > code. If the code differs from the doc, fix the code; if the doc looks wrong or outdated, ask Long instead of editing it.
+- **The code is the reference (D87).** If the code differs from `PROJECT_DOCUMENTATION.md` or another technical doc, update the doc to match how the project really works. If the code's behaviour looks like a bug rather than a deliberate change, report it instead of documenting it as correct. `docs/DECISIONS.md` records what Long decided and is not updated this way: code that contradicts a decision looks like a bug.
 - **Decisions live only in `docs/DECISIONS.md`.** Add a row with the real decision date; never rewrite or delete an old row, add a new one that says "replaces D#". Open questions go to its §3.
 - **Keep the docs current.** A change that adds or changes a table, endpoint, page, env variable, constant or file updates the matching section of `PROJECT_DOCUMENTATION.md` (including the §8 tree) in the same commit.
 - **Guards and the allowlist.** A failing doc guard names the doc place and the code place. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails, so remove it then.

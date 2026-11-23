@@ -14,8 +14,8 @@ from fastapi import APIRouter, Depends, Path, Query, Request, status
 from app.core.allowed_methods import all_methods_route_class
 from app.core.deps import CurrentUser, DbSession, get_current_user
 from app.core.errors import AppError
-from app.schemas.interview import ConsentTextOut, CreatedSessionOut, FeedbackOut, HistoryPageOut, InterviewCreateIn, SessionOut
-from app.services import interview_consent_service, interview_feedback_service, interview_service
+from app.schemas.interview import ConsentTextOut, CreatedSessionOut, FeedbackOut, HistoryPageOut, InterviewCreateIn, JoinOut, SessionOut
+from app.services import interview_consent_service, interview_feedback_service, interview_join_service, interview_service
 from app.services.interview_time import Clock, utcnow
 
 router = APIRouter(tags=["interview"], route_class=all_methods_route_class())
@@ -97,6 +97,15 @@ def end_interview_session(session_id: SessionIdPath, db: DbSession, user: Curren
 )
 def delete_interview_session(session_id: SessionIdPath, db: DbSession, user: CurrentUser, clock: ClockDep):
     interview_service.delete(db, user, session_id, clock=clock)
+
+
+@router.post(
+    "/interview-sessions/{session_id}/join",
+    response_model=JoinOut,
+    summary="A microphone-only LiveKit token for the room of a created session, which dispatches the Interview Agent; needs the current AI consent (seeker)",
+)
+def join_interview_session(session_id: SessionIdPath, db: DbSession, user: CurrentUser, clock: ClockDep):
+    return interview_join_service.issue(db, user, session_id, clock=clock)
 
 
 @router.post(

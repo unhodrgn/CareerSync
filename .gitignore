@@ -202,6 +202,8 @@ __marimo__/
 
 # Local AI matching test dataset (synthetic CVs, job summaries, human-only expected results); never committed
 /test_data/
+# graphify: generated knowledge graph of the code (rebuilt by `graphify update .`); never committed
+/graphify-out/
 # Local AI coding assistant configuration
 /CLAUDE.md
 /.impeccable/

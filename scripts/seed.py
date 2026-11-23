@@ -1,14 +1,16 @@
-"""Seed demo data: two companies with recruiters, jobs with criteria, and two seekers.
+"""Seed demo data: two companies with recruiters, jobs with criteria, and three seekers.
 
 - seeker@demo.test: no CV and no preferences, for uploading data/demo/demo_cv.pdf live.
 - seeker2@demo.test: that CV uploaded and confirmed, preferences 서울 · 정규직, in the talent pool.
+- seeker3@demo.test: that CV uploaded and confirmed only (no preferences, not in the talent pool): a second account for the live checks of
+  the practice interview, which need a confirmed CV and allow 3 sessions per seeker per day.
 
-Both seekers are named like the person in the demo CV, so the name is masked before any LLM call.
+All seekers are named like the person in the demo CV, so the name is masked before any LLM call.
 The seed never calls the LLM: it forces AI_MODE=rules for its own process, so the CV is structured by rules
 and no API key is needed, whatever mode the app runs in.
 
 Run after migrations:  cd backend && alembic upgrade head && python ../scripts/seed.py
-Safe to run again: accounts that already exist are skipped (seeker2 only gets what it is still missing).
+Safe to run again: accounts that already exist are skipped (seeker2 and seeker3 only get what they are still missing).
 All accounts use the password printed below.
 """
 import os
@@ -111,6 +113,7 @@ COMPANIES = [
 SEEKER = {"email": "seeker@demo.test", "display_name": CV_NAME}
 SEEKER_WITH_CV = {"email": "seeker2@demo.test", "display_name": CV_NAME}
 SEEKER_WITH_CV_PREFERENCES = PreferenceIn(locations=["서울"], employment_types=["full_time"], profile_public=True)
+SEEKER_WITH_CV_ONLY = {"email": "seeker3@demo.test", "display_name": CV_NAME}
 
 
 def _exists(db, email: str) -> bool:
@@ -132,14 +135,14 @@ def _register(db, email: str, display_name: str, role: str, company_name: str | 
     )
 
 
-def _seed_seeker_with_cv(db) -> None:
-    """seeker2: the demo CV uploaded and confirmed as in the app (a confirm saves a new version), then
-    preferences with the talent-pool opt-in. Each step runs only if still missing, so a run that stopped
-    halfway is completed by the next one."""
-    email = SEEKER_WITH_CV["email"]
+def _seed_seeker_with_cv(db, spec: dict, preferences: PreferenceIn | None) -> None:
+    """A seeker with the demo CV uploaded and confirmed as in the app (a confirm saves a new version), then,
+    if given, preferences. Each step runs only if still missing, so a run that stopped halfway is completed
+    by the next one."""
+    email = spec["email"]
     user = db.scalar(select(User).where(func.lower(User.email) == email))
     if user is None:
-        user = _register(db, email, SEEKER_WITH_CV["display_name"], "seeker")
+        user = _register(db, email, spec["display_name"], "seeker")
         print(f"added {email}")
     else:
         print(f"skip  {email} (exists)")
@@ -151,8 +154,8 @@ def _seed_seeker_with_cv(db) -> None:
     if profile.confirmed_at is None:
         profile = cv_service.update(db, user, profile.id, cv_service.to_profile_data(profile), confirm=True)
         print(f"cv    {email} · confirmed as version {profile.version}")
-    if preference_service.get_mine(db, user) is None:
-        preference_service.replace_mine(db, user, SEEKER_WITH_CV_PREFERENCES)
+    if preferences is not None and preference_service.get_mine(db, user) is None:
+        preference_service.replace_mine(db, user, preferences)
         print(f"pref  {email} · 서울, 정규직, talent pool on")
 
 
@@ -180,7 +183,8 @@ def main() -> None:
         else:
             _register(db, SEEKER["email"], SEEKER["display_name"], "seeker")
             print(f"added {SEEKER['email']}")
-        _seed_seeker_with_cv(db)
+        _seed_seeker_with_cv(db, SEEKER_WITH_CV, SEEKER_WITH_CV_PREFERENCES)
+        _seed_seeker_with_cv(db, SEEKER_WITH_CV_ONLY, None)
         print(f"\nAll demo accounts use the password: {PASSWORD}")
     finally:
         db.close()

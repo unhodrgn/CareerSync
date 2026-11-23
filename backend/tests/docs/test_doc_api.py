@@ -1,7 +1,7 @@
 """Endpoint tables vs the routes. Any table with a Method and a Path/Endpoint column must name only real routes; the
 tables that also have a Who column (PROJECT_DOCUMENTATION.md §4.1) must cover every route and state its auth
-correctly; a sentence listing the endpoints that need no token must list exactly those. The doc is the standard
-(D11): every message says which side to fix."""
+correctly; a sentence listing the endpoints that need no token must list exactly those. The code is the
+reference (D87): every message says what to do about the difference."""
 import importlib
 import inspect
 import pkgutil
@@ -26,7 +26,7 @@ DESCRIBE = {
     "login": "needs a logged-in user (CurrentUser)",
     "company": "needs a company user (CompanyUser)",
 }
-FIX = "The doc is the standard (D11): fix the route, unless the doc is wrong (then fix the doc and tell Long)."
+FIX = "The code is the reference (D87): update the doc to match the route, unless the route looks like a bug (then report it to Long)."
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ def api_problems(docs: list[Doc], routes: dict[tuple[str, str], Route], allowed:
             for d in ops:
                 route = routes.get(d.op)
                 if route is None:
-                    problems.append(f"{d.where} documents {_op(d.op)}, which no route serves. Remove the row, or add the route if the doc is right (D11).")
+                    problems.append(f"{d.where} documents {_op(d.op)}, which no route serves. Remove the row from the doc, or report the missing route to Long if its absence looks like a bug (D87).")
                     continue
                 if d.who is None:
                     continue
@@ -174,7 +174,7 @@ def public_sentence_problems(docs: list[Doc], routes: dict[tuple[str, str], Rout
                 extra = ", ".join(f"{_op(o)} ({routes[o].place if o in routes else 'no such route'})" for o in sorted(listed - expected))
                 problems.append(
                     f"{doc.rel}:{line} lists the endpoints that need no token. Not listed but tokenless in code: {missing or '-'}; "
-                    f"listed but needing a token in code: {extra or '-'}. Fix the sentence, or the routes if the doc is right (D11)."
+                    f"listed but needing a token in code: {extra or '-'}. Fix the sentence to match the routes, unless a route looks like a bug (then report it to Long, D87)."
                 )
     return problems
 

@@ -68,6 +68,14 @@ _T = InterviewTurn.__table__
 _ACTIVE = InterviewStatus.ACTIVE
 
 NOT_FOUND = "INTERVIEW_NOT_FOUND"
+CONSENT_WITHDRAWN = "consent_withdrawn"  # the end reason of a session that ended because the seeker withdrew the AI consent (D81)
+CONSENT_REQUIRED = "AI_CONSENT_REQUIRED"
+
+
+def consent_required_error() -> AppError:
+    """A practice interview without the current AI consent (D17, D65 (5), D81): one error for every place that refuses it by name, the join
+    route (M5 S4) and a session whose planning a withdrawal ended. Its code is the one of the other AI features."""
+    return AppError(409, CONSENT_REQUIRED, "모의 면접을 하려면 최신 AI 분석 동의가 필요합니다.")
 
 
 # ── What the service returns (the router returns these, and the response models of `app/schemas/interview.py` shape them) ──
@@ -246,9 +254,13 @@ def create_session(
     ).rowcount
     db.commit()
     if changed != 1:  # nothing is brought back, and nothing is refunded
-        gone = db.scalar(select(_S.c.id).where(_S.c.id == session_id, _S.c.seeker_id == seeker_id)) is None
-        if gone:
+        found = db.execute(select(_S.c.status, _S.c.end_reason).where(_S.c.id == session_id, _S.c.seeker_id == seeker_id)).first()
+        if found is None:
             raise AppError(404, NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+        if found.status == InterviewStatus.ABORTED and found.end_reason == CONSENT_WITHDRAWN:
+            db.refresh(user)  # another request withdrew the consent: read what the seeker has now
+            if not has_ai_consent(user):  # a seeker who consented again is told to start again, as for any lost reservation
+                raise consent_required_error()
         raise AppError(409, "INTERVIEW_PLANNING_EXPIRED", "면접 준비 시간이 지났습니다. 다시 시작해 주세요.", session_id=session_id)
     row, title = _load_own(db, seeker_id, session_id, t3)
     return CreatedSession(_view(db, row, title, t3), limited)
@@ -509,6 +521,32 @@ def delete(db: Session, user: User, session_id: int, *, clock: Clock = utcnow) -
     db.commit()
     if removed != 1:
         raise AppError(404, NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+
+
+def abort_for_consent_withdrawal(db: Session, seeker_id: int, now: datetime) -> int:
+    """The seeker withdrew the global AI consent (D17, D65 (5), D81): every planning, created or live session of theirs that is still inside
+    its time becomes `aborted` with the reason `consent_withdrawn`, `ended_at` now. The number of sessions ended.
+
+    The rules are those of the seeker's own End: a session past its deadline (a live one: past the end grace) is not claimed here and keeps
+    the reason that `settle` gives it; a completed or an aborted session is not touched; another seeker's sessions never are. The ingestion
+    then refuses every further turn of an ended session by its existing status check, and the planning of a session that was ended while its
+    model call ran cannot seal it (the compare-and-set of `create_session` needs `planning`). The quota is not touched and no model is called.
+
+    It does NOT commit: `consent_service.withdraw_ai` commits it with the withdrawal itself, so a seeker never has a withdrawn consent and a
+    session that goes on, or the other way round. It is the one place outside the interview services that this module is used from, and the
+    architecture guard names that use."""
+    grace = timedelta(seconds=settings.INTERVIEW_END_GRACE_SECONDS)
+    return db.execute(
+        sql_update(_S)
+        .where(
+            _S.c.seeker_id == seeker_id,
+            or_(
+                _S.c.status.in_((InterviewStatus.PLANNING, InterviewStatus.CREATED)) & (_S.c.active_until >= now),
+                (_S.c.status == InterviewStatus.LIVE) & (_S.c.active_until >= now - grace),
+            ),
+        )
+        .values(status=InterviewStatus.ABORTED, end_reason=CONSENT_WITHDRAWN, ended_at=now, active_until=None)
+    ).rowcount
 
 
 # ── Settlement and retention ──

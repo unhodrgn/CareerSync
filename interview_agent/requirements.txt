@@ -1,0 +1,11 @@
+# Interview Agent (M5; docs/DECISIONS.md D56, D79). Own virtual environment: interview_agent\.venv, never the backend's.
+# Exact pins of the direct dependencies; the full resolved set is in requirements.lock.txt.
+#
+# livekit-agents stays at 1.8.12 (D79), which requires livekit-api<2. The groq extra is the per-turn model call (D52);
+# silero is the voice activity detector of the voice stage (S4).
+livekit-agents[groq,silero]==1.8.12
+livekit-api==1.2.3
+httpx==0.28.1
+# ai/interview needs these two (the agent imports the engine in-process, D56)
+pydantic==2.14.4
+PyYAML==6.0.4

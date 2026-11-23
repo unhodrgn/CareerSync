@@ -3,6 +3,7 @@
 They fail when the registered routes differ from the stage's list (so a route cannot appear early, as a placeholder, or be forgotten), when a
 route falls outside the `no-store` path pattern, and when something in the application stack could let a response bypass the header.
 `EXPECTED_INTERVIEW_ROUTES` grows with each stage and `test_interview_api.COVERED_ROUTES` must equal it."""
+import inspect
 import re
 from unittest.mock import patch
 
@@ -19,7 +20,7 @@ except ImportError:  # an older Starlette has no request body limit, so none can
     RequestBodyLimitMiddleware = None
 
 from app.api.v1 import interview_sessions
-from app.core.no_store import INTERVIEW_PATH, NoStoreMiddleware
+from app.core.no_store import AGENT_PATH, INTERVIEW_PATH, NoStoreMiddleware
 from app.main import app
 
 from .docs.test_doc_api import code_routes
@@ -33,7 +34,8 @@ EXPECTED_INTERVIEW_ROUTES = {
     ("POST", "/api/interview-sessions/{session_id}/end"),
     ("DELETE", "/api/interview-sessions/{session_id}"),
     ("POST", "/api/interview-sessions/{session_id}/feedback"),
-}  # stage S4.5, Gate A: the feedback joins the detail, the end and the delete
+    ("POST", "/api/interview-sessions/{session_id}/join"),
+}  # stage S4.5 (the feedback joins the detail, the end and the delete), and M5 S4 (the join token, D80 (4))
 ROUTER_FILE = "backend/app/api/v1/interview_sessions.py"
 
 # FastAPI keeps an included router as one lazy object in `app.routes`, so the routes are read the way the API documentation guard reads
@@ -64,8 +66,19 @@ def test_every_registered_interview_route_has_its_cases_in_the_route_tests():
     assert COVERED_ROUTES == EXPECTED_INTERVIEW_ROUTES
 
 
-def test_there_is_no_agent_endpoint_and_no_placeholder_route():
-    assert not [path for _method, path in code_routes() if "/internal" in path or "agent" in path.lower()]
+EXPECTED_AGENT_ROUTES = {
+    ("GET", "/api/internal/interview-sessions/{session_id}/context"),
+    ("POST", "/api/internal/interview-sessions/{session_id}/events"),
+}  # M5 S1 (D80): the Interview Agent's two internal routes, and no other
+AGENT_ROUTER_FILE = "backend/app/api/v1/internal_interview.py"
+
+
+def test_the_only_agent_routes_are_the_two_internal_ones_of_their_own_module_and_no_route_is_a_placeholder():
+    agent = {op: route for op, route in code_routes().items() if "/internal" in op[1] or "agent" in op[1].lower()}
+    assert set(agent) == EXPECTED_AGENT_ROUTES
+    assert all(AGENT_ROUTER_FILE in route.place.replace(chr(92), "/") for route in agent.values())
+    assert all(AGENT_PATH.match(path) and not INTERVIEW_PATH.match(path) for _method, path in agent), "agent paths get no-store through AGENT_PATH"
+    assert {route.kind for route in agent.values()} == {"public"}, "the agent routes take the agent secret, never a JWT"
     for route in interview_sessions.router.routes:
         assert route.status_code != 501 and "501" not in (route.responses or {}), route.path
 
@@ -110,7 +123,11 @@ def test_the_only_layers_in_front_of_the_middleware_cannot_make_a_response_it_wo
 # on a router, an `include_router` call or a route is answered inside the stack and is covered, but it is refused too: one rule, no case
 # to reason about. Setting a limit needs a new decision that also puts its 413 behind no-store (D67 (4)), and then this guard changes.
 
-needs_limiter = pytest.mark.skipif(RequestBodyLimitMiddleware is None, reason="this Starlette has no request body limit")
+# The probe self-tests set the limit through FastAPI's `max_body_size` (0.164+); the pinned FastAPI (D82) has no such parameter.
+needs_limiter = pytest.mark.skipif(
+    RequestBodyLimitMiddleware is None or "max_body_size" not in inspect.signature(FastAPI).parameters,
+    reason="this FastAPI or Starlette has no request body limit",
+)
 FEEDBACK = [("POST", "/api/interview-sessions/{session_id}/feedback")]
 
 
@@ -343,7 +360,7 @@ def test_every_interview_path_advertises_exactly_its_openapi_methods_in_allow():
     """A 405 is answered before any dependency runs, so this needs no login and no database."""
     spec = app.openapi()
     paths = {path: item for path, item in spec["paths"].items() if INTERVIEW_PATH.match(path)}
-    assert len(paths) == 6  # the consent, the history, the create, the detail with the delete, the end, and the feedback
+    assert len(paths) == 7  # the consent, the history, the create, the detail with the delete, the end, the feedback, and the join
     web = TestClient(app, raise_server_exceptions=False)
     for path, item in paths.items():
         supported = {method.upper() for method in item}
@@ -358,7 +375,7 @@ def test_every_interview_path_advertises_exactly_its_openapi_methods_in_allow():
 def test_every_route_of_the_interview_router_uses_the_all_methods_route_class():
     router = interview_sessions.router
     routes = [route for route in router.routes if isinstance(route, APIRoute)]
-    assert len(routes) == 7 and issubclass(router.route_class, APIRoute) and router.route_class is not APIRoute
+    assert len(routes) == 8 and issubclass(router.route_class, APIRoute) and router.route_class is not APIRoute
     assert all(type(route) is router.route_class for route in routes)  # a route that is added with another class would advertise one method again
 
 

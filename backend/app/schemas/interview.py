@@ -28,6 +28,18 @@ class ConsentTextOut(BaseModel):
     items: list[ConsentItemOut]
 
 
+class JoinOut(BaseModel):
+    """What the browser needs to join the room of a created session (M5 S4, D80 (4)): the LiveKit URL, a microphone-only token for that one
+    room, the room name, and when the token stops being valid. No AI result, so no `notice`."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    url: str
+    token: str
+    room: str
+    expires_at: datetime
+
+
 class InterviewCreateIn(BaseModel):
     """The request to create a session. The two consent fields are deliberately not typed: the service decides, with `is True` and an exact
     version, and answers a missing, false, string or old-version consent with its own 409 codes. A typed field would turn `"true"` into

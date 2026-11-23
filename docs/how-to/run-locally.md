@@ -67,7 +67,7 @@ The file must be **`.env` in the repo root**, not in `backend/`. The backend, `a
 The defaults already match the Docker command above:
 
 ```env
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=5433
 DB_USER=postgres
 DB_PASSWORD=postgres
@@ -84,11 +84,13 @@ EMBEDDING_MODEL=intfloat/multilingual-e5-base
 
 An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
 
+Use `127.0.0.1` for `DB_HOST`, not `localhost`: on Windows `localhost` resolves to `::1` first, Docker publishes PostgreSQL only on `127.0.0.1`, and the connection hangs ([troubleshooting](troubleshooting.md#the-backend-hangs-on-the-database-connection-on-windows-with-db_hostlocalhost)). The code default is still `localhost`.
+
 The variables you are most likely to set are below. Every variable the code reads, with its default (also `LLM_EFFORT`, `JWT_EXPIRE_MINUTES` and the data file paths), is in [PROJECT_DOCUMENTATION.md §9](../../PROJECT_DOCUMENTATION.md#9-environment-and-configuration).
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/careersync_db` instead |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5433/careersync_db` instead |
 | `JWT_SECRET_KEY` | for anything shared | Any long random string. A built-in dev value is used if it is missing or empty; while this or `TALENT_ID_SECRET` uses its dev value, the backend logs one warning at startup (names only, never values) |
 | `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing or empty |
 | `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis uses rules, `project` criteria are scored from the CV's 프로젝트 entries and `other` criteria by keyword retrieval (D28); no LLM is called, even with a key. Any other value stops the backend at startup |
@@ -199,6 +201,8 @@ Every test must pass. Some are skipped: the PostgreSQL tests (see `TEST_DATABASE
 
 To run the tests against PostgreSQL instead, set `TEST_DATABASE_URL`. The tests drop every application table before and after each test, so point it at a database that may be wiped, never at your working database. `backend/tests/db_safety.py` refuses a URL that is not a loopback PostgreSQL before any connection. Two modes pass it: a database whose name ends in `_pgtest`, or any other name that you approve by typing `TEST_DATABASE_EXPECTED_NAME` (the name) and `TEST_DATABASE_CONFIRM_DESTRUCTIVE` (`drop-all-tables-in:` and the name) in the same terminal, with an explicit port in the URL. Run the checker first (`python backend/tests/db_safety.py`), keep the libpq `PG*` variables and `DATABASE_URL` unset while pytest runs, and run one pytest process at a time. A test that is skipped has not run, so a PostgreSQL run counts only when no test is skipped. Afterwards the database has no application tables: rebuild it with `alembic stamp --purge base` and `alembic upgrade head` (see [PostgreSQL test database](../../PROJECT_DOCUMENTATION.md#9-environment-and-configuration) for the full steps).
 
+The Interview Agent (`interview_agent/`, M5) has its own virtual environment and its own tests. `python scripts/run_all_tests.py -q` runs both suites, each in its own environment. Setting up the agent's environment, running its text driver and its voice worker against a local backend, the environment variables of both (the voice interview also needs a LiveKit Cloud project and, for the model mode, a Groq key) and the live checklist are in `interview_agent/README.md`. The backend and the agent need the same `INTERVIEW_AGENT_SECRET` (at least 32 characters).
+
 Frontend type check and production build:
 
 ```bash
@@ -216,6 +220,43 @@ pip install -r backend/requirements.txt
 cd backend && alembic upgrade head && cd ..
 cd frontend && npm install && cd ..
 ```
+
+## Voice interview with Docker Compose
+
+The practice interview by voice (M5) runs as the `agent` service of Compose, next to the backend. It needs a LiveKit Cloud project (URL, API key and secret) and, to use the per-turn model, a Groq key. The service is in the `voice` profile, so a plain `docker compose up` does not start it and needs none of these keys. The React interview screens come with M6; until then a small developer page in `interview_agent/devclient/` is the way in. Every new session counts against the seeker's 3 sessions a day (KST), and a session is never refunded.
+
+1. Add to `.env` (repo root; placeholders are in `.env.example`): `INTERVIEW_AGENT_SECRET` (any random string of at least 32 characters; the backend and the agent get the same value from this one line), `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `GROQ_API_KEY` for the model mode. Without the first four the join route answers 503; the rest of the app is not affected.
+2. Choose the agent's mode. `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) sets it for the agent only; when it is unset the agent follows `AI_MODE`. Use it to run the agent in `llm` (Groq per turn) while the backend stays in `rules` and needs no Anthropic key. Shell variables win over `.env`, so set both in the PowerShell window you start from:
+
+   ```powershell
+   $env:AI_MODE = "rules"                  # the backend: template questions and rules feedback
+   $env:INTERVIEW_AGENT_AI_MODE = "llm"    # the agent: Groq for the per-turn analysis (needs GROQ_API_KEY)
+   docker compose --profile voice up --build -d
+   docker compose --profile voice ps -a    # agent: healthy once it is registered with LiveKit
+   docker compose --profile voice logs -f agent
+   ```
+
+   `--profile voice` is needed on every command that should include the agent (`ps`, `logs`, `down`). The first build installs the agent's pinned packages (a few minutes). The log must show `registered worker`; a session then logs `voice session <id>: stt=… detector=turn-detector-v1 …`.
+3. Start the test page in a second window, from the repo root. It uses only the standard library, so the repo's `.venv` (or any Python 3.11+) is enough; the agent's own virtual environment is not needed with Compose:
+
+   ```powershell
+   python -m interview_agent.devclient.serve        # http://127.0.0.1:8788/ in Chrome
+   ```
+
+   The page forwards `/api/` to `http://127.0.0.1:8000` (the published backend port; set `INTERVIEW_AGENT_BACKEND_URL` first if you changed `COMPOSE_BACKEND_PORT`). Log in as `seeker2@demo.test` or `seeker3@demo.test` (password `demo1234`; both have the demo CV confirmed), tick the consent, enter the job id (the 넥스트코드 (Nextcode) backend job is normally 1) and press **면접 시작** (Start interview). Allow the microphone. Press **종료** (End) to stop.
+4. Stop with `docker compose --profile voice down`. Name the profile: a plain `docker compose down` names none, so it may leave the agent container (and the network it uses) behind.
+
+To change only the agent (for example its mode or the model timeout) without touching the backend, set the variable and run `docker compose --profile voice up -d --no-deps agent`. `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` (default 3) is passed on the same way.
+
+The agent container reads no `.env` file: Compose passes the variables listed above, and the service sets `INTERVIEW_AGENT_BACKEND_URL` to `http://backend:8000` (the Compose network). The agent's other settings (speech models, voice, endpointing delays, status poll) keep their defaults under Compose; the manual run in [`interview_agent/README.md`](../../interview_agent/README.md) sets them. Timing reports are written inside the container (`/app/interview_agent/.runs`) and lost when it is removed; the same numbers are in `docker compose --profile voice logs agent` (`session summary: {...}`), and `docker compose --profile voice cp agent:/app/interview_agent/.runs/. interview_agent/.runs/` copies the files out first.
+
+The text driver needs no LiveKit or Groq key (rules mode; the shared secret is still needed). With the stack up:
+
+```powershell
+docker compose --profile voice run --rm -e INTERVIEW_DEMO_PASSWORD=demo1234 agent python -m interview_agent.text_cli --job-id 1 --email seeker2@demo.test --consent
+```
+
+If the agent container keeps restarting, `docker compose --profile voice logs agent` names the missing variable (never its value). For a LiveKit `401` or a hang on the database connection, see [troubleshooting](troubleshooting.md#livekit-answers-401-in-the-voice-interview-although-the-keys-are-right).
 
 ## Command reference
 

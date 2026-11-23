@@ -198,22 +198,26 @@ def test_the_views_cut_a_hostile_transcript():
 
 # ── Architecture: who may call a model, acquire a client, import an SDK or read the raw transcript ──
 
-SCAN_ROOTS = ("ai", "backend/app")
+SCAN_ROOTS = ("ai", "backend/app", "interview_agent")  # interview_agent/: M5 S2 (D80), added on purpose by the tripwire below
 MODEL_SDKS = frozenset({"anthropic", "openai", "groq", "mistralai", "cohere", "ollama", "google"})
 EXPECTED_CALLERS = {  # every file that refers to `complete_json`, with its reason
     "ai/career/cv_review.py", "ai/career/interview.py", "ai/career/roadmap.py", "ai/jd/draft.py", "ai/parsing/extract.py",
     "ai/scoring/scorers.py",  # the existing seeker features (D21, D24, D25, structuring, scoring): unchanged, Q24 applies
     "ai/interview/boundary.py",  # the interview's one call, `ask`
+    "ai/career/verification.py",  # recruiter CV-verification questions (main PR #30, D85): no interview data, the cleaned masked CV only
 }
 EXPECTED_RUNTIME_USERS = {  # backend services that take the model client from `ai_runtime.llm()`
     "backend/app/services/career_service.py", "backend/app/services/cv_review_service.py", "backend/app/services/cv_service.py",
     "backend/app/services/evaluation_service.py", "backend/app/services/jd_service.py",
     "backend/app/services/interview_service.py",  # M4 S2: takes the client for the planning model call and hands it to interview_plan_service
     "backend/app/services/interview_feedback_service.py",  # M4 S3b: takes the client for the one feedback call and hands it to make_feedback
+    "backend/app/services/verification_service.py",  # D85: hands the client to ai.career.verification
 }
-INTERVIEW_BACKEND = {  # the backend modules that import ai.interview: S2 plan and lifecycle, S3a ingest, S3b feedback; a new one is a review point
+INTERVIEW_BACKEND = {  # the modules outside ai/interview that import it: S2 plan and lifecycle, S3a ingest, S3b feedback; a new one is a review point
     "backend/app/services/interview_plan_service.py", "backend/app/services/interview_service.py", "backend/app/services/interview_ingest_service.py",
     "backend/app/services/interview_feedback_service.py",
+    "interview_agent/runner.py",  # M5 S2 (D80): the agent runs the engine in-process (D56)
+    "interview_agent/voice.py",  # M5 S4: the worker masks what it hears with the engine's `mask_spoken`; it calls no model and holds no LLM
 }
 CLIENT_OWNERS = {"backend/app/services/ai_runtime.py"}  # takes `get_llm_client` (ai/llm/client.py defines it and the SDK use)
 SDK_OWNERS = {"ai/llm/client.py"}
@@ -224,7 +228,10 @@ COMPOSERS = {"llm.py", "boundary.py", "feedback.py"}  # in ai/interview: who may
 def _files() -> list[Path]:
     out = []
     for root in SCAN_ROOTS:
-        out += [p for p in sorted((ROOT / root).rglob("*.py")) if "tests" not in p.relative_to(ROOT).parts and "__pycache__" not in p.parts]
+        out += [
+            p for p in sorted((ROOT / root).rglob("*.py"))
+            if not {"tests", "__pycache__", ".venv"} & set(p.relative_to(ROOT).parts)  # .venv: the agent's own environment (M5)
+        ]
     return out
 
 
@@ -333,10 +340,45 @@ def test_inside_the_interview_package_only_three_modules_read_the_raw_transcript
     )
 
 
-def test_no_interview_agent_directory_exists_yet():
-    """Tripwire for M5: the realtime agent will call a model on its own. When `interview_agent/` appears, add it to SCAN_ROOTS
-    with its own expected call sites, and have it send only `ModelInput.system` and `ModelInput.user`."""
-    assert not (ROOT / "interview_agent").exists()
+AGENT_MODEL_CLIENT = "interview_agent/turn_model.py"  # D52: the one exception to AI rule 2, Groq through the LiveKit Groq plugin
+AGENT_ASKERS = {"interview_agent/runner.py"}  # the one place of the agent that sends a ModelInput: prepare_turn, ask, parse_turn
+
+
+def _imports_groq_plugin(tree: ast.Module) -> bool:
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and n.module == "livekit.plugins" and any(a.name == "groq" for a in n.names):
+            return True
+        if isinstance(n, ast.ImportFrom) and n.module and n.module.startswith("livekit.plugins.groq"):
+            return True
+        if isinstance(n, ast.Import) and any(a.name.startswith("livekit.plugins.groq") for a in n.names):
+            return True
+    return False
+
+
+def _agent(predicate) -> set[str]:
+    return {r for r in _where(predicate) if r.startswith("interview_agent/")}
+
+
+def test_the_agent_calls_its_model_in_one_module_and_sends_it_only_what_ask_hands_over():
+    """M5 S2 (D52, D62 (B), D80 (5)): the agent's per-turn model is reached in one module, which holds no interview data (it imports
+    neither the interview package nor the backend), and the only code of the agent that sends anything to a model is the runner's `ask`
+    of a ModelInput that `prepare_turn` built. So what Groq receives is `ModelInput.system` and `ModelInput.user`, nothing else."""
+    assert _agent(_imports_groq_plugin) == {AGENT_MODEL_CLIENT}
+    client = _tree(ROOT / AGENT_MODEL_CLIENT)
+    assert not imports_interview(client) and not refers_to_complete_json(client) and not sdk_imports(client)
+    # `ask` is handed to a worker thread (`asyncio.to_thread(ask, client, model_input)`), so the scan looks for the name, not a call
+    assert _agent(lambda t: any(isinstance(n, ast.Name) and n.id == "ask" for n in ast.walk(t))) == AGENT_ASKERS
+    assert _agent(lambda t: calls_name(t, "prepare_turn")) == AGENT_ASKERS and _agent(lambda t: calls_name(t, "parse_turn")) == AGENT_ASKERS
+    assert _agent(lambda t: calls_name(t, "compose") or calls_name(t, "ModelInput")) == set()
+    assert _agent(lambda t: calls_name(t, "chat")) == {AGENT_MODEL_CLIENT}
+
+
+def test_the_agent_never_imports_the_backend_or_anthropic():
+    for rel in _agent(lambda t: True):
+        tree = _tree(ROOT / rel)
+        roots = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+        roots |= {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
+        assert not roots & {"app", "anthropic"}, rel
 
 
 # The scanners themselves: each one must flag the thing it exists to flag, or the tests above prove nothing.
@@ -377,7 +419,7 @@ def test_the_scanners_flag_what_they_exist_to_flag(source, scanner, expected):
 # allow-list, not a blacklist: anything not listed (cv_chunks, cv_excerpts, make_questions, split_sections, chunk_sections,
 # retrieve, find_gaps, structure_cv, mask_pii, a whole-module import, a new helper) is a way to read the stored CV and belongs
 # in cv_context.py behind clean_cv. What is listed works on one line or one short text, or is not about the CV at all.
-CV_ADJACENT_PREFIXES = ("ai.parsing", "ai.scoring", "ai.career", "ai.jd")
+CV_ADJACENT_PREFIXES = ("ai.parsing", "ai.scoring", "ai.career", "ai.jd", "ai.guardrails.cv_clean")  # cv_clean: the CV cleaner (D85)
 ALLOWED_CV_ADJACENT = {
     "ai.career.interview": {"CriterionInfo", "Question", "Kind", "allowed", "interview_rules", "_URL"},  # types and D21 templates
     "ai.parsing.sections": {"heading_key"},  # is this one line a heading
@@ -495,7 +537,9 @@ def test_the_cv_reader_guard_is_not_vacuous():
     """The authorized reader really reads (so the allow-list has something to protect), and the pass-through rule has uses to
     check in the three modules that accept the stored CV."""
     modules = _interview_modules()
-    assert cv_import_violations(modules["cv_context.py"]) == ["ai.career.interview.make_questions"]  # the reader, and only it
+    assert cv_import_violations(modules["cv_context.py"]) == [  # the reader and the cleaner, and only they
+        "ai.career.interview.make_questions", "ai.guardrails.cv_clean.CleanCv", "ai.guardrails.cv_clean.clean_cv",
+    ]
     carriers = {n for n, t in modules.items() if any(isinstance(x, ast.Name) and x.id in CV_TEXT_PARAMS for x in ast.walk(t))}
     assert carriers == {"cv_context.py", "plan.py", "engine.py", "validate.py"}
 
