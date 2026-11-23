@@ -105,6 +105,7 @@ function onParticipantConnected(participant) {
   if (participant.kind === ParticipantKind.AGENT || !participant.identity.startsWith('candidate-')) {
     state.marks.agentJoined = performance.now();
     clearTimeout(state.agentTimer);
+    setError(''); // a late join (a pending dispatch delivered after the 20 s message) must not leave the red error up
     setStatus('면접관(AI)이 입장했습니다. 첫 질문을 기다리세요.');
     showMetrics();
   }
@@ -130,7 +131,7 @@ async function connect(join) {
   setStatus('방에 들어왔습니다. 면접관(AI)을 기다리는 중...');
   state.agentTimer = setTimeout(() => {
     if (state.marks.agentJoined === undefined) {
-      setError('면접관이 20초 안에 입장하지 않았습니다. 에이전트가 실행 중인지, 이 방에 이미 다른 참가자가 있었는지(방이 이미 있으면 새로 배정되지 않습니다) 확인하세요.');
+      setError('면접관이 20초 안에 입장하지 않았습니다. 에이전트가 꺼져 있었다면 켜질 때 이 방으로 입장하니 잠시 더 기다리세요. 켜져 있었다면 에이전트 이름과 LiveKit 프로젝트가 같은지, 이 방이 이미 있었는지(이미 있는 방에는 새로 배정되지 않습니다) 확인하세요.');
     }
   }, AGENT_JOIN_TIMEOUT_MS);
   await room.localParticipant.setMicrophoneEnabled(true); // the only track this page publishes

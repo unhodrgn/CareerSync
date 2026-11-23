@@ -15,7 +15,7 @@ MODULES = ("app.core.config", "ai.llm.client", "ai.scoring.fit", "ai.parsing.pdf
 CONST = r"(?:[a-z_][a-z0-9_]*\.)?[A-Z][A-Z0-9_]+"
 ASSIGNED = re.compile(rf"`({CONST})`\s+(?:=|is)\s+`([^`]+)`")
 IN_PARENS = re.compile(rf"`({CONST})`\s*\((\d+(?:\.\d+)?)(?![\d.])")
-FIX = "The doc is the standard (D11): fix the code, unless the doc is wrong (then fix the doc and tell Long)."
+FIX = "The code is the reference (D87): update the doc to match the code, unless the code looks like a bug (then report it to Long)."
 
 
 def _file(module: str) -> str:

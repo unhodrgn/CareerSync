@@ -213,18 +213,18 @@ def env_problems(
             where = f"{table.doc.rel}:{line}"
             for name in names:
                 if name not in known:
-                    problems.append(f"{where} documents {name}, which no code or Compose reads. Remove it from the doc, or add the reader if the doc is right (D11).")
+                    problems.append(f"{where} documents {name}, which no code or Compose reads. Remove it from the doc, or report it to Long if the missing reader looks like a bug (D87).")
                 elif is_reference:
                     reference.add(name)
             for name, doc_default in row_defaults(table, cells, names).items():
                 if name in known:
                     value, code_where = code_default(name)
                     if value is not UNKNOWN and value is not None and doc_default != value:
-                        problems.append(f"{where} says {name} defaults to {doc_default!r}; it defaults to {value!r} at {code_where}. The doc is the standard (D11): fix the code, unless the doc is wrong.")
+                        problems.append(f"{where} says {name} defaults to {doc_default!r}; it defaults to {value!r} at {code_where}. The code is the reference (D87): update the doc, unless the code looks like a bug (then report it to Long).")
             if len(names) == 1 and (m := re.search(r"[Dd]efaults to `?([A-Za-z0-9_./:-]+)`?", " ".join(cells[1:]))):
                 value, code_where = code_default(names[0])
                 if value is not UNKNOWN and value is not None and m.group(1) != value:
-                    problems.append(f"{where} says {names[0]} defaults to {m.group(1)!r}; it defaults to {value!r} at {code_where}. Fix the doc or the code (D11).")
+                    problems.append(f"{where} says {names[0]} defaults to {m.group(1)!r}; it defaults to {value!r} at {code_where}. Update the doc to the code's default, unless the code looks like a bug (then report it to Long, D87).")
     for name in sorted(set(read) | set(compose.substitutions) | set(compose.environment)):
         if name not in reference and name not in agent_only and not allowed.covers(name):
             source = read[name][0].where if name in read else compose.substitutions.get(name, (None, compose.environment.get(name)))[1]
@@ -276,7 +276,7 @@ def compose_guide_problems(docs: list[Doc], compose: Compose, readers: list[Read
                 name, value = m.group(1), m.group(2).rstrip(".:")
                 options = {code.get(name), compose.substitutions.get(name, (None, ""))[0]} - {None}
                 if options and value not in options:
-                    problems.append(f"{doc.rel}:{line} says {name} defaults to {value!r}; the code and {COMPOSE} default it to {sorted(options)}. Fix the doc, or the code if the doc is right (D11).")
+                    problems.append(f"{doc.rel}:{line} says {name} defaults to {value!r}; the code and {COMPOSE} default it to {sorted(options)}. Update the doc to the code's defaults, unless the code looks like a bug (then report it to Long, D87).")
     return problems
 
 
