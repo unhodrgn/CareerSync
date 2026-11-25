@@ -44,6 +44,22 @@ export default function CriteriaSuggestions({
       </div>
       <AiBox kind="generated">
         <AiNotice notice={result.notice} method={result.method} inBox />
+        {result.analysis.requirement_schema && (
+          <details>
+            <summary>추출한 채용 요구사항 ({result.analysis.requirements?.length ?? 0}개)</summary>
+            <p className={ui.caption}>원문 인용 일치 여부만 자동 확인합니다. 의미·누락 여부는 검토가 필요합니다.</p>
+            <ul>
+              {result.analysis.requirements?.map((r) => (
+                <li key={r.requirement_id}>
+                  <strong>{r.text}</strong> — {r.category} · {({ required: '필수', preferred: '우대', responsibility: '담당업무', unspecified: '구분 불명' })[r.kind]}
+                  {r.condition && <p>{r.condition}</p>}
+                  <blockquote>{r.source}</blockquote>
+                </li>
+              ))}
+            </ul>
+            {!!result.analysis.warnings?.length && <p role="status">검토 필요: {result.analysis.warnings.join(' / ')}</p>}
+          </details>
+        )}
         {result.analysis.criteria.length === 0 ? (
           <p className={ui.caption}>{t('editor.suggest.none')}</p>
         ) : (

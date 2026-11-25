@@ -1,7 +1,8 @@
 """Job postings: draft → published → closed (closed is final; only drafts can be deleted)."""
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -52,3 +53,16 @@ class JobPosting(Base):
     criteria: Mapped[list["JobCriterion"]] = relationship(  # noqa: F821
         back_populates="job", order_by="JobCriterion.position", cascade="all, delete-orphan"
     )
+
+
+class JobRequirementAnalysis(Base):
+    """Versioned snapshot; never changes the actual published criteria."""
+    __tablename__ = "job_requirement_analyses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("job_postings.id", ondelete="CASCADE"), index=True)
+    source_sha256: Mapped[str] = mapped_column(String(64))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    method: Mapped[str] = mapped_column(String(200))
+    payload: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -122,7 +122,7 @@ def close_job(job_id: int, db: DbSession, user: CompanyUser):
     return _out(job_service.close(db, job))
 
 
-@router.post("/{job_id}/analyze", response_model=JdAnalysisOut, summary="AI parses the JD and suggests a criteria draft (not saved)")
+@router.post("/{job_id}/analyze", response_model=JdAnalysisOut, summary="AI parses the JD; stores LLM requirement snapshot, not criteria")
 def analyze_job(job_id: int, db: DbSession, user: CompanyUser):
     return jd_service.analyze(db, user, job_id)
 

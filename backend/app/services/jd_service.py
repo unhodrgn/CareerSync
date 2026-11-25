@@ -7,6 +7,8 @@
   JD_DAILY_LLM_DRAFTS LLM drafts per day (KST); over that the template comes back with `limited: true`.
   The count lives in process memory, so it resets on restart and assumes one backend process (D24).
 """
+import hashlib
+import json
 import threading
 from datetime import date, datetime, timedelta, timezone
 
@@ -15,12 +17,14 @@ from sqlalchemy.orm import Session
 
 from ai.jd.draft import DraftInput, ProjectInfo, make_draft
 from ai.parsing.extract import analyze_jd, fix_weights
+from ai.llm.client import LLMError
 from ai.parsing.profile import SuggestedCriterion
+from ai.parsing.universal_jd import analyze_universal_jd
 from ai.scoring.scorers import education_target
 from app.core.config import settings
 from app.core.errors import AppError
 from app.models import Company, CompanyProject, User
-from app.models.job import JobStatus
+from app.models.job import JobRequirementAnalysis, JobStatus
 from app.schemas.cv import BlockedSuggestion, DroppedSentence, CriteriaPreviewIn, CriteriaPreviewOut, JdAnalysisOut, JdDraftIn, JdDraftOut, JdDraftSections
 from app.services import ai_runtime, criteria_service, job_service
 
@@ -44,20 +48,44 @@ def screen_suggestions(items: list[SuggestedCriterion]) -> tuple[list[SuggestedC
     return (fix_weights(kept) if blocked else kept), blocked
 
 
+def _analyze_source(title, text, min_years, legacy_label=""):
+    llm = ai_runtime.llm()
+    if llm is None:
+        return analyze_jd(title, legacy_label + text, min_years, ai_runtime.skills(), None)
+    try:
+        return analyze_universal_jd(title, text, min_years, llm), f"llm:{llm.model}"
+    except LLMError as exc:
+        raise AppError(502, "JD_LLM_FAILED", "채용공고 AI 분석에 실패했습니다. 다시 시도해 주세요.") from exc
+
+
+def _screen(analysis):
+    analysis.criteria, blocked = screen_suggestions(analysis.criteria)
+    if analysis.requirement_schema:
+        covered = {rid for c in analysis.criteria for rid in c.requirement_ids}
+        missing = {r.requirement_id for r in analysis.requirements} - covered
+        if missing:
+            analysis.warnings.append("Unmapped after screening: " + ", ".join(sorted(missing)))
+    return blocked
+
+
 def analyze(db: Session, user: User, job_id: int) -> JdAnalysisOut:
     job = job_service.get_owned_job(db, job_id, user)
-    analysis, method = analyze_jd(job.title, job.description, job.min_experience_years, ai_runtime.skills(), ai_runtime.llm())
-    analysis.criteria, blocked = screen_suggestions(analysis.criteria)
+    analysis, method = _analyze_source(job.title, job.description, job.min_experience_years)
+    blocked = _screen(analysis)
+    if analysis.requirement_schema:
+        digest = hashlib.sha256(json.dumps([job.title, job.description, job.min_experience_years],
+                                          ensure_ascii=False).encode("utf-8")).hexdigest()
+        db.add(JobRequirementAnalysis(job_id=job.id, source_sha256=digest,
+                                     schema_version=analysis.requirement_schema, method=method,
+                                     payload=analysis.model_dump(mode="json")))
+        db.commit()
     return JdAnalysisOut(job_id=job.id, analysis=analysis, blocked=blocked, method=method)
 
 def preview(body: CriteriaPreviewIn) -> CriteriaPreviewOut:
     """Analyze unsaved source material; internal specifications are never published or stored."""
     label = "내부 프로젝트 기술서" if body.source_type == "project_spec" else "채용공고 원문"
-    analysis, method = analyze_jd(
-        body.title, f"{label}\n{body.text}", body.min_experience_years,
-        ai_runtime.skills(), ai_runtime.llm(),
-    )
-    analysis.criteria, blocked = screen_suggestions(analysis.criteria)
+    analysis, method = _analyze_source(body.title, body.text, body.min_experience_years, f"{label}\n")
+    blocked = _screen(analysis)
     return CriteriaPreviewOut(analysis=analysis, blocked=blocked, method=method)
 
 

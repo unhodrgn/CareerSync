@@ -68,6 +68,7 @@ export interface SuggestedCriterion {
   description: string;
   category: string;
   weight: number;
+  requirement_ids?: string[];
 }
 
 export interface BlockedSuggestion {
@@ -77,9 +78,21 @@ export interface BlockedSuggestion {
   reason: string;
 }
 
+export interface JdRequirement {
+  requirement_id: string;
+  role: string;
+  kind: 'required' | 'preferred' | 'responsibility' | 'unspecified';
+  category: string;
+  text: string;
+  source: string;
+  condition: string;
+  logic: 'single' | 'all' | 'any' | 'complex' | 'unspecified';
+  alternatives: string[];
+}
+
 export interface JdAnalysisOut {
   job_id: number;
-  analysis: { profile: Record<string, unknown>; criteria: SuggestedCriterion[] };
+  analysis: { profile: Record<string, unknown>; criteria: SuggestedCriterion[]; requirements?: JdRequirement[]; requirement_schema?: string | null; warnings?: string[] };
   blocked: BlockedSuggestion[];
   method: string;
   notice: string;

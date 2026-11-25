@@ -12,7 +12,7 @@ from app.models.cv import (
     CvSkill,
 )
 from app.models.interview import InterviewQuota, InterviewSession, InterviewTurn
-from app.models.job import JobPosting
+from app.models.job import JobPosting, JobRequirementAnalysis
 from app.models.matching import (
     CompanyProject,
     CompanyProjectTech,
@@ -47,6 +47,7 @@ __all__ = [
     "InterviewTurn",
     "JobCriterion",
     "JobPosting",
+    "JobRequirementAnalysis",
     "SeekerJobKeyword",
     "SeekerPreference",
     "SeekerPreferredEmploymentType",

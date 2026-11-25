@@ -115,7 +115,7 @@ def test_the_revision_follows_0011():
     assert (module.revision, module.down_revision) == ("0012", "0011")
     assert (VERSIONS / "0011_cv_reviews.py").exists()
     heads = [p.name for p in VERSIONS.glob("*.py") if re.search(r'down_revision = "0012"', p.read_text(encoding="utf-8"))]
-    assert heads == [], "0012 is the head: no migration follows it yet"
+    assert heads == ["0013_job_requirement_analyses.py"], "0013 follows the interview migration"
 
 
 def test_upgrade_creates_exactly_the_three_tables_and_changes_nothing_else(before):

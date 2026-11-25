@@ -3,6 +3,8 @@
 The same Pydantic models are the LLM's JSON output schema, the DB payload and the API body,
 so a seeker's edits go through the same validation as the model's output.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 CV_SCHEMA_VERSION = "cv_profile.v1"
@@ -59,13 +61,30 @@ class JdProfile(BaseModel):
     education: str = ""
 
 
+class JdRequirement(BaseModel):
+    """An occupation-independent requirement with source evidence."""
+    requirement_id: str = Field(min_length=1, max_length=40)
+    role: str = Field(min_length=1, max_length=200)
+    kind: Literal["required", "preferred", "responsibility", "unspecified"]
+    category: str = Field(min_length=1, max_length=100)
+    text: str = Field(min_length=1, max_length=1000)
+    source: str = Field(min_length=1, max_length=2000)
+    condition: str = Field("", max_length=1000)
+    logic: Literal["single", "all", "any", "complex", "unspecified"]
+    alternatives: list[str] = Field(default_factory=list)
+
+
 class SuggestedCriterion(BaseModel):
     name: str = Field(max_length=50)
     description: str = Field("", max_length=500)
     category: str = Field(description="skill | experience | project | certificate | education | other")
     weight: int = Field(ge=1, le=100)
+    requirement_ids: list[str] = Field(default_factory=list)
 
 
 class JdAnalysis(BaseModel):
     profile: JdProfile
     criteria: list[SuggestedCriterion]
+    requirements: list[JdRequirement] = Field(default_factory=list)
+    requirement_schema: str | None = None
+    warnings: list[str] = Field(default_factory=list)
