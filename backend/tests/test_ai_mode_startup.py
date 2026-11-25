@@ -14,7 +14,7 @@ from app.services import ai_runtime
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for key in ("AI_MODE", "LLM_API_KEY", "ANTHROPIC_API_KEY"):
+    for key in ("AI_MODE", "LLM_PROVIDER", "LLM_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -33,6 +33,22 @@ def test_startup_fails_on_invalid_mode(monkeypatch):
             pass
 
 
+def test_startup_fails_on_invalid_provider(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "unknown")
+    with pytest.raises(LLMConfigError, match="LLM_PROVIDER"):
+        with TestClient(app):
+            pass
+
+
+def test_startup_accepts_groq_api_key_fallback_for_groq_provider(monkeypatch, caplog):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-fallback-secret")
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"), TestClient(app):
+        pass
+    assert "AI_MODE=llm, LLM_MODEL=openai/gpt-oss-120b, LLM_PROVIDER=groq" in caplog.text
+    assert "gsk-fallback-secret" not in caplog.text
+
+
 def test_default_mode_starts_and_ignores_key(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
     with TestClient(app) as client:
@@ -42,11 +58,12 @@ def test_default_mode_starts_and_ignores_key(monkeypatch):
 
 def test_startup_logs_mode_and_model_but_never_the_key(monkeypatch, caplog):
     monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("LLM_API_KEY", "sk-test-secret-value")
     monkeypatch.setenv("LLM_MODEL", "claude-test-model")
     with caplog.at_level(logging.INFO, logger="uvicorn.error"), TestClient(app):
         pass
-    assert "AI_MODE=llm, LLM_MODEL=claude-test-model" in caplog.text
+    assert "AI_MODE=llm, LLM_MODEL=claude-test-model, LLM_PROVIDER=anthropic" in caplog.text
     assert "sk-test-secret-value" not in caplog.text
 
 

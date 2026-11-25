@@ -57,14 +57,17 @@ def test_no_key_or_secret_has_a_default_value_in_the_compose_file(name):
 
 
 def test_agent_follows_its_own_mode_variable_and_the_backend_is_untouched_by_it():
-    assert agent()["environment"]["AI_MODE"] == "${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-rules}}"
-    assert backend_env()["AI_MODE"] == "${AI_MODE:-rules}"
+    assert agent()["environment"]["AI_MODE"] == "${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-llm}}"
+    assert backend_env()["AI_MODE"] == "${AI_MODE:-llm}"
+    assert backend_env()["LLM_PROVIDER"] == "${LLM_PROVIDER:-groq}"
+    assert backend_env()["LLM_MODEL"] == "${LLM_MODEL:-openai/gpt-oss-120b}"
 
 
 def test_each_service_gets_only_its_own_model_key():
-    # D52: the agent calls Groq and never Anthropic; the backend never calls Groq
+    # D91: backend uses LLM_API_KEY (falling back to GROQ_API_KEY for Compose demo); agent uses GROQ_API_KEY only
     assert "LLM_API_KEY" not in agent()["environment"]
     assert "GROQ_API_KEY" not in backend_env()
+    assert backend_env()["LLM_API_KEY"] == "${LLM_API_KEY:-${GROQ_API_KEY:-}}"
     assert agent()["environment"]["GROQ_API_KEY"] == "${GROQ_API_KEY:-}"
 
 
@@ -76,11 +79,11 @@ def test_backend_image_keeps_the_local_ocr_packages():
 
 def test_agent_image_installs_its_lock_and_checks_the_local_models():
     dockerfile = (ROOT / "interview_agent/Dockerfile").read_text(encoding="utf-8")
-    assert "pip install -r /app/interview_agent/requirements.lock.txt" in dockerfile
+    assert "pip install --no-deps -r /app/interview_agent/requirements.linux.lock.txt" in dockerfile
     assert "pip check" in dockerfile
     assert "python -m livekit.agents download-files" in dockerfile
     assert "silero.VAD.load()" in dockerfile and "EOT()" in dockerfile  # a missing model file fails the build, not the container
-    assert dockerfile.index("requirements.lock.txt") < dockerfile.index("COPY ai ")  # code changes keep the install layers cached
+    assert dockerfile.index("requirements.linux.lock.txt") < dockerfile.index("COPY ai ")  # code changes keep the install layers cached
     for source in ("COPY ai /app/ai", "COPY data /app/data", "COPY interview_agent /app/interview_agent"):
         assert source in dockerfile
     assert '"-m", "interview_agent.voice", "start"' in dockerfile

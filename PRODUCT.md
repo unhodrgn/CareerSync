@@ -31,7 +31,7 @@ One set of company-defined criteria works in both directions on a single platfor
 
 - Seeker flow: register (privacy + AI consent) → upload CV PDF → AI structures it → edit and confirm (each save is a new version) → browse / recommended jobs → apply → track status; prep tools per job; offers inbox.
 - Company flow: register → company profile → create job (draft) → optional AI JD draft and criteria suggestions → save criteria (legal guardrail) → publish → ranked applicants with evidence → status changes; talent list and sent offers.
-- AI runs in `rules` mode by default; LLM mode is an explicit flag. Every feature must work and look complete in `rules` mode.
+- AI runs in `rules` mode as code/test fallback; demo configuration (`docker-compose.yml`, `.env.example`) sets `AI_MODE=llm` with `LLM_PROVIDER=groq` (D91). Every feature must work and look complete in `rules` mode.
 - Demo runs locally (`docker compose up`); no deployed environment.
 
 ## Capabilities and Constraints
@@ -46,8 +46,8 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
 - Talent recommendation (anonymous list + offers) is in the demo (D29).
 - Criteria pass a legal guardrail on save (discriminatory criteria blocked with the law cited).
 - Frontend stack (existing): React 19, TypeScript, Vite, React Router 7. Korean UI, `lang="ko"`. All UI strings go through `t()` from `src/i18n` (source locale `ko.ts`); no new dependencies without approval.
-- Devices: **desktop web only** for now. No mobile or tablet layouts; do not spend effort on responsive breakpoints.
-- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); scores appear on recommended jobs, the job list and job detail when an evaluation already exists, never on applied jobs (D43, replacing D31); no 사업자등록번호 field (D32); no job search filters, saved jobs or company dashboard metrics (D33); CV/account deletion is deferred to a later phase (D34).
+- Devices: desktop-first web with responsive layouts introduced in PR #26; M6 is planned as a full frontend rebuild including the practice-interview UI (D88).
+- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); scores appear on recommended jobs, the job list and job detail when an evaluation already exists, never on applied jobs (D43, replacing D31); no 사업자등록번호 field (D32); public `/jobs` location/experience/employment filters and redesigned `JobCard` UI are kept per D88 (replacing D33 and D45), while saved jobs and company dashboard metrics remain out; CV/account deletion is deferred to a later phase (D34).
 - Undecided (do not design as if decided): the rest of Q11 (seeker profile fields 경력 수준 / 보유 기술 스택, a 기업 탐색 page).
 
 ## Brand Commitments

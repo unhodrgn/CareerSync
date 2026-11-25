@@ -94,7 +94,9 @@ export interface CriteriaPreviewIn {
   min_experience_years: number | null;
 }
 
-export type CriteriaPreviewOut = Omit<JdAnalysisOut, 'job_id'>;
+export interface CriteriaPreviewOut extends Omit<JdAnalysisOut, 'job_id'> {
+  limited?: boolean;
+}
 export interface PosterTextOut { text: string; }
 
 export interface JdDraftIn {

@@ -97,6 +97,10 @@ class Settings:
     # JD drafts (docs/DECISIONS.md D24): LLM drafts per company per day (KST), only in AI_MODE=llm. Counted in
     # process memory: reset on restart, correct only with one backend process (uvicorn without --workers)
     JD_DAILY_LLM_DRAFTS: int = 20
+    # Company criteria preview and verification questions (docs/DECISIONS.md D89): per company per day (KST),
+    # only in AI_MODE=llm, counted in process memory; over the cap, rules fallback returns with `limited: true`.
+    COMPANY_DAILY_LLM_PREVIEWS: int = 20
+    COMPANY_DAILY_LLM_VERIFICATIONS: int = 20
 
     # Practice interview (docs/DECISIONS.md D57): reservations per seeker per KST day, kept in the database ledger
     # (`interview_quota`). A reservation is never refunded, and deleting a session does not give one back

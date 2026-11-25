@@ -77,12 +77,13 @@ JWT_SECRET_KEY=replace_with_a_secure_random_secret
 TALENT_ID_SECRET=replace_with_another_secure_random_secret
 
 # Optional
-AI_MODE=rules
+AI_MODE=llm
+LLM_PROVIDER=groq
 LLM_API_KEY=
 EMBEDDING_MODEL=intfloat/multilingual-e5-base
 ```
 
-An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key).
+An empty or whitespace-only value counts as unset (the default is used), except `AI_MODE` (empty = `rules`) and `LLM_API_KEY` (empty = no key, falling back to `GROQ_API_KEY` when `LLM_PROVIDER=groq`).
 
 Use `127.0.0.1` for `DB_HOST`, not `localhost`: on Windows `localhost` resolves to `::1` first, Docker publishes PostgreSQL only on `127.0.0.1`, and the connection hangs ([troubleshooting](troubleshooting.md#the-backend-hangs-on-the-database-connection-on-windows-with-db_hostlocalhost)). The code default is still `localhost`.
 
@@ -93,9 +94,11 @@ The variables you are most likely to set are below. Every variable the code read
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | yes | Must match the Docker container. Or set one `DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:5433/careersync_db` instead |
 | `JWT_SECRET_KEY` | for anything shared | Any long random string. A built-in dev value is used if it is missing or empty; while this or `TALENT_ID_SECRET` uses its dev value, the backend logs one warning at startup (names only, never values) |
 | `TALENT_ID_SECRET` | for anything shared | Another long random string: key for the anonymous IDs companies see in talent recommendation. Changing it changes those IDs. A dev default is used if missing or empty |
-| `AI_MODE` | no | `rules` (default; also when empty) or `llm`. In `rules`, CV analysis uses rules, `project` criteria are scored from the CV's 프로젝트 entries and `other` criteria by keyword retrieval (D28); no LLM is called, even with a key. Any other value stops the backend at startup |
-| `LLM_API_KEY` | only with `AI_MODE=llm` | Anthropic API key. With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
-| `LLM_MODEL` | no | Defaults to claude-sonnet-5-5 (also when empty) |
+| `AI_MODE` | no | `rules` (code default when unset/empty) or `llm` (`.env.example` sets `llm` for demo, D91). In `rules`, CV analysis uses rules, `project` criteria are scored from the CV's 프로젝트 entries and `other` criteria by keyword retrieval (D28); no LLM is called, even with a key. Any other value stops the backend at startup |
+| `LLM_PROVIDER` | no | `groq` (default) or `anthropic` (`DEFAULT_PROVIDER = "groq"`, D91) |
+| `LLM_API_KEY` | only with `AI_MODE=llm` | API key for the active `LLM_PROVIDER` (`GROQ_API_KEY` is used as fallback when `LLM_PROVIDER=groq` and `LLM_API_KEY` is blank). With `AI_MODE=llm` and no key the backend does not start. `ANTHROPIC_API_KEY` is not read |
+| `LLM_MODEL` | no | Provider default when unset/empty (`openai/gpt-oss-120b` for `groq`, `claude-sonnet-5-5` for `anthropic`) |
+| `GROQ_API_KEY` | with Groq `llm` mode | Used directly by the voice `agent`, and by the backend as fallback when `LLM_PROVIDER=groq` and `LLM_API_KEY` is blank |
 | `EMBEDDING_MODEL` | no | `intfloat/multilingual-e5-base` (about 1 GB) downloads in the background when the backend first starts; until it is loaded, the first CV upload or evaluation waits for it. Set **`hashing-ngram-v1`** to skip the download (faster, but matches spelling, not meaning). Empty also means e5 now; an empty value used to fall back to the hashing embedder |
 
 > 🔒 Never commit `.env`. It is in `.gitignore`; only `.env.example` with placeholders is committed.
@@ -184,6 +187,7 @@ All passwords are `demo1234`.
 | Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
 | Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서 (My CV), confirm it, set 희망 조건 (Preferences), see 추천 공고 (Recommended jobs), apply to a job, check 지원 현황 (My applications) |
 | Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직 (Seoul, full-time), in the talent pool. Shows 추천 공고, 취업 준비 (Job preparation) and the CV self-check at once, and appears in 인재 추천 for the companies |
+| Seeker | `seeker3@demo.test` | Demo CV uploaded and confirmed only (no preferences, not in talent pool): dedicated second seeker account for practice interview checks |
 
 The demo CV is made up (`scripts/make_demo_cv.py` builds it). Both seekers carry the CV's name, so the name is masked before any text reaches the LLM.
 
@@ -226,10 +230,10 @@ cd frontend && npm install && cd ..
 The practice interview by voice (M5) runs as the `agent` service of Compose, next to the backend. It needs a LiveKit Cloud project (URL, API key and secret) and, to use the per-turn model, a Groq key. The service is in the `voice` profile, so a plain `docker compose up` does not start it and needs none of these keys. The React interview screens come with M6; until then a small developer page in `interview_agent/devclient/` is the way in. Every new session counts against the seeker's 3 sessions a day (KST), and a session is never refunded.
 
 1. Add to `.env` (repo root; placeholders are in `.env.example`): `INTERVIEW_AGENT_SECRET` (any random string of at least 32 characters; the backend and the agent get the same value from this one line), `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `GROQ_API_KEY` for the model mode. Without the first four the join route answers 503; the rest of the app is not affected.
-2. Choose the agent's mode. `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) sets it for the agent only; when it is unset the agent follows `AI_MODE`. Use it to run the agent in `llm` (Groq per turn) while the backend stays in `rules` and needs no Anthropic key. Shell variables win over `.env`, so set both in the PowerShell window you start from:
+2. Choose the agent's mode. `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) sets it for the agent only; when it is unset the agent follows `AI_MODE`. Both default to `llm` (Groq) in `.env.example` / `docker-compose.yml` (D91). Shell variables win over `.env`, so override in PowerShell when running only the agent in `llm` mode and keeping backend rules:
 
    ```powershell
-   $env:AI_MODE = "rules"                  # the backend: template questions and rules feedback
+   $env:AI_MODE = "rules"                  # optional override: keep backend in rules mode
    $env:INTERVIEW_AGENT_AI_MODE = "llm"    # the agent: Groq for the per-turn analysis (needs GROQ_API_KEY)
    docker compose --profile voice up --build -d
    docker compose --profile voice ps -a    # agent: healthy once it is registered with LiveKit

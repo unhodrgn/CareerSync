@@ -50,39 +50,53 @@ def analyze(db: Session, user: User, job_id: int) -> JdAnalysisOut:
     analysis.criteria, blocked = screen_suggestions(analysis.criteria)
     return JdAnalysisOut(job_id=job.id, analysis=analysis, blocked=blocked, method=method)
 
-def preview(body: CriteriaPreviewIn) -> CriteriaPreviewOut:
+def preview(body: CriteriaPreviewIn, company_id: int | None = None) -> CriteriaPreviewOut:
     """Analyze unsaved source material; internal specifications are never published or stored."""
+    llm, limited = ai_runtime.llm(), False
+    if llm is not None and company_id is not None and not take_preview_llm_slot(company_id):
+        llm, limited = None, True
     label = "내부 프로젝트 기술서" if body.source_type == "project_spec" else "채용공고 원문"
     analysis, method = analyze_jd(
         body.title, f"{label}\n{body.text}", body.min_experience_years,
-        ai_runtime.skills(), ai_runtime.llm(),
+        ai_runtime.skills(), llm,
     )
     analysis.criteria, blocked = screen_suggestions(analysis.criteria)
-    return CriteriaPreviewOut(analysis=analysis, blocked=blocked, method=method)
+    return CriteriaPreviewOut(analysis=analysis, blocked=blocked, method=method, limited=limited)
 
 
-# ── /jd-draft ──
+# ── /jd-draft & /criteria-preview limits ──
 
 _lock = threading.Lock()
 _drafts: dict[tuple[int, date], int] = {}
+_previews: dict[tuple[int, date], int] = {}
+
+
+def _take_slot(buckets: dict[tuple[int, date], int], company_id: int, limit: int) -> bool:
+    today = datetime.now(KST).date()
+    with _lock:
+        for key in [k for k in buckets if k[1] != today]:
+            del buckets[key]
+        used = buckets.get((company_id, today), 0)
+        if used >= limit:
+            return False
+        buckets[(company_id, today)] = used + 1
+        return True
 
 
 def take_llm_slot(company_id: int) -> bool:
     """Count one LLM draft for today (KST); False when the daily limit is reached."""
-    today = datetime.now(KST).date()
-    with _lock:
-        for key in [k for k in _drafts if k[1] != today]:
-            del _drafts[key]
-        used = _drafts.get((company_id, today), 0)
-        if used >= settings.JD_DAILY_LLM_DRAFTS:
-            return False
-        _drafts[(company_id, today)] = used + 1
-        return True
+    return _take_slot(_drafts, company_id, settings.JD_DAILY_LLM_DRAFTS)
+
+
+def take_preview_llm_slot(company_id: int) -> bool:
+    """Count one LLM criteria preview for today (KST); False when the daily limit is reached."""
+    return _take_slot(_previews, company_id, settings.COMPANY_DAILY_LLM_PREVIEWS)
 
 
 def reset_counts() -> None:
     with _lock:
         _drafts.clear()
+        _previews.clear()
 
 
 def _projects(db: Session, company_id: int, ids: list[int]) -> list[CompanyProject]:

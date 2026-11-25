@@ -12,9 +12,10 @@ x-backend: &backend
     DB_NAME: ${DB_NAME:-careersync_db}
     JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-demo-secret-change-before-sharing}
     TALENT_ID_SECRET: ${TALENT_ID_SECRET:-local-demo-talent-secret-change-before-sharing}
-    AI_MODE: ${AI_MODE:-rules}
-    LLM_API_KEY: ${LLM_API_KEY:-}
-    LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5-5}
+    AI_MODE: ${AI_MODE:-llm}
+    LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+    LLM_API_KEY: ${LLM_API_KEY:-${GROQ_API_KEY:-}}
+    LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
     # docs/DECISIONS.md D26: the demo uses e5 (about 1 GB, downloaded once into the model-cache volume)
     EMBEDDING_MODEL: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-base}
     # M5 voice interview: the backend signs the seeker's join token with these; the `agent` service gets the same values.
@@ -84,9 +85,8 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      # The agent's mode is its own: INTERVIEW_AGENT_AI_MODE when set, else the backend's AI_MODE. This lets the agent use Groq
-      # (llm) while the backend stays in rules mode, so the live run needs no Anthropic key
-      AI_MODE: ${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-rules}}
+      # The agent's mode is its own: INTERVIEW_AGENT_AI_MODE when set, else the backend's AI_MODE.
+      AI_MODE: ${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-llm}}
       # Empty means the agent's default (3 s)
       INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS: ${INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS:-}
     depends_on:

@@ -1,33 +1,40 @@
-"""AI_MODE selects rules or LLM explicitly; an API key alone never enables the LLM. Every failure of a call
-becomes an LLMError, so callers fall back to rules. No request is sent: the SDK's `messages` is replaced."""
+"""AI_MODE and LLM_PROVIDER select rules or LLM explicitly; keys alone never enable the LLM.
+Every failure of a call becomes an LLMError, so callers fall back to rules. No real network request is sent."""
+import json
 import logging
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from ai.llm.client import (
     DEFAULT_MODEL,
+    DEFAULT_MODELS,
+    DEFAULT_PROVIDER,
     LLM_MAX_RETRIES,
     LLM_TIMEOUT_SECONDS,
     AnthropicClient,
+    GroqClient,
     LLMConfigError,
     LLMError,
     ai_mode,
     check_llm_config,
     get_llm_client,
     llm_model,
+    llm_provider,
 )
 
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for key in ("AI_MODE", "LLM_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
+    for key in ("AI_MODE", "LLM_PROVIDER", "LLM_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
         monkeypatch.delenv(key, raising=False)
 
 
 def test_key_alone_does_not_enable_llm(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
     assert ai_mode() == "rules"
     assert get_llm_client() is None
 
@@ -54,6 +61,15 @@ def test_invalid_mode_is_an_error(monkeypatch, value):
         get_llm_client()
 
 
+@pytest.mark.parametrize("value", ["unknown", "openai", "grok"])
+def test_invalid_provider_is_an_error(monkeypatch, value):
+    monkeypatch.setenv("LLM_PROVIDER", value)
+    with pytest.raises(LLMConfigError, match="LLM_PROVIDER"):
+        check_llm_config()
+    with pytest.raises(LLMConfigError, match="LLM_PROVIDER"):
+        get_llm_client()
+
+
 @pytest.mark.parametrize("key", [None, "", "  "])
 def test_llm_mode_without_key_is_an_error(monkeypatch, key):
     monkeypatch.setenv("AI_MODE", "llm")
@@ -67,13 +83,44 @@ def test_llm_mode_without_key_is_an_error(monkeypatch, key):
 
 def test_anthropic_api_key_is_not_read(monkeypatch):
     monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     with pytest.raises(LLMConfigError, match="LLM_API_KEY"):
         get_llm_client()
 
 
-def test_llm_mode_with_key_builds_the_client(monkeypatch):
+def test_anthropic_provider_does_not_fall_back_to_groq_api_key(monkeypatch):
     monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-only")
+    with pytest.raises(LLMConfigError, match="LLM_API_KEY"):
+        get_llm_client()
+
+
+def test_default_provider_is_groq_with_groq_key_fallback(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-fallback")
+    assert llm_provider() == DEFAULT_PROVIDER == "groq"
+    assert check_llm_config() == "llm"
+    client = get_llm_client()
+    assert isinstance(client, GroqClient)
+    assert llm_model() == client.model == DEFAULT_MODELS["groq"] == DEFAULT_MODEL == "openai/gpt-oss-120b"
+    assert client.effort == "low"
+    assert client._headers["Authorization"] == "Bearer gsk-fallback"
+
+
+def test_llm_api_key_takes_precedence_over_groq_api_key(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_API_KEY", "gsk-primary")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-fallback")
+    client = get_llm_client()
+    assert isinstance(client, GroqClient)
+    assert client._headers["Authorization"] == "Bearer gsk-primary"
+
+
+def test_anthropic_provider_with_key_builds_anthropic_client(monkeypatch):
+    monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
     monkeypatch.setenv("LLM_MODEL", "claude-test-model")
     assert check_llm_config() == "llm"
@@ -85,17 +132,19 @@ def test_llm_mode_with_key_builds_the_client(monkeypatch):
 @pytest.mark.parametrize("blank", [None, "", "  \t "], ids=["missing", "empty", "whitespace"])
 def test_unset_or_blank_llm_model_and_effort_mean_the_defaults(monkeypatch, blank):
     monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
     if blank is not None:
         monkeypatch.setenv("LLM_MODEL", blank)
         monkeypatch.setenv("LLM_EFFORT", blank)
     client = get_llm_client()
-    assert llm_model() == client.model == DEFAULT_MODEL
+    assert llm_model() == client.model == DEFAULT_MODELS["anthropic"]
     assert client.effort == "low"
 
 
 def test_set_llm_model_and_effort_are_used(monkeypatch):
     monkeypatch.setenv("AI_MODE", "llm")
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("LLM_API_KEY", "sk-test")
     monkeypatch.setenv("LLM_MODEL", "claude-test-model")
     monkeypatch.setenv("LLM_EFFORT", "high")
@@ -105,11 +154,13 @@ def test_set_llm_model_and_effort_are_used(monkeypatch):
 
 
 def test_sdk_client_timeout_and_retries():
-    sdk = AnthropicClient(api_key="sk-test")._client
-    assert (sdk.timeout, sdk.max_retries) == (LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES) == (30.0, 2)
+    anthropic_sdk = AnthropicClient(api_key="sk-test")._client
+    groq_client = GroqClient(api_key="gsk-test")
+    assert (anthropic_sdk.timeout, anthropic_sdk.max_retries) == (LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES) == (30.0, 2)
+    assert (groq_client.timeout, groq_client.max_retries) == (LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES) == (30.0, 2)
 
 
-# ── complete_json failures (the SDK's messages.parse is replaced; nothing is sent) ──
+# ── complete_json failures (Anthropic SDK mocked; nothing is sent) ──
 
 # The SDK module as the client loaded it: `anthropic` is imported only in ai/llm/client.py (CLAUDE.md AI rule 2).
 # Building the client sends no request.
@@ -199,3 +250,107 @@ def test_a_finished_response_without_parsed_output_is_an_llm_error():
 def test_a_finished_response_returns_the_parsed_output(stop_reason):
     out = _client(_response(stop_reason, _Out(answer="ok"))).complete_json("system", "user", _Out)
     assert out == _Out(answer="ok")
+
+
+# ── GroqClient via httpx.MockTransport (no real HTTP calls) ──
+
+
+def _groq_client(handler, *, model: str = "openai/gpt-oss-120b", effort: str = "low", max_retries: int = 2) -> GroqClient:
+    client = GroqClient(api_key="gsk-test-secret", model=model, effort=effort, max_retries=max_retries)
+    client._retry_backoff = 0
+    client._client = httpx.Client(transport=httpx.MockTransport(handler))
+    return client
+
+
+def test_groq_client_sends_schema_and_parses_fenced_json():
+    captured: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer gsk-test-secret"
+        payload = json.loads(request.content.decode("utf-8"))
+        captured.append(payload)
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": '```json\n{"answer": "ok"}\n```'}}
+                ]
+            },
+        )
+
+    out = _groq_client(handler).complete_json("system rules", "user data", _Out, max_tokens=2048)
+    assert out == _Out(answer="ok")
+    payload = captured[0]
+    assert payload["model"] == "openai/gpt-oss-120b"
+    assert payload["max_completion_tokens"] == 2048
+    assert payload["reasoning_effort"] == "low"
+    assert payload["response_format"] == {"type": "json_object"}
+    assert "answer" in payload["messages"][0]["content"]
+    assert payload["messages"][1] == {"role": "user", "content": "user data"}
+
+
+def test_groq_client_omits_reasoning_effort_for_non_gpt_oss_models():
+    captured: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": '{"answer": "ok"}'}}]})
+
+    _groq_client(handler, model="llama-3.3-70b-versatile").complete_json("sys", "usr", _Out)
+    assert "reasoning_effort" not in captured[0]
+
+
+def test_groq_client_retries_transient_errors_and_succeeds():
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(429, json={"error": "rate_limit"})
+        if attempts == 2:
+            raise httpx.ReadTimeout("timed out")
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": '{"answer": "ok"}'}}]})
+
+    out = _groq_client(handler, max_retries=2).complete_json("sys", "usr", _Out)
+    assert attempts == 3 and out == _Out(answer="ok")
+
+
+def test_groq_client_does_not_retry_client_errors_and_never_exposes_key():
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(401, json={"error": "unauthorized"})
+
+    with pytest.raises(LLMError, match="HTTPStatusError 401") as exc:
+        _groq_client(handler, max_retries=2).complete_json("sys", "usr", _Out)
+    assert attempts == 1
+    assert "gsk-test-secret" not in str(exc.value)
+
+
+@pytest.mark.parametrize("finish_reason", ["length", "content_filter", None])
+def test_groq_client_rejects_unfinished_or_invalid_responses(finish_reason):
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"finish_reason": finish_reason, "message": {"content": '{"answer": "partial"}'}}]},
+        )
+
+    with pytest.raises(LLMError):
+        _groq_client(handler).complete_json("sys", "usr", _Out)
+
+
+def test_groq_client_invalid_json_and_connection_exhaustion():
+    def bad_json(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": "{not-json"}}]})
+
+    with pytest.raises(LLMError, match="failed validation"):
+        _groq_client(bad_json).complete_json("sys", "usr", _Out)
+
+    def broken(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline")
+
+    with pytest.raises(LLMError, match="ConnectError"):
+        _groq_client(broken, max_retries=1).complete_json("sys", "usr", _Out)
