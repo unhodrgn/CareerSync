@@ -153,6 +153,50 @@ All demo accounts use the password: demo1234
 
 The seed is safe to run again; existing accounts are skipped (`seeker2@demo.test` only gets the steps it is still missing). It never calls the LLM: it runs in `AI_MODE=rules` whatever `.env` says, so no API key is needed.
 
+### 5b. Optional: load the synthetic test data
+
+`scripts/seed_test_data.py` loads the synthetic data of `test_data/` (20 CVs, 12 jobs and 33 more Vietnamese jobs) so that every feature has varied data to show. `test_data/` is gitignored: copy it into the repository root first, otherwise the script stops and says so. It reads only `test_data/01_model_input/` and `test_data/04_old_VN_33_NOT_IN_TEST/vietnam_jobs_33.csv`.
+
+What it creates, all through the app's services (so the guardrails and derived fields stay correct):
+
+- 15 fictional companies with one recruiter each (`hr-<slug>@sample.test`, with the slug `byeolbit-pay` for 별빛페이 and so on; `--dry-run` prints the list). The real company names of the data are replaced inside titles and job text, and source URLs are not loaded.
+- 45 jobs, all published and five of them closed. The criteria of the 12 core jobs come from `job_criteria_staging.csv` (category from the text, required items weigh three times a preferred one, at most 10 per job); the 33 Vietnamese jobs get the criteria of the JD analyzer. About a third of the jobs get a deadline 10, 30 or 60 days after the run date.
+- 20 seekers `seeker-<cv id>@sample.test` (cv id `kr01` … `kr10`, `vn01` … `vn10`), each with the CV as a confirmed PDF and the preferences of the CSV, 10 of them in the talent pool. Vietnamese CV text and names are written without diacritics (the PDF font cannot write them). The CV parser recognizes Vietnamese section headings and the Vietnamese "years of experience" line only with their diacritics (`ai/parsing/sections.py`, `ai/parsing/extract.py`), so these ten seeded CVs show required gate REVIEW and low Fit; a Vietnamese CV with real diacritics is read normally.
+- About 66 applications with their evaluations (high, medium and low Fit; required gate PASS, FAIL and REVIEW) and statuses from 검토 전 (submitted) to 합격 (passed), job recommendations for six seekers, 8 talent offers (pending, accepted, declined, cancelled), 12 company running projects, and a roadmap and interview questions for six seeker/job pairs.
+
+Every account uses the password `demo1234`. The script runs in `AI_MODE=rules` whatever `.env` says (no LLM call, no key), uses the embedder the app is configured with, never deletes anything, and is safe to run again: what exists is skipped, a run that stopped halfway is finished by the next one, and a status a recruiter already set is kept. It prints the database it writes to before it does anything. Options: `--dry-run` (print the plan and what already exists, write nothing; run it first) and `--skip-vn33`.
+
+Practice interviews are not seeded (they need the live voice agent), and a talent offer in the `expired` state would need an old creation date, so none is made.
+
+**Against the local database of this guide (port 5433):** after step 5, with the venv active, from the repository root:
+
+```bash
+python scripts/seed_test_data.py --dry-run
+python scripts/seed_test_data.py
+```
+
+**Against the Docker Compose PostgreSQL** (the stack of [run with Docker](run-with-docker.md), database published on host port `5434`, or `COMPOSE_DB_PORT`). The tables already exist, because the Compose `init` service ran the migrations. Two ways:
+
+1. *From the host* (venv active, repository root). Set `DATABASE_URL` in the shell; a shell variable wins over `.env`, so `.env` stays untouched and is still read for the other settings, notably `EMBEDDING_MODEL` (use the same value as the Compose backend, `intfloat/multilingual-e5-base`, for the same scores). The user, password and database name are the Compose defaults `postgres`, `postgres` and `careersync_db` unless you set `DB_USER`, `DB_PASSWORD` or `DB_NAME` for Compose:
+
+   ```powershell
+   $env:DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5434/careersync_db"
+   python scripts\seed_test_data.py --dry-run
+   python scripts\seed_test_data.py
+   Remove-Item Env:DATABASE_URL    # so later commands go back to the .env database
+   ```
+
+   (bash: `export DATABASE_URL=...` and `unset DATABASE_URL`.) The first line the script prints names the database, so check the port and database name there before the real run. The first run loads the e5 model into the host's Hugging Face cache (about 1 GB), which the Compose containers do not share.
+
+2. *In a container.* `docker compose exec backend` does not work for this: the image has no `test_data/` and was built before the script existed. Run a one-off container with the two folders mounted instead; it gets the Compose database settings and the model cache volume (it also starts `db` and runs `init`, which is safe to repeat):
+
+   ```powershell
+   docker compose run --rm -v "${PWD}/test_data:/app/test_data:ro" -v "${PWD}/scripts:/app/scripts:ro" backend python /app/scripts/seed_test_data.py --dry-run
+   docker compose run --rm -v "${PWD}/test_data:/app/test_data:ro" -v "${PWD}/scripts:/app/scripts:ro" backend python /app/scripts/seed_test_data.py
+   ```
+
+   The Compose `AI_MODE` is ignored by the script (it forces `rules`). Seeded evaluations then show in the running stack at once; log in with any account above.
+
 ## 6. Run the backend (terminal 1)
 
 ```bash
@@ -271,6 +315,7 @@ If the agent container keeps restarting, `docker compose --profile voice logs ag
 | Install backend deps | repo root | `pip install -r backend/requirements.txt` |
 | Apply migrations | `backend/` | `alembic upgrade head` |
 | Load demo data | `backend/` or root | `python ../scripts/seed.py` / `python scripts/seed.py` |
+| Load the synthetic test data (optional, needs `test_data/`) | root | `python scripts/seed_test_data.py --dry-run`, then without `--dry-run` ([step 5b](#5b-optional-load-the-synthetic-test-data)) |
 | Run the backend | `backend/` | `uvicorn app.main:app --reload --port 8000` |
 | Run the frontend | `frontend/` | `npm install` then `npm run dev` → http://localhost:3000 |
 | Run all tests | repo root | `pytest` |

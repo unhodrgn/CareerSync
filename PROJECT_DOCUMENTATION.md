@@ -661,6 +661,7 @@ CareerSync/
 │   └── skills.yaml              # Skill dictionary, aliases and related-skill groups
 ├── scripts/
 │   ├── seed.py                  # Demo companies, jobs, criteria and accounts (one seeker with the demo CV)
+│   ├── seed_test_data.py        # Optional: loads the gitignored synthetic test_data/ (fictional companies, 45 jobs, 20 seekers, applications, offers) through the services
 │   ├── make_demo_cv.py          # Builds data/demo/demo_cv.pdf and checks it reads back
 │   ├── purge_interviews.py      # Practice-interview retention: settles stale sessions, deletes expired ones (run by a scheduler; none is configured)
 │   ├── docker_init.py           # Compose init: migrations + seed
