@@ -3,7 +3,7 @@
 #
 # livekit-agents stays at 1.8.12 (D79), which requires livekit-api<2. The groq extra is the per-turn model call (D52);
 # silero is the voice activity detector of the voice stage (S4).
-livekit-agents[groq,silero]==1.8.12
+livekit-agents[anam,groq,silero]==1.8.12
 livekit-api==1.2.3
 httpx==0.28.1
 # ai/interview needs these two (the agent imports the engine in-process, D56)

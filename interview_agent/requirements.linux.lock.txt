@@ -31,6 +31,7 @@ livekit-agents==1.8.12
 livekit-api==1.2.3
 livekit-blingfire==1.2.1
 livekit-local-inference==0.3.2
+livekit-plugins-anam==1.8.12
 livekit-plugins-groq==1.8.12
 livekit-plugins-openai==1.8.12
 livekit-plugins-silero==1.8.12

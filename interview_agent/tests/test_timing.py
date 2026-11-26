@@ -119,12 +119,27 @@ def test_a_fallback_of_the_turn_detector_is_recorded():
     assert timing.detector == {"requested": "v1", "model_at_start": "turn-detector-v1", "model_at_end": "turn-detector-v1-mini", "fell_back": True}
 
 
+def test_avatar_summary_is_recorded_with_numbers_and_codes_only():
+    timing = SessionTiming(7)
+    timing.note_avatar(mode="auto", active=False, fallback_reason="avatar_APIStatusError")
+    assert timing.avatar == {
+        "mode": "auto",
+        "active": False,
+        "start_to_join_s": None,
+        "fallback_reason": "avatar_APIStatusError",
+        "disconnected_mid_session": False,
+    }
+    timing.note_avatar(mode="on", active=True, start_to_join_s=4.3219)
+    assert timing.avatar["active"] is True and timing.avatar["start_to_join_s"] == 4.322
+
+
 def test_the_written_report_holds_numbers_and_codes_only(tmp_path):
     clock = Clock()
     timing = SessionTiming(7, clock=clock)
     timing.settings = {"stt_model": "deepgram/nova-3", "endpointing_min_s": 3.0}
     one_turn(timing, clock)
     timing.note_llm([("ok", 0.8), ("timeout", 3.0)])
+    timing.note_avatar(mode="auto", active=False, fallback_reason="missing_credentials")
     timing.outcome = "completed"
     path = timing.write(tmp_path)
     assert path.parent == tmp_path and path.name.startswith("session-7-") and path.suffix == ".json"

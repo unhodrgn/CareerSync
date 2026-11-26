@@ -1,5 +1,5 @@
 # Full resolved set for requirements.txt (runtime only; pytest and its own iniconfig and pluggy are in requirements-dev.txt).
-# Resolved 2026-11-22 with Python 3.12.10 on Windows (win_amd64) by "pip install -r requirements-dev.txt" in a new virtual environment, then "pip freeze" (docs/DECISIONS.md D79).
+# Resolved 2026-11-26 with Python 3.12.10 on Windows (win_amd64) by pip install then pip freeze (docs/DECISIONS.md D79).
 # Reinstall exactly:  pip install -r requirements.lock.txt
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1
@@ -34,6 +34,7 @@ livekit-agents==1.8.12
 livekit-api==1.2.3
 livekit-blingfire==1.2.1
 livekit-local-inference==0.3.2
+livekit-plugins-anam==1.8.12
 livekit-plugins-groq==1.8.12
 livekit-plugins-openai==1.8.12
 livekit-plugins-silero==1.8.12

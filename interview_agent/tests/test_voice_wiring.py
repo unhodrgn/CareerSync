@@ -97,10 +97,14 @@ def test_the_room_options_use_the_microphone_only_and_delete_the_room_with_the_s
     assert options.audio_input is True and options.audio_output is True
     assert options.video_input is False and options.text_input is False and options.text_output is False
     assert options.close_on_disconnect is True and options.delete_room_on_close is True
+    avatar_options = voice.room_options(avatar_active=True)
+    assert avatar_options.audio_output is False and avatar_options.audio_input is True
 
 
 def test_nothing_is_recorded_and_only_audio_is_subscribed_and_a_stop_forces_the_interruption_and_speech_is_not_interruptible():
-    (start,) = keywords_of_calls("start")
+    session_starts = [n for n in ast.walk(voice_tree()) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "start" and isinstance(n.func.value, ast.Name) and n.func.value.id == "session"]
+    assert len(session_starts) == 1
+    start = {k.arg: k.value for k in session_starts[0].keywords if k.arg}
     assert isinstance(start["record"], ast.Constant) and start["record"].value is False
     assert "room_options" in start
     (connect,) = [k for k in keywords_of_calls("connect") if "auto_subscribe" in k]
@@ -109,6 +113,8 @@ def test_nothing_is_recorded_and_only_audio_is_subscribed_and_a_stop_forces_the_
     assert ast.unparse(say["allow_interruptions"]) == "False" and ast.unparse(say["add_to_chat_ctx"]) == "False"
     (interrupt,) = keywords_of_calls("interrupt")
     assert ast.unparse(interrupt["force"]) == "True", "uninterruptible speech keeps playing unless the interruption is forced"
+    (session_opts,) = keywords_of_calls("SessionOptions")
+    assert ast.unparse(session_opts["show_ai_avatar_disclosure"]) == "True"
 
 
 def test_the_agent_name_is_the_one_the_backend_dispatches():
@@ -267,3 +273,85 @@ def test_a_session_that_fails_to_start_closes_the_client_leaves_through_the_runn
     monkeypatch.setattr(voice, "build_session", lambda *_: BrokenSession())
     ctx, _reports = run_job(monkeypatch)
     assert ctx.reasons == ["setup_failed: ConnectionError"] and left == ["agent_error"] and http.closed and ctx.deleted == 1
+
+
+def test_avatar_failure_closes_avatar_and_rebuilds_clean_audio_only_session(monkeypatch):
+    from interview_agent.timing import SessionTiming
+
+    rebuilt = SimpleNamespace(tag="rebuilt-session")
+    built_calls = []
+
+    def fake_build(s, vad):
+        built_calls.append(vad)
+        return rebuilt
+
+    closed_avatar = []
+
+    class BrokenAvatar:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def start(self, *_args, **_kwargs):
+            return None
+
+        async def wait_for_join(self, **_kwargs):
+            raise TimeoutError("no avatar video")
+
+        async def aclose(self):
+            closed_avatar.append(True)
+
+    monkeypatch.setattr(voice, "build_session", fake_build)
+    monkeypatch.setattr(voice.anam, "AvatarSession", BrokenAvatar)
+    cfg = settings(INTERVIEW_AGENT_AVATAR="on", ANAM_API_KEY="anam_test", ANAM_AVATAR_ID="av_1")
+    ctx = FakeJobContext()
+    timing = SessionTiming(12)
+    initial_session = SimpleNamespace(tag="initial-session")
+    vad_marker = object()
+
+    session, active = asyncio.run(voice.start_avatar(initial_session, ctx, cfg, vad_marker, timing))
+    assert active is False and session is rebuilt
+    assert closed_avatar == [True] and built_calls == [vad_marker]
+    assert timing.avatar["active"] is False and timing.avatar["fallback_reason"] == "avatar_TimeoutError"
+
+
+def test_avatar_skips_when_off_or_missing_credentials_and_activates_when_ready(monkeypatch):
+    from interview_agent.timing import SessionTiming
+
+    ctx = FakeJobContext()
+    initial = SimpleNamespace(tag="initial")
+    vad_marker = object()
+
+    t_off = SessionTiming(1)
+    s_off, active_off = asyncio.run(
+        voice.start_avatar(initial, ctx, settings(INTERVIEW_AGENT_AVATAR="off", ANAM_API_KEY="k", ANAM_AVATAR_ID="a"), vad_marker, t_off)
+    )
+    assert active_off is False and s_off is initial and t_off.avatar["fallback_reason"] == "disabled"
+
+    t_missing = SessionTiming(2)
+    s_missing, active_missing = asyncio.run(voice.start_avatar(initial, ctx, settings(INTERVIEW_AGENT_AVATAR="auto"), vad_marker, t_missing))
+    assert active_missing is False and s_missing is initial and t_missing.avatar["fallback_reason"] == "missing_credentials"
+
+    class OkAvatar:
+        calls = []
+
+        def __init__(self, **kwargs):
+            self.calls.append(("init", kwargs))
+
+        async def start(self, sess, *, room):
+            self.calls.append(("start", sess, room))
+
+        async def wait_for_join(self, *, timeout):
+            self.calls.append(("wait", timeout))
+
+    monkeypatch.setattr(voice.anam, "AvatarSession", OkAvatar)
+    t_ok = SessionTiming(3)
+    s_ok, active_ok = asyncio.run(voice.start_avatar(initial, ctx, settings(INTERVIEW_AGENT_AVATAR="auto", ANAM_API_KEY="anam_k", ANAM_AVATAR_ID="av_id"), vad_marker, t_ok))
+    assert active_ok is True and s_ok is initial
+    assert t_ok.avatar["active"] is True and t_ok.avatar["fallback_reason"] is None and t_ok.avatar["start_to_join_s"] is not None
+    assert OkAvatar.calls[1] == ("start", initial, ctx.room) and OkAvatar.calls[2] == ("wait", 30.0)
+
+
+def test_avatar_worker_identification_keeps_disconnect_distinct_from_candidate():
+    assert voice.is_avatar_participant(SimpleNamespace(identity="anam-avatar-agent", attributes={}))
+    assert voice.is_avatar_participant(SimpleNamespace(identity="other", attributes={"lk.publish_on_behalf": "agent-1"}))
+    assert not voice.is_avatar_participant(SimpleNamespace(identity="candidate-abc", attributes={}))

@@ -42,3 +42,29 @@ def test_llm_mode_and_a_custom_timeout():
         }
     )
     assert s.uses_model and s.llm_timeout == 2.5 and s.reasoning_effort == "" and s.backend_url == "http://backend:8000"
+
+
+def test_avatar_voice_settings_defaults_validation_and_secret_hiding():
+    from interview_agent.config import load_voice_settings
+
+    base = {
+        "INTERVIEW_AGENT_SECRET": SECRET,
+        "LIVEKIT_URL": "wss://example.livekit.cloud",
+        "LIVEKIT_API_KEY": "lk_key",
+        "LIVEKIT_API_SECRET": "lk_sec",
+    }
+    default = load_voice_settings(base)
+    assert default.avatar_mode == "auto" and default.avatar_requested and not default.avatar_enabled
+    assert default.avatar_join_timeout == 30.0
+
+    secret_val = "anam_super_secret_token"
+    with_keys = load_voice_settings({**base, "ANAM_API_KEY": secret_val, "ANAM_AVATAR_ID": "av_123", "INTERVIEW_AGENT_AVATAR": "ON"})
+    assert with_keys.avatar_mode == "on" and with_keys.avatar_enabled
+    assert secret_val not in repr(with_keys)
+
+    disabled = load_voice_settings({**base, "ANAM_API_KEY": secret_val, "ANAM_AVATAR_ID": "av_123", "INTERVIEW_AGENT_AVATAR": "off"})
+    assert not disabled.avatar_requested and not disabled.avatar_enabled
+
+    for bad in ({"INTERVIEW_AGENT_AVATAR": "invalid"}, {"INTERVIEW_AGENT_AVATAR_JOIN_TIMEOUT_SECONDS": "2"}, {"INTERVIEW_AGENT_AVATAR_JOIN_TIMEOUT_SECONDS": "90"}):
+        with pytest.raises(ConfigError):
+            load_voice_settings({**base, **bad})

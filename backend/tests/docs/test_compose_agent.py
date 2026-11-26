@@ -8,7 +8,7 @@ import yaml
 from .markdown import ROOT
 
 SHARED = ("INTERVIEW_AGENT_SECRET", "LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")
-NO_DEFAULT_VALUES = (*SHARED, "GROQ_API_KEY")  # keys and secrets: Compose may pass them on, the file never carries a value
+NO_DEFAULT_VALUES = (*SHARED, "GROQ_API_KEY", "ANAM_API_KEY", "ANAM_AVATAR_ID")  # keys and secrets: Compose may pass them on, the file never carries a value
 
 
 def compose() -> dict:
@@ -64,11 +64,15 @@ def test_agent_follows_its_own_mode_variable_and_the_backend_is_untouched_by_it(
 
 
 def test_each_service_gets_only_its_own_model_key():
-    # D91: backend uses LLM_API_KEY (falling back to GROQ_API_KEY for Compose demo); agent uses GROQ_API_KEY only
+    # D91/D90: backend uses LLM_API_KEY (falling back to GROQ_API_KEY for Compose demo); agent uses GROQ_API_KEY and optional Anam only
     assert "LLM_API_KEY" not in agent()["environment"]
-    assert "GROQ_API_KEY" not in backend_env()
+    for key in ("GROQ_API_KEY", "INTERVIEW_AGENT_AVATAR", "ANAM_API_KEY", "ANAM_AVATAR_ID"):
+        assert key not in backend_env()
     assert backend_env()["LLM_API_KEY"] == "${LLM_API_KEY:-${GROQ_API_KEY:-}}"
     assert agent()["environment"]["GROQ_API_KEY"] == "${GROQ_API_KEY:-}"
+    assert agent()["environment"]["INTERVIEW_AGENT_AVATAR"] == "${INTERVIEW_AGENT_AVATAR:-auto}"
+    assert agent()["environment"]["ANAM_API_KEY"] == "${ANAM_API_KEY:-}"
+    assert agent()["environment"]["ANAM_AVATAR_ID"] == "${ANAM_AVATAR_ID:-}"
 
 
 def test_backend_image_keeps_the_local_ocr_packages():

@@ -48,6 +48,7 @@ class SessionTiming:
         self.speech_failures = 0
         self.llm: list[tuple[str, float]] = []
         self.detector: dict = {}
+        self.avatar: dict = {}
         self.settings: dict = {}
         self.outcome: str | None = None
         self._waiting_for_audio: dict | None = None  # the record whose reply has been handed to speech and has not started yet
@@ -115,6 +116,23 @@ class SessionTiming:
         start, end = self.detector.get("model_at_start"), self.detector.get("model_at_end")
         self.detector["fell_back"] = bool(start and end and start != end)
 
+    def note_avatar(
+        self,
+        *,
+        mode: str,
+        active: bool,
+        start_to_join_s: float | None = None,
+        fallback_reason: str | None = None,
+        disconnected_mid_session: bool = False,
+    ) -> None:
+        self.avatar = {
+            "mode": mode,
+            "active": active,
+            "start_to_join_s": round(start_to_join_s, 3) if start_to_join_s is not None else None,
+            "fallback_reason": fallback_reason,
+            "disconnected_mid_session": disconnected_mid_session,
+        }
+
     # ── The report ──
 
     def summary(self) -> dict:
@@ -139,6 +157,7 @@ class SessionTiming:
             "total_session_seconds": round(self.clock() - self.started, 1),
             "settings": self.settings,
             "turn_detector": self.detector,
+            "avatar": self.avatar,
             "opening": {"say_to_first_audio_s": _delta(self.opening, "first_audio", "say_called")},
             "turns": turns,
             "gap_s": {"count": len(gaps), "min": gaps[0] if gaps else None, "median": gaps[len(gaps) // 2] if gaps else None, "max": gaps[-1] if gaps else None},

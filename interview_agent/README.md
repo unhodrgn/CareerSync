@@ -1,11 +1,10 @@
 # Interview Agent (M5)
 
-The realtime interviewer of the seeker practice interview (`docs/DECISIONS.md` D51–D58, D80, D81). It is a separate runtime with its own
+The realtime interviewer of the seeker practice interview (`docs/DECISIONS.md` D51–D58, D80, D81, D90). It is a separate runtime with its own
 virtual environment (D56). It runs the engine of `ai/interview/` in-process and reaches the backend only through the internal agent API. It never
 touches the database and never imports the backend. Stages S0 to S5 exist: the agent core, a text driver, the consent-withdrawal rule, the
-audio-only LiveKit voice worker with a developer test page, and the Compose `agent` service. The voice worker ran once live (22/11/2026: C1, C3
-and C4 passed; the numbers are in `PROJECT_PROGRESS.md` §5.9); the other checks under "Live run" are still to do. The Compose image has not
-been built or run yet.
+LiveKit voice worker with optional Anam Avatar presentation (`D90`, falling back gracefully to audio-only) and a developer test page (`devclient/`),
+and the Compose `agent` service (reproducible via `requirements.linux.lock.txt`). Live runs across sessions 3, 6, and 8–11 closed the M5 voice checklist C1–C8; results are in `PROJECT_PROGRESS.md` §5.9.
 
 ## What it does, and the rules it keeps
 
@@ -33,7 +32,7 @@ been built or run yet.
   reply, so no transcript can reach a model except through `turn_model`. LiveKit's speech services are not LLMs (D80, Q35).
 - **Personal data.** Every transcript, interim and final, is masked in the speech-recognition node before anything else sees it, and again in the hook
   and by the engine, with the seeker's display name from the context (held in memory only). Logs carry codes and timings, never a text, a name, the
-  secret or a key. `session.start(record=False)`: nothing is uploaded to LiveKit Cloud. Only the microphone is subscribed.
+  secret or a key. `session.start(record=False)`: nothing is uploaded to LiveKit Cloud. Only the microphone is subscribed (`AutoSubscribe.AUDIO_ONLY`), and when Anam Avatar is enabled (`D90`), `show_ai_avatar_disclosure=True` is set and `devclient/` uses `setTrackSubscriptionPermissions` so only the interviewer agent (never the avatar worker) receives the candidate's microphone track.
 - **Not interruptible.** The interviewer's lines are spoken with `allow_interruptions=False`; an answer spoken over the interviewer is not heard
   (the SDK does not deliver a turn that ends during uninterruptible speech, and the controller drops one that arrives while it is busy).
 
@@ -50,6 +49,7 @@ installed: everything goes through LiveKit Inference, whose gateway routes by th
 | Voice activity | Silero VAD (`livekit-plugins-silero`) | local, in the worker | language independent |
 | Per-turn analysis | `openai/gpt-oss-120b` (`livekit-plugins-groq`) | Groq, `AI_MODE=llm` only | Groq cites Korean support; unmeasured |
 | Session LLM | none (`session.llm is None`, a test checks it) | | |
+| Avatar (optional) | Anam (`livekit-plugins-anam`, `D90`) | Anam Cloud (`avatar.start`); falls back cleanly to audio-only when unconfigured or failing | watermark (`show_ai_avatar_disclosure=True`) + spoken greeting |
 
 The names Deepgram and Cartesia come from the model ids. Whether LiveKit forwards the audio to those companies or runs the models itself is for
 LiveKit's Inference data-processing terms to say (Q35); the consent drafts carry a 【확인 필요】 for it.
@@ -89,6 +89,9 @@ in the terminal that starts it.
 | `INTERVIEW_AGENT_ENDPOINT_MIN_SECONDS`, `..._MAX_SECONDS` | | `3.0`, `6.0` | End-of-turn waits (the PoC's values) |
 | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | | `5` | How often the worker asks the backend whether the session is still active |
 | `INTERVIEW_AGENT_CONSOLE_SESSION_ID` | | | `console` mode only |
+| `INTERVIEW_AGENT_AVATAR` | | `auto` | `auto` (use Anam when `ANAM_API_KEY` and `ANAM_AVATAR_ID` are set), `on` (attempt Anam with audio-only fallback), or `off` (force audio-only, D90) |
+| `ANAM_API_KEY`, `ANAM_AVATAR_ID` | | | Optional Anam API key and avatar id (missing or failed avatar falls back cleanly to audio-only) |
+| `INTERVIEW_AGENT_AVATAR_JOIN_TIMEOUT_SECONDS` | | `30` | Seconds (`5` to `60`) to wait for the avatar worker to join before rebuilding a clean audio-only session |
 | `INTERVIEW_AGENT_DATA_DIR` | | the repository's `data/` | The two blocklists |
 | `INTERVIEW_DEMO_PASSWORD` | | | `text_cli --job-id` only: the synthetic seeker's password (otherwise it is asked) |
 
@@ -101,7 +104,7 @@ plain `docker compose up` leaves it out and needs no LiveKit key). The step-by-s
 [`docs/how-to/run-locally.md`](../docs/how-to/run-locally.md#voice-interview-with-docker-compose). What matters here:
 
 - **Variables.** The container reads no `.env`. Compose takes `INTERVIEW_AGENT_SECRET`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
-  `GROQ_API_KEY` and `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` from the repository `.env` or the shell and hands them to the agent (the backend gets
+  `GROQ_API_KEY`, `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS`, `INTERVIEW_AGENT_AVATAR`, `ANAM_API_KEY`, and `ANAM_AVATAR_ID` from the repository `.env` or the shell and hands them to the agent (the backend gets
   the secret and the three `LIVEKIT_*` names), and sets `INTERVIEW_AGENT_BACKEND_URL=http://backend:8000` itself. Every other variable of the
   table above keeps its default under Compose.
 - **The agent's mode.** `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) is read by Compose only: the container's `AI_MODE` is that value when it is
@@ -153,7 +156,7 @@ interview_agent\.venv\Scripts\python.exe -m interview_agent.devclient.serve     
 ```
 
 The worker log must show, for each session, `voice session <id>: stt=deepgram/nova-3 tts=cartesia/sonic-3 detector=turn-detector-v1 endpointing
-min=3.0s max=6.0s ai_mode=llm`. If it says `turn-detector-v1-mini`, the session is not running the cloud detector.
+min=3.0s max=6.0s ai_mode=llm avatar=anam` (or `avatar=audio_only`). If it says `turn-detector-v1-mini`, the session is not running the cloud detector.
 
 **Console mode** (no browser, no LiveKit room: your microphone and speakers; speech services still go through LiveKit Inference): create a session
 that nobody has joined, then run the worker in `console` within the join time (5 minutes):
@@ -342,14 +345,14 @@ live checklist above: dispatch into a real room, the real recognizer and synthes
 |---|---|
 | `runner.py` | The interview loop over the engine; store then speak; stop rules; the per-turn model call |
 | `controller.py` | The conversation rules around the runner (opening, one answer at a time, silence, status poll, ending), independent of LiveKit |
-| `voice.py` | The LiveKit worker: the session without an LLM, the masking STT node, the hook, the room options, dispatch by name, shutdown |
+| `voice.py` | The LiveKit worker: optional Anam Avatar with audio-only rebuild fallback, session without an LLM, masking STT node, hook, room options, dispatch by name, shutdown |
 | `timing.py` | The numbers-only timing report of a voice session |
 | `backend_client.py` | The internal API for one session: secret and room headers, retries with the same payload, answers sorted into what to do |
 | `turn_model.py` | The Groq client with the `LLMClient` shape that `ask` uses; the one module that talks to a model |
 | `rooms.py` | The room name of a session, `HMAC-SHA256(secret, session id)`, and the dispatch metadata (the backend computes the same room) |
 | `config.py` | Settings from the environment |
 | `text_cli.py` | The text driver |
-| `devclient/` | The developer test page and its server (localhost only; forwards `/api/`, never `/api/internal/`) |
+| `devclient/` | The developer test page (avatar video stage, local-only muted camera preview, mic subscription filter) and its localhost forwarder (`/api/`, never `/api/internal/`) |
 | `requirements.linux.lock.txt` | Pinned Linux dependency lock frozen from the Compose `agent` image and installed with `--no-deps` in `Dockerfile` |
 | `Dockerfile` | The Compose image: installs `requirements.linux.lock.txt` with `--no-deps`, `pip check`, the local-model check at build time, the worker as the command, its health endpoint as the healthcheck |
 | `tests/` | Offline tests (agent environment) |
