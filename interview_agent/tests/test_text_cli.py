@@ -34,3 +34,10 @@ def test_job_mode_needs_an_email():
 def test_create_only_goes_with_a_job_and_not_with_an_existing_session():
     with pytest.raises(SystemExit):
         main(["--session-id", "1", "--create-only"])
+
+
+def test_depth_option_accepts_one_to_three_and_rejects_others(monkeypatch):
+    monkeypatch.delenv("INTERVIEW_AGENT_SECRET", raising=False)
+    assert main(["--job-id", "3", "--email", "s@x.test", "--depth", "3"]) == 2
+    with pytest.raises(SystemExit):
+        main(["--job-id", "3", "--email", "s@x.test", "--depth", "4"])

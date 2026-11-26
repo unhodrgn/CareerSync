@@ -128,6 +128,7 @@ def build_canonical_plan(
     skills: SkillDictionary | None,
     limits: InterviewLimits,
     llm: LLMClient | None,
+    depth: int = 2,
 ) -> CanonicalPlan:
     """The plan to store, or `PlanRefused`. `llm` is None when no model attempt may be made (rules mode, the model quota
     used up): the bank is then the D21 template. This function calls the model (inside `make_bank`) and must be called with
@@ -141,7 +142,7 @@ def build_canonical_plan(
         raise PlanRefused("nul_bank")
     if has_surrogate(bank):  # a surrogate is refused the same way (D73)
         raise PlanRefused("surrogate_bank")
-    plan = build_plan(criteria, prefilter_bank(bank, clean), stored_cv, (), blocklists, limits, skills, method)
+    plan = build_plan(criteria, prefilter_bank(bank, clean), stored_cv, (), blocklists, limits, skills, method, depth)
     return seal(plan, clean, blocklists)
 
 

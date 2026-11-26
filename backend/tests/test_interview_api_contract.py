@@ -231,19 +231,28 @@ def test_the_create_route_contract():
     assert post["responses"]["201"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/CreatedSessionOut"}
     schemas = spec["components"]["schemas"]
     body = schemas["InterviewCreateIn"]
-    assert set(body["properties"]) == {"consent_transcript", "consent_version"} and body["additionalProperties"] is False
-    assert "required" not in body  # both optional: a missing consent is the service's 409, not a 422
-    assert all("type" not in prop and "anyOf" not in prop for prop in body["properties"].values())  # untyped: nothing is coerced
+    assert set(body["properties"]) == {"consent_transcript", "consent_version", "depth"} and body["additionalProperties"] is False
+    assert "required" not in body  # all optional: a missing consent is the service's 409, depth defaults to 2
+    for consent_field in ("consent_transcript", "consent_version"):
+        prop = body["properties"][consent_field]
+        assert "type" not in prop and "anyOf" not in prop  # untyped: nothing is coerced
+    assert body["properties"]["depth"] == {
+        "default": 2,
+        "description": "Question depth chosen by the seeker: 1 기초, 2 적용, 3 심화 (D93)",
+        "enum": [1, 2, 3],
+        "title": "Depth",
+        "type": "integer",
+    }
     created = schemas["CreatedSessionOut"]
     assert set(created["properties"]) == {"session", "limited"} and set(created["required"]) == {"session", "limited"}
     assert created["properties"]["session"] == {"$ref": "#/components/schemas/SessionOut"}
     session = schemas["SessionOut"]
     assert set(session["properties"]) == {
-        "id", "job_id", "job_title", "status", "end_reason", "plan_method", "max_seconds", "created_at", "started_at", "ended_at", "active_until",
+        "id", "job_id", "job_title", "status", "end_reason", "plan_method", "depth", "max_seconds", "created_at", "started_at", "ended_at", "active_until",
         "expires_at", "joinable", "accepting_turns", "end_grace_open", "feedback_status", "topics", "turns", "notice",
     }
     assert set(session["required"]) == set(session["properties"]) - {"notice"}
-    assert set(schemas["TopicOut"]["properties"]) == {"topic_id", "kind", "criterion_name", "importance", "status"}
+    assert set(schemas["TopicOut"]["properties"]) == {"topic_id", "kind", "criterion_name", "importance", "depth", "status"}
     assert set(schemas["TurnOut"]["properties"]) == {"seq", "role", "kind", "text"}
 
 

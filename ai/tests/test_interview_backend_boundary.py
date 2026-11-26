@@ -254,7 +254,8 @@ ROUTER_IMPORTS = {
     ("app.services.interview_time", "Clock"), ("app.services.interview_time", "utcnow"),  # the clock the router hands to the services
 }
 SCHEMA_IMPORTS = {
-    ("datetime", "datetime"), ("pydantic", "BaseModel"), ("pydantic", "ConfigDict"), ("pydantic", "Field"), ("app.schemas.application", "AI_NOTICE"),
+    ("datetime", "datetime"), ("pydantic", "BaseModel"), ("pydantic", "ConfigDict"), ("pydantic", "Field"),
+    ("pydantic", "field_validator"), ("typing", "Literal"), ("app.schemas.application", "AI_NOTICE"),
 }
 
 

@@ -338,21 +338,21 @@ def test_build_plan_does_not_trust_any_field_of_a_question_bank(slot, field, val
 
 
 def test_a_criterion_question_that_quotes_a_removed_line_is_replaced_by_the_template():
-    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), REMOVED_LINE)]
+    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), REMOVED_LINE, depth=2)]
     plan = build_plan(CRITERIA, bank, MASKED, [], BLOCKLISTS, skills=SKILLS)
     c1 = next(i for i in plan.items if i.topic_id == "c1")
     assert c1.question != GOOD_Q and c1.cv_quote is None and REMOVED_LINE not in dump(plan)
 
 
 def test_a_criterion_question_with_an_invented_quote_keeps_the_question_and_loses_the_quote():
-    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), "지어낸 문장입니다 가나다라마바사 아자차카")]
+    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), "지어낸 문장입니다 가나다라마바사 아자차카", depth=2)]
     plan = build_plan(CRITERIA, bank, MASKED, [], BLOCKLISTS, skills=SKILLS)
     c1 = next(i for i in plan.items if i.topic_id == "c1")
     assert c1.question == GOOD_Q and c1.cv_quote is None
 
 
 def test_a_criterion_question_may_keep_a_real_quote():
-    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), GOOD_LINE)]
+    bank = [Question(GOOD_Q, 1, "Java 활용 능력", "technical", "확인", ("구체적으로",), GOOD_LINE, depth=2)]
     plan = build_plan(CRITERIA, bank, MASKED, [], BLOCKLISTS, skills=SKILLS)
     assert next(i for i in plan.items if i.topic_id == "c1").cv_quote == GOOD_LINE
 
@@ -375,3 +375,18 @@ def test_lines_a_caller_passes_get_the_evidence_filters_too():
     plan = build_plan(CRITERIA, (), MASKED, ["경력", "Java", "[이메일] 으로 연락", REMOVED_LINE, GOOD_LINE], BLOCKLISTS, skills=SKILLS)
     assert plan.items[0].topic_id == "warmup" and plan.items[0].cv_quote == GOOD_LINE
     assert GOOD["warmup"]  # the shared helper answers still fit the generic warm-up rubric
+
+
+def test_plan_and_item_depth_are_validated_and_idempotent():
+    clean_item = item(depth=3)
+    ok = validate_plan(InterviewPlan((clean_item,), (), depth=3), blocklists=BLOCKLISTS, cv_text=MASKED, skills=SKILLS)
+    assert ok.issues == () and ok.plan.depth == 3 and ok.plan.items[0].depth == 3
+
+    bad_item = item(depth=4)
+    bad_general = item(topic_id="behavioral", kind="behavioral", criterion_id=None, criterion_name=None, importance=None, depth=2)
+    report = validate_plan(InterviewPlan((bad_item, bad_general), (), depth=True), blocklists=BLOCKLISTS, cv_text=MASKED, skills=SKILLS)  # type: ignore[arg-type]
+    assert report.issues == ("c1:depth", "behavioral:depth", "plan:depth")
+    assert report.plan.depth == 2
+    assert [i.depth for i in report.plan.items] == [None, None]
+    # Idempotent once cleaned
+    assert validate_plan(report.plan, blocklists=BLOCKLISTS, cv_text=MASKED, skills=SKILLS) == validate_module.PlanReport(report.plan, ())

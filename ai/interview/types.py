@@ -108,6 +108,7 @@ class PlanItem:
     intent: str = ""
     answer_tips: tuple[str, ...] = ()
     cv_quote: str | None = None  # a line of the masked CV, verified against it
+    depth: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -123,6 +124,7 @@ class PlanItem:
             "intent": self.intent,
             "answer_tips": list(self.answer_tips),
             "cv_quote": self.cv_quote,
+            "depth": self.depth,
         }
 
     @classmethod
@@ -140,6 +142,7 @@ class PlanItem:
             intent=data.get("intent", ""),
             answer_tips=tuple(data.get("answer_tips", ())),
             cv_quote=data.get("cv_quote"),
+            depth=data.get("depth"),
         )
 
 
@@ -159,6 +162,7 @@ class InterviewPlan:
     uncovered: tuple[UncoveredCriterion, ...] = ()
     rubric_notice: str = RUBRIC_NOTICE
     bank_method: str = "rules"  # how the D21 question bank was made: "rules" or "llm:<model>"
+    depth: int = 2
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -168,15 +172,18 @@ class InterviewPlan:
             ],
             "rubric_notice": self.rubric_notice,
             "bank_method": self.bank_method,
+            "depth": self.depth,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> InterviewPlan:
+        raw_depth = data.get("depth")
         return cls(
             items=tuple(PlanItem.from_dict(i) for i in data["items"]),
             uncovered=tuple(UncoveredCriterion(**u) for u in data.get("uncovered", ())),
             rubric_notice=data.get("rubric_notice", RUBRIC_NOTICE),
             bank_method=data.get("bank_method", "rules"),
+            depth=2 if raw_depth is None else raw_depth,
         )
 
 

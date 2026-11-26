@@ -87,6 +87,7 @@ class TopicView:
     kind: str
     criterion_name: str | None
     importance: str | None
+    depth: int | None
     status: str  # the engine's: not_asked, asked, demonstrated, partial, not_shown, skipped
 
 
@@ -106,6 +107,7 @@ class SessionView:
     status: str
     end_reason: str | None
     plan_method: str | None
+    depth: int | None
     max_seconds: int | None
     created_at: datetime
     started_at: datetime | None
@@ -194,8 +196,11 @@ def create_session(
     *,
     consent_transcript: object,
     consent_version: object,
+    depth: int = 2,
     clock: Clock = utcnow,
 ) -> CreatedSession:
+    if type(depth) is not int or depth not in (1, 2, 3):
+        raise ValueError("depth must be 1, 2, or 3")
     _seeker_only(user)
     profile = recommendation_service.check_seeker(db, user)
     job = _open_job(db, job_id)
@@ -226,6 +231,7 @@ def create_session(
             skills=ai_runtime.skills(),
             limits=limits_from_settings(),
             llm=llm if plan_claimed else None,
+            depth=depth,
         )
     except PlanRefused as refused:
         _abort_planning(db, session_id, "plan_unavailable", clock)
@@ -441,6 +447,7 @@ def _view(db: Session, row: InterviewSession, title: str, now: datetime) -> Sess
         for t in db.scalars(select(InterviewTurn).where(InterviewTurn.session_id == row.id).order_by(InterviewTurn.seq).execution_options(populate_existing=True))
     )
     limits = row.limits if isinstance(row.limits, dict) else {}
+    topics, depth = _plan_details(row)
     return SessionView(
         id=row.id,
         job_id=row.job_id,
@@ -448,6 +455,7 @@ def _view(db: Session, row: InterviewSession, title: str, now: datetime) -> Sess
         status=eff.status,
         end_reason=eff.end_reason,
         plan_method=row.plan_method,
+        depth=depth,
         max_seconds=limits.get("max_seconds"),
         created_at=as_utc(row.created_at),  # type: ignore[arg-type]
         started_at=as_utc(row.started_at),
@@ -458,25 +466,28 @@ def _view(db: Session, row: InterviewSession, title: str, now: datetime) -> Sess
         accepting_turns=eff.accepting_turns,
         end_grace_open=eff.end_grace_open,
         feedback_status="ready" if row.feedback is not None else "none",
-        topics=_topics(row),
+        topics=topics,
         turns=turns,
     )
 
 
-def _topics(row: InterviewSession) -> tuple[TopicView, ...]:
-    """The topics with the engine's statuses, from the stored plan and coverage (`plan_view_from`: the plan is validated again and
-    every text leaves as SafeText). A plan that cannot be read shows no topics; the log has a code, never the content."""
+def _plan_details(row: InterviewSession) -> tuple[tuple[TopicView, ...], int | None]:
+    """The topics with the engine's statuses and requested depth, from the stored plan and coverage (`plan_view_from`: the plan is
+    validated again and every text leaves as SafeText). A plan that cannot be read shows no topics and no depth; the log has a code,
+    never the content."""
     if not row.plan:
-        return ()
+        return (), None
     try:
         plan = InterviewPlan.from_dict(row.plan)
         view = plan_view_from(plan, row.coverage if isinstance(row.coverage, dict) else None, blocklists=career_service.interview_blocklists())
     except (KeyError, TypeError, ValueError, AttributeError):
         log.warning("interview plan of a session cannot be read: stored data invalid")
-        return ()
-    return tuple(
-        TopicView(item.topic_id, item.kind, item.criterion_name.value or None, item.importance, item.status) for item in view.items
+        return (), None
+    topics = tuple(
+        TopicView(item.topic_id, item.kind, item.criterion_name.value or None, item.importance, item.depth, item.status)
+        for item in view.items
     )
+    return topics, view.depth
 
 
 # ── End and delete ──

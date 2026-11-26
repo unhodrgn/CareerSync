@@ -214,9 +214,20 @@ class PlanLLM:
         questions = []
         for line in lines:
             cid, name = line.split(" | ")[:2]
-            questions.append(
-                {"question": self.question(int(cid), name), "criterion_id": int(cid), "kind": "experience", "intent": "경험 확인", "answer_tips": ["구체적으로"], "cv_quote": self.cv_quote}
-            )
+            base = self.question(int(cid), name)
+            for depth in (1, 2, 3):
+                q_text = base if depth == 2 or not base else f"{base} (단계 {depth})"
+                questions.append(
+                    {
+                        "question": q_text,
+                        "criterion_id": int(cid),
+                        "kind": "experience",
+                        "depth": depth,
+                        "intent": "경험 확인",
+                        "answer_tips": ["구체적으로"],
+                        "cv_quote": self.cv_quote,
+                    }
+                )
         return schema.model_validate({"questions": questions})
 
 

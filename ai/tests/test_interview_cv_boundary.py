@@ -166,8 +166,8 @@ def missing(text: str, fragments) -> list[str]:
 CRITERIA_INFO = [CriterionInfo(1, "백엔드 개발 경험", "experience", "Java Spring API 개발")]
 BANK = {
     "questions": [
-        {"question": f"질문 {i}번: 프로젝트에서 맡은 역할을 설명해 주세요.", "criterion_id": 1, "kind": "experience", "intent": "확인",
-         "answer_tips": ["구체적으로"], "cv_quote": None}
+        {"question": f"질문 {i}번: 프로젝트에서 맡은 역할을 설명해 주세요.", "criterion_id": 1, "kind": "experience", "depth": (i % 3) + 1,
+         "intent": "확인", "answer_tips": ["구체적으로"], "cv_quote": None}
         for i in range(5)
     ]
 }

@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ai.career.gaps import Gap, find_gaps
-from ai.career.interview import CriterionInfo, Question, interview_rules, make_questions
+from ai.career.interview import MAX_QUESTIONS, CriterionInfo, Question, interview_rules, make_questions
 from ai.career.roadmap import Step, make_roadmap, roadmap_rules
 from ai.guardrails.blocklist import Blocklist, load_blocklist
 from ai.parsing.extract import PROMPT_VERSION
@@ -207,8 +207,19 @@ def interview_questions(db: Session, user: User, job_id: int) -> InterviewOut:
     blocklists = interview_blocklists()
 
     def llm_content() -> tuple[dict, str]:
+        # Keep the D21 seeker text feature returning its legacy single-depth (level 2) bank, capped at MAX_QUESTIONS (10).
         questions, method = make_questions(
-            job.title, job.description, criteria, masked_text, ai_runtime.embedder(), blocklists, ai_runtime.llm()
+            job.title,
+            job.description,
+            criteria,
+            masked_text,
+            ai_runtime.embedder(),
+            blocklists,
+            ai_runtime.llm(),
+            depths=(2,),
+            fill_missing=False,
+            max_questions=MAX_QUESTIONS,
+            single_depth=2,
         )
         return _questions_content(questions), method
 
@@ -218,7 +229,7 @@ def interview_questions(db: Session, user: User, job_id: int) -> InterviewOut:
         job,
         profile,
         CareerContentKind.INTERVIEW,
-        lambda: _questions_content(interview_rules(criteria, blocklists)),
+        lambda: _questions_content(interview_rules(criteria, blocklists, depths=(2,), max_questions=MAX_QUESTIONS)),
         llm_content,
     )
     return InterviewOut(job_id=job.id, method=method, limited=limited, **content)

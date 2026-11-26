@@ -45,7 +45,7 @@ def parse_command(line: str) -> tuple[str, float | str]:
     return "answer", line
 
 
-async def create_session(http: httpx.AsyncClient, job_id: int, email: str, password: str, consent: bool) -> int:
+async def create_session(http: httpx.AsyncClient, job_id: int, email: str, password: str, consent: bool, depth: int = 2) -> int:
     login = await http.post("/api/auth/login", json={"email": email, "password": password})
     if login.status_code != 200:
         raise SystemExit(f"login failed: HTTP {login.status_code}")
@@ -57,7 +57,9 @@ async def create_session(http: httpx.AsyncClient, job_id: int, email: str, passw
     if not consent:
         raise SystemExit("not created: pass --consent to accept the consent text above")
     created = await http.post(
-        f"/api/jobs/{job_id}/interview-sessions", json={"consent_transcript": True, "consent_version": text["version"]}, headers=seeker
+        f"/api/jobs/{job_id}/interview-sessions",
+        json={"consent_transcript": True, "consent_version": text["version"], "depth": depth},
+        headers=seeker,
     )
     if created.status_code != 201:
         raise SystemExit(f"session not created: HTTP {created.status_code} {created.json().get('code')}")
@@ -70,7 +72,7 @@ async def run(args: argparse.Namespace, read=input, write=print) -> int:
         session_id = args.session_id
         if session_id is None:
             password = os.environ.get("INTERVIEW_DEMO_PASSWORD") or getpass.getpass("password: ")
-            session_id = await create_session(http, args.job_id, args.email, password, args.consent)
+            session_id = await create_session(http, args.job_id, args.email, password, args.consent, args.depth)
             if args.create_only:  # for `python -m interview_agent.voice console`: a created session that nobody has joined yet
                 write(f"created session {session_id}; INTERVIEW_AGENT_CONSOLE_SESSION_ID={session_id}")
                 return 0
@@ -115,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--job-id", type=int)
     parser.add_argument("--email", help="the seeker to log in as, with --job-id")
     parser.add_argument("--consent", action="store_true", help="accept the transcript consent text, with --job-id")
+    parser.add_argument("--depth", type=int, choices=(1, 2, 3), default=2, help="question depth (1 기초, 2 적용, 3 심화), with --job-id")
     parser.add_argument("--create-only", action="store_true", help="with --job-id: create the session, print its id and stop (for the voice worker's console mode)")
     args = parser.parse_args(argv)
     if args.job_id is not None and not args.email:

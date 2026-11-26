@@ -23,7 +23,7 @@ from .test_interview_api_session_common import DETAIL, URL, api, call, clock, no
 from .test_interview_create import capture
 from .test_interview_history_active import CASES, STALE_REASON, add, physical, quota_rows
 
-TOPIC_KEYS = {"topic_id", "kind", "criterion_name", "importance", "status"}
+TOPIC_KEYS = {"topic_id", "kind", "criterion_name", "importance", "depth", "status"}
 TURN_KEYS = {"seq", "role", "kind", "text"}
 VALID = {"consent_transcript": True, "consent_version": settings.INTERVIEW_CONSENT_VERSION}
 INTERNAL_KEYS = {
@@ -130,8 +130,21 @@ def test_a_plan_that_cannot_be_read_and_a_session_still_being_planned_show_no_to
     planning = add(db, world, clock, S.PLANNING, deadline=120)
     for session_id in (unreadable, planning):
         body = ok(get(api, world, session_id))
-        assert body["topics"] == [] and body["turns"] == [], session_id
+        assert body["topics"] == [] and body["turns"] == [] and body["depth"] is None, session_id
     assert ok(get(api, world, planning))["status"] == "planning"
+
+
+def test_a_legacy_stored_plan_without_depth_loads_with_default_depth_two(api, db, clock):
+    world = build_world(db)
+    session = create(api, world)
+    row = db.get(InterviewSession, session["id"])
+    legacy = {k: v for k, v in row.plan.items() if k != "depth"}
+    legacy["items"] = [{k: v for k, v in item.items() if k != "depth"} for item in legacy["items"]]
+    row.plan = legacy
+    db.commit()
+    body = ok(get(api, world, session["id"]))
+    assert body["depth"] == 2
+    assert body["topics"] and all(topic["depth"] is None for topic in body["topics"])
 
 
 # ── The derived state, and a read that writes nothing ──

@@ -311,3 +311,48 @@ def test_pg_parallel_roadmaps_and_interviews_share_the_limit(client, db, world, 
     rows = _rows(db)
     assert len(rows) == 3 and len({(r.job_id, r.kind) for r in rows}) == 3
     assert all(m.startswith("llm:") or (m == "rules" and limited) for _, _, m, limited in results)
+
+
+def test_interview_questions_stay_single_depth_when_llm_returns_all_three_depths(client, db, world, monkeypatch):
+    class MultiDepthCareerLLM(CareerLLM):
+        def complete_json(self, system, user, schema, max_tokens=4000):
+            if "<cv_excerpts>" not in user:
+                raise LLMError("only career content here")
+            with self._lock:
+                self.calls.append(user)
+            criteria = re.search(r"<criteria>\n(.*?)\n</criteria>", user, re.S).group(1).splitlines()
+            quote = re.search(r"<cv_excerpts>\n(.*?)\n", user).group(1)
+            questions = [
+                {
+                    "question": f"{line.split(' | ')[1]} 깊이 {depth} 질문입니다.",
+                    "criterion_id": int(line.split(" | ")[0]),
+                    "kind": "experience",
+                    "depth": depth,
+                    "intent": "경험 확인",
+                    "answer_tips": ["구체적으로"],
+                    "cv_quote": quote,
+                }
+                for line in criteria
+                for depth in (1, 2, 3)
+            ] + [
+                {
+                    "question": "팀에서 의견 충돌을 조율한 경험을 말씀해 주세요.",
+                    "criterion_id": None,
+                    "kind": "behavioral",
+                    "depth": None,
+                    "intent": "협업 방식 확인",
+                    "answer_tips": ["구체적으로"],
+                    "cv_quote": None,
+                }
+            ]
+            return schema.model_validate({"questions": questions})
+
+    llm = MultiDepthCareerLLM()
+    monkeypatch.setattr(ai_runtime, "mode", lambda: "llm")
+    monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
+    _, h = _seeker(client, db)
+    job_id = _job(client, world)
+    body = _interview(client, h, job_id).json()
+    criterion_ids = _criterion_ids(client, world, job_id)
+    assert len(body["questions"]) == len(criterion_ids) + 1
+    assert all("깊이 2 질문입니다." in q["question"] for q in body["questions"] if q["criterion_id"] is not None)

@@ -52,6 +52,7 @@ class SafeItem:
     rubric: tuple[tuple[str, SafeText], ...]
     status: str
     levels: tuple[tuple[str, str], ...]  # (rubric point id, best level so far)
+    depth: int | None = None
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,7 @@ class SafePlan:
     phase: str = "ended"  # new | listening | ended | aborted
     end_reason: str | None = None  # a code such as "time" or "plan_exhausted"; None when unknown
     issues: tuple[str, ...] = ()  # what `validate_plan` changed in a persisted plan (codes); empty for a plan the engine ran
+    depth: int = 2
 
     @property
     def topic_ids(self) -> tuple[str, ...]:
@@ -143,12 +145,20 @@ def plan_view_from(plan: InterviewPlan, snapshot: Mapping[str, Any] | None = Non
             tuple((p.id, safe_text(p.text)) for p in item.rubric),
             status_of(item.topic_id),
             levels_of(item.topic_id),
+            item.depth,
         )
         for item in report.plan.items
     )
     uncovered = tuple(SafeUncovered(u.criterion_id, safe_text(u.name), u.importance, u.reason) for u in report.plan.uncovered)
     phase = snap.get("phase")
-    return SafePlan(items, uncovered, phase if isinstance(phase, str) and phase in _PHASES else "ended", _code(snap.get("end_reason")), report.issues)
+    return SafePlan(
+        items,
+        uncovered,
+        phase if isinstance(phase, str) and phase in _PHASES else "ended",
+        _code(snap.get("end_reason")),
+        report.issues,
+        report.plan.depth,
+    )
 
 
 def transcript_view(state: InterviewState) -> tuple[SafeTurn, ...]:

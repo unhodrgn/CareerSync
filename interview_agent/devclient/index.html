@@ -30,6 +30,13 @@
       <ul id="consent-items"></ul>
       <label class="check"><input id="agree" type="checkbox"> 위 내용을 확인했고, 이 모의 면접에 동의합니다.</label>
       <label>공고 번호 <input id="job-id" type="number" min="1" value="1"></label>
+      <label>질문 깊이
+        <select id="depth">
+          <option value="1">1 기초</option>
+          <option value="2" selected>2 적용</option>
+          <option value="3">3 심화</option>
+        </select>
+      </label>
       <label>기존 세션 번호 <span class="hint">(비워 두면 새로 만듭니다. 이미 만든 세션에 다시 입장해 볼 때만 적습니다.)</span>
         <input id="session-id" type="number" min="1"></label>
       <div class="buttons">
