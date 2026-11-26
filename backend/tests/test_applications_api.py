@@ -149,9 +149,10 @@ def test_apply_evaluates_and_ranks(client, db, world, job):
         assert item["score"] == 0 or item["evidence"]
     java = ev["items"][0]
     basis = java["direct_skill_basis"]
-    assert java["method"] == "rule:skill" and basis["skill"] == "Java"
-    assert java["score"] == min(basis["cap"], basis["base"] + basis["bonus"] * len(basis["entries"]))
-    assert basis["entries"]
+    skill, = basis["skills"]
+    assert java["method"] == "rule:skill" and skill["skill"] == "Java"
+    assert java["score"] == min(basis["cap"], basis["base"] + basis["bonus"] * len(skill["entries"]))
+    assert skill["entries"]
     assert ev["items"][-1]["direct_skill_basis"] is None
     assert ev["summary"] and "참고용" in ev["notice"]
     assert ev["embedding_model"] == "hashing-ngram-v1" and ev["prompt_version"] == "v1"

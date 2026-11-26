@@ -9,6 +9,8 @@ import type { CriterionEvaluation } from '@/types/application';
 import s from './comparison.module.css';
 
 export function CriterionEvidence({ item }: { item: CriterionEvaluation }) {
+  const skills = item.direct_skill_basis?.skills;
+  const quotedSkill = skills?.length === 1 && skills[0].match === 'direct' ? skills[0].skill : null;
   return (
     <div className={s.evidence}>
       <div>
@@ -17,9 +19,9 @@ export function CriterionEvidence({ item }: { item: CriterionEvaluation }) {
           <blockquote key={index} className={s.quote}>{quote}</blockquote>
         )) : <p className={ui.caption}>{t('compare.noEvidence')}</p>}
       </div>
-      {item.direct_skill_basis && (
+      {quotedSkill && (
         <p className={ui.caption}>
-          {t('compare.quoteScope', { skill: item.direct_skill_basis.skill })}{' '}
+          {t('compare.quoteScope', { skill: quotedSkill })}{' '}
           {t('compare.quoteLimit')}
         </p>
       )}
@@ -39,11 +41,20 @@ function ScoringBasis({ item }: { item: CriterionEvaluation }) {
       <strong>{t('compare.scoringBasis')}</strong>
       {basis ? (
         <>
-          <p>{t('compare.skillFormula', {
-            skill: basis.skill, base: basis.base, bonus: basis.bonus, count: basis.entries.length, cap: basis.cap,
-            score: item.score,
-          })}</p>
-          {basis.entries.length > 0 && <ul className={s.basisEntries}>{basis.entries.map((entry, index) => <li key={index}>{entry}</li>)}</ul>}
+          {basis.skills.map(skill => (
+            <div key={skill.skill}>
+              <p>{skill.match === 'direct' ? t('compare.skillFormula', {
+                skill: skill.skill, base: basis.base, bonus: basis.bonus, count: skill.entries.length, cap: basis.cap,
+                score: skill.score,
+              }) : skill.match === 'related' ? t('compare.skillRelated', {
+                skill: skill.skill, related: skill.related_skill ?? '', score: skill.score,
+              }) : t('compare.skillMissing', { skill: skill.skill, score: skill.score })}</p>
+              {skill.entries.length > 0 && <ul className={s.basisEntries}>{skill.entries.map((entry, index) => <li key={index}>{entry}</li>)}</ul>}
+            </div>
+          ))}
+          {basis.skills.length > 1 && <p><strong>{t('compare.skillAverage', {
+            scores: basis.skills.map(skill => skill.score).join(' + '), count: basis.skills.length, score: item.score,
+          })}</strong></p>}
         </>
       ) : (
         <p className={ui.caption}>{t(item.method.startsWith('llm:') ? 'compare.storedLlm'

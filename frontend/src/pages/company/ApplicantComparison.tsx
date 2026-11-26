@@ -146,6 +146,7 @@ function DifferenceSummary({ first, second, rows, notice }: {
   })).sort((a, b) => Math.abs(b.gap ?? 0) - Math.abs(a.gap ?? 0));
   const tied = leftFit === rightFit;
   const lead = impacts.find(row => row.gap !== null && Math.abs(row.gap) >= 0.005);
+  const counterpoint = impacts.find(row => row.gap !== null && row.gap <= -0.005 && row.id !== lead?.id);
   const firstName = first.row.name;
   const secondName = second.row.name;
   const difference = Math.abs(leftFit - rightFit).toFixed(1);
@@ -172,17 +173,13 @@ function DifferenceSummary({ first, second, rows, notice }: {
               second: secondName, secondScore: scoreLabel(lead.rightScore), weight: points.format(lead.weight) })}</p>
             <p>{t('compare.leadPoints', { name: leadingName(lead.gap), n: points.format(Math.abs(lead.gap)) })}</p>
           </div>
-          <a className={cx(ui.btn, ui.secondary, ui.small)} href={`#${evidenceId(lead.id)}`}
-            onClick={event => {
-              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              const target = document.getElementById(evidenceId(lead.id));
-              if (!target) return;
-              event.preventDefault();
-              target.focus({ preventScroll: true });
-              target.scrollIntoView({ block: 'start' });
-            }}>
-            {t('compare.evidenceLink', { criterion: lead.name })}
-          </a>
+          <EvidenceLink criterion={lead} />
+        </div>
+      )}
+      {counterpoint && counterpoint.gap !== null && (
+        <div className={s.counterpoint}>
+          <p>{counterpoint.name} · {impactLabel(counterpoint.gap)}</p>
+          <EvidenceLink criterion={counterpoint} />
         </div>
       )}
       {!weighted && <p className={ui.caption}>{t('compare.rawNote')}</p>}
@@ -229,6 +226,23 @@ function DifferenceSummary({ first, second, rows, notice }: {
       </details>
       <AiNotice notice={notice} />
     </section>
+  );
+}
+
+function EvidenceLink({ criterion }: { criterion: { id: number; name: string } }) {
+  const id = evidenceId(criterion.id);
+  return (
+    <a className={cx(ui.btn, ui.secondary, ui.small)} href={`#${id}`}
+      onClick={event => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const target = document.getElementById(id);
+        if (!target) return;
+        event.preventDefault();
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'start' });
+      }}>
+      {t('compare.evidenceLink', { criterion: criterion.name })}
+    </a>
   );
 }
 

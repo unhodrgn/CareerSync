@@ -97,3 +97,12 @@
 .leadPoints { color: var(--ds-accent-text); font-size: 16px; font-weight: 750; }
 .table tr[id] { scroll-margin-top: 14px; }
 .table tr[id]:focus { outline: 2px solid var(--ds-ring); outline-offset: -2px; }
+
+.counterpoint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-top: 8px;
+}

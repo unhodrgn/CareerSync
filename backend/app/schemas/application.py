@@ -66,9 +66,16 @@ class ApplicantList(BaseModel):
     notice: str = AI_NOTICE
 
 
-class DirectSkillBasis(BaseModel):
+class SkillBasisItem(BaseModel):
     skill: str
+    score: int
     entries: list[str]
+    match: Literal["direct", "related", "missing"]
+    related_skill: str | None
+
+
+class DirectSkillBasis(BaseModel):
+    skills: list[SkillBasisItem]
     base: int
     bonus: int
     cap: int
