@@ -121,7 +121,8 @@ def test_the_stored_plan_has_no_cv_text_and_no_weight():
         assert line not in text
     assert SAMPLE_CV not in text and clean_cv(SAMPLE_CV).text not in text
     assert "weight" not in text and "weight" not in " ".join(strings(sealed.data)).lower()
-    assert set(sealed.data) == {"items", "uncovered", "rubric_notice", "bank_method"}
+    assert set(sealed.data) == {"items", "uncovered", "rubric_notice", "bank_method", "depth"}
+    assert sealed.data["depth"] == 2
     assert {i["importance"] for i in sealed.data["items"]} <= {"핵심", "중요", "일반", None}
 
 

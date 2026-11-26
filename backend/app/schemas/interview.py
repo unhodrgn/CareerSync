@@ -3,8 +3,9 @@
 Each stage of S4 adds the schemas of the routes it adds: S4.1 the consent text, S4.2 the creation of a session, S4.3 the history, S4.5 the feedback. The responses are built from
 the service dataclasses (`from_attributes`), and nothing here imports the interview engine or the models."""
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.application import AI_NOTICE
 
@@ -49,6 +50,15 @@ class InterviewCreateIn(BaseModel):
 
     consent_transcript: object = Field(default=None, description="Must be exactly `true`: consent to store the masked transcript (D65)")
     consent_version: object = Field(default=None, description="The `version` of `GET /api/interview-consent` that the seeker was shown")
+    depth: Literal[1, 2, 3] = Field(default=2, description="Question depth chosen by the seeker: 1 기초, 2 적용, 3 심화 (D93)")
+
+    @field_validator("depth", mode="before")
+    @classmethod
+    def _exact_int_depth(cls, value: object) -> object:
+        # Reject bool (`True` -> 1) and float (`2.0` -> 2) with a fixed message so D68 error sanitization never leaks input values.
+        if type(value) is not int:
+            raise ValueError("Input should be 1, 2 or 3")
+        return value
 
 
 class TopicOut(BaseModel):
@@ -60,6 +70,7 @@ class TopicOut(BaseModel):
     kind: str
     criterion_name: str | None
     importance: str | None
+    depth: int | None
     status: str  # the engine's: not_asked, asked, demonstrated, partial, not_shown, skipped
 
 
@@ -83,6 +94,7 @@ class SessionOut(BaseModel):
     status: str  # derived from the deadlines: a session past its deadline reads `aborted`
     end_reason: str | None
     plan_method: str | None
+    depth: int | None
     max_seconds: int | None
     created_at: datetime
     started_at: datetime | None

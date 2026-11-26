@@ -29,7 +29,7 @@ SECRET = "SECRET-MARKER-답변-내용"
 VERSION = settings.INTERVIEW_CONSENT_VERSION
 VALID = {"consent_transcript": True, "consent_version": VERSION}
 SESSION_KEYS = {
-    "id", "job_id", "job_title", "status", "end_reason", "plan_method", "max_seconds", "created_at", "started_at", "ended_at", "active_until",
+    "id", "job_id", "job_title", "status", "end_reason", "plan_method", "depth", "max_seconds", "created_at", "started_at", "ended_at", "active_until",
     "expires_at", "joinable", "accepting_turns", "end_grace_open", "feedback_status", "topics", "turns", "notice",
 }
 NUL = "\x00"
@@ -108,11 +108,12 @@ def test_a_seeker_creates_a_session_and_gets_201_with_the_session_and_limited(ap
     session = body["session"]
     assert set(session) == SESSION_KEYS
     assert (session["status"], session["joinable"], session["accepting_turns"], session["end_grace_open"]) == ("created", True, True, False)
-    assert (session["job_id"], session["job_title"], session["plan_method"], session["feedback_status"]) == (world.job_id, "Backend Engineer", "rules", "none")
+    assert (session["job_id"], session["job_title"], session["plan_method"], session["depth"], session["feedback_status"]) == (world.job_id, "Backend Engineer", "rules", 2, "none")
     assert (session["max_seconds"], session["end_reason"], session["started_at"], session["ended_at"], session["turns"]) == (settings.INTERVIEW_MAX_SECONDS, None, None, None, [])
     assert session["notice"] == AI_NOTICE
-    assert session["topics"] and all(set(t) == {"topic_id", "kind", "criterion_name", "importance", "status"} for t in session["topics"])
+    assert session["topics"] and all(set(t) == {"topic_id", "kind", "criterion_name", "importance", "depth", "status"} for t in session["topics"])
     assert {t["status"] for t in session["topics"]} == {"not_asked"} and {t["importance"] for t in session["topics"]} <= {"핵심", "중요", "일반", None}
+    assert all((t["depth"] is None if t["topic_id"] in ("warmup", "behavioral") else t["depth"] == 2) for t in session["topics"])
 
 
 def test_the_deadlines_come_from_the_clock_the_dependency_gave(api, db, clock):
@@ -389,6 +390,32 @@ def test_a_bad_id_keeps_its_location_so_the_client_can_fix_it(api, db):
 def test_no_consent_fields_at_all_is_not_a_validation_error(api, db):
     world = build_world(db)
     assert create(api, world, body={}).status_code == 409  # `{}` is a valid body: the service says the consent is missing
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3])
+def test_depth_parameter_sets_requested_and_topic_depths_in_session_and_plan(api, db, depth):
+    world = build_world(db)
+    response = create(api, world, body={**VALID, "depth": depth})
+    assert response.status_code == 201, response.text
+    session = response.json()["session"]
+    assert session["depth"] == depth
+    assert all((t["depth"] is None if t["topic_id"] in ("warmup", "behavioral") else t["depth"] == depth) for t in session["topics"])
+    row = db.get(InterviewSession, session["id"])
+    assert row.plan["depth"] == depth
+    assert all((i["depth"] is None if i["topic_id"] in ("warmup", "behavioral") else i["depth"] == depth) for i in row.plan["items"])
+
+
+@pytest.mark.parametrize("bad_depth", [0, 4, -1, "2", True, False, 2.0, None])
+def test_invalid_depth_is_422_and_sanitized(api, db, bad_depth):
+    world = build_world(db)
+    response = api.post(url_of(world), headers=auth(world.user), json={**VALID, "depth": bad_depth})
+    assert response.status_code == 422 and no_store(response)
+    body = response.json()
+    assert set(body) == {"detail"} and body["detail"]
+    for error in body["detail"]:
+        assert set(error) == {"type", "loc", "msg"}
+        assert error["loc"] == ["body", "depth"]
+    assert stored(db) == (0, {})
 
 
 # ── Methods, the trailing slash, an unexpected error ──

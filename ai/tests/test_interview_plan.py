@@ -141,8 +141,8 @@ def test_no_two_questions_of_a_plan_are_alike():
 
 def test_bank_questions_are_reused_and_screened_ones_replaced():
     bank = [
-        q("Java를 실무에서 가장 어렵게 썼던 순간은 언제인가요?", 1),
-        q("결혼 계획이 프로젝트 일정에 영향을 주나요?", 2),  # protected topic: the interview blocklist rejects it
+        q("Java를 실무에서 가장 어렵게 썼던 순간은 언제인가요?", 1, depth=2),
+        q("결혼 계획이 프로젝트 일정에 영향을 주나요?", 2, depth=2),  # protected topic: the interview blocklist rejects it
         q("팀에서 갈등을 조율한 경험을 말씀해 주세요.", None, "behavioral"),
     ]
     plan = make_plan(questions=bank)
@@ -155,7 +155,7 @@ def test_bank_questions_are_reused_and_screened_ones_replaced():
 
 def test_without_a_bank_the_d21_templates_are_the_questions():
     info = CriterionInfo(1, "Java 활용 능력", "skill", "Java 17, Spring Boot 사용 경험")
-    expected = [x for x in interview_rules([info], BLOCKLISTS) if x.criterion_id == 1][0].question
+    expected = [x for x in interview_rules([info], BLOCKLISTS) if x.criterion_id == 1 and x.depth == 2][0].question
     assert make_plan().items[1].question == expected
 
 
@@ -175,3 +175,76 @@ def test_the_plan_survives_a_round_trip_through_json():
 def test_an_empty_job_still_gets_a_plan_without_crashing():
     plan = make_plan(criteria=[], cv_lines=[])
     assert ids(plan) == ["behavioral"] and plan.uncovered == ()
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3])
+def test_build_plan_picks_the_requested_depth_and_keeps_general_questions_untagged(depth):
+    bank = [
+        q(f"depth-{d}-java", 1, "technical", depth=d)
+        for d in (1, 2, 3)
+    ] + [q("일반 협업 경험", None, "behavioral", depth=depth)]  # general depth must be ignored
+    plan = make_plan(questions=bank, depth=depth)
+    by_topic = {i.topic_id: i for i in plan.items}
+    assert plan.depth == depth
+    assert by_topic["c1"].question == f"depth-{depth}-java" and by_topic["c1"].depth == depth
+    c2_template = [x for x in interview_rules([CriterionInfo(2, "프로젝트 경험", "project", "REST API를 설계하고 문서화한 경험")], BLOCKLISTS) if x.criterion_id == 2 and x.depth == depth][0]
+    assert by_topic["c2"].question == c2_template.question and by_topic["c2"].depth == depth
+    assert by_topic["warmup"].depth is None
+    assert by_topic["behavioral"].depth is None
+    # Deterministic across criterion arrival order
+    assert make_plan(criteria=list(reversed(CRITERIA)), questions=bank, depth=depth).to_dict() == plan.to_dict()
+
+
+def test_build_plan_depth_fallback_order():
+    # Candidate order for requested depth=3:
+    # bank(3) -> template(3) -> bank(2) -> template(2) -> bank(1) -> template(1) -> untagged bank -> neutral fallback
+    c1 = crit(1, "Java 활용 능력", "skill", "Java 17", "핵심")
+    info1 = CriterionInfo(1, "Java 활용 능력", "skill", "Java 17")
+    tmpls = {x.depth: x for x in interview_rules([info1], BLOCKLISTS) if x.criterion_id == 1}
+
+    # 1. Requested bank(3) wins over template(3)
+    plan1 = make_plan(criteria=[c1], questions=[q("bank-d3", 1, depth=3), q("bank-d2", 1, depth=2)], cv_lines=[], depth=3)
+    item1 = next(i for i in plan1.items if i.topic_id == "c1")
+    assert item1.question == "bank-d3" and item1.depth == 3
+
+    # 2. Missing bank(3) (or blocked bank(3)) -> template(3) wins over bank(2)
+    plan2 = make_plan(criteria=[c1], questions=[q("결혼 질문", 1, depth=3), q("bank-d2", 1, depth=2)], cv_lines=[], depth=3)
+    item2 = next(i for i in plan2.items if i.topic_id == "c1")
+    assert item2.question == tmpls[3].question and item2.depth == 3
+
+    # 3. For requested depth=1, when bank(1) is missing -> template(1) beats bank(2)
+    plan3 = make_plan(criteria=[c1], questions=[q("bank-d2", 1, depth=2)], cv_lines=[], depth=1)
+    item3 = next(i for i in plan3.items if i.topic_id == "c1")
+    assert item3.question == tmpls[1].question and item3.depth == 1
+
+    # 4. If template(d) and nearest template are eliminated by duplicate check, bank/template of nearest depth (2 first) follows in order
+    dup_c = [
+        crit(1, "전공 일치", "education", "컴퓨터공학", "핵심"),
+        crit(2, "관련 학과", "education", "소프트웨어", "핵심"),
+    ]
+    plan_dup = make_plan(criteria=dup_c, questions=[q("d2-backup", 2, depth=2)], cv_lines=[], depth=3)
+    c1_item = next(i for i in plan_dup.items if i.topic_id == "c1")
+    c2_item = next(i for i in plan_dup.items if i.topic_id == "c2")
+    # c1 takes template(3); c2 cannot reuse template(3) (education templates share wording), so it tries bank(3)->None, template(3)->dup, bank(2)->"d2-backup"
+    assert c1_item.depth == 3 and c2_item.question == "d2-backup" and c2_item.depth == 2
+
+    # 5. For depth=1 without c2 backup, duplicate template(1) falls back to nearest depth=2 template first, then depth=3
+    plan_dup_1 = make_plan(criteria=dup_c, questions=[], cv_lines=[], depth=1)
+    c1_1 = next(i for i in plan_dup_1.items if i.topic_id == "c1")
+    c2_1 = next(i for i in plan_dup_1.items if i.topic_id == "c2")
+    assert (c1_1.depth, c2_1.depth) == (1, 2)
+
+
+def test_build_plan_rejects_invalid_depth_and_loads_legacy_plan_without_depth():
+    for bad in (0, 4, "2", True):
+        with pytest.raises(ValueError, match="depth"):
+            make_plan(depth=bad)  # type: ignore[arg-type]
+
+    plan = make_plan(depth=3)
+    legacy = json.loads(json.dumps(plan.to_dict(), ensure_ascii=False))
+    legacy.pop("depth")
+    for item in legacy["items"]:
+        item.pop("depth")
+    restored = InterviewPlan.from_dict(legacy)
+    assert restored.depth == 2
+    assert all(item.depth is None for item in restored.items)

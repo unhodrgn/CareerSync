@@ -35,6 +35,16 @@ from ai.scoring.retrieval import has_content
 _EVIDENCE_MIN_CHARS, _EVIDENCE_MAX_CHARS = 12, 90
 _TIPS = ("상황과 본인의 역할을 먼저 설명하기", "어려웠던 점과 해결 과정을 구체적으로", "결과와 배운 점으로 마무리하기")
 _KIND = {"skill": "technical", "certificate": "technical", "other": "behavioral"}  # any other category: "experience"
+_VALID_DEPTHS = frozenset({1, 2, 3})
+
+
+def _depth_order(depth: int) -> tuple[int, ...]:
+    """Requested depth first, then nearest other depth (2 first, then the other)."""
+    if depth == 1:
+        return (1, 2, 3)
+    if depth == 2:
+        return (2, 1, 3)
+    return (3, 2, 1)
 
 
 def evidence_lines(excerpts: Iterable[str]) -> list[str]:
@@ -83,6 +93,7 @@ def _item(
     if screen_spoken(rephrase, blocklists) is None:
         rephrase = rules.GENERIC_REPHRASE
     keywords = () if q.kind == "behavioral" else rules.topic_keywords(*topic_text, skills=skills)
+    depth = q.depth if q.criterion_id is not None and type(q.depth) is int and q.depth in _VALID_DEPTHS else None
     return PlanItem(
         topic_id=topic_id,
         kind=q.kind,
@@ -96,6 +107,7 @@ def _item(
         intent=q.intent,
         answer_tips=tuple(q.answer_tips),
         cv_quote=q.cv_quote,
+        depth=depth,
     )
 
 
@@ -106,12 +118,17 @@ def _criterion_item(
     blocklists: Sequence[Blocklist],
     skills: SkillDictionary | None,
     clean: CleanCv,
+    depth: int,
 ) -> PlanItem | None:
     description = for_model_block(c.description)  # the company's text, cut of what touches age, gender or military service
-    candidates = list(bank.get(c.id, ()))
-    if not candidates:  # the D21 template for this criterion alone
-        info = CriterionInfo(c.id, c.name, c.category, description)
-        candidates = [q for q in interview_rules([info], blocklists) if q.criterion_id == c.id]
+    bank_questions = list(bank.get(c.id, ()))
+    info = CriterionInfo(c.id, c.name, c.category, description)
+    templates = [q for q in interview_rules([info], blocklists) if q.criterion_id == c.id]
+    candidates: list[Question] = []
+    for d in _depth_order(depth):
+        candidates.extend(q for q in bank_questions if type(q.depth) is int and q.depth == d)
+        candidates.extend(q for q in templates if type(q.depth) is int and q.depth == d)
+    candidates.extend(q for q in bank_questions if not (type(q.depth) is int and q.depth in _VALID_DEPTHS))
     fallback = Question(
         rules.fallback_question(c.name), c.id, c.name, _KIND.get(c.category, "experience"), f"'{c.name}' 관련 경험과 이해 수준 확인", _TIPS[:2]
     )
@@ -170,11 +187,14 @@ def build_plan(
     limits: InterviewLimits = DEFAULT_LIMITS,
     skills: SkillDictionary | None = None,
     bank_method: str = "rules",
+    depth: int = 2,
 ) -> InterviewPlan:
     """`questions`: the D21 bank (may be empty, never trusted). `cv_lines`: candidate lines from `evidence_lines` over the CV
     excerpts. `masked_cv`: the stored masked CV. It is cleaned here (`clean_cv`, D62) and every quote and line is verified
     against the cleaned text only. The finished plan then goes through `validate_plan` (D61), the same function the engine
     applies to any plan it is given, so a bank question, its intent, tips and quote, and the rubric are all checked."""
+    if type(depth) is not int or depth not in _VALID_DEPTHS:
+        raise ValueError("depth must be 1, 2, or 3")
     for c in criteria:
         if c.importance not in IMPORTANCE_RANK:
             raise ValueError(f"criterion {c.id}: importance must be one of {', '.join(IMPORTANCE_RANK)}")
@@ -193,7 +213,7 @@ def build_plan(
     asked = [i.question for i in (warmup, behavioral) if i is not None]
     built: list[tuple[PlanCriterion, PlanItem | None]] = []
     for c in ordered:
-        item = _criterion_item(c, bank, asked, blocklists, skills, clean)
+        item = _criterion_item(c, bank, asked, blocklists, skills, clean, depth)
         if item is not None:
             asked.append(item.question)
         built.append((c, item))
@@ -207,5 +227,5 @@ def build_plan(
     uncovered = [UncoveredCriterion(c.id, c.name, c.importance, "no_slot") for c, _ in eligible[slots:]]
     uncovered += [UncoveredCriterion(c.id, c.name, c.importance, "no_question") for c, item in built if item is None]
     items = [i for i in (warmup,) if i is not None] + [item for _, item in eligible[:slots]] + [i for i in (behavioral,) if i is not None]
-    plan = InterviewPlan(tuple(items), tuple(uncovered), bank_method=bank_method)
+    plan = InterviewPlan(tuple(items), tuple(uncovered), bank_method=bank_method, depth=depth)
     return validate_plan(plan, blocklists=blocklists, cv_text=masked_cv, skills=skills).plan

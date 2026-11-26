@@ -29,7 +29,7 @@ CRITERIA = [
 ]
 
 
-def make_plan(criteria=None, questions=(), cv_lines=None, limits: InterviewLimits = DEFAULT_LIMITS, bank_method: str = "rules"):
+def make_plan(criteria=None, questions=(), cv_lines=None, limits: InterviewLimits = DEFAULT_LIMITS, bank_method: str = "rules", depth: int = 2):
     return build_plan(
         CRITERIA if criteria is None else criteria,
         questions,
@@ -39,6 +39,7 @@ def make_plan(criteria=None, questions=(), cv_lines=None, limits: InterviewLimit
         limits,
         SKILLS,
         bank_method,
+        depth,
     )
 
 
@@ -46,9 +47,9 @@ def make_engine(plan=None, limits: InterviewLimits = DEFAULT_LIMITS, names=(ACCO
     return InterviewEngine(make_plan() if plan is None else plan, blocklists=BLOCKLISTS, limits=limits, names=names)
 
 
-def q(question: str, criterion_id: int | None = None, kind: str = "technical", cv_quote: str | None = None) -> Question:
+def q(question: str, criterion_id: int | None = None, kind: str = "technical", cv_quote: str | None = None, depth: int | None = None) -> Question:
     """A question of a D21 bank."""
-    return Question(question, criterion_id, None, kind, "확인", ("구체적으로",), cv_quote)  # type: ignore[arg-type]
+    return Question(question, criterion_id, None, kind, "확인", ("구체적으로",), cv_quote, depth)  # type: ignore[arg-type]
 
 
 # Answers that demonstrate every rubric point of the item they are meant for (the rules look for cue words)

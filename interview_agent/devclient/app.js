@@ -16,7 +16,7 @@ const POLL_MS = 2000;
 const $ = (id) => document.getElementById(id);
 const dom = {
   email: $('email'), password: $('password'), login: $('login'), startBox: $('start-box'), consentTitle: $('consent-title'),
-  consentItems: $('consent-items'), agree: $('agree'), jobId: $('job-id'), sessionId: $('session-id'), start: $('start'), end: $('end'),
+  consentItems: $('consent-items'), agree: $('agree'), jobId: $('job-id'), depth: $('depth'), sessionId: $('session-id'), start: $('start'), end: $('end'),
   feedback: $('feedback'), status: $('status'), error: $('error'), transcript: $('transcript'), metrics: $('metrics'),
   feedbackBox: $('feedback-box'), feedbackText: $('feedback-text'), remoteAudio: $('remote-audio'),
   avatarVideo: $('avatar-video'), avatarPlaceholder: $('avatar-placeholder'), previewVideo: $('preview-video'),
@@ -234,9 +234,10 @@ async function start() {
     await openPreview();
     let sessionId = Number(dom.sessionId.value) || null;
     if (!sessionId) {
+      const depth = Number(dom.depth ? dom.depth.value : 2) || 2;
       const created = await api(`/jobs/${Number(dom.jobId.value)}/interview-sessions`, {
         method: 'POST',
-        body: { consent_transcript: true, consent_version: state.consentVersion },
+        body: { consent_transcript: true, consent_version: state.consentVersion, depth },
       });
       sessionId = created.session.id;
     }

@@ -49,6 +49,8 @@ _BANK_METHOD = re.compile(r"^(?:rules|llm:[\w.:/\-]{1,80})$")
 _KINDS = frozenset({"technical", "experience", "behavioral"})
 _CATEGORY_OF_KIND = {"technical": "skill", "experience": "experience", "behavioral": "other"}
 _REASONS = frozenset({"no_slot", "no_question"})
+_DEPTHS = frozenset({1, 2, 3})
+DEFAULT_DEPTH = 2
 MAX_NAME_CHARS, MAX_INTENT_CHARS, MAX_TIP_CHARS, MAX_TIPS = 80, 200, 150, 3
 MAX_POINT_CHARS, MAX_KEYWORDS, MAX_QUOTE_CHARS = 120, 8, 300
 EXCLUDED = "(제외됨)"  # shown in place of a criterion name that could not be kept
@@ -137,6 +139,15 @@ class _Checker:
         rephrase = item.rephrase if self.spoken_ok(item.rephrase) else rules.GENERIC_REPHRASE
         if rephrase is not item.rephrase:
             self.issues.append(f"{tag}:rephrase")
+        depth = item.depth
+        valid_depth = type(depth) is int and depth in _DEPTHS
+        if criterion:
+            if depth is not None and not valid_depth:
+                self.issues.append(f"{tag}:depth")
+                depth = None
+        elif depth is not None:
+            self.issues.append(f"{tag}:depth")
+            depth = None
         return PlanItem(
             topic_id=item.topic_id,
             kind=item.kind,
@@ -150,6 +161,7 @@ class _Checker:
             intent=intent,
             answer_tips=tips[:MAX_TIPS],
             cv_quote=quote,
+            depth=depth,
         )
 
     def uncovered(self, entries: object) -> list[UncoveredCriterion]:
@@ -196,4 +208,8 @@ def validate_plan(
             listed.add(cid)
             uncovered.append(UncoveredCriterion(cid, name.strip() if check.text_ok(name, MAX_NAME_CHARS) else EXCLUDED, importance, "no_question"))  # type: ignore[arg-type]
     method = plan.bank_method if isinstance(plan.bank_method, str) and _BANK_METHOD.match(plan.bank_method) else "rules"
-    return PlanReport(InterviewPlan(tuple(items), tuple(uncovered), RUBRIC_NOTICE, method), tuple(check.issues))
+    raw_depth = plan.depth
+    depth = raw_depth if type(raw_depth) is int and raw_depth in _DEPTHS else DEFAULT_DEPTH
+    if depth != raw_depth or type(raw_depth) is not int:
+        check.issues.append("plan:depth")
+    return PlanReport(InterviewPlan(tuple(items), tuple(uncovered), RUBRIC_NOTICE, method, depth), tuple(check.issues))

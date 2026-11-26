@@ -56,7 +56,13 @@ def interview_consent():
 )
 def create_interview_session(job_id: int, body: InterviewCreateIn, db: DbSession, user: CurrentUser, clock: ClockDep):
     created = interview_service.create_session(
-        db, user, job_id, consent_transcript=body.consent_transcript, consent_version=body.consent_version, clock=clock
+        db,
+        user,
+        job_id,
+        consent_transcript=body.consent_transcript,
+        consent_version=body.consent_version,
+        depth=body.depth,
+        clock=clock,
     )
     return {"session": created.view, "limited": created.limited}
 

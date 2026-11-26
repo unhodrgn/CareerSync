@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from ai.career.interview import (
+    DEPTHS,
+    MAX_BANK_QUESTIONS,
     MAX_EXCERPTS,
     MAX_QUESTIONS,
     CriterionInfo,
@@ -13,6 +15,7 @@ from ai.career.interview import (
     make_questions,
 )
 from ai.guardrails.blocklist import load_blocklist
+from ai.interview.guards import screen_spoken
 from ai.parsing.pii import mask_pii
 from ai.tests.helpers import EMBEDDER, SAMPLE_CV, FakeLLM
 
@@ -30,13 +33,13 @@ CRITERIA = [
 QUOTE = "- Java, Spring Boot 기반 주문 API 개발"
 
 
-def _q(question, criterion_id=None, kind="technical", cv_quote=None, intent="확인", tips=("구체적으로",)):
+def _q(question, criterion_id=None, kind="technical", cv_quote=None, intent="확인", tips=("구체적으로",), depth=None):
     return {"question": question, "criterion_id": criterion_id, "kind": kind, "intent": intent,
-            "answer_tips": list(tips), "cv_quote": cv_quote}
+            "answer_tips": list(tips), "cv_quote": cv_quote, "depth": depth}
 
 
-def _make(llm):
-    return make_questions("백엔드 개발자", "Java, Spring 기반 API 개발", CRITERIA, MASKED, EMBEDDER, BLOCKLISTS, llm)
+def _make(llm, **kwargs):
+    return make_questions("백엔드 개발자", "Java, Spring 기반 API 개발", CRITERIA, MASKED, EMBEDDER, BLOCKLISTS, llm, **kwargs)
 
 
 # ── Template ──
@@ -44,13 +47,33 @@ def _make(llm):
 
 def test_template_has_a_question_per_criterion_and_general_ones():
     qs = interview_rules(CRITERIA, BLOCKLISTS)
-    assert [q.criterion_id for q in qs[:4]] == [11, 12, 13, 14]
-    assert qs[0].question.startswith("Java 활용 능력을(를)") and qs[0].kind == "technical"
-    assert qs[3].kind == "behavioral" and qs[4].criterion_id is None
+    assert [q.criterion_id for q in qs[:12]] == [11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14]
+    assert [q.depth for q in qs[:12]] == [1, 2, 3] * 4
+    assert qs[0].kind == "technical" and qs[9].kind == "behavioral"
+    assert [q.criterion_id for q in qs[12:]] == [None, None, None]
+    assert [q.depth for q in qs[12:]] == [None, None, None]
     assert all(q.cv_quote is None and q.answer_tips for q in qs)
-    assert len(interview_rules([], BLOCKLISTS)) == 3  # general questions only
+    general_only = interview_rules([], BLOCKLISTS)
+    assert len(general_only) == 3 and all(q.depth is None for q in general_only)
     many = [CriterionInfo(i, f"기술 {i}", "skill") for i in range(20)]
-    assert len(interview_rules(many, BLOCKLISTS)) == MAX_QUESTIONS
+    assert len(interview_rules(many, BLOCKLISTS)) == MAX_BANK_QUESTIONS
+    single = interview_rules(many, BLOCKLISTS, depths=(2,), max_questions=MAX_QUESTIONS)
+    assert len(single) == MAX_QUESTIONS and all(q.depth == 2 for q in single)
+
+
+@pytest.mark.parametrize("category", ["skill", "experience", "project", "certificate", "education", "other"])
+def test_template_has_three_screened_depths_per_category_and_is_deterministic(category):
+    criterion = [CriterionInfo(1, "Python 백엔드", category, "FastAPI 경험")]
+    first = interview_rules(criterion, BLOCKLISTS)
+    second = interview_rules(criterion, BLOCKLISTS)
+    assert first == second
+    by_depth = [q for q in first if q.criterion_id == 1]
+    assert [q.depth for q in by_depth] == list(DEPTHS)
+    assert len({q.question for q in by_depth}) == 3
+    assert len({q.answer_tips for q in by_depth}) == 3
+    for q in by_depth:
+        assert allowed(q.question, q.intent, q.answer_tips, BLOCKLISTS)
+        assert screen_spoken(q.question, BLOCKLISTS, "question") is not None
 
 
 # ── LLM ──
@@ -58,21 +81,58 @@ def test_template_has_a_question_per_criterion_and_general_ones():
 
 def test_llm_questions_are_checked():
     llm = FakeLLM({"questions": [
-        _q("Java 17의 주요 변경점을 설명해 주세요.", 11),
-        _q("주문 API를 개발할 때 어떤 설계 결정을 했나요?", 12, "experience", cv_quote=QUOTE),
-        _q("Kubernetes 클러스터를 운영해 본 경험이 있나요?", 999, cv_quote="Kubernetes 운영 3년"),  # bad id, invented quote
+        _q("Java 17의 주요 변경점을 설명해 주세요.", 11, depth=1),
+        _q("주문 API를 개발할 때 어떤 설계 결정을 했나요?", 12, "experience", cv_quote=QUOTE, depth=2),
+        _q("Kubernetes 클러스터를 운영해 본 경험이 있나요?", 999, cv_quote="Kubernetes 운영 3년", depth=3),  # bad id -> None, depth dropped
         _q("나이가 어떻게 되시나요?", None, "behavioral"),  # protected attribute: dropped
         _q("부모님 직업은 무엇인가요?", None, "behavioral"),  # dropped
-        _q("코드 리뷰에서 의견 충돌을 어떻게 해결했나요?", 14, "behavioral", tips=("자세한 내용은 https://example.com/guide 참고",)),
-        _q("Java 17의 주요 변경점을 설명해 주세요.", 11),  # duplicate
+        _q("코드 리뷰에서 의견 충돌을 어떻게 해결했나요?", 14, "behavioral", tips=("자세한 내용은 https://example.com/guide 참고",), depth=3),
+        _q("Java 17의 주요 변경점을 설명해 주세요.", 11, depth=1),  # duplicate
     ]})
-    questions, method = _make(llm)
+    questions, method = _make(llm, fill_missing=False)
     assert method == "llm:fake-llm"
-    assert [q.criterion_id for q in questions] == [11, 12, None, 14]
+    assert [(q.criterion_id, q.depth) for q in questions] == [(11, 1), (12, 2), (None, None), (14, 3)]
     assert questions[1].cv_quote == QUOTE and questions[1].criterion_name == "프로젝트 경험"
     assert questions[2].cv_quote is None  # not in the CV
     assert questions[3].answer_tips == ("자세한 내용은 참고",)
     assert not any("나이" in q.question or "부모님" in q.question for q in questions)
+
+
+def test_llm_depth_validation_missing_fill_and_d21_single_depth():
+    llm = FakeLLM({"questions": [
+        _q("Java 핵심 개념은 무엇인가요?", 11, depth=1),
+        _q("잘못된 깊이 4가 온 질문입니다.", 12, depth=4),       # invalid depth -> None
+        _q("잘못된 문자열 깊이 질문입니다.", 12, depth="bad"), # invalid depth -> None
+        _q("불리언 깊이 질문입니다.", 13, depth=True),         # bool True -> None
+        _q("일반 인성 질문에 depth가 온 경우", None, "behavioral", depth=2),  # general -> depth dropped
+        _q("미등록 기준에 depth가 온 경우", 999, depth=3),                  # invalid cid -> cid None, depth dropped
+    ]})
+    questions, method = _make(llm)
+    assert method == "llm:fake-llm"
+    assert (11, 1) in {(q.criterion_id, q.depth) for q in questions}
+    assert "Java 핵심 개념은 무엇인가요?" in {q.question for q in questions}
+    # Invalid depths on LLM items kept as None; general/bad cid dropped depth to None
+    invalid_tagged = [q for q in questions if q.question in {
+        "잘못된 깊이 4가 온 질문입니다.", "잘못된 문자열 깊이 질문입니다.", "불리언 깊이 질문입니다.",
+        "일반 인성 질문에 depth가 온 경우", "미등록 기준에 depth가 온 경우",
+    }]
+    assert all(q.depth is None for q in invalid_tagged)
+    # Missing (criterion_id, depth) pairs filled deterministically from templates
+    tmpl_pairs = {(q.criterion_id, q.depth) for q in questions if q.criterion_id is not None and q.depth is not None}
+    expected_pairs = {(c.id, d) for c in CRITERIA for d in DEPTHS}
+    assert expected_pairs <= tmpl_pairs
+
+    # Caller like D21 text feature asks for single depth 2, no template fill, capped at MAX_QUESTIONS (10)
+    full_bank = [
+        _q(f"c{c.id}-d{d}", c.id, "technical", depth=d)
+        for c in CRITERIA for d in DEPTHS
+    ] + [_q("일반 질문", None, "behavioral", depth=2)]
+    d21_qs, _ = _make(
+        FakeLLM({"questions": full_bank}),
+        depths=(2,), fill_missing=False, max_questions=MAX_QUESTIONS, single_depth=2,
+    )
+    assert [q.question for q in d21_qs] == ["c11-d2", "c12-d2", "c13-d2", "c14-d2", "일반 질문"]
+    assert d21_qs[-1].depth is None
 
 
 def test_a_protected_topic_in_the_tips_drops_the_question():
@@ -80,7 +140,7 @@ def test_a_protected_topic_in_the_tips_drops_the_question():
         _q("팀워크 경험을 말해 주세요.", 14, "behavioral", tips=("결혼 여부와 함께 소개하기",)),
         _q("A", 11), _q("B", 12), _q("C", 13),
     ]})
-    questions, _ = _make(llm)
+    questions, _ = _make(llm, fill_missing=False)
     assert [q.question for q in questions] == ["A", "B", "C"]
 
 
@@ -142,10 +202,10 @@ def test_a_dropped_template_question_logs_a_reason_and_never_its_text(caplog):
     criteria = [*CRITERIA, CriterionInfo(21, f"{DROPPED_MARKER} 결혼 여부", "other")]
     questions = interview_rules(criteria, BLOCKLISTS)
     assert all(DROPPED_MARKER not in q.question for q in questions)  # the question of criterion 21 was dropped, and the others are as before
-    assert [q.criterion_id for q in questions[:4]] == [11, 12, 13, 14] and 21 not in {q.criterion_id for q in questions}
-    (record,) = _dropped_logs(caplog)
-    assert record.getMessage() == "interview question dropped: reason=blocklist source=template criterion_id=21"  # the metadata that is left
-    assert (record.levelno, record.exc_info) == (logging.INFO, None)
+    assert [q.criterion_id for q in questions[:12]] == [11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14] and 21 not in {q.criterion_id for q in questions}
+    records = _dropped_logs(caplog)
+    assert len(records) == 3 and {r.getMessage() for r in records} == {"interview question dropped: reason=blocklist source=template criterion_id=21"}
+    assert all(r.levelno == logging.INFO and r.exc_info is None for r in records)
     assert DROPPED_MARKER not in caplog.text and "결혼" not in caplog.text
 
 
@@ -158,7 +218,7 @@ def test_a_dropped_llm_question_logs_a_reason_and_never_its_text_and_the_result_
         _q(f"{DROPPED_MARKER} 가족 계획이 있나요?", 999),  # dropped, for a criterion that does not exist: no id is logged
         _q("Java를 써 봤나요?", 11), _q("Spring은요?", 12), _q("협업은 어땠나요?", 14),
     ]})
-    questions, method = _make(llm)
+    questions, method = _make(llm, fill_missing=False)
     assert method.startswith("llm:") and [q.question for q in questions] == ["Java를 써 봤나요?", "Spring은요?", "협업은 어땠나요?"]
     assert sorted(r.getMessage() for r in _dropped_logs(caplog)) == [
         "interview question dropped: reason=blocklist source=llm criterion_id=11",
@@ -253,7 +313,7 @@ def test_llm_questions_on_protected_topics_are_dropped():
         _q("팀워크 경험을 말해 주세요.", 14, "behavioral", intent="가족 같은 분위기에 맞는지 확인"),
         _q("A", 11), _q("B", 12),
     ]})
-    questions, method = _make(llm)
+    questions, method = _make(llm, fill_missing=False)
     assert method == "llm:fake-llm"
     assert [q.question for q in questions] == ["Spring에서 트랜잭션을 어떻게 처리했나요?", "A", "B"]
 
