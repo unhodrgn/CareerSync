@@ -16,7 +16,7 @@ export function isGateStatus(value: unknown): value is GateStatusT {
 
 /**
  * Whether there is anything to show: a full gate with at least one check (a job without a minimum is PASS with no
- * check, and saying 충족 there would claim a requirement that does not exist), or a status-only gate for a job that
+ * check, and saying Met there would claim a requirement that does not exist), or a status-only gate for a job that
  * sets a minimum (the talent card, which gets no checks).
  */
 export function hasGate(gate: RequiredGateOut | null | undefined): gate is RequiredGateOut {
@@ -27,7 +27,7 @@ export function hasBriefGate(gate: RequiredGateBrief | null | undefined, minExpe
   return gate != null && isGateStatus(gate.status) && typeof minExperienceYears === 'number' && minExperienceYears > 0;
 }
 
-/** A duration for the gate: a stated zero reads 0년, as the CV and the reason write it (see `durationText`). */
+/** A duration for the gate: a stated zero reads 0 yr, as the CV and the reason write it (see `durationText`). */
 export function gateDuration(months: number, stated = false): string {
   const d = durationText(months, stated);
   return t(d.key, d.vars);
@@ -50,7 +50,7 @@ export function gateLabel(status: GateStatusT): string {
 
 /**
  * The gate as a status tag (dot + words; the words always say which, so the color never carries the meaning alone).
- * `short` drops "최소 경력 조건" for a table cell whose column header already says it; the full label stays the
+ * `short` drops "Minimum experience" for a table cell whose column header already says it; the full label stays the
  * tag's accessible name.
  */
 export function GateTag({ status, short = false }: { status: GateStatusT; short?: boolean }) {

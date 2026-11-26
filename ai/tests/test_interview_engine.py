@@ -356,7 +356,7 @@ def test_the_model_input_holds_only_masked_text_and_the_plans_own_words():
     engine.on_answer(PARTIAL_JAVA, now)
     text = engine.turn_context("Spring Boot로 주문 API를 개발했습니다").to_text()
     item = PLAN.items[1]
-    assert item.question in text and "Java 활용 능력 (핵심)" in text and "Spring Boot 사용 경험" in text
+    assert item.question in text and "Java 활용 능력 (core)" in text and "Spring Boot 사용 경험" in text
     assert "<answer>\nSpring Boot로 주문 API를 개발했습니다\n</answer>" in text
     assert "weight" not in text.lower()
     assert all(t.text in text for t in engine.state.turns[-4:])  # the recent masked lines give a model its context

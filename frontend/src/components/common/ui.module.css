@@ -85,7 +85,7 @@
   border-bottom: 1px solid var(--ds-line);
 }
 
-/* Opt-in: the head of a panel whose content has not appeared yet (e.g. 이력서 점검 before it is run) */
+/* Opt-in: the head of a panel whose content has not appeared yet (e.g. CV check before it is run) */
 .panelHeadAlone {
   margin-bottom: 0;
   padding-bottom: 0;
@@ -294,7 +294,7 @@
   background: var(--ds-line-strong);
 }
 
-/* The band as a pill: 매우 적합 black with a mint dot, 적합 on mint, 참고 outlined */
+/* The band as a pill: Strong match black with a mint dot, Good match on mint, Possible match outlined */
 .band {
   flex: none;
   display: inline-flex;
@@ -380,7 +380,7 @@
   white-space: nowrap;
 }
 
-/* The AI marker: one small blue pill with "AI" (or an AI label such as "AI 분석"), white on AI blue (5.2:1),
+/* The AI marker: one small blue pill with "AI" (or an AI label such as "AI analysis"), white on AI blue (5.2:1),
    placed right before an AI feature's name; the same on white, on the black selected tab and on the dark panel */
 .aiPill {
   flex: none;
@@ -412,7 +412,7 @@
   box-shadow: 0 0 0 2px var(--ds-bg);
 }
 
-/* AI-made content: a blue-soft box with its label (AI 분석 / AI 생성), apart from what people typed */
+/* AI-made content: a blue-soft box with its label (AI analysis / AI generated), apart from what people typed */
 .aiBox {
   min-width: 0;
   padding: var(--ds-space-5);
@@ -883,7 +883,7 @@
   white-space: nowrap;
 }
 
-/* Deadline: D-n carries weight, 상시 채용 does not */
+/* Deadline: D-n carries weight, Open until filled does not */
 .deadline {
   font-size: inherit;
   font-weight: var(--ds-weight-bold);
@@ -1150,7 +1150,7 @@
 }
 
 /* Application and offer status: solid = in progress or decided, hollow = not started or paused; the label always
-   says which, so the dot never carries the meaning alone. The same tags serve 지원 현황 and 지원자 순위. */
+   says which, so the dot never carries the meaning alone. The same tags serve Applications and Applicant ranking. */
 .status[data-status='pending'],
 .status[data-status='reviewing'],
 .status[data-status='interview'] {
@@ -1166,7 +1166,7 @@
   --status-dot: var(--ds-muted);
 }
 
-/* 검토 전 (not started) and 보류 (paused): an empty ring instead of a filled dot */
+/* Not reviewed (not started) and On hold (paused): an empty ring instead of a filled dot */
 .status[data-status='submitted']::before,
 .status[data-status='on_hold']::before {
   box-sizing: border-box;
@@ -1193,7 +1193,7 @@
 }
 
 /* Required criteria gate (D50): met in mint, not met in amber (needs attention, never the rejected gray or a red
-   error: it is a recommendation filter, not a decision), to be checked as an empty ring like 검토 전 */
+   error: it is a recommendation filter, not a decision), to be checked as an empty ring like Not reviewed */
 .status[data-gate='PASS'] {
   --status-dot: var(--ds-accent-text);
 }
@@ -1292,7 +1292,7 @@
   border-radius: var(--ds-radius-card);
 }
 
-/* Leads a job row in a list (지원 현황, 공고 관리) */
+/* Leads a job row in a list (Applications, Jobs) */
 .jobTile[data-size='sm'] {
   width: 40px;
   height: 40px;
@@ -1430,7 +1430,7 @@
     animation-delay: 100ms;
   }
 
-  /* A result that arrives after an action (점검, a tab's content) */
+  /* A result that arrives after an action (Check, a tab's content) */
   .reveal {
     animation: enter 240ms var(--ease-out) backwards;
   }

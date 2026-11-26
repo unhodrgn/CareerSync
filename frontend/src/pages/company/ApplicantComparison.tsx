@@ -120,7 +120,7 @@ function Comparison({ jobId }: { jobId: string }) {
 
 type DifferenceRow = { criterion: { id: number; name: string; weight: number }; left?: CriterionEvaluation; right?: CriterionEvaluation };
 
-const points = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 });
+const points = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const asNumber = (value: number | null | undefined) => typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 function DifferenceSummary({ first, second, rows, notice }: {
@@ -160,9 +160,9 @@ function DifferenceSummary({ first, second, rows, notice }: {
     <section className={cx(ui.panel, s.summary)} aria-labelledby="fit-explanation-title">
       <h2 id="fit-explanation-title">{t('compare.explanationTitle')}</h2>
       <dl className={s.totals}>
-        <div><dt>{firstName}</dt><dd>{leftFit.toFixed(1)}점</dd></div>
-        <div><dt>{secondName}</dt><dd>{rightFit.toFixed(1)}점</dd></div>
-        <div><dt>{t('compare.totalGapLabel')}</dt><dd>{difference}점</dd></div>
+        <div><dt>{firstName}</dt><dd>{t('apl.detail.score', { n: leftFit.toFixed(1) })}</dd></div>
+        <div><dt>{secondName}</dt><dd>{t('apl.detail.score', { n: rightFit.toFixed(1) })}</dd></div>
+        <div><dt>{t('compare.totalGapLabel')}</dt><dd>{t('apl.detail.score', { n: difference })}</dd></div>
       </dl>
       {tied && <p>{tieNote(first.row, second.row)}</p>}
       {lead && lead.gap !== null && (
@@ -213,7 +213,7 @@ function DifferenceSummary({ first, second, rows, notice }: {
             <ul className={s.calculationSteps}>
               {impacts.map(row => (
                 <li key={row.id}><strong>{row.name}</strong>{' · '}
-                  ({row.leftScore} − {row.rightScore}) × {points.format(row.weight)}% ≈ {signed(row.gap ?? 0)}점
+                  ({row.leftScore} − {row.rightScore}) × {points.format(row.weight)}% ≈ {t('apl.detail.score', { n: signed(row.gap ?? 0) })}
                 </li>
               ))}
             </ul>

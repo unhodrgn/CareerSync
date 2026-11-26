@@ -21,10 +21,10 @@ def _dedupe(values: list[str]) -> list[str]:
 class PreferenceIn(BaseModel):
     """The whole preference set; PUT replaces it. Empty lists mean "no preference" for that field."""
 
-    locations: list[str] = Field(default_factory=list, max_length=MAX_ITEMS, description='희망 근무지, e.g. "서울"')
+    locations: list[str] = Field(default_factory=list, max_length=MAX_ITEMS, description='Preferred work locations, e.g. "Seoul"')
     employment_types: list[EmploymentType] = Field(default_factory=list, max_length=3)
     job_keywords: list[str] = Field(
-        default_factory=list, max_length=MAX_ITEMS, description='희망 직무 키워드, e.g. "백엔드", "Java"'
+        default_factory=list, max_length=MAX_ITEMS, description='Preferred job keywords, e.g. "Backend", "Java"'
     )
     profile_public: bool = Field(False, description="Opt-in to appear anonymously in talent recommendation")
 

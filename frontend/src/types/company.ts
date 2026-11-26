@@ -4,7 +4,7 @@ export interface CompanyOut {
   id: number;
   name: string;
   intro: string;
-  /** 인재상 */
+  /** Who we look for */
   talent_profile: string;
 }
 

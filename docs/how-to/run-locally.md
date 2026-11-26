@@ -322,3 +322,4 @@ If the agent container keeps restarting, `docker compose --profile voice logs ag
 | Build the frontend | `frontend/` | `npm run build` |
 | Open a SQL shell | anywhere | `docker exec -it careersync-db psql -U postgres -d careersync_db` |
 | Reset the database | anywhere | `docker rm -f careersync-db` and `docker volume rm careersync-pgdata`, then step 2 and step 5 again |
+| Reset the Compose database | repo root | `docker compose --profile voice down`, `docker volume rm careersync_pgdata` (the database only; the model cache stays), then `docker compose up --build`: the `init` service runs `alembic upgrade head` and `scripts/seed.py` again |

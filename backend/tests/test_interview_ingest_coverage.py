@@ -236,10 +236,10 @@ def test_the_backend_does_not_improve_or_infer_a_status_from_what_was_said(db, c
 # ── Against the real engine ──
 
 CRIT = [
-    PlanCriterion(1, "Java", "skill", "Java 개발 경험", "핵심", 0),
-    PlanCriterion(2, "Spring Boot", "skill", "Spring Boot 실무", "핵심", 1),
-    PlanCriterion(3, "MySQL", "skill", "MySQL 운영", "중요", 2),
-    PlanCriterion(4, "협업", "other", "팀 협업 경험", "중요", 3),
+    PlanCriterion(1, "Java", "skill", "Java 개발 경험", "core", 0),
+    PlanCriterion(2, "Spring Boot", "skill", "Spring Boot 실무", "core", 1),
+    PlanCriterion(3, "MySQL", "skill", "MySQL 운영", "important", 2),
+    PlanCriterion(4, "협업", "other", "팀 협업 경험", "important", 3),
 ]
 TEXTS = [
     "", "네", "음 글쎄요 잘 모르겠습니다", "다시 한 번 말씀해 주시겠어요", "질문이 무슨 뜻인지 잘 모르겠어요 설명해 주세요",

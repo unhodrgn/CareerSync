@@ -10,11 +10,9 @@ function toLocalDate(value: string): Date {
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
 }
 
-/** `2026.10.19` */
+/** `Oct 19, 2026` */
 export function formatDate(value: string): string {
-  const d = toLocalDate(value);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+  return toLocalDate(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /** Whole days from today to the date (0 = today, negative = past). */
@@ -26,7 +24,7 @@ export function daysUntil(value: string): number {
   return Math.round((day.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** 마감 · 상시 채용 · 오늘 마감 · D-n */
+/** Closed · Open until filled · Closes today · D-n */
 export function deadlineLabel(job: { deadline: string | null; expired?: boolean }): string {
   if (job.expired) return t('common.closed');
   if (!job.deadline) return t('common.always');
@@ -35,12 +33,12 @@ export function deadlineLabel(job: { deadline: string | null; expired?: boolean 
   return d === 0 ? t('common.dToday') : t('common.dDay', { n: d });
 }
 
-/** `min_experience_years`: null or 0 = 신입 가능. */
+/** `min_experience_years`: null or 0 = Entry level. */
 export function experienceLabel(years: number | null): string {
   return years == null || years === 0 ? t('common.newcomer') : t('common.years', { n: years });
 }
 
-/** 1년 3개월 · 2년 · 5개월 */
+/** 1 yr 3 mo · 2 yr · 5 mo */
 export function monthsLabel(months: number): string {
   const y = Math.floor(months / 12);
   const m = months % 12;

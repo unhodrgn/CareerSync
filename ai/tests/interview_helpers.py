@@ -22,10 +22,10 @@ def crit(cid: int, name: str, category: str, description: str, importance: str, 
 
 # Two 핵심, one 중요, one 일반: with the default cap (5) the plan is warm-up, c1, c2, c4, behavioral and c3 has no slot
 CRITERIA = [
-    crit(1, "Java 활용 능력", "skill", "Java 17, Spring Boot 사용 경험", "핵심"),
-    crit(2, "프로젝트 경험", "project", "REST API를 설계하고 문서화한 경험", "핵심"),
-    crit(3, "협업 태도", "other", "코드 리뷰 문화", "일반"),
-    crit(4, "관련 전공", "education", "", "중요"),
+    crit(1, "Java 활용 능력", "skill", "Java 17, Spring Boot 사용 경험", "core"),
+    crit(2, "프로젝트 경험", "project", "REST API를 설계하고 문서화한 경험", "core"),
+    crit(3, "협업 태도", "other", "코드 리뷰 문화", "general"),
+    crit(4, "관련 전공", "education", "", "important"),
 ]
 
 

@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 
-// The pathname the app showed last, shared by every layout: moving between shells (로그인 → the seeker shell) still
+// The pathname the app showed last, shared by every layout: moving between shells (Log in → the seeker shell) still
 // counts as navigation, while the app's first render does not move focus.
 let shownPath: string | null = null;
 // The running follow-up of the last navigation. Only the next navigation stops it, not an unmount: a shell can remount
-// on the same page (a seeker page → 공고 목록 swaps SeekerLayout for BrowseLayout; RequireRole after login)
+// on the same page (a seeker page → Job list swaps SeekerLayout for BrowseLayout; RequireRole after login)
 let stopPending: (() => void) | null = null;
 
 // How long a page may take to show its H1 after a navigation before focus is left where it is

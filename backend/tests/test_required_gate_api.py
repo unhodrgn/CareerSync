@@ -237,7 +237,7 @@ def test_applicant_list_labels_and_filters_but_never_excludes_or_reranks(client,
     gate = detail["required_gate"]
     assert (gate["status"], gate["basis"]) == ("FAIL", "stated")
     assert (gate["checks"][0]["required_months"], gate["checks"][0]["candidate_months"]) == (36, 0)
-    assert detail["fit"] == 90.0 and detail["notice"].startswith("AI 분석은 참고용")
+    assert detail["fit"] == 90.0 and detail["notice"].startswith("AI analysis is for reference only")
 
     # Nothing changed: stored scores, statuses
     assert _stored_scores(db) == before

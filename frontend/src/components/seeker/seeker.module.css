@@ -130,7 +130,7 @@ a.jobTitle:hover {
   max-width: 46em;
 }
 
-/* The JD's own section heads (주요 업무, 자격 요건 …) are h2 under the job title, at the Heading size */
+/* The JD's own section heads (Responsibilities, Requirements …) are h2 under the job title, at the Heading size */
 .jd h2 {
   margin: var(--ds-space-6) 0 var(--ds-space-2);
   font-size: var(--ds-text-heading);
@@ -162,7 +162,7 @@ a.jobTitle:hover {
   gap: var(--ds-space-4);
 }
 
-/* 기업 소개 is a sibling of the JD's section heads (h2), so it takes their size; 인재상 and projects stay h3 */
+/* About the company is a sibling of the JD's section heads (h2), so it takes their size; Who we look for and projects stay h3 */
 .companyHead {
   margin: 0 0 var(--ds-space-2);
   font-size: var(--ds-text-heading);
@@ -194,7 +194,7 @@ a.jobTitle:hover {
   color: var(--ds-ink);
 }
 
-/* 기업 정보: its section headings at the standard 18/700 (ui.panelTitle), with the gap 기업 소개 has on job detail */
+/* Company: its section headings at the standard 18/700 (ui.panelTitle), with the gap About the company has on job detail */
 .publicSectionTitle {
   margin-bottom: var(--ds-space-2);
 }
@@ -215,7 +215,7 @@ a.jobTitle:hover {
   gap: 6px;
 }
 
-/* A panel title with a label at the other end of its row (이 공고의 평가 기준 · AI 분석) */
+/* A panel title with a label at the other end of its row (Criteria for this job · AI analysis) */
 .asideHead {
   display: flex;
   align-items: center;
@@ -304,7 +304,7 @@ a.jobTitle:hover {
   color: var(--ds-ink);
 }
 
-/* One line under the 추천 공고 lead while the talent opt-in is off */
+/* One line under the Recommended jobs lead while the talent opt-in is off */
 .talentHint {
   margin: var(--ds-space-3) 0 0;
   font-size: var(--ds-text-meta);
@@ -333,7 +333,7 @@ a.jobTitle:hover {
   margin-left: auto;
 }
 
-/* ── 추천 공고: the seeker's preferences as chips above the result (DESIGN.md Preference chips) ── */
+/* ── Recommended jobs: the seeker's preferences as chips above the result (DESIGN.md Preference chips) ── */
 
 .prefBar {
   margin-bottom: var(--ds-space-4);
@@ -578,7 +578,7 @@ a.jobTitle:hover {
   color: var(--ds-muted);
 }
 
-/* The word 원문 leading the evidence line: text, not a chip */
+/* The word Original leading the evidence line: text, not a chip */
 .sourceLabel {
   flex: none;
   font-weight: var(--ds-weight-bold);

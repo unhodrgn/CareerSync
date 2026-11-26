@@ -1,7 +1,7 @@
 """Types of the practice-interview engine (docs/DECISIONS.md D51–D54, D57).
 
 Plain dataclasses and enums, JSON-friendly through `to_dict`. Nothing here holds a criterion weight: a plan carries only
-the importance label (핵심 / 중요 / 일반) that the caller derives from the weight (D30, AI rule 9).
+the importance label (core / important / general, D94) that the caller derives from the weight (D30, AI rule 9).
 """
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from ai.career.interview import Kind
 from ai.interview.boundary import render
 from ai.interview.sensitive import SafeText, safe_text
 
-Importance = Literal["핵심", "중요", "일반"]
-IMPORTANCE_RANK: dict[str, int] = {"핵심": 0, "중요": 1, "일반": 2}
+Importance = Literal["core", "important", "general"]
+IMPORTANCE_RANK: dict[str, int] = {"core": 0, "important": 1, "general": 2}
 
 # ── Limits (D57) ──
 # Approved defaults. The backend will read overrides from its settings (M4); the engine only knows these.
@@ -72,7 +72,7 @@ class PlanCriterion:
     name: str
     category: str
     description: str = ""
-    importance: Importance = "일반"
+    importance: Importance = "general"
     position: int = 0
 
 
@@ -336,7 +336,7 @@ class TurnContext:
         """The model view of this turn: every part cut through `safe_text`, in the tags of the turn prompt."""
         out: list[tuple[str, tuple[SafeText, ...]]] = [("question", (safe_text(self.question),))]
         if name := safe_text(self.criterion_name):
-            out.append(("criterion", (safe_text(f"{name} ({self.importance or '일반'})"),)))
+            out.append(("criterion", (safe_text(f"{name} ({self.importance or 'general'})"),)))
         out.append(("rubric", tuple(safe_text(f"{pid} | {safe_text(text) or '(제외됨)'}") for pid, text in self.rubric)))
         if previous := tuple(line for line in map(safe_text, self.previous) if line):
             out.append(("previous", previous))

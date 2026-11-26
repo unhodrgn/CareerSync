@@ -23,7 +23,7 @@ from app.schemas.preference import PreferenceIn, PreferenceOut
 
 def _seeker_only(user: User) -> None:
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Available to job seeker accounts only.")
 
 
 def _find(db: Session, seeker_id: int) -> SeekerPreference | None:

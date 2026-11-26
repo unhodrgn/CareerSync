@@ -208,7 +208,7 @@ def test_no_raw_cv_prompt_or_lease_data_reaches_the_report_or_the_answer(api, db
     system, user = llm.calls[0][0], llm.calls[0][1]
     assert system[40:120] not in response.text and user[:80] not in response.text  # no prompt text in the answer
     assert body["report"]["rubric_notice"] == feedback_module.RUBRIC_NOTICE
-    assert {topic["importance"] for topic in body["report"]["topics"]} <= {"핵심", "중요", "일반", None}  # a label, never a number
+    assert {topic["importance"] for topic in body["report"]["topics"]} <= {"core", "important", "general", None}  # a label, never a number
     assert re.search(r"[0-9a-f]{32}", response.text) is None  # nothing that looks like a lease token
 
 

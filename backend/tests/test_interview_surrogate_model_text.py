@@ -188,7 +188,7 @@ def test_a_bank_with_a_surrogate_is_refused_by_the_creation_of_the_session_and_n
 
     monkeypatch.setattr(plan_service, "make_bank", tainted)
     with pytest.raises(AppError) as error:
-        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
     assert (error.value.status_code, error.value.code) == (422, "INTERVIEW_NOT_AVAILABLE")
     db.rollback()
     session = db.query(InterviewSession).filter_by(seeker_id=world.user.id).one()
@@ -204,7 +204,7 @@ def test_a_bank_field_that_would_be_discarded_is_refused_too(monkeypatch):
 
     bank = [Question("Java를 실무에서 어떻게 사용했는지 구체적인 사례로 설명해 주세요.", 1, "Java", "technical", "Java 경험 확인", ("구체적으로",), "인용" + SURROGATES["a lone high surrogate"] + "문장")]
     monkeypatch.setattr(plan_service, "make_bank", lambda *args, **kwargs: (bank, "rules"))
-    criteria = [PlanCriterion(1, "Java", "skill", "Java 개발 경험", "핵심", 0)]
+    criteria = [PlanCriterion(1, "Java", "skill", "Java 개발 경험", "core", 0)]
     arguments = dict(
         stored_cv=SAMPLE_CV, job_title="Backend Engineer", job_text="Java/Spring 백엔드 API 개발", criteria=criteria, blocklists=interview_blocklists(),
         embedder=ai_runtime.embedder(), skills=ai_runtime.skills(), limits=limits_from_settings(), llm=None,

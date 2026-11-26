@@ -27,8 +27,8 @@ function ReviewList({ items }: { items: CvReviewItem[] }) {
 }
 
 /**
- * CV self-check result (D25): strengths and improvements, no score, in the AI box (AI 분석). Two flat columns.
- * Used on 내 이력서 and on the prep page.
+ * CV self-check result (D25): strengths and improvements, no score, in the AI box (AI analysis). Two flat columns.
+ * Used on My CV and on the prep page.
  */
 export default function ReviewResult({ review }: { review: CvReviewOut }) {
   const affects = review.improvements.some((x) => x.affects_scoring);

@@ -19,7 +19,7 @@ from app.services import interview_ingest_service as ingest
 from app.services import interview_service
 from app.services.career_service import interview_blocklists
 
-CONSENT_VERSION = "2026-11-16"
+CONSENT_VERSION = "2026-11-26"
 LIMITS = {"max_questions": 5, "max_seconds": 600, "max_followups_per_item": 2, "max_clarifies_per_item": 1}
 
 
@@ -236,7 +236,7 @@ class PlanLLM:
 
 def new_session(db: Session, world: World, clock: Clock) -> int:
     """A created session (rules mode) for the world's seeker; its plan is the stored canonical one."""
-    created = interview_service.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+    created = interview_service.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
     return created.view.id
 
 

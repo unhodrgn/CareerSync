@@ -63,11 +63,11 @@ def issue(db: Session, user: User, session_id: int, *, clock: Clock = utcnow) ->
         raise interview_service.consent_required_error()
     eff = interview_service.effective(row, now)
     if eff.status == InterviewStatus.PLANNING:
-        raise AppError(409, "INTERVIEW_PLANNING", "면접을 준비하는 중입니다. 잠시 후 다시 시도해 주세요.")
+        raise AppError(409, "INTERVIEW_PLANNING", "The interview is being prepared. Please try again shortly.")
     if not eff.joinable:
-        raise AppError(409, "INTERVIEW_NOT_JOINABLE", "이 모의 면접에는 입장할 수 없습니다.", status=eff.status)
+        raise AppError(409, "INTERVIEW_NOT_JOINABLE", "You cannot join this practice interview.", status=eff.status)
     if not voice_configured():
-        raise AppError(503, "INTERVIEW_VOICE_UNAVAILABLE", "음성 면접을 지금은 준비할 수 없습니다.")
+        raise AppError(503, "INTERVIEW_VOICE_UNAVAILABLE", "The voice interview cannot be prepared right now.")
     room = agent_auth.room_name(session_id, agent_auth.configured_secret() or "")
     remaining = int((as_utc(eff.active_until) - now).total_seconds())
     ttl = max(1, min(settings.INTERVIEW_JOIN_TOKEN_TTL_SECONDS, remaining))

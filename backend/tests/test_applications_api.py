@@ -154,7 +154,7 @@ def test_apply_evaluates_and_ranks(client, db, world, job):
     assert java["score"] == min(basis["cap"], basis["base"] + basis["bonus"] * len(skill["entries"]))
     assert skill["entries"]
     assert ev["items"][-1]["direct_skill_basis"] is None
-    assert ev["summary"] and "참고용" in ev["notice"]
+    assert ev["summary"] and "for reference only" in ev["notice"]
     assert ev["embedding_model"] == "hashing-ngram-v1" and ev["prompt_version"] == "v1"
 
 

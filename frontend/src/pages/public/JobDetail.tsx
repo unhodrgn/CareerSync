@@ -44,7 +44,7 @@ export default function JobDetail() {
   const matchData = match.state.status === 'ok' ? match.state.data : null;
 
   const back = { to: paths.jobs, label: t('job.backToList') };
-  // 백엔드 개발자 – 공고 상세 – CareerSync once the job is loaded; 공고 상세 – CareerSync until then
+  // Backend developer – Job details – CareerSync once the job is loaded; Job details – CareerSync until then
   useDocumentTitle(job.state.status === 'ok' ? job.state.data.title : null);
   if (job.state.status === 'loading') {
     return (
@@ -199,8 +199,8 @@ function MatchSection({ data }: { data: MatchContext }) {
 
 /**
  * The breakdown on job detail. Mounted only when a score is shown, so only then does it ask for the seeker's
- * preferences (guests and companies never reach it): 미설정 when none is set, the number when some are, a loading
- * mark meanwhile, 확인 불가 when the request fails (D46).
+ * preferences (guests and companies never reach it): Not set when none is set, the number when some are, a loading
+ * mark meanwhile, Unavailable when the request fails (D46).
  */
 function MatchBreakdown({ match }: { match: JobMatch }) {
   const { state } = useApi(() => api.myPreferences(), []);

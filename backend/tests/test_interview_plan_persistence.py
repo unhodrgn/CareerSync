@@ -17,9 +17,9 @@ from app.services.interview_plan_service import PlanRefused, build_canonical_pla
 from .interview_fixtures import KEPT_LINES, REMOVED_LINES, SAMPLE_CV, PlanLLM
 
 CRITERIA = [
-    PlanCriterion(1, "Java", "skill", "Java 개발 경험", "핵심", 0),
-    PlanCriterion(2, "Spring Boot", "skill", "Spring Boot 실무 경험", "핵심", 1),
-    PlanCriterion(3, "협업", "other", "팀 협업 경험", "중요", 2),
+    PlanCriterion(1, "Java", "skill", "Java 개발 경험", "core", 0),
+    PlanCriterion(2, "Spring Boot", "skill", "Spring Boot 실무 경험", "core", 1),
+    PlanCriterion(3, "협업", "other", "팀 협업 경험", "important", 2),
 ]
 STATIC_PROMPT = "interview_questions.md"
 
@@ -123,7 +123,7 @@ def test_the_stored_plan_has_no_cv_text_and_no_weight():
     assert "weight" not in text and "weight" not in " ".join(strings(sealed.data)).lower()
     assert set(sealed.data) == {"items", "uncovered", "rubric_notice", "bank_method", "depth"}
     assert sealed.data["depth"] == 2
-    assert {i["importance"] for i in sealed.data["items"]} <= {"핵심", "중요", "일반", None}
+    assert {i["importance"] for i in sealed.data["items"]} <= {"core", "important", "general", None}
 
 
 # ── The CV boundary ──

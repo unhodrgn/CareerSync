@@ -35,7 +35,7 @@ class JobPosting(Base):
     # JD text
     description: Mapped[str] = mapped_column(Text, default="", server_default="")
     employment_type: Mapped[str] = mapped_column(String(20), default="full_time", server_default="full_time")
-    # None = 신입 가능
+    # None = entry level
     min_experience_years: Mapped[int | None] = mapped_column(SmallInteger)
     location: Mapped[str] = mapped_column(String(100), default="", server_default="")
     salary_note: Mapped[str] = mapped_column(String(100), default="", server_default="")

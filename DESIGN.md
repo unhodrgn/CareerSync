@@ -86,6 +86,7 @@ Tokens live in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css
 **Key characteristics:**
 - One palette for both roles. Seekers and companies share every color; the role shows in the navigation and wording only.
 - Responsive web: CSS `@media` rules adapt layouts across desktop and narrower viewports while keeping `word-break: keep-all` and Pretendard `400 / 500 / 700` across `t()` localized copy.
+- UI copy is English (`en.ts`, D94). Korean UI terms quoted below name the same elements; their English labels are in the glossary of `PROJECT_DOCUMENTATION.md` §12.
 - Motion is feedback: page enters, list stagger, press scale; all of it off under `prefers-reduced-motion`.
 
 ## Colors

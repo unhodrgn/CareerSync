@@ -12,7 +12,7 @@ _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 def _clean_email(v: str) -> str:
     v = v.strip().lower()
     if not _EMAIL.match(v):
-        raise ValueError("올바른 이메일 형식이 아닙니다.")
+        raise ValueError("This is not a valid email address.")
     return v
 
 
@@ -31,7 +31,7 @@ class RegisterIn(BaseModel):
     @classmethod
     def _password_strength(cls, v: str) -> str:
         if not (re.search(r"[A-Za-z]", v) and re.search(r"\d", v)):
-            raise ValueError("비밀번호는 영문과 숫자를 모두 포함해야 합니다.")
+            raise ValueError("The password must contain both letters and numbers.")
         return v
 
     @field_validator("display_name", "company_name")
@@ -42,9 +42,9 @@ class RegisterIn(BaseModel):
     @model_validator(mode="after")
     def _rules(self) -> "RegisterIn":
         if not (self.consent_privacy and self.consent_ai):
-            raise ValueError("개인정보 처리 및 AI 분석 안내에 모두 동의해야 가입할 수 있습니다.")
+            raise ValueError("You must agree to both personal data processing and the AI analysis notice to sign up.")
         if self.role == "company" and not self.company_name:
-            raise ValueError("기업 회원은 회사명을 입력해야 합니다.")
+            raise ValueError("Company accounts must enter a company name.")
         if self.role == "seeker":
             self.company_name = None
         return self
@@ -99,5 +99,5 @@ class ConsentIn(BaseModel):
     @model_validator(mode="after")
     def _both(self) -> "ConsentIn":
         if not (self.consent_privacy and self.consent_ai):
-            raise ValueError("개인정보 처리 및 AI 분석 안내에 모두 동의해야 합니다.")
+            raise ValueError("You must agree to both personal data processing and the AI analysis notice.")
         return self

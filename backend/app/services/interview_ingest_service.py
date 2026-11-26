@@ -169,12 +169,12 @@ class _End:
 
 def _bad(field: str) -> AppError:
     log.info("interview turn refused: %s", field)
-    return AppError(422, "INTERVIEW_BAD_TURN", "면접 이벤트가 올바르지 않습니다.", field=field)
+    return AppError(422, "INTERVIEW_BAD_TURN", "The interview event is invalid.", field=field)
 
 
 def _bad_coverage(field: str) -> AppError:
     log.info("interview coverage refused: %s", field)
-    return AppError(422, "INTERVIEW_BAD_COVERAGE", "면접 진행 상태가 올바르지 않습니다.", field=field)
+    return AppError(422, "INTERVIEW_BAD_COVERAGE", "The interview progress state is invalid.", field=field)
 
 
 def _is_int(value: object) -> bool:
@@ -242,7 +242,7 @@ def _store_turn(db: Session, row: InterviewSession, plan: _Plan, turn: _Turn, no
             db.rollback()
             return TurnResult("duplicate", turn.seq, False, 0)
     if turn.seq != last + 1:
-        raise AppError(409, "INTERVIEW_SEQ_GAP", "이전 이벤트가 누락되었습니다.", expected_seq=last + 1)
+        raise AppError(409, "INTERVIEW_SEQ_GAP", "A previous event is missing.", expected_seq=last + 1)
     if turn.role == "candidate" and turn.item_index is not None:
         answered = answered | {turn.item_index}
     _check_coverage_state(previous, turn.coverage, plan, answered)
@@ -298,9 +298,9 @@ def _store_end(db: Session, row: InterviewSession, plan: _Plan, end: _End, now) 
     last, previous, answered = _stored_state(db, session_id)
     if end.closing is not None:
         if end.closing.seq <= last:
-            raise AppError(409, "INTERVIEW_SEQ_CONFLICT", "같은 순번에 다른 내용이 이미 저장되어 있습니다.", seq=end.closing.seq)
+            raise AppError(409, "INTERVIEW_SEQ_CONFLICT", "Different content is already stored for this sequence number.", seq=end.closing.seq)
         if end.closing.seq != last + 1:
-            raise AppError(409, "INTERVIEW_SEQ_GAP", "이전 이벤트가 누락되었습니다.", expected_seq=last + 1)
+            raise AppError(409, "INTERVIEW_SEQ_GAP", "A previous event is missing.", expected_seq=last + 1)
     _check_coverage_state(previous, end.coverage, plan, answered)
     changed = db.execute(
         update(_S)
@@ -330,7 +330,7 @@ def _end_of_a_finished_session(db: Session, row: InterviewSession, end: _End) ->
     if same:
         return EndResult("duplicate", end.status, end.end_reason)
     log.warning("interview end refused: the session is already over with a different payload")
-    raise AppError(409, "INTERVIEW_ALREADY_ENDED", "이미 종료된 면접입니다.", status=row.status)
+    raise AppError(409, "INTERVIEW_ALREADY_ENDED", "This interview has already ended.", status=row.status)
 
 
 # ── Finding the session, the plan and the stored state ──
@@ -341,13 +341,13 @@ def _find(db: Session, session_id: int, now) -> InterviewSession:
         select(InterviewSession).where(InterviewSession.id == session_id, InterviewSession.expires_at > now).execution_options(populate_existing=True)
     ).first()
     if row is None:
-        raise AppError(404, "INTERVIEW_NOT_FOUND", "모의 면접을 찾을 수 없습니다.")
+        raise AppError(404, "INTERVIEW_NOT_FOUND", "Practice interview not found.")
     return row
 
 
 def _load_plan(row: InterviewSession) -> _Plan:
     """The persisted canonical plan, only if it is the one that was stored: the digest must match. Otherwise nothing is accepted."""
-    invalid = AppError(409, "INTERVIEW_PLAN_INVALID", "면접 계획을 확인할 수 없습니다.")
+    invalid = AppError(409, "INTERVIEW_PLAN_INVALID", "The interview plan cannot be verified.")
     if not isinstance(row.plan, dict) or not row.plan_sha256 or plan_digest(row.plan) != row.plan_sha256:
         raise invalid
     try:
@@ -388,7 +388,7 @@ def _is_duplicate(db: Session, session_id: int, turn: _Turn) -> bool:
     if tuple(stored) == turn.identity:
         return True
     log.warning("interview turn conflict at seq %d: the first write stays", turn.seq)
-    raise AppError(409, "INTERVIEW_SEQ_CONFLICT", "같은 순번에 다른 내용이 이미 저장되어 있습니다.", seq=turn.seq)
+    raise AppError(409, "INTERVIEW_SEQ_CONFLICT", "Different content is already stored for this sequence number.", seq=turn.seq)
 
 
 def _insert_turn(db: Session, session_id: int, turn: _Turn, now) -> None:
@@ -409,7 +409,7 @@ def _insert_turn(db: Session, session_id: int, turn: _Turn, now) -> None:
 
 
 def _not_active(eff) -> AppError:
-    return AppError(409, "INTERVIEW_NOT_ACTIVE", "진행 중인 면접이 아닙니다.", status=eff.status, end_grace_open=eff.end_grace_open)
+    return AppError(409, "INTERVIEW_NOT_ACTIVE", "This interview is not in progress.", status=eff.status, end_grace_open=eff.end_grace_open)
 
 
 def _not_active_now(db: Session, session_id: int, now) -> AppError:
@@ -430,7 +430,7 @@ def _clean_turn(event: TurnEvent, plan: _Plan, names: list[str], *, closing: boo
     if not _is_int(event.seq) or event.seq < 1:
         raise _bad("seq")
     if event.seq > (settings.INTERVIEW_MAX_TURNS if closing else settings.INTERVIEW_MAX_TURNS - 1):
-        raise AppError(409, "INTERVIEW_TURN_LIMIT", "저장할 수 있는 발화 수를 넘었습니다.")
+        raise AppError(409, "INTERVIEW_TURN_LIMIT", "The maximum number of stored turns has been exceeded.")
     if closing:
         if event.role != "agent" or event.kind != CLOSING:
             raise _bad("kind")
@@ -451,10 +451,10 @@ def _clean_turn(event: TurnEvent, plan: _Plan, names: list[str], *, closing: boo
         # is refused the same way, never replaced or recombined: nothing can store it, and left alone it would fail at the INSERT as a raw error
         raise _bad("text")
     if len(event.text) > settings.INTERVIEW_MAX_RAW_TURN_CHARS:
-        raise AppError(422, "INTERVIEW_TURN_TOO_LONG", "발화가 너무 깁니다.")
+        raise AppError(422, "INTERVIEW_TURN_TOO_LONG", "The turn is too long.")
     masked = mask_spoken(event.text, names)
     if len(masked.text) > settings.INTERVIEW_MAX_TURN_CHARS:
-        raise AppError(422, "INTERVIEW_TURN_TOO_LONG", "발화가 너무 깁니다.")  # never cut
+        raise AppError(422, "INTERVIEW_TURN_TOO_LONG", "The turn is too long.")  # never cut
     if event.role == "agent" and not masked.text:
         raise _bad("text")  # a candidate's empty answer is a valid event, an empty line of the interviewer is not
     if not isinstance(event.method, str) or not _METHOD.match(event.method):

@@ -8,7 +8,7 @@ from app.schemas.criteria import Category, Importance
 from app.schemas.gate import RequiredGateOut
 from app.schemas.job import EmploymentType
 
-MatchLevel = Literal["매우 적합", "적합", "참고"]
+MatchLevel = Literal["very_good", "good", "reference"]
 
 
 class CategoryScore(BaseModel):

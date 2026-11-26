@@ -76,7 +76,7 @@ def test_rules_review_of_an_unconfirmed_version(client, db):
     body = r.json()
     assert set(body) == {"profile_id", "strengths", "improvements", "method", "limited", "notice"}
     assert body["profile_id"] == cv["id"] and body["method"] == "rules" and body["limited"] is False
-    assert "참고용" in body["notice"]
+    assert "for reference only" in body["notice"]
     assert body["strengths"] and all(s["cv_quote"] for s in body["strengths"])
     assert set(body["strengths"][0]) == {"title", "detail", "cv_quote", "affects_scoring"}
     assert db.scalars(select(CvReview)).all() == []  # rules reviews are not stored

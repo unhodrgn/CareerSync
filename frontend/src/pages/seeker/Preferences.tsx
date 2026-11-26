@@ -28,7 +28,7 @@ function addDraft(items: string[], draft: string): { items: string[]; error: Mes
   return { items: [...items, v], error: null };
 }
 
-/** The text typed into a chip list but not added yet; the form owns it, so 희망 조건 저장 can add it or stop on it. */
+/** The text typed into a chip list but not added yet; the form owns it, so Save preferences can add it or stop on it. */
 function useChipDraft() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<MessageKey | null>(null);

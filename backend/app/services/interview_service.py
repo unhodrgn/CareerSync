@@ -75,7 +75,7 @@ CONSENT_REQUIRED = "AI_CONSENT_REQUIRED"
 def consent_required_error() -> AppError:
     """A practice interview without the current AI consent (D17, D65 (5), D81): one error for every place that refuses it by name, the join
     route (M5 S4) and a session whose planning a withdrawal ended. Its code is the one of the other AI features."""
-    return AppError(409, CONSENT_REQUIRED, "모의 면접을 하려면 최신 AI 분석 동의가 필요합니다.")
+    return AppError(409, CONSENT_REQUIRED, "A practice interview requires the current AI analysis consent.")
 
 
 # ── What the service returns (the router returns these, and the response models of `app/schemas/interview.py` shape them) ──
@@ -163,14 +163,14 @@ class MaintenanceReport:
 
 def _seeker_only(user: User) -> None:
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Available to job seeker accounts only.")
 
 
 def _open_job(db: Session, job_id: int) -> JobPosting:
     """Published and not past its deadline. (`job_service.get_visible_job` also shows expired jobs to a logged-in user.)"""
     job = db.get(JobPosting, job_id)
     if job is None or job.status != JobStatus.PUBLISHED or (job.deadline is not None and job.deadline < date.today()):
-        raise AppError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
+        raise AppError(404, "JOB_NOT_FOUND", "Job not found.")
     return job
 
 
@@ -182,7 +182,7 @@ def _plan_criteria(db: Session, job_id: int) -> list[PlanCriterion]:
         for index, c in enumerate(scoring.items)
     ]
     if not out:
-        raise AppError(422, "INTERVIEW_NOT_AVAILABLE", "이 공고로는 모의 면접을 준비할 수 없습니다.")
+        raise AppError(422, "INTERVIEW_NOT_AVAILABLE", "A practice interview cannot be prepared for this job.")
     return out
 
 
@@ -235,7 +235,7 @@ def create_session(
         )
     except PlanRefused as refused:
         _abort_planning(db, session_id, "plan_unavailable", clock)
-        raise AppError(422, "INTERVIEW_NOT_AVAILABLE", "이 공고로는 모의 면접을 준비할 수 없습니다.") from refused
+        raise AppError(422, "INTERVIEW_NOT_AVAILABLE", "A practice interview cannot be prepared for this job.") from refused
     except Exception:
         _abort_planning(db, session_id, "internal_error", clock, best_effort=True)
         raise
@@ -262,12 +262,12 @@ def create_session(
     if changed != 1:  # nothing is brought back, and nothing is refunded
         found = db.execute(select(_S.c.status, _S.c.end_reason).where(_S.c.id == session_id, _S.c.seeker_id == seeker_id)).first()
         if found is None:
-            raise AppError(404, NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+            raise AppError(404, NOT_FOUND, "Practice interview not found.")
         if found.status == InterviewStatus.ABORTED and found.end_reason == CONSENT_WITHDRAWN:
             db.refresh(user)  # another request withdrew the consent: read what the seeker has now
             if not has_ai_consent(user):  # a seeker who consented again is told to start again, as for any lost reservation
                 raise consent_required_error()
-        raise AppError(409, "INTERVIEW_PLANNING_EXPIRED", "면접 준비 시간이 지났습니다. 다시 시작해 주세요.", session_id=session_id)
+        raise AppError(409, "INTERVIEW_PLANNING_EXPIRED", "The interview preparation time has run out. Please start again.", session_id=session_id)
     row, title = _load_own(db, seeker_id, session_id, t3)
     return CreatedSession(_view(db, row, title, t3), limited)
 
@@ -298,14 +298,14 @@ def _reserve(db: Session, seeker_id: int, job_id: int, cv_profile_id: int, model
         ).first()
         if active is None:  # not the one-active-session index: nothing to explain, so nothing to hide
             raise
-        raise AppError(409, "INTERVIEW_SESSION_ACTIVE", "진행 중인 모의 면접이 있습니다.", session_id=active.id, status=active.status) from None
+        raise AppError(409, "INTERVIEW_SESSION_ACTIVE", "You already have a practice interview in progress.", session_id=active.id, status=active.status) from None
     session_id = row.id
     if not interview_quota_service.claim(db, seeker_id, QuotaKind.SESSION, now=now):
         db.rollback()
         raise AppError(
             429,
             "INTERVIEW_DAILY_LIMIT",
-            "오늘 만들 수 있는 모의 면접 횟수를 모두 사용했습니다.",
+            "You have used all the practice interviews you can create today.",
             quota="sessions",
             limit=interview_quota_service.limit_for(QuotaKind.SESSION),
             resets_at=_resets_at(now),
@@ -412,7 +412,7 @@ def _load_own(db: Session, seeker_id: int, session_id: int, now: datetime) -> tu
         .execution_options(populate_existing=True)
     ).first()
     if found is None:
-        raise AppError(404, NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+        raise AppError(404, NOT_FOUND, "Practice interview not found.")
     return found[0], found[1]
 
 
@@ -501,7 +501,7 @@ def end(db: Session, user: User, session_id: int, *, clock: Clock = utcnow) -> S
     settle(db, user.id, now)
     row, title = _load_own(db, user.id, session_id, now)
     if row.status == InterviewStatus.PLANNING:
-        raise AppError(409, "INTERVIEW_PLANNING", "면접을 준비하는 중입니다. 잠시 후 다시 시도해 주세요.")
+        raise AppError(409, "INTERVIEW_PLANNING", "The interview is being prepared. Please try again shortly.")
     if row.status in (InterviewStatus.CREATED, InterviewStatus.LIVE):
         grace = timedelta(seconds=settings.INTERVIEW_END_GRACE_SECONDS)
         db.execute(
@@ -531,7 +531,7 @@ def delete(db: Session, user: User, session_id: int, *, clock: Clock = utcnow) -
     removed = db.execute(sql_delete(_S).where(_S.c.id == session_id, _S.c.seeker_id == user.id)).rowcount
     db.commit()
     if removed != 1:
-        raise AppError(404, NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+        raise AppError(404, NOT_FOUND, "Practice interview not found.")
 
 
 def abort_for_consent_withdrawal(db: Session, seeker_id: int, now: datetime) -> int:

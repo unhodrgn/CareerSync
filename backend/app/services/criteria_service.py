@@ -2,7 +2,7 @@
 
 Rules (see PROJECT_DOCUMENTATION.md §3.2):
 - 1 to CRITERIA_MAX_ITEMS items per job, names unique (case-insensitive), integer weights summing to 100.
-- An education criterion names at least one major (or 이공계/STEM); checked for drafts and on publish.
+- An education criterion names at least one major (or 이공계 (STEM)); checked for drafts and on publish.
 - Every save passes the criteria guardrail (ai/guardrails); blocked attempts are logged.
 - Draft job: the set is replaced freely. Published or closed job: only weights and order may change.
 - Scoring and recommendation read criteria through `load_for_scoring` only.
@@ -38,10 +38,10 @@ def check(name: str, description: str) -> GuardrailResult:
 
 def importance_level(weight: int) -> str:
     if weight >= settings.IMPORTANCE_HIGH:
-        return "핵심"
+        return "core"
     if weight >= settings.IMPORTANCE_MID:
-        return "중요"
-    return "일반"
+        return "important"
+    return "general"
 
 
 def hit_dict(hit: GuardrailHit, index: int | None = None) -> dict:
@@ -64,18 +64,18 @@ def _validate_shape(items: list[CriterionIn]) -> None:
         raise CriteriaError(
             422,
             "CRITERIA_COUNT_INVALID",
-            f"평가 항목은 1개 이상 {settings.CRITERIA_MAX_ITEMS}개 이하로 설정해야 합니다.",
+            f"Set between 1 and {settings.CRITERIA_MAX_ITEMS} criteria.",
             count=len(items),
         )
     counts = Counter(item.name.strip().lower() for item in items)
     if duplicates := sorted(name for name, n in counts.items() if n > 1):
-        raise CriteriaError(422, "CRITERIA_DUPLICATE_NAME", "평가 항목 이름이 중복되었습니다.", names=duplicates)
+        raise CriteriaError(422, "CRITERIA_DUPLICATE_NAME", "Two criteria have the same name.", names=duplicates)
     total = sum(item.weight for item in items)
     if total != settings.CRITERIA_WEIGHT_TOTAL:
         raise CriteriaError(
             422,
             "WEIGHT_SUM_INVALID",
-            f"가중치 합계는 {settings.CRITERIA_WEIGHT_TOTAL}이어야 합니다. (현재 {total})",
+            f"Weights must add up to {settings.CRITERIA_WEIGHT_TOTAL} (current total: {total}).",
             total=total,
         )
 
@@ -90,7 +90,7 @@ def _validate_education(items: list[CriterionIn]) -> None:
         raise CriteriaError(
             422,
             "CRITERIA_MAJOR_REQUIRED",
-            "학력(전공) 항목에는 평가할 전공을 하나 이상 적어야 합니다. 예: '컴퓨터공학 전공', '경영학과', '이공계 전공'",
+            "An education (major) criterion must name at least one major, e.g. 'Computer science major', 'Business administration', 'STEM major'",
             items=missing,
         )
 
@@ -116,7 +116,7 @@ def _enforce_guardrail(db: Session, job: JobPosting, items: list[CriterionIn]) -
             )
     if blocked:
         db.commit()  # keep the audit log even though the save is rejected
-        raise CriteriaError(422, "CRITERIA_BLOCKED", "사용할 수 없는 평가 기준이 포함되어 있습니다.", items=blocked)
+        raise CriteriaError(422, "CRITERIA_BLOCKED", "Some criteria cannot be used.", items=blocked)
     return bl.version
 
 
@@ -125,11 +125,11 @@ def _enforce_lock(job: JobPosting, items: list[CriterionIn]) -> None:
     existing = {c.id: c for c in job.criteria}
     incoming_ids = [item.id for item in items]
     if sorted(i for i in incoming_ids if i is not None) != sorted(existing) or None in incoming_ids:
-        raise CriteriaError(409, "CRITERIA_LOCKED", "게시된 공고는 평가 항목을 추가하거나 삭제할 수 없습니다. 가중치만 변경할 수 있습니다.")
+        raise CriteriaError(409, "CRITERIA_LOCKED", "Criteria cannot be added to or deleted from a published job. Only weights can change.")
     for item in items:
         current = existing[item.id]
         if (item.name, item.description, item.category) != (current.name, current.description, current.category):
-            raise CriteriaError(409, "CRITERIA_LOCKED", "게시된 공고는 평가 항목 내용을 수정할 수 없습니다. 가중치만 변경할 수 있습니다.")
+            raise CriteriaError(409, "CRITERIA_LOCKED", "Criteria of a published job cannot be edited. Only weights can change.")
 
 
 # ── Writes ──
@@ -173,7 +173,7 @@ def replace_set(db: Session, job: JobPosting, items: list[CriterionIn]) -> JobPo
 
 def copy_set(db: Session, target: JobPosting, source: JobPosting) -> JobPosting:
     if target.status != JobStatus.DRAFT:
-        raise CriteriaError(409, "CRITERIA_LOCKED", "게시된 공고에는 평가 기준을 복사할 수 없습니다.")
+        raise CriteriaError(409, "CRITERIA_LOCKED", "Criteria cannot be copied into a published job.")
     items = [
         CriterionIn(name=c.name, description=c.description, category=c.category, weight=c.weight)
         for c in source.criteria
@@ -194,7 +194,7 @@ def assert_publishable(job: JobPosting) -> None:
     _validate_education(items)
     blocked = [hit_dict(hit, i) for i, item in enumerate(items) for hit in check(item.name, item.description).hits]
     if blocked:
-        raise CriteriaError(422, "CRITERIA_BLOCKED", "사용할 수 없는 평가 기준이 포함되어 있습니다.", items=blocked)
+        raise CriteriaError(422, "CRITERIA_BLOCKED", "Some criteria cannot be used.", items=blocked)
 
 
 @dataclass(frozen=True)
@@ -233,7 +233,7 @@ def load_for_scoring(db: Session, job_id: int) -> ScoringCriteria:
     """
     job = db.get(JobPosting, job_id)
     if job is None:
-        raise CriteriaError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
+        raise CriteriaError(404, "JOB_NOT_FOUND", "Job not found.")
     bl = blocklist()
     usable, excluded = [], []
     for c in job.criteria:

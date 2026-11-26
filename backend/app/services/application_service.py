@@ -31,7 +31,7 @@ from app.services import ai_runtime, criteria_service, cv_service, evaluation_se
 
 
 def _not_found() -> AppError:
-    return AppError(404, "APPLICATION_NOT_FOUND", "지원 내역을 찾을 수 없습니다.")
+    return AppError(404, "APPLICATION_NOT_FOUND", "Application not found.")
 
 
 def _evaluation(db: Session, app: Application) -> Evaluation | None:
@@ -62,25 +62,25 @@ def _already_applied(db: Session, job_id: int, seeker_id: int) -> bool:
 
 
 def _already_applied_error() -> AppError:
-    return AppError(409, "ALREADY_APPLIED", "이미 지원한 공고입니다.")
+    return AppError(409, "ALREADY_APPLIED", "You already applied to this job.")
 
 
 def apply(db: Session, user: User, job_id: int) -> tuple[Application, Evaluation, datetime | None]:
     """The application, its evaluation, and the queue token when scoring must start (None if a run
     already owns the evaluation or it is done)."""
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 지원할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Only job seeker accounts can apply.")
     job = job_service.get_published_job(db, job_id)
     if job.deadline is not None and job.deadline < date.today():
-        raise AppError(409, "JOB_EXPIRED", "마감된 공고입니다.")
+        raise AppError(409, "JOB_EXPIRED", "This job is closed.")
     if user.consent_ai_at is None:
-        raise AppError(409, "AI_CONSENT_REQUIRED", "AI 분석 동의 후 지원할 수 있습니다.")
+        raise AppError(409, "AI_CONSENT_REQUIRED", "You can apply after consenting to AI analysis.")
     try:
         profile = cv_service.latest_confirmed(db, user)
     except AppError:
         profile = None
     if profile is None:
-        raise AppError(409, "CV_NOT_CONFIRMED", "이력서 분석 결과를 확인(저장)한 뒤 지원할 수 있습니다.")
+        raise AppError(409, "CV_NOT_CONFIRMED", "You can apply after confirming (saving) your CV analysis.")
     if _already_applied(db, job.id, user.id):
         raise _already_applied_error()
     app = Application(job_id=job.id, seeker_id=user.id, cv_profile_id=profile.id)
@@ -150,7 +150,7 @@ def ranked(
         rows[a.id] = ApplicantRow(
             application_id=a.id,
             rank=None,
-            name=a.seeker.display_name or "(이름 없음)",
+            name=a.seeker.display_name or "(No name)",
             email=a.seeker.email,
             status=a.status,
             applied_at=a.created_at,
@@ -237,7 +237,7 @@ def evaluation(db: Session, user: User, application_id: int) -> EvaluationOut:
     return EvaluationOut(
         application_id=app.id,
         job_id=app.job_id,
-        name=app.seeker.display_name or "(이름 없음)",
+        name=app.seeker.display_name or "(No name)",
         status=ev.status if ev else EvaluationStatus.PENDING,
         error=ev.error if ev else "",
         fit=fit,
@@ -266,14 +266,14 @@ def retry(db: Session, user: User, application_id: int) -> tuple[Evaluation, dat
     409 when it is done or a run still owns it (issue 2)."""
     app = get_owned(db, user, application_id)
     if app.seeker.consent_ai_at is None:
-        raise AppError(409, "AI_CONSENT_WITHDRAWN", "지원자가 AI 분석 동의를 철회하여 다시 분석할 수 없습니다.")
+        raise AppError(409, "AI_CONSENT_WITHDRAWN", "The applicant withdrew AI analysis consent, so the analysis cannot be rerun.")
     ev = evaluation_service.ensure(db, app.job_id, app.cv_profile_id)
     token = evaluation_service.claim(db, ev, reset_attempts=True)
     if token is None:
         db.rollback()
         db.refresh(ev)
         if ev.status == EvaluationStatus.DONE:
-            raise AppError(409, "EVALUATION_DONE", "이미 완료된 평가입니다.")
-        raise AppError(409, "EVALUATION_IN_PROGRESS", "평가가 진행 중입니다. 잠시 후 다시 시도하세요.")
+            raise AppError(409, "EVALUATION_DONE", "This evaluation is already complete.")
+        raise AppError(409, "EVALUATION_IN_PROGRESS", "The evaluation is in progress. Please try again shortly.")
     db.commit()
     return ev, token

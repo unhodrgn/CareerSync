@@ -82,7 +82,7 @@ def test_pg_a_cv_with_nul_is_refused_before_the_model_and_nothing_is_stored(db, 
     llm = PlanLLM(db)
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     with pytest.raises(AppError) as error:
-        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
     assert (error.value.status_code, error.value.code) == (422, "INTERVIEW_NOT_AVAILABLE")
     db.rollback()
     session = db.query(InterviewSession).filter_by(seeker_id=world.user.id).one()
@@ -96,7 +96,7 @@ def test_pg_questions_with_nul_from_the_model_are_refused_and_no_plan_is_stored(
     llm = PlanLLM(db, question=lambda _cid, name: f"{name} 경험을 말씀{NUL}해 주세요.")
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     with pytest.raises(AppError) as error:
-        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+        svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
     assert (error.value.status_code, error.value.code) == (422, "INTERVIEW_NOT_AVAILABLE")
     db.rollback()
     session = db.query(InterviewSession).filter_by(seeker_id=world.user.id).one()

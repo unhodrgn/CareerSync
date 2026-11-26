@@ -310,7 +310,7 @@ def test_the_topics_and_statuses_come_from_the_engine():
     assert {t.topic_id: t.status for t in report.topics} == {"warmup": "demonstrated", "c1": "partial", "c2": "skipped", "c4": "not_shown", "behavioral": "demonstrated"}
     assert [t.name for t in report.topics][:2] == [feedback_module.WARMUP_LABEL, "Java 활용 능력"]
     assert [(u.topic_id, u.name, u.reason) for u in report.uncovered] == [("c3", "협업 태도", "no_slot")]
-    assert {t.importance for t in report.topics} <= {"핵심", "중요", "일반", None}
+    assert {t.importance for t in report.topics} <= {"core", "important", "general", None}
 
 
 def test_the_rules_report_of_a_mixed_interview():
@@ -387,7 +387,7 @@ def test_the_request_is_a_boundary_input_with_the_four_sections():
     assert request.system == (PROMPT_DIR / "interview_feedback.md").read_text(encoding="utf-8")
     for tag in ("plan", "rubric", "asked", "transcript"):
         assert request.user.count(f"<{tag}>") == 1 and request.user.count(f"</{tag}>") == 1
-    assert "c2 | 프로젝트 경험 | 핵심 | skipped" in request.user and "c3 | 협업 태도 | 일반 | not_asked" in request.user
+    assert "c2 | 프로젝트 경험 | core | skipped" in request.user and "c3 | 협업 태도 | general | not_asked" in request.user
     assert "c1.p2 | Spring Boot 사용 경험 | not_shown" in request.user
     assert "c1 | candidate | " + PARTIAL_JAVA in request.user and "| interviewer | " in request.user
     assert not is_sensitive(request.user)

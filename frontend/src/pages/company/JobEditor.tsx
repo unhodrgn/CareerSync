@@ -93,7 +93,7 @@ function Loader({ jobId }: { jobId: number | null }) {
     jobId == null ? 'new' : 'loading',
   );
   const [round, setRound] = useState(0);
-  // An existing job names the tab (백엔드 개발자 – 공고 수정 – CareerSync); a new one keeps 공고 작성
+  // An existing job names the tab (Backend developer – Edit job – CareerSync); a new one keeps New job
   useDocumentTitle(typeof state === 'object' && 'job' in state ? state.job.title : null);
   useEffect(() => {
     if (jobId == null) return;
@@ -397,10 +397,10 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
       if (await save()) setNotice('editor.saved');
     });
 
-  // 저장 on a published job whose weights changed asks first while analyzed applicants may exist
+  // Save on a published job whose weights changed asks first while analyzed applicants may exist
   const askSave = () => (reweighRisk ? openConfirm('weights') : onSave());
 
-  // 게시하기 asks first; the checks the save would run come before the question, so it is not asked in vain
+  // Publish asks first; the checks the save would run come before the question, so it is not asked in vain
   const askPublish = () => {
     setPageError(null);
     if (!job && !form.title.trim()) {
@@ -442,9 +442,9 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
       }
     });
 
-  // After a publish attempt, once the bar is enabled again. Success: the success message (the 게시하기 button is gone),
+  // After a publish attempt, once the bar is enabled again. Success: the success message (the Publish button is gone),
   // read once on focus. Failure: focus the error handling already moved stays; else the first field marked invalid
-  // (its error is its description); else 게시하기, back and enabled, with the error announced by its alert.
+  // (its error is its description); else Publish, back and enabled, with the error announced by its alert.
   useEffect(() => {
     if (!publishOutcome || busy !== null) return;
     setPublishOutcome(null);
@@ -546,7 +546,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
       <div className={s.editor}>
         <div className={ui.stack} ref={formRef}>
           {basicsLocked && (
-            // After 마감 the confirm's trigger is gone: focus lands here
+            // After Close job the confirm's trigger is gone: focus lands here
             <p ref={focus.fallbackRef} tabIndex={-1} className={ui.notice}>
               {closed ? t('editor.closed') : t('editor.lockedHint')}
             </p>
@@ -799,7 +799,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
                 </div>
               ) : (
                 <>
-                  {/* A live region for every notice except 게시했습니다, which takes focus and is read once that way */}
+                  {/* A live region for every notice except Published, which takes focus and is read once that way */}
                   <span className={ui.actionBarText} role={notice === 'editor.published' ? undefined : 'status'}>
                     {notice ? (
                       <span className={ui.done} ref={notice === 'editor.published' ? successRef : undefined} tabIndex={notice === 'editor.published' ? -1 : undefined}>
@@ -943,7 +943,7 @@ function reweighText(analyzed: number | 'unknown' | null, kind: 'warning' | 'con
 }
 
 /**
- * The confirm before 게시하기: what publishing does, the fields that lock and those that stay editable (the form's own
+ * The confirm before Publish: what publishing does, the fields that lock and those that stay editable (the form's own
  * labels, so the lists follow the form; backend EDITABLE_AFTER_PUBLISH and the criteria lock), that it cannot be
  * undone, and that unsaved changes are saved with it.
  */

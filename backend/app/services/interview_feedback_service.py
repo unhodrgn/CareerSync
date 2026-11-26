@@ -160,15 +160,15 @@ _SPENT = "spent"  # T1: the attempts are used up and no lease is valid
 
 
 def _plan_invalid() -> AppError:
-    return AppError(409, PLAN_INVALID, "면접 계획을 확인할 수 없습니다.")
+    return AppError(409, PLAN_INVALID, "The interview plan cannot be verified.")
 
 
 def _not_found() -> AppError:
-    return AppError(404, interview_service.NOT_FOUND, "모의 면접을 찾을 수 없습니다.")
+    return AppError(404, interview_service.NOT_FOUND, "Practice interview not found.")
 
 
 def _busy(retry_after: int) -> AppError:
-    return AppError(409, BUSY, "피드백을 만드는 중입니다. 잠시 후 다시 시도해 주세요.", retry_after_seconds=retry_after)
+    return AppError(409, BUSY, "The feedback is being created. Please try again shortly.", retry_after_seconds=retry_after)
 
 
 def _retry_after(lease_until: datetime | None, now: datetime) -> int:
@@ -268,10 +268,10 @@ def _read(db: Session, user: User, seeker_id: int, session_id: int, now: datetim
     if done is not None:
         return done
     if not interview_service.has_ai_consent(user):
-        raise AppError(409, CONSENT_REQUIRED, "모의 면접 피드백을 만들려면 최신 AI 분석 동의가 필요합니다.")
+        raise AppError(409, CONSENT_REQUIRED, "Practice interview feedback requires the current AI analysis consent.")
     eff = interview_service.effective(row, now)
     if eff.status not in FINAL_STATUSES:
-        raise AppError(409, NOT_ENDED, "아직 끝나지 않은 면접입니다.", status=eff.status)
+        raise AppError(409, NOT_ENDED, "This interview has not ended yet.", status=eff.status)
     coverage = row.coverage if isinstance(row.coverage, dict) else None
     turns = tuple(
         Turn(r.seq, r.role, r.kind, r.item_index, r.text, analysis=r.analysis if isinstance(r.analysis, dict) else None)

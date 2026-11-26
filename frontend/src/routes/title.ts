@@ -46,7 +46,7 @@ export function startTitleSync(router: ReturnType<typeof createBrowserRouter>): 
 
 /**
  * Puts the page's subject in front of its route title once it is known; until then (and with no subject) the static
- * route title stays. `titleKey` replaces the route's page name next to the subject (지원자 관리 → 지원자 상세 while an
+ * route title stays. `titleKey` replaces the route's page name next to the subject (Applicants → Applicant details while an
  * applicant is open). On unmount without navigation the static title comes back.
  */
 export function useDocumentTitle(subject: string | null | undefined, titleKey?: MessageKey): void {

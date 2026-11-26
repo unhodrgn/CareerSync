@@ -95,7 +95,7 @@ def physical_status(db):
 
 
 def create(db, world, clock):
-    return svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+    return svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
 
 
 class Boom:

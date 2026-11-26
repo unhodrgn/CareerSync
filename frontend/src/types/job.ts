@@ -10,13 +10,13 @@ export interface JobOut {
   title: string;
   description: string;
   employment_type: EmploymentType;
-  /** null = 신입 가능. */
+  /** null = Entry level. */
   min_experience_years: number | null;
   location: string;
   salary_note: string;
-  /** `YYYY-MM-DD` or null (상시 채용). */
+  /** `YYYY-MM-DD` or null (Open until filled). */
   deadline: string | null;
-  /** The deadline has passed (shown as 마감); status is unchanged. */
+  /** The deadline has passed (shown as Close); status is unchanged. */
   expired: boolean;
   status: JobStatusName;
   criteria_count: number;

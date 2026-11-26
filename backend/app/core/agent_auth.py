@@ -42,7 +42,7 @@ def _same(given: str, expected: str) -> bool:
 
 
 def _unauthorized() -> AppError:
-    return AppError(401, "AGENT_UNAUTHORIZED", "인증되지 않은 요청입니다.")
+    return AppError(401, "AGENT_UNAUTHORIZED", "Unauthorized request.")
 
 
 def authenticated_room(
@@ -64,4 +64,4 @@ def require_room(session_id: int, room: str) -> None:
     """404 unless `room` is the session's room. Called after `authenticated_room`, so the secret is known to be configured."""
     expected = room_name(session_id, configured_secret() or "")
     if not _same(room, expected):
-        raise AppError(404, "INTERVIEW_NOT_FOUND", "모의 면접을 찾을 수 없습니다.")
+        raise AppError(404, "INTERVIEW_NOT_FOUND", "Practice interview not found.")

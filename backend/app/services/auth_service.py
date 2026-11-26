@@ -14,7 +14,7 @@ from app.schemas.auth import RegisterIn
 def register(db: Session, data: RegisterIn) -> User:
     """Create the user, and for a company account its company, in one transaction."""
     if db.scalar(select(User.id).where(func.lower(User.email) == data.email)) is not None:
-        raise AppError(409, "EMAIL_TAKEN", "이미 가입된 이메일입니다.")
+        raise AppError(409, "EMAIL_TAKEN", "This email is already registered.")
     now = datetime.now(UTC)
     company = None
     if data.role == "company":
@@ -41,5 +41,5 @@ def authenticate(db: Session, email: str, password: str) -> User:
     """The user for these credentials. Unknown email and wrong password give the same error."""
     user = db.scalar(select(User).where(func.lower(User.email) == email))
     if not verify_password(password, user.password_hash if user else None):
-        raise AppError(401, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다.")
+        raise AppError(401, "INVALID_CREDENTIALS", "The email or password is incorrect.")
     return user

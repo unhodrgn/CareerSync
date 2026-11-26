@@ -19,7 +19,7 @@ export function AiNotice({ notice, method, inBox = false }: { notice: string; me
   const label = methodLabel(method);
   return (
     <p className={ui.aiNotice}>
-      {/* Inside an AI box the box's own label (AI 분석 / AI 생성) already marks it */}
+      {/* Inside an AI box the box's own label (AI analysis / AI generated) already marks it */}
       {!inBox && (
         <AiMark />
       )}

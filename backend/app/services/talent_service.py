@@ -57,7 +57,7 @@ def anonymous_id(company_id: int, seeker_id: int) -> str:
 def published_own_job(db: Session, user: User, job_id: int) -> JobPosting:
     job = job_service.get_owned_job(db, job_id, user)
     if job.status != JobStatus.PUBLISHED:
-        raise AppError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
+        raise AppError(404, "JOB_NOT_FOUND", "Job not found.")
     return job
 
 

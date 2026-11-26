@@ -36,7 +36,7 @@ export default function Offers() {
   const shell = useShell();
   const [notice, setNotice] = useState<string | null>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
-  // The offer just answered: it moves to 지난 제안 (a new card), which takes focus there
+  // The offer just answered: it moves to Past offers (a new card), which takes focus there
   const [answeredId, setAnsweredId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -161,14 +161,14 @@ function OfferCard({
   onStale,
 }: {
   offer: SeekerOffer;
-  /** Just answered: this card (now under 지난 제안) takes focus when it appears. */
+  /** Just answered: this card (now under Past offers) takes focus when it appears. */
   autoFocus: boolean;
   onAnswered: (o: SeekerOffer) => void;
   onStale: (e: unknown) => void;
 }) {
   const { user } = useAuth();
   const [confirm, setConfirm] = useState<'accept' | 'decline' | null>(null);
-  // Which button opened the confirm, so 취소 returns focus to it; after an answer the card itself takes focus
+  // Which button opened the confirm, so Cancel returns focus to it; after an answer the card itself takes focus
   const [opener, setOpener] = useState<'accept' | 'decline'>('accept');
   const focus = useConfirmFocus<HTMLButtonElement, HTMLDivElement, HTMLElement>(confirm !== null);
   const open = (choice: 'accept' | 'decline') => (setOpener(choice), setConfirm(choice));

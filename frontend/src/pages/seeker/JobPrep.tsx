@@ -235,7 +235,7 @@ function Roadmap({ data, compact }: { data: RoadmapOut; compact?: boolean }) {
                 <li key={step.order} className={s.step}>
                   <span className={s.stepIndex}>{step.order}</span>
                   <div className={s.stepBody}>
-                    {/* The kind (기술 · 자격증) is already in the list on the left */}
+                    {/* The kind (Skill · Certificate) is already in the list on the left */}
                     <span className={s.stepHead}>{step.skill}</span>
                     <p className={ui.body}>
                       <strong>{t('prep.roadmap.goal')}</strong> · {step.goal}

@@ -201,7 +201,7 @@ function Board({
   const items = data.items;
   const index = items.findIndex((r) => r.application_id === selected);
   const current = index >= 0 ? items[index] : null;
-  // The open applicant names the tab (홍길동 – 지원자 상세 – CareerSync); none open keeps 지원자 관리
+  // The open applicant names the tab (Jane Doe – Applicant details – CareerSync); none open keeps Applicants
   useDocumentTitle(current?.name, 'page.company.applicantDetail.title');
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
   const requests = useRef(0);
@@ -297,7 +297,7 @@ function Board({
                     className={s.applicantRow}
                     tabIndex={0}
                     // A focused row is read by its name, and Chromium gives a table row none from its cells; aria-selected
-                    // is for grids. So the row is named — rank and applicant, 선택됨 first when selected — and the table
+                    // is for grids. So the row is named — rank and applicant, Selected first when selected — and the table
                     // keeps its native semantics; data-selected only draws the selection
                     aria-label={rowLabel(a, selected === a.application_id)}
                     data-selected={selected === a.application_id || undefined}

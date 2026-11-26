@@ -31,11 +31,11 @@ from app.services import ai_runtime
 
 def _seeker_only(user: User) -> None:
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Available to job seeker accounts only.")
 
 
 def _not_found() -> AppError:
-    return AppError(404, "CV_NOT_FOUND", "이력서를 찾을 수 없습니다.")
+    return AppError(404, "CV_NOT_FOUND", "CV not found.")
 
 
 def _fill_relational_profile(row: CvProfile, data: ProfileData) -> None:
@@ -159,7 +159,7 @@ def upload(db: Session, user: User, file_name: str, data: bytes) -> CvProfile:
     _seeker_only(user)
     # Any AI consent is enough (not the newest version): CV analysis was a purpose from the start (D17)
     if user.consent_ai_at is None:
-        raise AppError(409, "AI_CONSENT_REQUIRED", "AI 분석 동의 후 이력서를 분석할 수 있습니다.")
+        raise AppError(409, "AI_CONSENT_REQUIRED", "Your CV can be analyzed after you consent to AI analysis.")
     try:
         pdf = extract_text(data)
     except PdfError as e:

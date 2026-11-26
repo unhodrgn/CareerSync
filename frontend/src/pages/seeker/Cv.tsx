@@ -82,7 +82,7 @@ export default function Cv() {
   };
 
   // A file dropped anywhere else on this page would make the browser open it and leave the app; only the drop
-  // area (no CV yet) takes files, and replacing a CV stays the explicit 새 PDF 올리기 button
+  // area (no CV yet) takes files, and replacing a CV stays the explicit Upload a new PDF button
   useEffect(() => {
     const onDragOver = (e: globalThis.DragEvent) => {
       if (!carriesFiles(e) || e.defaultPrevented) return;
@@ -340,7 +340,7 @@ function CvView({
           </div>
         </section>
       ) : cv.method === 'seeker' ? (
-        // A version the seeker edited is their own content: a plain card (the notice names the method, 직접 수정)
+        // A version the seeker edited is their own content: a plain card (the notice names the method, Edited by you)
         <section className={ui.panel} aria-label={t('cv.title')}>
           <AiNotice notice={cv.notice} method={cv.method} />
           <div style={{ marginTop: 20 }}>
@@ -348,7 +348,7 @@ function CvView({
           </div>
         </section>
       ) : (
-        // What the AI read from the PDF: the AI box (AI 분석)
+        // What the AI read from the PDF: the AI box (AI analysis)
         <section aria-label={t('cv.title')}>
           <AiBox card>
             <AiNotice notice={cv.notice} method={cv.method} inBox />
@@ -377,7 +377,7 @@ function CvView({
   );
 }
 
-/** 이력서 점검 (D25) of the version on screen, confirmed or not. Runs only when asked. */
+/** CV check (D25) of the version on screen, confirmed or not. Runs only when asked. */
 function CheckPanel({ cv }: { cv: CvOut }) {
   const location = useLocation();
   const [busy, setBusy] = useState(false);
@@ -451,7 +451,7 @@ function Source({ text }: { text: string }) {
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
     <section className={s.section}>
-      {/* The CV's sections are h2 under the page's h1; 이력서 점검 is their sibling */}
+      {/* The CV's sections are h2 under the page's h1; CV check is their sibling */}
       <h2 className={s.sectionHead}>
         {title}
         {count !== undefined && <span className={ui.count}>{count}</span>}
