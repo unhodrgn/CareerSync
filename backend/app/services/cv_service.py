@@ -6,7 +6,7 @@ Only a confirmed profile can be used to apply. Every edit is a new profile versi
 import hashlib
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ai.parsing.extract import normalize_profile, structure_cv, total_experience_months
@@ -221,7 +221,9 @@ def get_own(db: Session, user: User, profile_id: int) -> CvProfile:
 def update(db: Session, user: User, profile_id: int, data: ProfileData, confirm: bool) -> CvProfile:
     """Save the seeker's edits as a new version of the same document."""
     current = get_own(db, user, profile_id)
-    newest = max(p.version for p in current.document.profiles)
+    # Lock the parent document row so concurrent edits never generate duplicate version numbers.
+    db.scalars(select(CvDocument).where(CvDocument.id == current.cv_document_id).with_for_update()).one()
+    newest = db.scalar(select(func.max(CvProfile.version)).where(CvProfile.cv_document_id == current.cv_document_id)) or 0
     cleaned = normalize_profile(data, ai_runtime.skills())
     p = CvProfile(
         cv_document_id=current.cv_document_id,

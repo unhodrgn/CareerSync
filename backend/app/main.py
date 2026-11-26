@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ai.embedding.model import configured_model, get_embedder
-from ai.llm.client import check_llm_config, llm_model
+from ai.llm.client import check_llm_config, llm_model, llm_provider
 from app.api.v1 import applications, auth, career, companies, criteria, cv, internal_interview, interview_sessions, jobs, preferences, recommendations, talent, users
 from app.core import no_store, validation_errors
 from app.core.config import dev_secrets_in_use
@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI):
     # Fail fast: an invalid AI_MODE, or AI_MODE=llm without a key, stops startup (no silent fallback)
     mode = check_llm_config()
     if mode == "llm":
-        log.info("AI_MODE=llm, LLM_MODEL=%s", llm_model())  # never the key
+        log.info("AI_MODE=llm, LLM_MODEL=%s, LLM_PROVIDER=%s", llm_model(), llm_provider())  # never the key
     else:
         log.info("AI_MODE=rules (no LLM calls)")
     if names := dev_secrets_in_use():  # one line, names only, never the values

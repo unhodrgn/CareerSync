@@ -107,7 +107,7 @@ Rule-based scorers grade each company-defined criterion on the PII-masked CV tex
 | --- | --- |
 | Frontend | React 19 · TypeScript · Vite · React Router (Korean UI, desktop-first) |
 | Backend | Python 3.11+ · FastAPI · SQLAlchemy 2 · Alembic · Pydantic 2 |
-| AI | Anthropic API behind `LLMClient` (optional) · sentence-transformers (multilingual-e5-base) · PyMuPDF |
+| AI | Groq (`openai/gpt-oss-120b`, demo default) or Anthropic API behind `LLMClient` (`LLM_PROVIDER`, D91) · sentence-transformers (multilingual-e5-base) · PyMuPDF · Tesseract (local poster OCR) |
 | Database | PostgreSQL 16 (tests use in-memory SQLite) |
 | Auth | JWT (PyJWT) · Argon2id |
 | Infrastructure | Docker Compose (full demo: database, backend, frontend) · Docker (PostgreSQL only, for the manual setup) · GitHub Actions (CI) |

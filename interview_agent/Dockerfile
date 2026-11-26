@@ -7,10 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app
 WORKDIR /app
-# The full lock, resolved on Windows (D79): pip still resolves, so Linux-only dependencies are added; `pip check` fails the build
-# on a conflict. After the first good Linux build, replace the lock with one frozen from this image (interview_agent/README.md).
-COPY interview_agent/requirements.lock.txt /app/interview_agent/requirements.lock.txt
-RUN python -m pip install -r /app/interview_agent/requirements.lock.txt \
+# The Linux lock frozen from this image (D86): installed with --no-deps for byte-exact reproducibility, then verified by `pip check`.
+COPY interview_agent/requirements.linux.lock.txt /app/interview_agent/requirements.linux.lock.txt
+RUN python -m pip install --no-deps -r /app/interview_agent/requirements.linux.lock.txt \
     && python -m pip check
 # Local model files, at build time so the container needs no manual step. In livekit-agents 1.8.12 no installed plugin has anything to
 # download (Silero VAD ships inside its wheel; the v1-mini turn-detector fallback is inside livekit-local-inference), so the first

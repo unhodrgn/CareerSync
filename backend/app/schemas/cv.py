@@ -79,6 +79,7 @@ class CriteriaPreviewOut(BaseModel):
     analysis: JdAnalysis
     blocked: list[BlockedSuggestion]
     method: str
+    limited: bool = False
     notice: str = AI_NOTICE
 
 

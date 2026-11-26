@@ -253,5 +253,5 @@ def make_llm_review(text: str, blocklists: Sequence[Blocklist], llm: LLMClient) 
     try:
         return review_llm(text, blocklists, llm), f"llm:{llm.model}"
     except LLMError as e:
-        log.warning("CV review by LLM failed, using rules: %s", e)
+        log.warning("CV review by LLM failed, using rules: %s", type(e).__name__)
         return None, "rules"

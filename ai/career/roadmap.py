@@ -113,5 +113,5 @@ def make_roadmap(
         try:
             return roadmap_llm(gaps, job_title, job_text, criteria, have, resources, llm), f"llm:{llm.model}"
         except LLMError as e:
-            log.warning("roadmap by LLM failed, using the template: %s", e)
+            log.warning("roadmap by LLM failed, using the template: %s", type(e).__name__)
     return roadmap_rules(gaps, resources), "rules"

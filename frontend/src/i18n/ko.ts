@@ -190,6 +190,12 @@ export default {
   'error.offerNotFound': '제안을 찾을 수 없습니다. 목록을 새로 불러왔습니다.',
   'error.offerNotPending': '이미 답했거나 기업이 취소한 제안입니다. 목록을 새로 불러왔습니다.',
   'error.offerExpired': '답변 기간이 지난 제안입니다. 목록을 새로 불러왔습니다.',
+  'error.posterSize': '포스터 이미지는 5MB 이하여야 합니다.',
+  'error.posterFormat': 'PNG 또는 JPEG 이미지 파일만 올릴 수 있습니다.',
+  'error.posterOcrUnavailable': '이미지 글자 인식 기능을 지금 사용할 수 없습니다.',
+  'error.posterOcrFailed': '이미지에서 글자를 읽지 못했습니다. 다른 이미지를 올리거나 직접 입력해 주세요.',
+  'error.posterOcrEmpty': '이미지에서 인식한 글자가 없습니다. 직접 입력해 주세요.',
+  'error.posterOcrTooLong': '이미지에서 인식한 글자가 너무 깁니다.',
 
   // A missing precondition for a seeker AI feature (409)
   'blocked.noCv.title': '확인한 이력서가 필요합니다',

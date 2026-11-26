@@ -11,6 +11,7 @@ export interface VerificationOut {
   application_id: number;
   cv_profile_id: number;
   method: string;
+  limited?: boolean;
   questions: VerificationQuestion[];
   notice: string;
 }

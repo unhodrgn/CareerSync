@@ -34,7 +34,7 @@ Every screen marks AI in one blue colour that is used for nothing else ([DESIGN.
 
 A company's criteria are checked live while typing and again on save and publish. `data/blocklist.yaml` blocks 채용절차법 제4조의3 (Fair Hiring Procedure Act, Art. 4-3) items (physical condition such as height, weight or appearance; origin region; marital status; wealth; family background) plus gender, age, religion, disability and health, and school prestige, each tagged with its law (남녀고용평등법 (Equal Employment Opportunity Act), 고령자고용법 (Age Discrimination in Employment Act), 고용정책기본법 (Framework Act on Employment Policy), 장애인차별금지법 (Disability Discrimination Act)). A blocked criterion shows the law that forbids it and is logged. Criteria the AI suggests from a JD go through the same check and are left out if blocked (D24).
 
-Interview practice questions also pass `data/interview_blocklist.yaml`, which is written for question-style phrasing (marriage, children, dating, religion, age, appearance, origin, family, politics, health) (D21).
+Interview practice questions also pass `data/interview_blocklist.yaml`, which is written for question-style phrasing (marriage, children, dating, religion, age, appearance, origin, family, politics, health) (D21). Company-side recruiter verification questions (`ai/career/verification.py`) also run `clean_cv` and check generated questions/reasons/checkpoints against `data/blocklist.yaml`, `data/interview_blocklist.yaml`, `is_sensitive` (age/gender/military), URLs, and mask placeholders (D89).
 
 ## Laws
 

@@ -340,7 +340,7 @@ def score_llm(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Criter
         try:
             out = ctx.llm.complete_json(system, user, RubricOut, max_tokens=2000)
         except LLMError as e:
-            log.warning("rubric scoring failed for criterion %s: %s", c.id, e)
+            log.warning("rubric scoring failed for criterion %s: %s", c.id, type(e).__name__)
             break
         if out.level == 0:
             return _result(c, 0, out.reason or "관련 내용 없음", [], f"llm:{ctx.llm.model}")

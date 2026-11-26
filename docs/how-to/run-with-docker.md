@@ -14,9 +14,10 @@ docker compose ps -a
 Open http://localhost:3000. API health: http://localhost:8000/health.
 Swagger: http://localhost:8000/docs.
 
-Demo accounts: seeker@demo.test (no CV yet; upload data/demo/demo_cv.pdf),
-seeker2@demo.test (demo CV confirmed, preferences set, in the talent pool),
-hr@nextcode.test, hr@cloudlab.test. All demo passwords: demo1234.
+Demo accounts: `seeker@demo.test` (no CV yet; upload `data/demo/demo_cv.pdf`),
+`seeker2@demo.test` (demo CV confirmed, preferences set, in the talent pool),
+`seeker3@demo.test` (demo CV confirmed only, used for practice interview checks),
+`hr@nextcode.test`, `hr@cloudlab.test`. All demo passwords: `demo1234`.
 The seed runs on every `docker compose up`, so an existing demo database gets
 seeker2@demo.test on the next start without a reset.
 
@@ -38,7 +39,8 @@ the credentials already stored in PostgreSQL.
 
 The containers do not read .env themselves (CAREERSYNC_DOTENV=0). Compose takes
 only these variables from .env or the shell and passes them on: DB_USER,
-DB_PASSWORD, DB_NAME, JWT_SECRET_KEY, TALENT_ID_SECRET, AI_MODE, LLM_API_KEY,
+DB_PASSWORD, DB_NAME, JWT_SECRET_KEY, TALENT_ID_SECRET, AI_MODE, LLM_PROVIDER,
+LLM_API_KEY (falling back to GROQ_API_KEY under Compose, D91),
 LLM_MODEL, EMBEDDING_MODEL, the voice interview variables (INTERVIEW_AGENT_SECRET,
 LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, and for the optional `agent`
 service GROQ_API_KEY, INTERVIEW_AGENT_AI_MODE, INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS;
@@ -49,8 +51,10 @@ no effect under Compose (see docker-compose.yml).
 
 Optional .env variables: COMPOSE_DB_PORT (5434), COMPOSE_BACKEND_PORT (8000),
 COMPOSE_FRONTEND_PORT (3000). Access the corresponding port if changed.
-AI_MODE defaults to rules. AI_MODE=llm needs LLM_API_KEY, otherwise the backend
-does not start; in rules mode the key is ignored.
+AI_MODE defaults to llm in Compose and .env.example (with LLM_PROVIDER=groq, model
+openai/gpt-oss-120b, using LLM_API_KEY or GROQ_API_KEY fallback); Python code still
+keeps rules as its unset fallback. With AI_MODE=llm and no key, the backend does not
+start; in rules mode the key is ignored.
 EMBEDDING_MODEL defaults to intfloat/multilingual-e5-base (docs/DECISIONS.md D26); the
 model is downloaded once into the model-cache volume and kept across restarts.
 
