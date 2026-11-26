@@ -22,7 +22,7 @@ import s from './company.module.css';
 
 const asCategory = (c: string): Category => (CATEGORIES.includes(c as Category) ? (c as Category) : 'other');
 
-// Progress through the process, then the decisions; 합격 and 불합격 reach the seeker as an outcome, so they ask first
+// Progress through the process, then the decisions; Passed and Not selected reach the seeker as an outcome, so they ask first
 const PROGRESS: ApplicationStatus[] = ['submitted', 'reviewing', 'interview'];
 const OUTCOME: ApplicationStatus[] = ['on_hold', 'passed', 'rejected'];
 type Confirmable = 'passed' | 'rejected';
@@ -50,7 +50,7 @@ export interface DetailFocus {
 
 /**
  * The selected applicant: criterion evaluations and CV evidence, followed by status controls.
- * Status changes only by the recruiter's click (AI rule 5): 합격 and 불합격
+ * Status changes only by the recruiter's click (AI rule 5): Passed and Not selected
  * ask first, every change can be undone once, and nothing reverts on its own. Remounts per applicant, so the
  * undo ends when another applicant is chosen.
  */
@@ -138,7 +138,7 @@ export default function ApplicantDetail({
       if (mode === 'undo') {
         setUndoTo(null);
         setResult({ kind: 'undone', status: updated.status });
-        // The 되돌리기 button is gone: keep focus on the line that says what happened
+        // The Undo button is gone: keep focus on the line that says what happened
         focus.fallbackRef.current?.focus();
       } else {
         setUndoTo(previous);
@@ -343,22 +343,22 @@ export default function ApplicantDetail({
             </AiBox>
           )}
         </section>
-        <section className={s.detailSection} aria-label="면접관용 이력서 검증 질문">
-          <h3 className={ui.sectionTitle}>면접관용 이력서 검증 질문</h3>
-          <p className={ui.caption}>이력서의 기술·프로젝트 경험 중 면접에서 확인할 부분을 최대 3개 추천합니다.</p>
+        <section className={s.detailSection} aria-label={t('verify.title')}>
+          <h3 className={ui.sectionTitle}>{t('verify.title')}</h3>
+          <p className={ui.caption}>{t('verify.lead')}</p>
           <button type="button" className={cx(ui.btn, ui.secondary, ui.small)}
             disabled={verificationBusy} onClick={() => void requestVerification()}>
-            {verificationBusy ? '질문 생성 중…' : '이력서 검증 질문 추천'}
+            {verificationBusy ? t('verify.running') : t('verify.run')}
           </button>
           {verificationError != null && <InlineError>{errorText(verificationError)}</InlineError>}
           {verification && (
             <div className={ui.stack}>
               <AiNotice notice={verification.notice} method={verification.method} />
               {verification.questions.length === 0 ? (
-                <p className={ui.caption}>검증 질문의 근거가 될 문장을 찾지 못했습니다.</p>
+                <p className={ui.caption}>{t('verify.none')}</p>
               ) : verification.questions.map((item, index) => (
                 <div key={`${item.criterion_id}-${index}`} className={ui.panel}>
-                  <h4 className={ui.sectionTitle}>질문 {index + 1} · {item.criterion_name}</h4>
+                  <h4 className={ui.sectionTitle}>{t('verify.question', { n: index + 1, criterion: item.criterion_name })}</h4>
                   <p>{item.question}</p>
                   <blockquote>{item.cv_quote}</blockquote>
                   <p className={ui.caption}>{item.reason}</p>

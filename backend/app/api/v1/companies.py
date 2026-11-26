@@ -1,4 +1,4 @@
-"""Company profile (name, intro, 인재상) and running projects (D23)."""
+"""Company profile (name, intro, talent profile) and running projects (D23)."""
 from fastapi import APIRouter, status
 
 from app.core.deps import CompanyUser, CurrentUser, DbSession
@@ -55,7 +55,7 @@ def delete_project(project_id: int, db: DbSession, user: CompanyUser):
 def get_company(company_id: int, db: DbSession, user: CurrentUser):
     company = db.get(Company, company_id)
     if company is None:
-        raise AppError(404, "COMPANY_NOT_FOUND", "기업을 찾을 수 없습니다.")
+        raise AppError(404, "COMPANY_NOT_FOUND", "Company not found.")
     return CompanyPublicOut(
         id=company.id,
         name=company.name,

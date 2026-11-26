@@ -11,13 +11,13 @@ class CompanyOut(BaseModel):
     id: int
     name: str
     intro: str
-    talent_profile: str = Field(description="인재상")
+    talent_profile: str = Field(description="Who we look for (talent profile)")
 
 
 class CompanyUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     intro: str = Field("", max_length=1000)
-    talent_profile: str = Field("", max_length=1000, description="인재상")
+    talent_profile: str = Field("", max_length=1000, description="Who we look for (talent profile)")
 
 
 class CompanyProjectIn(BaseModel):
@@ -32,7 +32,7 @@ class CompanyProjectIn(BaseModel):
     def _name(cls, v: str) -> str:
         v = " ".join(v.split())
         if not v:
-            raise ValueError("프로젝트 이름을 입력하세요.")
+            raise ValueError("Enter a project name.")
         return v
 
     @field_validator("description")
@@ -45,7 +45,7 @@ class CompanyProjectIn(BaseModel):
     def _techs(cls, v: list[str]) -> list[str]:
         out = [" ".join(t.split()) for t in v]
         if any(not t or len(t) > 100 for t in out):
-            raise ValueError("기술 이름은 1~100자여야 합니다.")
+            raise ValueError("A technology name must be 1–100 characters.")
         return out
 
 

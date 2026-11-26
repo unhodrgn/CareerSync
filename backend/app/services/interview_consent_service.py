@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.errors import AppError
 
-TITLE = "모의 면접 대화 내용 저장 동의"
+TITLE = "Consent to storing practice interview transcripts"
 
 
 @dataclass(frozen=True)
@@ -41,17 +41,17 @@ def current() -> ConsentText:
         items=(
             ConsentItem(
                 "processing",
-                "모의 면접에서 말씀하신 내용은 글로 바뀌어, 개인정보를 가린 텍스트로만 저장됩니다. "
-                "가리는 처리는 완벽하지 않아 일부 개인정보가 남을 수 있습니다. 음성과 영상은 저장되지 않습니다.",
+                "What you say in a practice interview is transcribed and stored only as text with personal data masked. "
+                "Masking is not perfect, so some personal data may remain. Audio and video are not stored.",
             ),
-            ConsentItem("purpose", "저장 목적은 면접 후 피드백 리포트를 만들고 다시 볼 수 있게 하는 것입니다."),
+            ConsentItem("purpose", "The transcript is stored to create a feedback report after the interview and to let you review it later."),
             ConsentItem(
                 "retention",
-                f"보관 기간은 모의 면접을 만든 날부터 {days}일입니다. {days}일이 지난 기록은 열람할 수 없으며 삭제 대상이 됩니다.",
+                f"Transcripts are kept for {days} days from the day the practice interview is created. After {days} days a record can no longer be viewed and becomes subject to deletion.",
             ),
-            ConsentItem("access", "본인만 볼 수 있습니다. 기업은 면접 내용과 피드백을 볼 수 없습니다."),
-            ConsentItem("deletion", "언제든지 직접 삭제할 수 있습니다."),
-            ConsentItem("separate", "이 동의는 AI 분석 동의와 별개이며, 면접을 시작할 때마다 확인합니다."),
+            ConsentItem("access", "Only you can see it. Companies cannot see your interview or its feedback."),
+            ConsentItem("deletion", "You can delete it yourself at any time."),
+            ConsentItem("separate", "This consent is separate from AI analysis consent and is asked each time you start an interview."),
         ),
     )
 
@@ -60,11 +60,11 @@ def require(consent_transcript: object, consent_version: object) -> None:
     """Pass only for an explicit `True` and exactly the current version; raise 409 otherwise. The consent is checked before
     the version, so a client that did not consent is told so whatever version it sent."""
     if consent_transcript is not True:
-        raise AppError(409, "INTERVIEW_CONSENT_REQUIRED", "모의 면접 대화 내용 저장에 동의해 주세요.", current_version=settings.INTERVIEW_CONSENT_VERSION)
+        raise AppError(409, "INTERVIEW_CONSENT_REQUIRED", "Please consent to storing the practice interview transcript.", current_version=settings.INTERVIEW_CONSENT_VERSION)
     if consent_version != settings.INTERVIEW_CONSENT_VERSION:
         raise AppError(
             409,
             "INTERVIEW_CONSENT_OUTDATED",
-            "동의 문구가 변경되었습니다. 새로고침 후 최신 내용을 확인해 주세요.",
+            "The consent text has changed. Refresh and review the latest version.",
             current_version=settings.INTERVIEW_CONSENT_VERSION,
         )

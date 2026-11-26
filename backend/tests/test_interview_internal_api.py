@@ -114,7 +114,7 @@ class HttpAgent(Agent):
 def test_a_missing_or_wrong_secret_is_401_with_a_fixed_body(api, sid, kw):
     for response in (context(api, sid, **kw), event(api, sid, {"type": "turn"}, **kw)):
         assert response.status_code == 401 and no_store(response)
-        assert response.json() == {"code": "AGENT_UNAUTHORIZED", "message": "인증되지 않은 요청입니다."}
+        assert response.json() == {"code": "AGENT_UNAUTHORIZED", "message": "Unauthorized request."}
 
 
 def test_an_unset_or_short_secret_on_the_server_refuses_even_the_matching_value(api, sid, monkeypatch):
@@ -146,7 +146,7 @@ def test_a_room_that_is_not_the_sessions_is_the_same_404_as_an_unknown_session(a
     unknown = context(api, sid + 1000)
     for response in (context(api, sid, room=room), event(api, sid, {"type": "turn"}, room=room)):
         assert response.status_code == 404 and no_store(response)
-        assert response.json() == unknown.json() == {"code": "INTERVIEW_NOT_FOUND", "message": "모의 면접을 찾을 수 없습니다."}
+        assert response.json() == unknown.json() == {"code": "INTERVIEW_NOT_FOUND", "message": "Practice interview not found."}
 
 
 def test_the_room_of_another_session_does_not_open_this_one(api, db, sid, clock):
@@ -304,7 +304,7 @@ def test_a_string_where_the_service_wants_an_integer_is_not_coerced(api, db, sid
     first = turn_body(agent.turn_events()[0])
     first["turn"]["seq"] = "1"
     response = event(api, sid, first)
-    assert response.status_code == 422 and response.json() == {"code": "INTERVIEW_BAD_TURN", "message": "면접 이벤트가 올바르지 않습니다.", "field": "seq"}
+    assert response.status_code == 422 and response.json() == {"code": "INTERVIEW_BAD_TURN", "message": "The interview event is invalid.", "field": "seq"}
 
 
 @pytest.mark.parametrize("body", [{"type": "other"}, {"type": "turn", "turn": {"seq": 1, "secret_field": "답변"}}, {"type": "turn", "extra": "답변"}, [1, 2]])

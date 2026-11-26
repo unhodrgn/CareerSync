@@ -50,7 +50,7 @@ class InterviewCreateIn(BaseModel):
 
     consent_transcript: object = Field(default=None, description="Must be exactly `true`: consent to store the masked transcript (D65)")
     consent_version: object = Field(default=None, description="The `version` of `GET /api/interview-consent` that the seeker was shown")
-    depth: Literal[1, 2, 3] = Field(default=2, description="Question depth chosen by the seeker: 1 기초, 2 적용, 3 심화 (D93)")
+    depth: Literal[1, 2, 3] = Field(default=2, description="Question depth chosen by the seeker: 1 introductory, 2 applied, 3 advanced (D93)")
 
     @field_validator("depth", mode="before")
     @classmethod
@@ -62,7 +62,7 @@ class InterviewCreateIn(BaseModel):
 
 
 class TopicOut(BaseModel):
-    """A topic of the plan. `importance` is the label 핵심 / 중요 / 일반 (core / important / general), never a weight (AI rule 9)."""
+    """A topic of the plan. `importance` is the label core / important / general, never a weight (AI rule 9)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -157,7 +157,7 @@ class HistoryPageOut(BaseModel):
 
 
 class FeedbackTopicOut(BaseModel):
-    """`importance` is the label 핵심 / 중요 / 일반 (core / important / general), never a weight (AI rule 9). `status` is the engine's."""
+    """`importance` is the label core / important / general, never a weight (AI rule 9). `status` is the engine's."""
 
     topic_id: str
     name: str

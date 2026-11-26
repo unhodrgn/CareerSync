@@ -25,7 +25,7 @@ from app.schemas.cv import BlockedSuggestion, DroppedSentence, CriteriaPreviewIn
 from app.services import ai_runtime, criteria_service, job_service
 
 KST = timezone(timedelta(hours=9))
-MAJOR_REQUIRED_REASON = "학력(전공) 항목에는 평가할 전공을 하나 이상 적어야 합니다."
+MAJOR_REQUIRED_REASON = "An education (major) criterion must name at least one major."
 
 # ── /analyze ──
 
@@ -108,14 +108,14 @@ def _projects(db: Session, company_id: int, ids: list[int]) -> list[CompanyProje
         for p in db.scalars(select(CompanyProject).where(CompanyProject.id.in_(ids), CompanyProject.company_id == company_id))
     }
     if len(found) != len(ids):
-        raise AppError(404, "PROJECT_NOT_FOUND", "프로젝트를 찾을 수 없습니다.")
+        raise AppError(404, "PROJECT_NOT_FOUND", "Project not found.")
     return [found[i] for i in ids]
 
 
 def draft(db: Session, user: User, job_id: int, body: JdDraftIn) -> JdDraftOut:
     job = job_service.get_owned_job(db, job_id, user)
     if job.status != JobStatus.DRAFT:
-        raise AppError(409, "JOB_NOT_DRAFT", "작성 중인 공고에서만 AI 초안을 만들 수 있습니다.")
+        raise AppError(409, "JOB_NOT_DRAFT", "An AI draft can only be created for a draft job.")
     projects = _projects(db, job.company_id, body.project_ids)
     company = db.get(Company, job.company_id)
     inp = DraftInput(

@@ -69,7 +69,7 @@ export function Blocked({ title, body, to, action }: { title: string; body: stri
 }
 
 /**
- * A failed request, with 다시 시도. A 401 renders nothing: the session is over and the app is already moving
+ * A failed request, with Try again. A 401 renders nothing: the session is over and the app is already moving
  * to the login page (protected pages) or reloading as a guest (public pages).
  */
 export function ErrorPanel({ error, onRetry, panel = true }: { error: unknown; onRetry?: () => void; panel?: boolean }) {

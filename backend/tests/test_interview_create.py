@@ -20,7 +20,7 @@ from app.services.interview_time import as_utc
 
 from .interview_fixtures import KEPT_LINES, REMOVED_LINES, SAMPLE_CV, Clock, PlanLLM, build_world
 
-VERSION = "2026-11-16"
+VERSION = "2026-11-26"
 
 
 @pytest.fixture
@@ -104,9 +104,9 @@ def test_a_rules_session_is_created_and_stored_canonically(db, world, clock):
     assert view.active_until == clock() + timedelta(seconds=300) and view.expires_at == clock() + timedelta(days=30)
     assert view.max_seconds == 600 and view.feedback_status == "none" and view.turns == () and view.ended_at is None
     assert [(t.topic_id, t.criterion_name, t.importance, t.status) for t in view.topics] == [
-        ("c1", "Java", "핵심", "not_asked"),
-        ("c2", "Spring Boot", "핵심", "not_asked"),
-        ("c3", "협업", "중요", "not_asked"),
+        ("c1", "Java", "core", "not_asked"),
+        ("c2", "Spring Boot", "core", "not_asked"),
+        ("c3", "협업", "important", "not_asked"),
         ("behavioral", None, None, "not_asked"),
     ]
     (row,) = sessions(db)
@@ -411,7 +411,7 @@ def test_nothing_of_the_cv_is_stored_in_the_interview_tables(db, world, clock, m
 def test_importance_labels_are_stored_and_weights_are_not(db, world, clock):
     create(db, world, clock)
     (row,) = sessions(db)
-    assert [i["importance"] for i in row.plan["items"]] == ["핵심", "핵심", "중요", None]
+    assert [i["importance"] for i in row.plan["items"]] == ["core", "core", "important", None]
     assert "weight" not in json.dumps(row.plan)
     assert {key for item in row.plan["items"] for key in item} == set(PlanItem.to_dict(sample_item()))  # the engine's own fields, no weight
 

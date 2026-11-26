@@ -29,7 +29,7 @@
   opacity: 0.45;
 }
 
-/* 공고 관리 rows */
+/* Jobs rows */
 /* The job icon tile, then the title, status and meta */
 .jobRowLead {
   min-width: 0;
@@ -575,7 +575,7 @@
   gap: 6px;
 }
 
-/* A row label, then three options: 진행 (where the application is) and 결정 (the outcome) */
+/* A row label, then three options: Progress (where the application is) and Decision (the outcome) */
 .statusRow {
   display: grid;
   grid-template-columns: 34px repeat(3, minmax(0, 1fr));
@@ -853,7 +853,7 @@
   grid-column: 1 / -1;
 }
 
-/* The action bar while it asks to confirm 마감 or 삭제 */
+/* The action bar while it asks to confirm Close or Delete */
 .confirmBar {
   min-width: 0;
   flex: 1;
@@ -871,7 +871,7 @@
   outline-offset: 4px;
 }
 
-/* The action bar while it asks to confirm 게시하기 or changed weights: a card instead of the pill, room for lines */
+/* The action bar while it asks to confirm Publish or changed weights: a card instead of the pill, room for lines */
 .actionBarConfirm {
   padding: var(--ds-space-5) var(--ds-space-6);
   align-items: stretch;

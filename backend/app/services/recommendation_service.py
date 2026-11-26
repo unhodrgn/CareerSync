@@ -4,7 +4,7 @@
 → ②b required criteria gate (D50), drop FAIL before any evaluation is queued → ③ evaluation for (job, newest confirmed CV version): `done` ones give Fit; missing, failed or stale
 ones are queued in the background within the caps → ④ Fit with current weights, drop < RECO_MIN_FIT
 → ⑤ Final = 0.5·Fit + 0.5·Pref → ⑥ sort. Seekers see the match score (Final rounded down) with its band
-(매우 적합 / 적합 / 참고), the preference score and unweighted category scores (D42); never weights.
+(very_good / good / reference), the preference score and unweighted category scores (D42); never weights.
 
 `matches` (job list) and `job_match` (job detail) give the same scores for jobs that already have a `done`
 evaluation (D43). They only read: they never call `evaluation_service.ensure`/`claim`/`queue` and never commit.
@@ -57,10 +57,10 @@ class Recommendation:
 
 def match_level(final: float) -> str:
     if final >= settings.RECO_BAND_HIGH:
-        return "매우 적합"
+        return "very_good"
     if final >= settings.RECO_BAND_MID:
-        return "적합"
-    return "참고"
+        return "good"
+    return "reference"
 
 
 def final_of(fit: float, pref: float) -> float:
@@ -107,7 +107,7 @@ def breakdown(ev: Evaluation, criteria: tuple[ScoringCriterion, ...]) -> tuple[l
 
 def _seeker_only(user: User) -> None:
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Available to job seeker accounts only.")
 
 
 def _has_ai_consent(user: User) -> bool:
@@ -126,10 +126,10 @@ def check_seeker(db: Session, user: User) -> CvProfile:
     Also used by career content (D21), which reads the CV for jobs the seeker has not applied to."""
     _seeker_only(user)
     if not _has_ai_consent(user):
-        raise AppError(409, "AI_CONSENT_REQUIRED", "맞춤 추천을 받으려면 최신 AI 분석 동의가 필요합니다.")
+        raise AppError(409, "AI_CONSENT_REQUIRED", "Personalized recommendations require the current AI analysis consent.")
     profile = _confirmed_cv(db, user)
     if profile is None:
-        raise AppError(409, "CV_NOT_CONFIRMED", "이력서 분석 결과를 확인(저장)한 뒤 추천을 받을 수 있습니다.")
+        raise AppError(409, "CV_NOT_CONFIRMED", "You can get recommendations after confirming (saving) your CV analysis.")
     return profile
 
 
@@ -202,7 +202,7 @@ def recommend(db: Session, user: User, limit: int) -> Recommendation:
                 ranked.append((final_of(fit, pref), fit, job, pref, ev, criteria))
             continue
         if ev is not None and ev.status == EvaluationStatus.FAILED and ev.attempts >= settings.EVALUATION_MAX_ATTEMPTS:
-            continue  # gave up on this one; apply or 다시 분석 can still re-run it
+            continue  # gave up on this one; apply or Analyze again can still re-run it
         pending += 1
         if budget > 0:
             ev = ev or evaluation_service.ensure(db, job.id, profile.id)

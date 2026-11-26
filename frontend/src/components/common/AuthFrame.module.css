@@ -69,7 +69,7 @@
 }
 
 /* The field: the match panel's gradient, rounded like the content panel. It stays in view at full height with its
-   corners while a long form (회원가입) scrolls beside it, and its content sits in the middle, not at the top. */
+   corners while a long form (Sign up) scrolls beside it, and its content sits in the middle, not at the top. */
 .field {
   --focus-color: var(--ds-accent);
   position: sticky;

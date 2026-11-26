@@ -36,7 +36,7 @@ export function validCriteria(value: unknown): CriterionMatch[] {
 /**
  * What the seeker's preferences say about the preference score (D15, D46). `unset` only when the preferences API
  * confirms that none of the three fields — locations, employment types, job keywords — is filled (D15 then counts
- * Pref as 100, shown as 미설정); `unknown` when the request failed or the answer is malformed, which is never read as
+ * Pref as 100, shown as Not set); `unknown` when the request failed or the answer is malformed, which is never read as
  * "not set" and never shown as 100.
  */
 export type PreferenceStatus = 'loading' | 'unset' | 'set' | 'unknown';
@@ -80,7 +80,7 @@ export function ScoreRing({ score, size = 56, tone = 'light' }: { score: unknown
         />
       </svg>
       {size >= 80 ? (
-        // The match score: "87점" on screen, "적합도 87점" for screen readers — a score, not a percentage
+        // The match score: "87 pts" on screen, "Match score 87 points" for screen readers — a score, not a percentage
         <span className={m.ringValue} data-size="lg">
           <span aria-hidden="true">
             {Math.floor(score)}
@@ -102,7 +102,7 @@ export function ScoreRing({ score, size = 56, tone = 'light' }: { score: unknown
 /**
  * The dark match panel (D42), on job detail only: the match score (Final rounded down) as a large ring, the band
  * under it. Below 40, or with a band the frontend does not know, the number stands alone. Renders nothing without a
- * valid score. The panel stays mint; the [AI] 적합도 heading beside it says the score is AI-made (DESIGN.md AI markers).
+ * valid score. The panel stays mint; the [AI] Match heading beside it says the score is AI-made (DESIGN.md AI markers).
  */
 export function MatchPanel({ score, level, compact = false }: { score: unknown; level: unknown; compact?: boolean }) {
   if (!isScore(score)) return null;
@@ -120,7 +120,7 @@ export function MatchPanel({ score, level, compact = false }: { score: unknown; 
  */
 export function ScoreBreakdown({ categories, preference, prefs }: { categories: unknown; preference: unknown; prefs: PreferenceStatus }) {
   const items = validCategories(categories);
-  // A number only when the seeker has preferences; otherwise 미설정, a loading mark or 확인 불가 (D46)
+  // A number only when the seeker has preferences; otherwise Not set, a loading mark or Unavailable (D46)
   const showNumber = prefs === 'set' && isScore(preference);
   const hasPreference = isScore(preference);
   if (items.length === 0 && !hasPreference) return null;
@@ -173,7 +173,7 @@ export function MatchSummary({ score, level, size = 'lg' }: { score: unknown; le
   if (!isScore(score)) return null;
   return (
     <span className={m.summary} data-size={size}>
-      {/* "87점" on screen, "적합도 87점" for screen readers — a score, not a percentage */}
+      {/* "87 pts" on screen, "Match score 87 points" for screen readers — a score, not a percentage */}
       <span className={m.summaryNumber} aria-hidden="true">
         {Math.floor(score)}
         <span className={m.summaryUnit}>{t('match.points')}</span>
@@ -270,7 +270,7 @@ export function ScoreNote({ notice }: { notice?: string }) {
 }
 
 /**
- * "점수 보는 법": how to read the scores, as a native disclosure (keyboard and screen readers get it for free). It
+ * "How to read the scores" as a native disclosure (keyboard and screen readers get it for free). It
  * explains the parts in general — the band thresholds (D16), category scores as plain means (D42), the preference
  * score (D15, D46), what stays private — and never one particular number, since the reasons behind a criterion's
  * score are not shown to seekers (D42).

@@ -170,7 +170,7 @@ def test_make_bank_cuts_the_job_text_the_criteria_and_the_cv_before_the_planner_
 
 
 def test_the_turn_context_builders_cut_a_hostile_context():
-    context = TurnContext(HOSTILE, "Java " + HOSTILE, "핵심", (("p1", HOSTILE), ("p2", "설계 경험")), HOSTILE, (HOSTILE, "이전 답변입니다."), (HOSTILE, "다른 질문입니다."))
+    context = TurnContext(HOSTILE, "Java " + HOSTILE, "core", (("p1", HOSTILE), ("p2", "설계 경험")), HOSTILE, (HOSTILE, "이전 답변입니다."), (HOSTILE, "다른 질문입니다."))
     text = context.to_text()
     assert not is_sensitive(text) and KEPT in text and "이전 답변입니다." in text and "다른 질문입니다." in text
     assert all(isinstance(part, SafeText) for _, parts in context.sections() for part in parts)
@@ -182,9 +182,9 @@ def test_prepare_turn_and_rubric_request_cut_a_hostile_answer_and_description():
     engine.start()
     request = prepare_turn(engine, HOSTILE + " " + GOOD["warmup"])
     assert request is not None and isinstance(request.model_input, ModelInput) and not is_sensitive(request.user)
-    rubric = rubric_request(question="Java 경험을 설명해 주세요.", name="Java", category="skill", description=HOSTILE, importance="핵심", blocklists=BLOCKLISTS)
+    rubric = rubric_request(question="Java 경험을 설명해 주세요.", name="Java", category="skill", description=HOSTILE, importance="core", blocklists=BLOCKLISTS)
     assert rubric is not None and not is_sensitive(rubric.user) and KEPT in rubric.user
-    assert rubric_request(question=HOSTILE.split(". ")[0], name="Java", category="skill", description="", importance="핵심", blocklists=BLOCKLISTS) is None
+    assert rubric_request(question=HOSTILE.split(". ")[0], name="Java", category="skill", description="", importance="core", blocklists=BLOCKLISTS) is None
 
 
 def test_the_views_cut_a_hostile_transcript():
@@ -589,7 +589,7 @@ def test_no_model_input_builder_serializes_at_run_time(monkeypatch):
     answer = "REST API를 설계하고 Swagger로 문서화했습니다. 프로젝트에서 설계와 개발을 진행했습니다."
     assert prepare_turn(engine, answer) is not None and engine.turn_context("REST API를 설계했습니다").to_text()
     assert analyze_turn(FakeLLM({}), engine, answer).reason in {"schema", "ok", "llm_error"}
-    assert rubric_request(question="Java 경험을 설명해 주세요.", name="Java", category="skill", description="Java 사용 경험", importance="핵심", blocklists=BLOCKLISTS)
+    assert rubric_request(question="Java 경험을 설명해 주세요.", name="Java", category="skill", description="Java 사용 경험", importance="core", blocklists=BLOCKLISTS)
     assert make_bank("백엔드", "Java", [CriterionInfo(1, "Java", "skill", "")], CV, EMBEDDER, BLOCKLISTS, FakeLLM(BANK))
     assert transcript_view(engine.state) and plan_view(engine.state).items
     assert len(engine.state.turns) == transcript_before

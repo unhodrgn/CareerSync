@@ -30,23 +30,23 @@ def test_the_default_plan_shape():
 
 def test_every_core_criterion_is_covered_and_importance_orders_the_rest():
     criteria = [
-        crit(1, "Java 활용", "skill", "Java 17", "일반", 0),
-        crit(2, "프로젝트 경험", "project", "API 설계", "핵심", 3),
-        crit(3, "SQL 활용", "skill", "SQL 튜닝", "중요", 1),
-        crit(4, "Spring 활용", "skill", "Spring Boot", "핵심", 2),
-        crit(5, "협업 태도", "other", "코드 리뷰", "핵심", 4),
+        crit(1, "Java 활용", "skill", "Java 17", "general", 0),
+        crit(2, "프로젝트 경험", "project", "API 설계", "core", 3),
+        crit(3, "SQL 활용", "skill", "SQL 튜닝", "important", 1),
+        crit(4, "Spring 활용", "skill", "Spring Boot", "core", 2),
+        crit(5, "협업 태도", "other", "코드 리뷰", "core", 4),
     ]
     plan = make_plan(criteria)
     topics = ids(plan)
     assert {"c2", "c4", "c5"} <= set(topics)  # all 핵심, whatever their position in the job
     ranks = [IMPORTANCE_RANK[i.importance] for i in plan.items if i.importance]
     assert ranks == sorted(ranks)  # 핵심 -> 중요 -> 일반
-    core_order = [i.criterion_id for i in plan.items if i.importance == "핵심"]
+    core_order = [i.criterion_id for i in plan.items if i.importance == "core"]
     assert core_order == [4, 2, 5]  # inside one importance level: the job's own order (position)
 
 
 def test_a_core_criterion_outranks_the_warm_up():
-    criteria = [crit(n, f"기술 {n}", "skill", f"기술{n} 사용", "핵심") for n in range(1, 5)] + [crit(5, "전공", "education", "", "중요")]
+    criteria = [crit(n, f"기술 {n}", "skill", f"기술{n} 사용", "core") for n in range(1, 5)] + [crit(5, "전공", "education", "", "important")]
     plan = make_plan(criteria)
     assert ids(plan) == ["c1", "c2", "c3", "c4", "behavioral"]  # four 핵심 need the slot the warm-up would take
     assert [u.criterion_id for u in plan.uncovered] == [5]
@@ -61,7 +61,7 @@ def test_a_criterion_without_a_slot_is_listed_never_dropped_silently():
 
 
 def test_the_number_of_questions_never_exceeds_the_cap():
-    many = [crit(n, f"기술 {n}", "skill", f"기술{n} 사용", "핵심" if n < 3 else "일반") for n in range(1, 10)]
+    many = [crit(n, f"기술 {n}", "skill", f"기술{n} 사용", "core" if n < 3 else "general") for n in range(1, 10)]
     assert len(make_plan(many).items) == 5
     assert len(make_plan(many, limits=InterviewLimits(max_questions=2)).items) == 2
 
@@ -124,7 +124,7 @@ def test_no_weight_exists_anywhere_in_the_plan():
     for cls in (PlanCriterion, PlanItem, RubricPoint, InterviewPlan):
         assert not [f.name for f in dataclasses.fields(cls) if "weight" in f.name.lower()], cls
     assert "weight" not in json.dumps(make_plan().to_dict(), ensure_ascii=False).lower()
-    assert {i.importance for i in make_plan().items if i.importance} <= {"핵심", "중요", "일반"}  # labels only, never numbers
+    assert {i.importance for i in make_plan().items if i.importance} <= {"core", "important", "general"}  # labels only, never numbers
 
 
 def test_a_weight_passed_as_the_importance_is_rejected():
@@ -134,7 +134,7 @@ def test_a_weight_passed_as_the_importance_is_rejected():
 
 def test_no_two_questions_of_a_plan_are_alike():
     # Two education criteria: the D21 template does not depend on the name, so the second needs its own wording
-    criteria = [crit(1, "전공 일치", "education", "컴퓨터공학", "핵심"), crit(2, "관련 학과", "education", "소프트웨어", "핵심")]
+    criteria = [crit(1, "전공 일치", "education", "컴퓨터공학", "core"), crit(2, "관련 학과", "education", "소프트웨어", "core")]
     questions = [i.question for i in make_plan(criteria).items]
     assert len(questions) == len(set(questions)) and len(questions) >= 4
 
@@ -160,7 +160,7 @@ def test_without_a_bank_the_d21_templates_are_the_questions():
 
 
 def test_a_criterion_whose_own_name_is_blocked_has_no_question_and_is_reported():
-    criteria = [*CRITERIA, crit(9, "결혼 여부", "other", "", "핵심")]
+    criteria = [*CRITERIA, crit(9, "결혼 여부", "other", "", "core")]
     plan = make_plan(criteria)
     assert "c9" not in ids(plan)
     assert any(u.criterion_id == 9 and u.reason == "no_question" for u in plan.uncovered)
@@ -198,7 +198,7 @@ def test_build_plan_picks_the_requested_depth_and_keeps_general_questions_untagg
 def test_build_plan_depth_fallback_order():
     # Candidate order for requested depth=3:
     # bank(3) -> template(3) -> bank(2) -> template(2) -> bank(1) -> template(1) -> untagged bank -> neutral fallback
-    c1 = crit(1, "Java 활용 능력", "skill", "Java 17", "핵심")
+    c1 = crit(1, "Java 활용 능력", "skill", "Java 17", "core")
     info1 = CriterionInfo(1, "Java 활용 능력", "skill", "Java 17")
     tmpls = {x.depth: x for x in interview_rules([info1], BLOCKLISTS) if x.criterion_id == 1}
 
@@ -219,8 +219,8 @@ def test_build_plan_depth_fallback_order():
 
     # 4. If template(d) and nearest template are eliminated by duplicate check, bank/template of nearest depth (2 first) follows in order
     dup_c = [
-        crit(1, "전공 일치", "education", "컴퓨터공학", "핵심"),
-        crit(2, "관련 학과", "education", "소프트웨어", "핵심"),
+        crit(1, "전공 일치", "education", "컴퓨터공학", "core"),
+        crit(2, "관련 학과", "education", "소프트웨어", "core"),
     ]
     plan_dup = make_plan(criteria=dup_c, questions=[q("d2-backup", 2, depth=2)], cv_lines=[], depth=3)
     c1_item = next(i for i in plan_dup.items if i.topic_id == "c1")

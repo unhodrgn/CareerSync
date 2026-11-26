@@ -36,7 +36,7 @@ def list_for_company(db: Session, company_id: int) -> list[CompanyProject]:
 def get_owned(db: Session, user: User, project_id: int) -> CompanyProject:
     p = db.get(CompanyProject, project_id)
     if p is None or p.company_id != user.company_id:
-        raise AppError(404, "PROJECT_NOT_FOUND", "프로젝트를 찾을 수 없습니다.")
+        raise AppError(404, "PROJECT_NOT_FOUND", "Project not found.")
     return p
 
 
@@ -49,7 +49,7 @@ def create(db: Session, user: User, body: CompanyProjectIn) -> CompanyProject:
     count = db.scalar(select(func.count()).select_from(CompanyProject).where(CompanyProject.company_id == user.company_id))
     if count >= MAX_PROJECTS:
         db.rollback()
-        raise AppError(409, "PROJECT_LIMIT", f"프로젝트는 최대 {MAX_PROJECTS}개까지 등록할 수 있습니다.")
+        raise AppError(409, "PROJECT_LIMIT", f"You can register up to {MAX_PROJECTS} projects.")
     p = CompanyProject(company_id=user.company_id, name=body.name, description=body.description, techs=_techs(body.techs))
     db.add(p)
     db.commit()

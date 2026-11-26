@@ -158,7 +158,7 @@ def test_rules_mode_answers_200_with_the_stored_final_rules_report_and_nothing_i
     assert (stored.feedback_lease_token, stored.feedback_lease_until) == (None, None) and feedback_used(db, world, clock) == 0
     assert not NOT_EXPOSED & keys_of(body) and not [key for key in keys_of(body) if "weight" in key.lower()]
     assert body["report"]["topics"] and all(set(topic) == NESTED_KEYS["topics"] for topic in body["report"]["topics"])
-    assert {topic["importance"] for topic in body["report"]["topics"]} <= {"핵심", "중요", "일반", None}  # a label, never a weight
+    assert {topic["importance"] for topic in body["report"]["topics"]} <= {"core", "important", "general", None}  # a label, never a weight
 
 
 def test_the_evidence_the_links_and_every_nested_field_of_a_report_are_the_existing_ones(api, db, world, clock, monkeypatch):

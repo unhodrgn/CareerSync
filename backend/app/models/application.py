@@ -14,12 +14,12 @@ from app.models.cv import JsonType
 
 
 class ApplicationStatus:
-    SUBMITTED = "submitted"  # 검토 전
-    REVIEWING = "reviewing"  # 서류 검토
-    INTERVIEW = "interview"  # 면접 예정
-    ON_HOLD = "on_hold"  # 보류
-    PASSED = "passed"  # 합격
-    REJECTED = "rejected"  # 불합격
+    SUBMITTED = "submitted"  # Not reviewed
+    REVIEWING = "reviewing"  # In review
+    INTERVIEW = "interview"  # Interview
+    ON_HOLD = "on_hold"  # On hold
+    PASSED = "passed"  # Passed
+    REJECTED = "rejected"  # Not selected
 
 
 APPLICATION_STATUSES = ("submitted", "reviewing", "interview", "on_hold", "passed", "rejected")

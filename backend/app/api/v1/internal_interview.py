@@ -37,7 +37,7 @@ BoundSession = Annotated[int, Depends(bound_session)]
 
 
 def _bad_event() -> AppError:
-    return AppError(422, "INTERVIEW_BAD_TURN", "면접 이벤트가 올바르지 않습니다.", field="event")
+    return AppError(422, "INTERVIEW_BAD_TURN", "The interview event is invalid.", field="event")
 
 
 def _turn(body: TurnEventIn) -> ingest.TurnEvent:

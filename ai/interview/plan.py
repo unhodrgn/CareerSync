@@ -4,8 +4,8 @@ Deterministic: the same criteria, question bank and CV lines always give the sam
 in. The question bank is the D21 one (`ai.career.interview`: LLM or template questions, both blocklists), reused as it is;
 a criterion without a usable bank question gets the D21 template, then a neutral fallback question.
 
-Shape of a plan: an optional CV-grounded warm-up, the criteria by importance (핵심, 중요, 일반; then their order in the job),
-and one behavioral question last. The number of questions is capped (`InterviewLimits.max_questions`). A 핵심 criterion
+Shape of a plan: an optional CV-grounded warm-up, the criteria by importance (core, important, general; then their order in the job),
+and one behavioral question last. The number of questions is capped (`InterviewLimits.max_questions`). A core criterion
 outranks the warm-up; a criterion that gets no slot is listed in `plan.uncovered`, never dropped silently. No weights
 anywhere: criteria arrive with their importance label only (D30).
 """
@@ -219,8 +219,8 @@ def build_plan(
         built.append((c, item))
 
     slots = limits.max_questions - (behavioral is not None) - (warmup is not None)
-    core = sum(1 for c, item in built if item is not None and c.importance == "핵심")
-    if warmup is not None and core > slots:  # a 핵심 criterion outranks the warm-up
+    core = sum(1 for c, item in built if item is not None and c.importance == "core")
+    if warmup is not None and core > slots:  # a core criterion outranks the warm-up
         warmup, slots = None, slots + 1
     slots = max(0, slots)
     eligible = [(c, item) for c, item in built if item is not None]

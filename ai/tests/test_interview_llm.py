@@ -141,7 +141,7 @@ def test_no_personal_data_and_no_weight_reaches_the_model():
         assert secret.lower() not in text, secret
     assert "[이메일]" in request.user and "[전화번호]" in request.user and "[이름]" in request.user
     assert "weight" not in request.user.lower()
-    assert "Java 활용 능력 (핵심)" in request.user  # the importance label is allowed; a weight never is
+    assert "Java 활용 능력 (core)" in request.user  # the importance label is allowed; a weight never is
 
 
 def test_age_gender_and_military_service_never_reach_the_model():
@@ -168,14 +168,14 @@ def test_the_whole_context_is_scrubbed_not_only_the_answer():
     context = TurnContext(
         question="나이가 어떻게 되시나요?",
         criterion_name="협업",
-        importance="일반",
+        importance="general",
         rubric=(("p1", "남성 지원자 우대"), ("p2", "팀 협업 경험")),
         answer="팀에서 코드 리뷰를 주도했습니다.",
         previous=("저는 29세입니다.", "이전 답변입니다."),
         asked=("병역을 마치셨나요?", "다른 질문입니다."),
     )
     assert scrub_context(context) is None  # a question about age leaves nothing to ask a model with
-    clean = scrub_context(TurnContext("협업 경험을 말씀해 주세요.", "협업", "일반", context.rubric, context.answer, context.previous, context.asked))
+    clean = scrub_context(TurnContext("협업 경험을 말씀해 주세요.", "협업", "general", context.rubric, context.answer, context.previous, context.asked))
     assert clean.rubric == (("p1", "(제외됨)"), ("p2", "팀 협업 경험"))  # the point stays, so the model can still judge its id
     assert clean.previous == ("이전 답변입니다.",) and clean.asked == ("다른 질문입니다.",)
 
@@ -461,7 +461,7 @@ def test_a_meaningful_short_answer_is_never_skipped_however_often_it_comes():
 
 
 def test_a_one_word_korean_answer_about_the_topic_counts_as_an_answer():
-    plan = build_plan([crit(1, "REST API 멱등성", "skill", "멱등성 개념, HTTP 메서드별 특성", "핵심")], (), "", (), BLOCKLISTS)
+    plan = build_plan([crit(1, "REST API 멱등성", "skill", "멱등성 개념, HTTP 메서드별 특성", "core")], (), "", (), BLOCKLISTS)
     engine = make_engine(plan)
     engine.start()
     action = engine.on_answer("멱등성이요", 12.0)  # 5 characters, one word
@@ -515,13 +515,13 @@ POINTS = {"points": [{"text": "요청을 반복해도 결과가 같다는 정의
 
 
 def rubric_req(**kw):
-    args = dict(question="멱등성이 무엇인지 설명해 주세요.", name="REST API 멱등성", category="skill", description="멱등성 개념", importance="핵심", blocklists=BLOCKLISTS)
+    args = dict(question="멱등성이 무엇인지 설명해 주세요.", name="REST API 멱등성", category="skill", description="멱등성 개념", importance="core", blocklists=BLOCKLISTS)
     return rubric_request(**{**args, **kw})
 
 
 def test_the_rubric_request_carries_the_importance_label_and_no_weight():
     req = rubric_req()
-    assert "REST API 멱등성 | skill | 핵심 | 멱등성 개념" in req.user and "weight" not in req.user.lower()
+    assert "REST API 멱등성 | skill | core | 멱등성 개념" in req.user and "weight" not in req.user.lower()
     assert req.system == (PROMPT_DIR / "interview_rubric.md").read_text(encoding="utf-8") and req.schema is RubricLlmOut
     assert rubric_req(importance="30") is None  # a weight is not a label
     assert rubric_req(question="나이가 어떻게 되시나요?") is None and rubric_req(name="병역 여부") is None

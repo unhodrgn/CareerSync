@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import s from './seeker.module.css';
 
-// JD section headings as the JD draft (D24) and most postings write them
+// JD section headings as the JD draft (D24) and most postings write them; Korean JD input, kept as is (D94)
 const HEADINGS = ['주요 업무', '자격 요건', '우대 사항'];
 
 /** Renders JD text: known section headings as headings, "- " lines as lists, other lines as paragraphs. */

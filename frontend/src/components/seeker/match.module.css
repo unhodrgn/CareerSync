@@ -127,7 +127,7 @@
   gap: var(--ds-space-2);
 }
 
-/* 미설정 / 확인 불가 in the ring's place: at least as wide as a ring, centred in it */
+/* Not set / Unavailable in the ring's place: at least as wide as a ring, centred in it */
 .breakdownItem .prefState {
   flex: none;
   min-width: 44px;
@@ -164,7 +164,7 @@
   margin-top: 1px;
 }
 
-/* 희망 조건 미설정: what that does to the match score, under the breakdown (D46) */
+/* Preferences not set: what that does to the match score, under the breakdown (D46) */
 .prefNote {
   max-width: 72ch;
   margin: var(--ds-space-3) 0 0;
@@ -194,7 +194,7 @@
   justify-items: start;
 }
 
-/* "점수 보는 법": a native disclosure in the link tone, closed by default */
+/* "How to read the scores": a native disclosure in the link tone, closed by default */
 .guide {
   max-width: 72ch;
   font-size: var(--ds-text-caption);
@@ -245,7 +245,7 @@
   color: var(--ds-line-strong);
 }
 
-/* The preference score when it is not a number: 미설정 (none set, D46) or 확인 불가 (the request failed) */
+/* The preference score when it is not a number: Not set (none set, D46) or Unavailable (the request failed) */
 .prefState {
   display: inline-flex;
   align-items: center;
@@ -314,12 +314,12 @@
   font-weight: var(--ds-weight-bold);
 }
 
-/* In a job row half of 20 px would be 10 px: 점 has more strokes than a digit, so 12 px */
+/* In a job row half of 20 px would be 10 px: the unit has more strokes than a digit, so 12 px */
 .summary[data-size='sm'] .summaryUnit {
   font-size: 12px;
 }
 
-/* One line: 기업 기준 N개, the categories, a hairline, 희망 조건. No boxes and no fills behind it */
+/* One line: Criteria: N, the categories, a hairline, Preferences. No boxes and no fills behind it */
 .reasons {
   min-width: 0;
   margin: 0;

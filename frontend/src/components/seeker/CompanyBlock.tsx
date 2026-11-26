@@ -3,7 +3,7 @@ import { t } from '@/i18n';
 import type { CompanyPublicOut } from '@/types/company';
 import s from './seeker.module.css';
 
-/** Company intro, 인재상 and running projects (D23), under a job's description. */
+/** Company intro, Who we look for and running projects (D23), under a job's description. */
 export default function CompanyBlock({ company }: { company: CompanyPublicOut }) {
   return (
     <section className={s.companyBlock} aria-labelledby="job-company">

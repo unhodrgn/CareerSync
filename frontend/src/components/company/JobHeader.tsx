@@ -10,13 +10,13 @@ import type { JobOut } from '@/types/job';
 import s from './company.module.css';
 
 /**
- * Header of a job's company pages: back to 공고 관리, the job title as the page's one H1 with its status, and the
+ * Header of a job's company pages: back to Jobs, the job title as the page's one H1 with its status, and the
  * job's tabs. Applicants exist once a job was published; talent only while it is published (D19).
  */
 export default function JobHeader({ job }: { job: JobOut }) {
   const id = String(job.id);
   const tabs = [
-    // 공고 수정 mixes the company's own form with AI help (marked inside the page); the other two are AI features
+    // Edit job mixes the company's own form with AI help (marked inside the page); the other two are AI features
     { to: generatePath(paths.company.jobEdit, { jobId: id }), label: t('jobTabs.edit'), enabled: true, ai: false },
     { to: generatePath(paths.company.applicants, { jobId: id }), label: t('jobTabs.applicants'), enabled: job.status !== 'draft', ai: true },
     { to: generatePath(paths.company.talent, { jobId: id }), label: t('jobTabs.talent'), enabled: job.status === 'published', ai: true },

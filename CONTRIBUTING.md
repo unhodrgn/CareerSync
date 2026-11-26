@@ -15,7 +15,7 @@ Setup and the full command list: [Run locally](docs/how-to/run-locally.md).
 - **Decisions live only in `docs/DECISIONS.md`.** Add a row with the real decision date; never rewrite or delete an old row, add a new one that says "replaces D#". Open questions go to its §3.
 - **Keep the docs current.** A change that adds or changes a table, endpoint, page, env variable, constant or file updates the matching section of `PROJECT_DOCUMENTATION.md` (including the §8 tree) in the same commit.
 - **Guards and the allowlist.** A failing doc guard names the doc place and the code place. A known, intended difference goes into `backend/tests/docs/allowlist.yaml` with a reason; an entry that is no longer needed fails, so remove it then.
-- **English only (D40).** All Markdown docs are in English. Korean product/UI terms and law names stay Korean, with an English gloss at first use (glossary: `PROJECT_DOCUMENTATION.md` §12). User-facing text in the app is Korean.
+- **English only (D40).** All Markdown docs are in English. Korean product/UI terms and law names stay Korean, with an English gloss at first use (glossary: `PROJECT_DOCUMENTATION.md` §12). User-facing text in the app is English (D94).
 - **No hand-typed test counts** in docs: describe what must pass, and count with `pytest --collect-only -q | tail -1`.
 
 ## Commits

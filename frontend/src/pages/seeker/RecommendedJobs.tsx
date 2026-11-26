@@ -26,7 +26,7 @@ import type { RecommendationList, RecommendedJob } from '@/types/recommendation'
 
 /** How many preference chips show before the rest fold into a "+N" chip. */
 const PREF_CHIPS_SHOWN = 6;
-// The API's maximum page, as on 공고 목록; recommended jobs are published ones, so they are in it
+// The API's maximum page, as on Job list; recommended jobs are published ones, so they are in it
 const JOBS_LIMIT = 100;
 const PREVIEW_MEDIA = '(min-width: 1000px)';
 
@@ -41,20 +41,20 @@ const hasPreviewWidth = () => window.matchMedia(PREVIEW_MEDIA).matches;
 /** What the recommendation response does not carry, read from the job list by id. */
 interface JobFacts {
   criteria_count?: number;
-  /** `null` = 신입 가능, as on the job list. */
+  /** `null` = Entry level, as on the job list. */
   min_experience_years?: number | null;
 }
 
 /**
  * GET /api/recommendations/jobs: recommended jobs with the match score, band, category and preference scores
- * (D42). Jobs still being analyzed are only counted; 새로고침 asks again (no polling).
+ * (D42). Jobs still being analyzed are only counted; Refresh asks again (no polling).
  */
 export default function RecommendedJobs() {
   const { state, reload } = useApi(() => api.recommendations(), []);
   // The seeker's preferences feed the chip row and the talent hint; a failure only leaves both out
   const { state: prefsState } = useApi(() => api.myPreferences(), []);
   const prefs = prefsState.status === 'ok' ? prefsState.data : null;
-  // 미설정 only when this request confirms that no preference is set; a failure is 확인 불가, never 100 (D46)
+  // Not set only when this request confirms that no preference is set; a failure is Unavailable, never 100 (D46)
   const prefsStatus = preferenceStatus(prefsState);
   // One shared request (never one per card) for the criteria count and the experience the cards show; a job it does
   // not return, or a failed request, only leaves those two facts out
@@ -91,7 +91,7 @@ function factsById(items: JobListItem[]): Map<number, JobFacts> {
 
 /**
  * A seeker who can be recommended (confirmed CV, AI consent) learns here that companies can also come to them:
- * one line while the talent opt-in (profile_public, D19, on 희망 조건) is off.
+ * one line while the talent opt-in (profile_public, D19, on Preferences) is off.
  */
 function TalentHint({ prefs }: { prefs: PreferenceOut | null }) {
   const { user } = useAuth();
@@ -120,7 +120,7 @@ function PendingLine({ count, onRefresh }: { count: number; onRefresh: () => voi
 }
 
 /**
- * The seeker's preferences (D15) as a row of chips above the result, with a pencil that opens 희망 조건 (DESIGN.md
+ * The seeker's preferences (D15) as a row of chips above the result, with a pencil that opens Preferences (DESIGN.md
  * Preference chips). The chips only explain the list: Pref is computed on the server, nothing here filters.
  */
 function PreferenceBar({ prefs }: { prefs: PreferenceOut }) {

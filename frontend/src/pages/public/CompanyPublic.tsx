@@ -11,8 +11,8 @@ import { paths } from '@/routes/paths';
 import { useDocumentTitle } from '@/routes/title';
 
 /**
- * Where 뒤로 goes: the page that opened this one, when it said so in the link's navigation state and it is one this
- * page knows (never a path taken from the state); otherwise — a direct visit or a reload in a new tab — 공고 목록.
+ * Where Back goes: the page that opened this one, when it said so in the link's navigation state and it is one this
+ * page knows (never a path taken from the state); otherwise — a direct visit or a reload in a new tab — Job list.
  */
 const BACK_TARGETS = {
   companyProfile: { to: paths.company.profile, label: 'nav.company.profile' },
@@ -28,7 +28,7 @@ function backFrom(state: unknown): { to: string; label: string } {
 }
 
 /**
- * Public company profile (D23): intro, 인재상 and running projects, as signed-in users see them under a job.
+ * Public company profile (D23): intro, Who we look for and running projects, as signed-in users see them under a job.
  * GET /api/companies/{id} needs a login, so the route sits behind RequireRole.
  */
 export default function CompanyPublic() {

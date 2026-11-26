@@ -67,7 +67,7 @@ def _store(db: Session, profile: CvProfile, method: str, content: dict) -> None:
 def review(db: Session, user: User, profile_id: int) -> CvReviewOut:
     profile = cv_service.get_own(db, user, profile_id)
     if user.consent_ai_at is None:
-        raise AppError(409, "AI_CONSENT_REQUIRED", "AI 분석 동의 후 이력서 점검을 받을 수 있습니다.")
+        raise AppError(409, "AI_CONSENT_REQUIRED", "You can get a CV check after consenting to AI analysis.")
     text = profile.document.masked_text
     data = cv_service.to_profile_data(profile)
     skills = ai_runtime.skills()

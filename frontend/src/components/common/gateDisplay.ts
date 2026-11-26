@@ -26,8 +26,8 @@ export function experienceDisplay(experienceMonths: number, gate: RequiredGateOu
 }
 
 /**
- * A duration as a message key and its values: "2년", "1년 6개월", "5개월". A stated total of zero reads "0년", as the
- * CV and the gate's reason write it; a period-based zero stays "0개월" as before.
+ * A duration as a message key and its values: "2 yr", "1 yr 6 mo", "5 mo". A stated total of zero reads "0 yr", as the
+ * CV and the gate's reason write it; a period-based zero stays "0 mo" as before.
  */
 export type DurationText =
   | { key: 'common.yearsShort'; vars: { n: number } }

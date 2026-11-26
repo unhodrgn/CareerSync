@@ -38,7 +38,7 @@ def reset_counts() -> None:
 def generate(db: Session, user: User, application_id: int) -> VerificationOut:
     application = application_service.get_owned(db, user, application_id)
     if application.seeker.consent_ai_at is None:
-        raise AppError(409, "AI_CONSENT_WITHDRAWN", "지원자가 AI 분석 동의를 철회했습니다.")
+        raise AppError(409, "AI_CONSENT_WITHDRAWN", "The applicant withdrew AI analysis consent.")
     job = db.get(JobPosting, application.job_id)
     criteria = [
         CriterionInfo(c.id, c.name, c.category, c.description)

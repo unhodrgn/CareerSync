@@ -79,7 +79,7 @@ def test_rules_mode_template_is_cached(client, db, world):
     r = _roadmap(client, h, job_id)
     assert r.status_code == 200, r.json()
     body = r.json()
-    assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI 분석은 참고용")
+    assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI analysis is for reference only")
     assert body["gaps"] == [{"name": "Kubernetes", "kind": "skill"}, {"name": "Kafka", "kind": "skill"}, {"name": "SQLP", "kind": "certificate"}]
     assert [s["skill"] for s in body["steps"]] == ["Kubernetes", "Kafka", "SQLP"]
     assert body["steps"][0]["resources"] == [{"title": "Kubernetes 기초 튜토리얼", "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"}]
@@ -226,7 +226,7 @@ def test_interview_rules_mode_is_cached(client, db, world):
     r = _interview(client, h, job_id)
     assert r.status_code == 200, r.json()
     body = r.json()
-    assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI 분석은 참고용")
+    assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI analysis is for reference only")
     assert 3 <= len(body["questions"]) <= 10
     ids = {q["criterion_id"] for q in body["questions"]} - {None}
     assert ids and ids <= _criterion_ids(client, world, job_id)

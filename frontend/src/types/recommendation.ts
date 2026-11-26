@@ -4,7 +4,7 @@ import type { RequiredGateOut } from './gate';
 import type { EmploymentType } from './job';
 
 /** The band shown with the match score (D16, D42). */
-export type MatchLevel = '매우 적합' | '적합' | '참고';
+export type MatchLevel = 'very_good' | 'good' | 'reference';
 
 /**
  * Where the bands start on the match score, for the score guide's wording only (the band itself always comes from

@@ -80,7 +80,7 @@ def test_first_call_queues_then_the_job_is_listed_with_a_band(client, db, world)
     second = client.get(URL, headers=h).json()
     assert second["pending_count"] == 0
     assert [i["job_id"] for i in second["items"]] == [job_id]
-    assert second["items"][0]["match_level"] in {"매우 적합", "적합", "참고"}
+    assert second["items"][0]["match_level"] in {"very_good", "good", "reference"}
 
 
 def test_pref_runs_before_fit(client, db, world, queued):
@@ -117,8 +117,8 @@ def test_fit_threshold_bands_and_order(client, db, world, queued):
     for job_id, fit in ((a, 90), (b, 90), (c, 50), (d, 30), (e, 100)):
         _done(db, job_id, cv, fit)
     r = client.get(URL, headers=h).json()
-    # Final: A 95 → 매우 적합, B 70 → 적합, C 50 → 참고; D Fit 30 < 40; E Pref 0 < 40
-    assert [(i["job_id"], i["match_level"]) for i in r["items"]] == [(a, "매우 적합"), (b, "적합"), (c, "참고")]
+    # Final: A 95 → very_good, B 70 → good, C 50 → reference; D Fit 30 < 40; E Pref 0 < 40
+    assert [(i["job_id"], i["match_level"]) for i in r["items"]] == [(a, "very_good"), (b, "good"), (c, "reference")]
     assert r["pending_count"] == 0 and queued == []
     assert [i["job_id"] for i in client.get(f"{URL}?limit=2", headers=h).json()["items"]] == [a, b]
     assert client.get(f"{URL}?limit=0", headers=h).status_code == 422
@@ -126,7 +126,7 @@ def test_fit_threshold_bands_and_order(client, db, world, queued):
 
 
 @pytest.mark.parametrize(
-    "final, band", [(100, "매우 적합"), (80, "매우 적합"), (79.9, "적합"), (60, "적합"), (59.9, "참고"), (40, "참고")]
+    "final, band", [(100, "very_good"), (80, "very_good"), (79.9, "good"), (60, "good"), (59.9, "reference"), (40, "reference")]
 )
 def test_band_thresholds(final, band):
     assert recommendation_service.match_level(final) == band
@@ -136,11 +136,11 @@ def test_response_shows_scores_but_no_weights(client, db, world, queued):
     _, h = _seeker(client, db)
     _done(db, _job(client, world), _cv_id(client, h), 80)
     body = client.get(URL, headers=h).json()
-    assert set(body) == {"items", "pending_count", "notice"} and body["notice"].startswith("AI 분석은 참고용")
+    assert set(body) == {"items", "pending_count", "notice"} and body["notice"].startswith("AI analysis is for reference only")
     item = body["items"][0]
     assert set(item) == ITEM_KEYS  # no fit, final, weights, reasons or evidence
     # No preferences: Pref 100, Final = 0.5·80 + 0.5·100
-    assert (item["match_score"], item["match_level"], item["preference_score"]) == (90, "매우 적합", 100)
+    assert (item["match_score"], item["match_level"], item["preference_score"]) == (90, "very_good", 100)
     assert item["categories"] == [
         {"category": "skill", "score": 80},
         {"category": "certificate", "score": 80},
@@ -168,7 +168,7 @@ def test_scores_round_down_and_category_means_ignore_weights(client, db, world, 
     _scored(db, _job(client, world), _cv_id(client, h), UNEVEN)
     item = client.get(URL, headers=h).json()["items"][0]
     # Final = 0.5·60.7 + 0.5·50 = 55.35 → 55; skill mean (90 + 70 + 51) / 3 = 70.3 → 70, not weighted
-    assert (item["match_score"], item["match_level"], item["preference_score"]) == (55, "참고", 50)
+    assert (item["match_score"], item["match_level"], item["preference_score"]) == (55, "reference", 50)
     assert item["categories"] == [
         {"category": "skill", "score": 70},
         {"category": "certificate", "score": 0},
@@ -178,8 +178,8 @@ def test_scores_round_down_and_category_means_ignore_weights(client, db, world, 
 
 @pytest.mark.parametrize(
     "final, score, band",
-    [(100, 100, "매우 적합"), (80, 80, "매우 적합"), (79.99, 79, "적합"), (60, 60, "적합"), (59.9, 59, "참고"),
-     (40, 40, "참고"), (39.9, 39, None), (0, 0, None)],
+    [(100, 100, "very_good"), (80, 80, "very_good"), (79.99, 79, "good"), (60, 60, "good"), (59.9, 59, "reference"),
+     (40, 40, "reference"), (39.9, 39, None), (0, 0, None)],
 )
 def test_score_is_rounded_down_and_never_changes_the_band(final, score, band):
     assert recommendation_service.match_score(final) == score
@@ -190,7 +190,7 @@ def test_score_is_rounded_down_and_never_changes_the_band(final, score, band):
 
 def test_float_noise_cannot_split_the_number_from_its_band():
     final = recommendation_service.final_of(60.2, 99.8)  # 80 exactly, whatever the float sum gives
-    assert (recommendation_service.match_score(final), recommendation_service.match_level(final)) == (80, "매우 적합")
+    assert (recommendation_service.match_score(final), recommendation_service.match_level(final)) == (80, "very_good")
 
 
 # ── Read-only scores: job list and job detail (D43) ──
@@ -214,12 +214,12 @@ def test_matches_reads_existing_scores_only(client, db, world, queued):
     r = client.get(f"{MATCHES}?job_ids={low},{waiting},{applied},{good},{low},99999", headers=h)
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"items", "notice"} and body["notice"].startswith("AI 분석은 참고용")
+    assert set(body) == {"items", "notice"} and body["notice"].startswith("AI analysis is for reference only")
     assert all(set(i) == SCORE_KEYS for i in body["items"])
     # In the order asked, duplicates once; no evaluation → left out; applied → left out; unknown id → left out
     assert [(i["job_id"], i["match_score"], i["match_level"]) for i in body["items"]] == [
         (low, 35, None),  # 0.5·20 + 0.5·50 = 35: the number without a band
-        (good, 95, "매우 적합"),
+        (good, 95, "very_good"),
     ]
     assert len(_evaluations(db)) == before and queued == []  # reads only
 
@@ -261,14 +261,14 @@ def test_job_match_lists_each_criterion_without_weights(client, db, world, queue
     before = len(_evaluations(db))
     body = client.get(f"/api/jobs/{job}/match", headers=h).json()
     assert set(body) == SCORE_KEYS | {"status", "criteria", "required_gate", "notice"}
-    assert (body["status"], body["match_score"], body["match_level"], body["preference_score"]) == ("done", 55, "참고", 50)
+    assert (body["status"], body["match_score"], body["match_level"], body["preference_score"]) == ("done", 55, "reference", 50)
     assert all(set(c) == CRITERION_KEYS for c in body["criteria"])  # no weight, reason or evidence
     assert {c["name"]: (c["category"], c["importance"], c["score"]) for c in body["criteria"]} == {
-        "Java 활용 능력": ("skill", "핵심", 90),
-        "Spring 경험": ("skill", "핵심", 70),
-        "DB 경험": ("skill", "중요", 51),
-        "프로젝트 경험": ("project", "중요", 40),
-        "관련 자격증": ("certificate", "중요", 0),  # weight 10 = IMPORTANCE_MID
+        "Java 활용 능력": ("skill", "core", 90),
+        "Spring 경험": ("skill", "core", 70),
+        "DB 경험": ("skill", "important", 51),
+        "프로젝트 경험": ("project", "important", 40),
+        "관련 자격증": ("certificate", "important", 0),  # weight 10 = IMPORTANCE_MID
     }
     assert len(_evaluations(db)) == before and queued == []
 

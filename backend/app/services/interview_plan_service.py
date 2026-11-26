@@ -19,7 +19,7 @@ The CV boundary (every line of it is enforced by a test, `ai/tests/test_intervie
 
 What is stored is `CanonicalPlan.data` and its SHA-256: never the raw or cleaned CV, an excerpt, a `cv_quote`, the question bank
 or a weight. What it can still hold: professional questions that the model or a template wrote from the sanitized CV, which may
-paraphrase it ("Java와 Spring Boot 경험을 설명해 주세요" after a CV line about Spring Boot). The word-for-word check cannot see a paraphrase, and
+paraphrase it ("Java와 Spring Boot 경험을 설명해 주세요", "describe your Java and Spring Boot experience", after a CV line about Spring Boot). The word-for-word check cannot see a paraphrase, and
 `clean_cv` is a vocabulary cut, so this is best effort and not a guarantee that the plan holds no CV-derived information.
 
 Serialization (`seal`) is kept out of the function that calls the model-input builders on purpose: the architecture test

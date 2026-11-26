@@ -30,13 +30,13 @@ from app.schemas.career import InterviewOut, RoadmapOut
 from app.services import ai_runtime, criteria_service, recommendation_service
 
 KST = timezone(timedelta(hours=9))
-NO_GAP_MESSAGE = "이 공고에서 요구하는 기술과 자격증을 모두 갖추고 있습니다."
+NO_GAP_MESSAGE = "You have every skill and certificate this job asks for."
 
 
 def _open_job(db: Session, job_id: int) -> JobPosting:
     job = db.get(JobPosting, job_id)
     if job is None or job.status != JobStatus.PUBLISHED or (job.deadline is not None and job.deadline < date.today()):
-        raise AppError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
+        raise AppError(404, "JOB_NOT_FOUND", "Job not found.")
     return job
 
 

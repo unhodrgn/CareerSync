@@ -57,7 +57,7 @@ def claim(db: Session, ev: Evaluation, *, reset_attempts: bool, max_attempts: in
     longer than EVALUATION_STALE_MINUTES. Returns the token (the new `queued_at`) for the run, or
     None when it must not be queued. Does not commit; the caller commits before starting the run.
 
-    Apply and 다시 분석 reset `attempts` (they are not limited by it); other paths add one and may
+    Apply and Analyze again reset `attempts` (they are not limited by it); other paths add one and may
     pass `max_attempts` to stop re-queuing an evaluation that keeps failing.
     """
     now = datetime.now(UTC)
