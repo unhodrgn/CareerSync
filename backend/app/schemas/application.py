@@ -8,7 +8,7 @@ from app.schemas.gate import RequiredGateOut
 ApplicationStatusT = Literal["submitted", "reviewing", "interview", "on_hold", "passed", "rejected"]
 EvaluationStatusT = Literal["pending", "done", "failed"]
 
-AI_NOTICE = "AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."
+AI_NOTICE = "AI analysis is for reference only. The company makes the final hiring decision."
 
 
 class ApplicationOut(BaseModel):

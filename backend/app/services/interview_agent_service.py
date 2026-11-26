@@ -42,7 +42,7 @@ def context(db: Session, session_id: int, *, clock: Clock = utcnow) -> AgentCont
     now = now_from(clock)
     row = db.scalars(select(InterviewSession).where(InterviewSession.id == session_id, InterviewSession.expires_at > now)).first()
     if row is None:
-        raise AppError(404, "INTERVIEW_NOT_FOUND", "모의 면접을 찾을 수 없습니다.")
+        raise AppError(404, "INTERVIEW_NOT_FOUND", "Practice interview not found.")
     eff = interview_service.effective(row, now)
     seeker = db.get(User, row.seeker_id)
     last_seq = db.scalar(select(func.coalesce(func.max(InterviewTurn.seq), 0)).where(InterviewTurn.session_id == session_id))

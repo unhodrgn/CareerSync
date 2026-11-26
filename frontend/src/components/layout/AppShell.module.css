@@ -360,7 +360,7 @@
   text-underline-offset: 3px;
 }
 
-/* ── Guest header: brand, 회원가입 and 로그인 ── */
+/* ── Guest header: brand, Sign up and Log in ── */
 
 .header {
   height: 64px;
@@ -486,7 +486,7 @@
   }
 }
 
-/* ── Skip link (본문으로 건너뛰기): off screen until focused, then a high-contrast pill at the top left ── */
+/* ── Skip link (Skip to content): off screen until focused, then a high-contrast pill at the top left ── */
 
 .skipLink {
   position: absolute;

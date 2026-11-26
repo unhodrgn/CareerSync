@@ -110,7 +110,7 @@ def test_the_naive_values_sqlite_returns_and_the_aware_ones_give_the_same_answer
 
 
 def test_a_detail_has_the_topics_with_their_statuses_and_the_masked_turns(db, world, clock):
-    session_id = svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock).view.id
+    session_id = svc.create_session(db, world.user, world.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock).view.id
     db.add(InterviewTurn(session_id=session_id, seq=1, role="agent", kind="question", text="자기소개를 해 주세요."))
     db.add(InterviewTurn(session_id=session_id, seq=2, role="candidate", kind="answer", text="저는 [이름]입니다."))
     db.commit()
@@ -147,7 +147,7 @@ def test_a_company_user_is_refused_by_every_service_before_any_statement(db, wor
     company = build_world(db, email="hr@interview.test", role="company")
     mine = add(db, world, clock, S.CREATED, deadline=300)
     calls = {
-        "create": lambda: svc.create_session(db, company.user, company.job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock),
+        "create": lambda: svc.create_session(db, company.user, company.job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock),
         "detail": lambda: svc.detail(db, company.user, mine, clock=clock),
         "history": lambda: svc.history(db, company.user, clock=clock),
         "history_for_a_job": lambda: svc.history(db, company.user, job_id=world.job_id, clock=clock),

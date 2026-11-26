@@ -12,7 +12,7 @@ web
 
 Two co-equal audiences; neither side's needs automatically win. The shared-criteria mechanism that connects them is the product.
 
-- **Job seekers** (`seeker`, Korean-speaking): upload a text PDF CV, check and confirm what the AI extracted, set preferences, browse jobs (also without logging in), get recommended jobs with a match score and band, apply and track status, prepare for a specific job (skill gaps / roadmap, interview practice questions, CV self-check), and answer anonymous offers from companies.
+- **Job seekers** (`seeker`; the UI is English (D94), Korean and Vietnamese CVs are accepted as input): upload a text PDF CV, check and confirm what the AI extracted, set preferences, browse jobs (also without logging in), get recommended jobs with a match score and band, apply and track status, prepare for a specific job (skill gaps / roadmap, interview practice questions, CV self-check), and answer anonymous offers from companies.
 - **Recruiters** (`company`, one account = one company): keep a company profile and running projects, write job postings (with AI drafting and criteria suggestions), define their own evaluation criteria and weights, review applicants ranked by Fit with per-criterion evidence, change application status, browse anonymous opt-in talent and send offers.
 
 Near-term audience: this is a Soongsil University capstone prototype, demoed locally via Docker Compose.
@@ -38,27 +38,27 @@ One set of company-defined criteria works in both directions on a single platfor
 
 Binding product rules that every screen must respect (see `docs/DECISIONS.md` for the full text):
 
-- **Seekers see match scores, never weights** (D42, D43, replacing D1): the match score (Final rounded down) with its band 매우 적합 / 적합 / 참고, unweighted category scores, the preference score, and per-criterion scores on job detail; never weights and never a score for an applied job. Job-prep gaps are skills/certificates the job names that the CV text lacks, computed by code, not from company scores (D21).
+- **Seekers see match scores, never weights** (D42, D43, replacing D1): the match score (Final rounded down) with its band (API `very_good` / `good` / `reference`, shown as Strong match / Good match / Possible match; 매우 적합 / 적합 / 참고 before D94), unweighted category scores, the preference score, and per-criterion scores on job detail; never weights and never a score for an applied job. Job-prep gaps are skills/certificates the job names that the CV text lacks, computed by code, not from company scores (D21).
 - **AI never decides** (CLAUDE.md AI rule 5): status changes only from a recruiter click. UI copy must not imply the AI accepted or rejected anyone.
 - **AI results carry a notice** (AI rule 6): responses with AI output include `notice` (`AI_NOTICE`); the UI shows it.
 - **Talent is anonymous until offer acceptance** (D3, D19, D20): companies see `anonymous_id` and verified facts only; acceptance reveals only `display_name` + email. Applicants (who applied) are not anonymous to the company.
 - **Consent gates AI use** (D16, D17): AI consent, re-consent for a newer `CONSENT_VERSION`, and withdrawal each change what a seeker can do; screens must handle the 409 consent states.
 - Talent recommendation (anonymous list + offers) is in the demo (D29).
 - Criteria pass a legal guardrail on save (discriminatory criteria blocked with the law cited).
-- Frontend stack (existing): React 19, TypeScript, Vite, React Router 7. Korean UI, `lang="ko"`. All UI strings go through `t()` from `src/i18n` (source locale `ko.ts`); no new dependencies without approval.
+- Frontend stack (existing): React 19, TypeScript, Vite, React Router 7. English UI, `lang="en"` (D94). All UI strings go through `t()` from `src/i18n` (default locale `en.ts`; `ko.ts` is kept as the source of the keys); no new dependencies without approval.
 - Devices: desktop-first web with responsive layouts introduced in PR #26; M6 is planned as a full frontend rebuild including the practice-interview UI (D88).
-- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label 핵심 / 중요 / 일반, never a number or weight (D30), and guests see criterion names only (D35); scores appear on recommended jobs, the job list and job detail when an evaluation already exists, never on applied jobs (D43, replacing D31); no 사업자등록번호 field (D32); public `/jobs` location/experience/employment filters and redesigned `JobCard` UI are kept per D88 (replacing D33 and D45), while saved jobs and company dashboard metrics remain out; CV/account deletion is deferred to a later phase (D34).
+- Decided since the first design pass (`docs/DECISIONS.md`): signed-in seekers see each criterion with an importance label (API `core` / `important` / `general`, shown as Core / Important / General; 핵심 / 중요 / 일반 before D94), never a number or weight (D30), and guests see criterion names only (D35); scores appear on recommended jobs, the job list and job detail when an evaluation already exists, never on applied jobs (D43, replacing D31); no 사업자등록번호 field (D32); public `/jobs` location/experience/employment filters and redesigned `JobCard` UI are kept per D88 (replacing D33 and D45), while saved jobs and company dashboard metrics remain out; CV/account deletion is deferred to a later phase (D34).
 - Undecided (do not design as if decided): the rest of Q11 (seeker profile fields 경력 수준 / 보유 기술 스택, a 기업 탐색 page).
 
 ## Brand Commitments
 
 - Name: **CareerSync**. Tagline in docs: 기업 맞춤형 AI 채용 매칭 플랫폼 (criteria-based hiring and job matching). Logo mark: drawn in `frontend/src/components/common/icons.tsx` (`LogoMark`); no separate asset file.
-- Voice: user-facing text is Korean; claims stay factual (what the AI checked, what evidence exists), never promises of hiring outcomes.
+- Voice: user-facing text is English (D94); claims stay factual (what the AI checked, what evidence exists), never promises of hiring outcomes.
 - **Binding visual reference:** "EN V3 · Dual-Trail Outcome Flow (Off-White & Deep Rich Panels)" is the landing reference, confirmed by Long 2026-10-16 (the HTML file is no longer in the repo; `DESIGN.md` and the shipped landing carry its decisions); it supersedes the earlier PNG of the same name and the first landing build. Its visuals bind later design work; its sample content does not override product rules. How the build resolved its content conflicts:
   - Seeker card: the 4 criteria names with a neutral "점수 반영" badge, the AWS row as the amber "이력서에 없음" gap (D21), the JD-only gap in the footer; no "Matched" rows, no numbers (D1, D16, D21).
   - Spine: neutral category tags instead of the High / Core / Gap badges (importance levels are Q2, undecided).
   - Employer card: named applicants (not anonymous); anonymity is stated only for talent recommendation, in the trust note.
-  - Copy is Korean through `t()`; the example uses the seed job 클라우드랩 · 데이터 엔지니어, labeled 예시.
+  - Copy goes through `t()` (English since D94; the Korean strings quoted above are the `ko.ts` versions); the example uses the seed job 클라우드랩 · 데이터 엔지니어, labeled 예시.
 
 ## Evidence on Hand
 

@@ -28,7 +28,7 @@ def test_save_and_read_plan_example(client, world):
     body = r.json()
     assert body["total_weight"] == 100
     assert [i["name"] for i in body["items"]] == [i["name"] for i in PLAN_EXAMPLE]
-    assert [i["importance"] for i in body["items"]] == ["핵심", "핵심", "중요", "중요", "중요"]
+    assert [i["importance"] for i in body["items"]] == ["core", "core", "important", "important", "important"]
     assert client.get(f"/api/jobs/{world['job'].id}/criteria", headers=world["recruiter"]).json() == body
 
 
@@ -129,7 +129,7 @@ def test_seeker_sees_importance_not_weights(client, world):
     assert client.get(url, headers=world["seeker"]).status_code == 404  # draft is not visible
     publish(client, world["job"].id, world["recruiter"])
     body = client.get(url, headers=world["seeker"]).json()
-    assert body["items"][0] == {"name": "Java 활용 능력", "category": "skill", "importance": "핵심"}
+    assert body["items"][0] == {"name": "Java 활용 능력", "category": "skill", "importance": "core"}
     assert all("weight" not in i and "description" not in i for i in body["items"])
     assert put(client, world["job"].id, PLAN_EXAMPLE, world["seeker"]).status_code == 403
 
@@ -197,11 +197,11 @@ def test_seeker_gets_labels_without_numbers(client, world):
     url = published_with_labels(client, world)
     body = client.get(url, headers=world["seeker"]).json()
     assert body["items"] == [
-        {"name": "Java 활용 능력", "category": "skill", "importance": "핵심"},
-        {"name": "Spring 경험", "category": "skill", "importance": "중요"},
-        {"name": "프로젝트 경험", "category": "project", "importance": "중요"},
-        {"name": "관련 자격증", "category": "certificate", "importance": "일반"},
-        {"name": "AWS 경험", "category": "skill", "importance": "일반"},
+        {"name": "Java 활용 능력", "category": "skill", "importance": "core"},
+        {"name": "Spring 경험", "category": "skill", "importance": "important"},
+        {"name": "프로젝트 경험", "category": "project", "importance": "important"},
+        {"name": "관련 자격증", "category": "certificate", "importance": "general"},
+        {"name": "AWS 경험", "category": "skill", "importance": "general"},
     ]
 
 
@@ -222,7 +222,7 @@ def test_owner_view_keeps_its_fields(client, world):
         {"id", "name", "description", "category", "weight", "position", "importance"}
     ] * len(LABEL_SET)
     assert [(i["weight"], i["importance"]) for i in body["items"]] == [
-        (50, "핵심"), (20, "중요"), (20, "중요"), (5, "일반"), (5, "일반")
+        (50, "core"), (20, "important"), (20, "important"), (5, "general"), (5, "general")
     ]
 
 
@@ -276,7 +276,7 @@ def test_load_for_scoring_excludes_newly_blocked(client, world, db, monkeypatch)
     assert round(result.items[0].effective_weight, 4) == round(30 * 100 / 90, 4)
 
 
-# ── education criteria must name a major (or 이공계/STEM) ──
+# ── education criteria must name a major (or 이공계 (STEM)) ──
 
 NO_MAJOR = {"name": "관련 전공", "category": "education", "weight": 10}
 
@@ -289,7 +289,7 @@ def test_education_without_major_is_rejected(client, world):
     r = put(client, world["job"].id, _with(NO_MAJOR), world["recruiter"])
     assert r.status_code == 422
     body = r.json()
-    assert body["code"] == "CRITERIA_MAJOR_REQUIRED" and "전공" in body["message"]
+    assert body["code"] == "CRITERIA_MAJOR_REQUIRED" and "major" in body["message"]
     assert body["items"] == [{"index": 4, "name": "관련 전공"}]
 
 

@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Category = Literal["skill", "experience", "project", "certificate", "education", "other"]
-Importance = Literal["핵심", "중요", "일반"]
+Importance = Literal["core", "important", "general"]
 
 
 class CriterionIn(BaseModel):

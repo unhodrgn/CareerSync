@@ -22,5 +22,12 @@ env_undocumented: []
 # test_doc_constants.py: backticked constant names in the docs that do not resolve to code
 constants: []
 
+# test_doc_constants.py: old values quoted on purpose in a decision row that is never rewritten ("doc: NAME = value")
+constant_history:
+  - quote: "docs/DECISIONS.md: CONSENT_VERSION = 2026-10-13"
+    reason: D16 records the version of its time; D94 bumped it to 2026-11-26 (DECISIONS rows are history)
+  - quote: "docs/DECISIONS.md: INTERVIEW_CONSENT_VERSION = 2026-11-16"
+    reason: D65 records the version of its time; D94 bumped it to 2026-11-26 (DECISIONS rows are history)
+
 # test_doc_tree.py: top-level entries and folders (down to two levels below the root) left out of the CareerSync/ tree on purpose
 tree_omitted: []

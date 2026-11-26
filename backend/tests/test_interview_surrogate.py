@@ -35,7 +35,7 @@ from .test_interview_ingest_turns import ev, plan_of, rec, refuse, row, started,
 NUL = "\x00"
 BACKSLASH = chr(92)
 SECRET = "SECRET-MARKER-답변"
-MESSAGE = "면접 이벤트가 올바르지 않습니다."  # the fixed message of every refusal of an event (`_bad`)
+MESSAGE = "The interview event is invalid."  # the fixed message of every refusal of an event (`_bad`)
 CLEAN = "Java로 API를 만들었습니다."
 S, T, Q = InterviewSession.__table__, InterviewTurn.__table__, InterviewQuota.__table__
 

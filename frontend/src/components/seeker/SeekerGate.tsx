@@ -14,7 +14,7 @@ export interface GateCopy {
 /**
  * A failed seeker AI request. The two 409s that mean "a precondition is missing" get a panel with the way to fix
  * it: `AI_CONSENT_REQUIRED` (consent withdrawn or given to an older text, D16, D17) → the consent page, and
- * `CV_NOT_CONFIRMED` → 내 이력서. Anything else is an error with 다시 시도.
+ * `CV_NOT_CONFIRMED` → My CV. Anything else is an error with Try again.
  */
 export default function SeekerGate({
   error,

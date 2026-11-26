@@ -75,7 +75,7 @@ def test_the_detail_of_a_created_session_is_the_session_the_create_route_returne
     assert body == session  # the same fields and the same values
     assert set(body) == SESSION_KEYS and body["notice"] == AI_NOTICE and body["turns"] == []
     assert body["topics"] and all(set(topic) == TOPIC_KEYS for topic in body["topics"])
-    assert {topic["status"] for topic in body["topics"]} == {"not_asked"} and {topic["importance"] for topic in body["topics"]} <= {"핵심", "중요", "일반", None}
+    assert {topic["status"] for topic in body["topics"]} == {"not_asked"} and {topic["importance"] for topic in body["topics"]} <= {"core", "important", "general", None}
 
 
 def test_nothing_internal_leaves_in_the_detail(api, db, clock):

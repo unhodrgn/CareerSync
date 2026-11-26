@@ -23,7 +23,7 @@ import { useRouteFocus } from './useRouteFocus';
 const MAIN_ID = 'main-content';
 
 /**
- * 본문으로 건너뛰기: the first stop for the keyboard, hidden until focused. It moves focus to <main> itself instead of
+ * Skip to content: the first stop for the keyboard, hidden until focused. It moves focus to <main> itself instead of
  * following the hash, which the router would treat as a navigation, and leaves the scroll position alone.
  */
 function SkipLink() {
@@ -56,7 +56,7 @@ interface NavGroup {
   /** Other paths that belong to the group without a tab of their own (job detail, job prep, company page). */
   also?: string[];
   /**
-   * The section has at least one AI feature (on a tab or inside a page, e.g. 지원자 순위 under 공고 관리): its rail
+   * The section has at least one AI feature (on a tab or inside a page, e.g. Applicant ranking under Jobs): its rail
    * item carries the AI mark. Sections without any AI feature carry none.
    */
   ai?: boolean;
@@ -102,7 +102,7 @@ const GROUPS: Record<Role, NavGroup[]> = {
       id: 'jobs',
       label: 'nav.group.jobs',
       icon: BriefcaseIcon,
-      // Inside 공고 관리: 지원자 순위, 인재 추천, the AI JD draft and criteria suggestions (in-page tabs and boxes)
+      // Inside Jobs: Applicant ranking, Talent recommendations, the AI JD draft and criteria suggestions (in-page tabs and boxes)
       ai: true,
       items: [
         { to: paths.company.jobs, label: 'nav.company.jobs' },
@@ -152,7 +152,7 @@ export function useShell(): ShellContext | undefined {
 }
 
 /**
- * Signed-in shell: a white icon rail with the role's groups and 로그아웃; a header with the current group's name,
+ * Signed-in shell: a white icon rail with the role's groups and Log out; a header with the current group's name,
  * its pages as segmented tabs and who is signed in; the page on the gray content panel below.
  */
 export default function AppShell({ role }: { role: Role }) {
@@ -229,7 +229,7 @@ export default function AppShell({ role }: { role: Role }) {
                       <Icon width={22} height={22} />
                       {/* The section has AI features: an "AI" badge on the icon (the label is not renamed) */}
                       {g.ai && <AiRailBadge />}
-                      {/* Read out on the 받은 제안 tab; here it is only a mark */}
+                      {/* Read out on the Offers tab; here it is only a mark */}
                       {badge > 0 && (
                         <span className={s.railBadge} aria-hidden="true">
                           {badge}
@@ -237,7 +237,7 @@ export default function AppShell({ role }: { role: Role }) {
                       )}
                     </span>
                     {t(g.label)}
-                    {/* After the label, so it reads "채용, AI 기능이 있는 메뉴" and not as one phrase */}
+                    {/* After the label, so it reads "Jobs, menu with AI features" and not as one phrase */}
                     {g.ai && <AiSectionLabel />}
                   </Link>
                 </li>
@@ -322,7 +322,7 @@ export default function AppShell({ role }: { role: Role }) {
   );
 }
 
-/** Guest shell: the same header with 회원가입 and 로그인 (jobs are public, D4). */
+/** Guest shell: the same header with Sign up and Log in (jobs are public, D4). */
 export function GuestShell() {
   const location = useLocation();
   const next = encodeURIComponent(`${location.pathname}${location.search}`);

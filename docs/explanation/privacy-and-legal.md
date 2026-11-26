@@ -25,7 +25,7 @@ Every screen marks AI in one blue colour that is used for nothing else ([DESIGN.
 
 - every AI feature's name is led by a small blue "AI" label: tabs (AI 추천 공고, AI 지원자 순위, AI 인재 추천, the 취업 준비 tabs), the 이력서 heading, buttons that start AI work (AI 초안 쓰기, AI 공고 내용에서 기준 추천) and the Fit scores;
 - menu groups that contain AI features (seekers' 채용 and 이력서, companies' 채용) carry a small "AI" badge on their icon; groups without AI carry none;
-- every AI result shows the AI notice ("AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다.") with the blue AI label;
+- every AI result shows the AI notice ("AI analysis is for reference only. The company makes the final hiring decision.") with the blue AI label;
 - AI-made content (the analysed CV, the CV self-check, skill gaps, roadmap, interview questions, match scores, an applicant's evaluation, the JD draft, criteria suggestions) sits in a blue box labelled "AI 분석" or "AI 생성", apart from what people typed;
 - work in progress ("분석 중") shows the AI label with a moving blue spark;
 - the AI never changes an application's status: only a recruiter does (CLAUDE.md AI rule 5).

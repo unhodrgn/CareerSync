@@ -11,7 +11,7 @@ class JobCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field("", max_length=10000, description="JD text; required before publishing")
     employment_type: EmploymentType = "full_time"
-    min_experience_years: int | None = Field(None, ge=0, le=30, description="None = 신입 가능")
+    min_experience_years: int | None = Field(None, ge=0, le=30, description="None = entry level")
     location: str = Field("", max_length=100)
     salary_note: str = Field("", max_length=100)
     deadline: date | None = None
@@ -40,7 +40,7 @@ class JobOut(BaseModel):
     location: str
     salary_note: str
     deadline: date | None
-    expired: bool = Field(description="Deadline has passed (shown as 마감); status is unchanged")
+    expired: bool = Field(description="Deadline has passed (shown as Closed); status is unchanged")
     status: JobStatusName
     criteria_count: int
     published_at: datetime | None

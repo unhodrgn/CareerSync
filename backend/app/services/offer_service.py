@@ -26,7 +26,7 @@ KST = timezone(timedelta(hours=9))
 
 
 def _not_found() -> AppError:
-    return AppError(404, "OFFER_NOT_FOUND", "제안을 찾을 수 없습니다.")
+    return AppError(404, "OFFER_NOT_FOUND", "Offer not found.")
 
 
 def _utc(dt: datetime | None) -> datetime | None:
@@ -61,19 +61,19 @@ def create(db: Session, user: User, data: OfferCreate) -> TalentOffer:
         None,
     )
     if found is None:
-        raise AppError(404, "TALENT_NOT_FOUND", "제안할 수 있는 인재를 찾을 수 없습니다.")
+        raise AppError(404, "TALENT_NOT_FOUND", "No candidate you can send an offer to was found.")
     seeker, pref, profile = found
     offers = list(db.scalars(select(TalentOffer).where(TalentOffer.company_id == job.company_id, TalentOffer.seeker_id == seeker.id)))
     blocking = talent_service.blocking_offer(offers, job.id)
     if blocking is not None and blocking.status == TalentOfferStatus.REJECTED:
-        raise AppError(409, "OFFER_REJECTED", "이 공고에 대한 제안을 이미 거절한 인재입니다.")
+        raise AppError(409, "OFFER_REJECTED", "This candidate already declined an offer for this job.")
     if blocking is not None:
-        raise AppError(409, "OFFER_EXISTS", "이 인재에게 이미 진행 중이거나 수락된 제안이 있습니다.", offer_id=blocking.id)
+        raise AppError(409, "OFFER_EXISTS", "This candidate already has an open or accepted offer from you.", offer_id=blocking.id)
     # Same rule as the talent list: the seeker must currently pass Pref, the required criteria gate (D50) and Fit
     if not talent_service.qualifies(db, job, pref, profile):
-        raise AppError(404, "TALENT_NOT_FOUND", "제안할 수 있는 인재를 찾을 수 없습니다.")
+        raise AppError(404, "TALENT_NOT_FOUND", "No candidate you can send an offer to was found.")
     if sent_today(db, job.company_id) >= settings.OFFER_DAILY_LIMIT:
-        raise AppError(429, "OFFER_DAILY_LIMIT", f"하루에 보낼 수 있는 제안은 {settings.OFFER_DAILY_LIMIT}건입니다.")
+        raise AppError(429, "OFFER_DAILY_LIMIT", f"You can send up to {settings.OFFER_DAILY_LIMIT} offers a day.")
 
     offer = TalentOffer(
         company_id=job.company_id,
@@ -116,8 +116,8 @@ def _answer(db: Session, offer_id: int, owner, status: str) -> TalentOffer:
         if offer is None:
             raise _not_found()
         if talent_service.offer_expired(offer):
-            raise AppError(409, "OFFER_EXPIRED", "기간이 지난 제안입니다.")
-        raise AppError(409, "OFFER_NOT_PENDING", "이미 처리된 제안입니다.", status=offer.status)
+            raise AppError(409, "OFFER_EXPIRED", "This offer has expired.")
+        raise AppError(409, "OFFER_NOT_PENDING", "This offer has already been handled.", status=offer.status)
     db.commit()
     offer = db.get(TalentOffer, offer_id)
     db.refresh(offer)
@@ -133,7 +133,7 @@ def cancel(db: Session, user: User, offer_id: int) -> TalentOffer:
 
 def _seeker_only(user: User) -> None:
     if user.role != "seeker":
-        raise AppError(403, "SEEKER_ONLY", "구직자 회원만 사용할 수 있습니다.")
+        raise AppError(403, "SEEKER_ONLY", "Available to job seeker accounts only.")
 
 
 def mine(db: Session, user: User) -> list[TalentOffer]:

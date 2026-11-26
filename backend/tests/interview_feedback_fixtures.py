@@ -87,7 +87,7 @@ def other_session(db):
 # ── A session made by hand, with a plan of our choosing ──
 
 
-def plan_item(n: int, name: str, *, kind: str = "technical", importance: str = "핵심") -> PlanItem:
+def plan_item(n: int, name: str, *, kind: str = "technical", importance: str = "core") -> PlanItem:
     """An item that passes `validate_plan` as it is (kind "bogus" makes `validate_plan` drop it)."""
     return PlanItem(
         topic_id=f"c{n}",
@@ -151,7 +151,7 @@ def hand_session(
         prompt_version="v1",
         limits=dict(LIMITS),
         coverage=coverage,
-        consent_version="2026-11-16",
+        consent_version="2026-11-26",
         consent_at=now,
         created_at=now,
         ended_at=now,

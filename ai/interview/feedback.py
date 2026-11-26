@@ -111,7 +111,7 @@ def _prompt(name: str) -> str:
 class TopicFeedback:
     topic_id: str
     name: str
-    importance: str | None  # 핵심 / 중요 / 일반, never a weight
+    importance: str | None  # core / important / general, never a weight
     status: str  # decided by the engine: demonstrated, partial, not_shown, skipped, asked or not_asked
 
 

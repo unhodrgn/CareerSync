@@ -1024,4 +1024,28 @@ export default {
   'landing.footer.copyright': '© 2026 CareerSync. 기업 맞춤형 AI 채용 매칭 플랫폼.',
   'landing.footer.terms': '이용약관',
   'landing.footer.privacy': '개인정보처리방침',
+
+  // Company: recruiter CV verification questions (applicant detail)
+  'verify.title': '면접관용 이력서 검증 질문',
+  'verify.lead': '이력서의 기술·프로젝트 경험 중 면접에서 확인할 부분을 최대 3개 추천합니다.',
+  'verify.run': '이력서 검증 질문 추천',
+  'verify.running': '질문 생성 중…',
+  'verify.none': '검증 질문의 근거가 될 문장을 찾지 못했습니다.',
+  'verify.question': '질문 {n} · {criterion}',
+
+  // Company: criteria from source material (job editor)
+  'source.title': '요구사항 자동 분석',
+  'source.ariaLabel': '자료에서 평가 기준 추천',
+  'source.lead': '채용공고 또는 프로젝트 기술서로 평가 기준을 추천합니다. 원문은 자동 저장·공개되지 않습니다.',
+  'source.type': '자료 유형',
+  'source.type.job_posting': '채용공고',
+  'source.type.project_spec': '프로젝트 기술서',
+  'source.poster': '채용공고 포스터 이미지 (PNG·JPEG, 5MB 이하)',
+  'source.text': '분석할 텍스트 — 포스터에서 추출한 내용은 분석 전에 수정할 수 있습니다',
+  'source.placeholder': '채용공고나 프로젝트 기술서를 붙여넣으세요.',
+  'source.ocrBusy': '포스터에서 텍스트를 추출하는 중…',
+  'source.analyzeBusy': '평가 기준과 가중치를 분석하는 중…',
+  'source.run': '평가 기준·가중치 추천',
+  'source.defaultTitle': '개발 직무',
+  'editor.suggest.addAll': '추천 평가 기준 한 번에 추가',
 } as const;

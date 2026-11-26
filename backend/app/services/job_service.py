@@ -17,12 +17,12 @@ from app.schemas.job import JobCreate, JobUpdate
 
 
 def _not_found() -> AppError:
-    return AppError(404, "JOB_NOT_FOUND", "채용공고를 찾을 수 없습니다.")
+    return AppError(404, "JOB_NOT_FOUND", "Job not found.")
 
 
 def _check_deadline(deadline: date | None) -> None:
     if deadline is not None and deadline < date.today():
-        raise AppError(422, "DEADLINE_IN_PAST", "마감일은 오늘 이후여야 합니다.")
+        raise AppError(422, "DEADLINE_IN_PAST", "The deadline must be after today.")
 
 
 def criteria_counts(db: Session, job_ids: list[int]) -> dict[int, int]:
@@ -82,17 +82,17 @@ def create(db: Session, user: User, data: JobCreate) -> JobPosting:
 def update(db: Session, job: JobPosting, data: JobUpdate) -> JobPosting:
     changes = data.model_dump(exclude_unset=True)
     if job.status == JobStatus.CLOSED:
-        raise AppError(409, "JOB_CLOSED", "마감된 공고는 수정할 수 없습니다.")
+        raise AppError(409, "JOB_CLOSED", "A closed job cannot be edited.")
     if job.status == JobStatus.PUBLISHED and (locked := sorted(set(changes) - EDITABLE_AFTER_PUBLISH)):
         raise AppError(
             409,
             "JOB_FIELD_LOCKED",
-            "게시된 공고는 마감일, 근무지, 급여 안내만 수정할 수 있습니다.",
+            "A published job can only change its deadline, location and salary information.",
             fields=locked,
         )
     for field in ("title", "description", "employment_type", "location", "salary_note"):
         if field in changes and changes[field] is None:
-            raise AppError(422, "FIELD_REQUIRED", "이 항목은 비울 수 없습니다.", fields=[field])
+            raise AppError(422, "FIELD_REQUIRED", "This field cannot be empty.", fields=[field])
     if "deadline" in changes:
         _check_deadline(changes["deadline"])
     for field, value in changes.items():
@@ -106,9 +106,9 @@ def publish(db: Session, job: JobPosting) -> JobPosting:
     from app.services.criteria_service import assert_publishable  # criteria_service imports this module
 
     if job.status != JobStatus.DRAFT:
-        raise AppError(409, "JOB_NOT_DRAFT", "작성 중인 공고만 게시할 수 있습니다.")
+        raise AppError(409, "JOB_NOT_DRAFT", "Only a draft job can be published.")
     if not job.description.strip():
-        raise AppError(422, "JOB_INCOMPLETE", "공고 내용(직무 설명)을 입력해야 게시할 수 있습니다.", fields=["description"])
+        raise AppError(422, "JOB_INCOMPLETE", "Enter the job description to publish.", fields=["description"])
     _check_deadline(job.deadline)
     assert_publishable(job)
     job.status = JobStatus.PUBLISHED
@@ -120,7 +120,7 @@ def publish(db: Session, job: JobPosting) -> JobPosting:
 
 def close(db: Session, job: JobPosting) -> JobPosting:
     if job.status != JobStatus.PUBLISHED:
-        raise AppError(409, "JOB_NOT_PUBLISHED", "게시 중인 공고만 마감할 수 있습니다.")
+        raise AppError(409, "JOB_NOT_PUBLISHED", "Only a published job can be closed.")
     job.status = JobStatus.CLOSED
     job.closed_at = datetime.now(UTC)
     db.commit()
@@ -130,7 +130,7 @@ def close(db: Session, job: JobPosting) -> JobPosting:
 
 def delete(db: Session, job: JobPosting) -> None:
     if job.status != JobStatus.DRAFT:
-        raise AppError(409, "JOB_NOT_DRAFT", "작성 중인 공고만 삭제할 수 있습니다.")
+        raise AppError(409, "JOB_NOT_DRAFT", "Only a draft job can be deleted.")
     db.delete(job)
     db.commit()
 

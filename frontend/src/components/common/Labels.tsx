@@ -7,13 +7,12 @@ import type { OfferStatus } from '@/types/talent';
 import { deadlineLabel, experienceLabel } from './format';
 import ui from './ui.module.css';
 
-// Small labels for values the API sends as codes. The server's Korean values (band, importance) are mapped to
-// keys too, so every visible word goes through t().
+// Small labels for values the API sends as codes (band and importance included, D94), so every visible word goes through t().
 
 const BAND: Record<MatchLevel, { key: MessageKey; data: string }> = {
-  '매우 적합': { key: 'band.very', data: 'very' },
-  적합: { key: 'band.good', data: 'good' },
-  참고: { key: 'band.ref', data: 'ref' },
+  very_good: { key: 'band.very', data: 'very' },
+  good: { key: 'band.good', data: 'good' },
+  reference: { key: 'band.ref', data: 'ref' },
 };
 
 /** A band the frontend knows; anything else (missing, null, a value from another backend version) is not shown. */
@@ -34,12 +33,12 @@ export function Band({ level, size }: { level: MatchLevel; size?: 'lg' }) {
   );
 }
 
-export const BAND_ORDER: MatchLevel[] = ['매우 적합', '적합', '참고'];
+export const BAND_ORDER: MatchLevel[] = ['very_good', 'good', 'reference'];
 
 const IMPORTANCE: Record<Importance, { key: MessageKey; data: string }> = {
-  핵심: { key: 'importance.core', data: 'core' },
-  중요: { key: 'importance.important', data: 'important' },
-  일반: { key: 'importance.normal', data: 'normal' },
+  core: { key: 'importance.core', data: 'core' },
+  important: { key: 'importance.important', data: 'important' },
+  general: { key: 'importance.normal', data: 'normal' },
 };
 
 /** Criterion importance for signed-in seekers (D30): a label, never a number or weight. */
@@ -57,7 +56,7 @@ export function CategoryTag({ category, quiet = false }: { category: Category; q
   return <span className={quiet ? ui.categoryText : ui.tag}>{t(`category.${category}`)}</span>;
 }
 
-/** Deadline of a job row: D-n and 오늘 마감 carry weight, 상시 채용 and 마감 stay quiet. */
+/** Deadline of a job row: D-n and Closes today carry weight, Open until filled and Closed stay quiet. */
 export function Deadline({ job }: { job: { deadline: string | null; expired?: boolean } }) {
   return (
     <span className={ui.deadline} data-open={!job.deadline || job.expired || undefined}>
@@ -96,7 +95,7 @@ export function JobMeta({
   company?: string;
   location?: string;
   employmentType?: EmploymentType;
-  /** `undefined` = not known for this item (left out); `null` = 신입 가능. */
+  /** `undefined` = not known for this item (left out); `null` = Entry level. */
   minExperienceYears?: number | null;
 }) {
   const parts = [

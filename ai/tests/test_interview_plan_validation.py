@@ -62,7 +62,7 @@ def item(**kw) -> PlanItem:
         topic_keywords=("java",),
         criterion_id=1,
         criterion_name="Java 활용 능력",
-        importance="핵심",
+        importance="core",
         intent="Java 활용 경험 확인",
         answer_tips=("구체적으로",),
         cv_quote=None,
@@ -197,7 +197,7 @@ def test_a_second_item_with_the_same_topic_is_dropped():
 
 
 def test_a_general_item_carries_no_criterion_fields():
-    warm = item(topic_id="warmup", kind="experience", criterion_id=None, criterion_name="Java", importance="핵심")
+    warm = item(topic_id="warmup", kind="experience", criterion_id=None, criterion_name="Java", importance="core")
     out = check(warm).plan.items[0]
     assert (out.criterion_id, out.criterion_name, out.importance) == (None, None, None)
 
@@ -228,14 +228,14 @@ def test_a_cv_quote_survives_only_when_it_is_in_the_cleaned_cv(quote, cv_text, k
 
 def test_uncovered_entries_bank_method_and_notice_are_validated():
     entries = [
-        UncoveredCriterion(2, "남성 우대", "중요", "no_slot"),
-        UncoveredCriterion(3, "협업 태도", "일반", "weird"),
+        UncoveredCriterion(2, "남성 우대", "important", "no_slot"),
+        UncoveredCriterion(3, "협업 태도", "general", "weird"),
         UncoveredCriterion(4, "가중치", "25", "no_slot"),  # type: ignore[arg-type]
-        UncoveredCriterion("5", "x", "핵심", "no_slot"),  # type: ignore[arg-type]
+        UncoveredCriterion("5", "x", "core", "no_slot"),  # type: ignore[arg-type]
     ]
     plan = InterviewPlan((item(),), tuple(entries), rubric_notice="이 면접은 합격을 보장합니다", bank_method="evil\nmethod")
     out = validate_plan(plan, blocklists=BLOCKLISTS).plan
-    assert [(u.criterion_id, u.name, u.importance, u.reason) for u in out.uncovered] == [(2, "(제외됨)", "중요", "no_slot"), (3, "협업 태도", "일반", "no_question")]
+    assert [(u.criterion_id, u.name, u.importance, u.reason) for u in out.uncovered] == [(2, "(제외됨)", "important", "no_slot"), (3, "협업 태도", "general", "no_question")]
     assert out.rubric_notice == RUBRIC_NOTICE and out.bank_method == "rules"
     assert validate_plan(dataclasses.replace(plan, bank_method="llm:claude-sonnet-5-5"), blocklists=BLOCKLISTS).plan.bank_method == "llm:claude-sonnet-5-5"
 
@@ -243,7 +243,7 @@ def test_uncovered_entries_bank_method_and_notice_are_validated():
 def test_a_malformed_plan_never_raises_and_a_non_plan_is_refused():
     broken = PlanItem(
         topic_id="c1", kind="technical", question=GOOD_Q, rephrase=None, rubric=("x", 5), topic_keywords=123,  # type: ignore[arg-type]
-        criterion_id=1, criterion_name=7, importance="핵심", intent=object(), answer_tips="not a tuple", cv_quote=9,  # type: ignore[arg-type]
+        criterion_id=1, criterion_name=7, importance="core", intent=object(), answer_tips="not a tuple", cv_quote=9,  # type: ignore[arg-type]
     )
     out = check(broken).plan.items[0]
     assert out.rephrase == rules.GENERIC_REPHRASE and out.intent == "" and out.answer_tips == () and out.topic_keywords == ()
@@ -358,14 +358,14 @@ def test_a_criterion_question_may_keep_a_real_quote():
 
 
 def test_a_description_with_sentences_about_the_topics_gives_a_clean_rubric():
-    criteria = [crit(1, "Java 활용 능력", "skill", "Java 17 사용 경험. 병역필 우대. 남성 선호. Spring Boot API 개발 경험", "핵심")]
+    criteria = [crit(1, "Java 활용 능력", "skill", "Java 17 사용 경험. 병역필 우대. 남성 선호. Spring Boot API 개발 경험", "core")]
     plan = build_plan(criteria, (), MASKED, [], BLOCKLISTS, skills=SKILLS)
     texts = [p.text for i in plan.items for p in i.rubric]
     assert any("Java 17 사용 경험" in t for t in texts) and not is_sensitive(" ".join(texts))
 
 
 def test_a_criterion_name_about_the_topics_is_reported_not_planned():
-    plan = build_plan([crit(1, "남성 우대", "other", "", "핵심"), crit(2, "Java 활용 능력", "skill", "Java 17 사용 경험", "핵심")], (), MASKED, [], BLOCKLISTS, skills=SKILLS)
+    plan = build_plan([crit(1, "남성 우대", "other", "", "core"), crit(2, "Java 활용 능력", "skill", "Java 17 사용 경험", "core")], (), MASKED, [], BLOCKLISTS, skills=SKILLS)
     assert [i.topic_id for i in plan.items if i.criterion_id is not None] == ["c2"]
     assert [(u.criterion_id, u.name, u.reason) for u in plan.uncovered] == [(1, "(제외됨)", "no_question")]
 

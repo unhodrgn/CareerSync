@@ -98,7 +98,7 @@ class JdDraftIn(BaseModel):
     def _keywords(cls, v: list[str]) -> list[str]:
         out = [" ".join(k.split()) for k in v]
         if any(not k or len(k) > 50 for k in out):
-            raise ValueError("키워드는 1~50자여야 합니다.")
+            raise ValueError("A keyword must be 1–50 characters.")
         return out
 
 

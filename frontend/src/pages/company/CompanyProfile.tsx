@@ -13,7 +13,7 @@ import { t } from '@/i18n';
 import { paths } from '@/routes/paths';
 import { MAX_PROJECTS, PROJECT_MAX_TECHS, type CompanyOut, type CompanyProjectIn, type CompanyProjectOut } from '@/types/company';
 
-/** Company profile (name, intro, 인재상) and running projects (D23): shown to signed-in users, never used in scoring. */
+/** Company profile (name, intro, Who we look for) and running projects (D23): shown to signed-in users, never used in scoring. */
 export default function CompanyProfile() {
   const company = useApi(() => api.myCompany(), []);
   const projects = useApi(() => api.myProjects(), []);

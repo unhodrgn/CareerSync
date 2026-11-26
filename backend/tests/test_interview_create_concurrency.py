@@ -46,7 +46,7 @@ def create_in(session, uid, job_id, clock):
     """("ok", the CreatedSession) or ("refused", status, code, extra): a refusal is an answer here, anything else fails the test."""
     try:
         user = session.get(User, uid)
-        return "ok", svc.create_session(session, user, job_id, consent_transcript=True, consent_version="2026-11-16", clock=clock)
+        return "ok", svc.create_session(session, user, job_id, consent_transcript=True, consent_version="2026-11-26", clock=clock)
     except AppError as error:
         return "refused", error.status_code, error.code, error.extra
 

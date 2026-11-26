@@ -215,7 +215,7 @@ def test_no_interview_schema_has_a_weight_field_and_the_ones_with_ai_content_car
     schemas = app.openapi()["components"]["schemas"]
     for name in INTERVIEW_SCHEMAS:
         assert not [p for p in schemas[name]["properties"] if "weight" in p.lower()], name  # importance labels only (AI rule 9)
-    assert schemas["SessionOut"]["properties"]["notice"]["default"] == "AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."
+    assert schemas["SessionOut"]["properties"]["notice"]["default"] == "AI analysis is for reference only. The company makes the final hiring decision."
     assert "notice" not in schemas["ConsentTextOut"]["properties"]  # static text, no AI result
 
 
@@ -238,7 +238,7 @@ def test_the_create_route_contract():
         assert "type" not in prop and "anyOf" not in prop  # untyped: nothing is coerced
     assert body["properties"]["depth"] == {
         "default": 2,
-        "description": "Question depth chosen by the seeker: 1 기초, 2 적용, 3 심화 (D93)",
+        "description": "Question depth chosen by the seeker: 1 introductory, 2 applied, 3 advanced (D93)",
         "enum": [1, 2, 3],
         "title": "Depth",
         "type": "integer",
@@ -303,7 +303,7 @@ def test_the_history_route_contract():
     assert page["properties"]["items"]["items"] == {"$ref": "#/components/schemas/SessionSummaryOut"}
     assert page["properties"]["active"]["anyOf"] == [{"$ref": "#/components/schemas/SessionSummaryOut"}, {"type": "null"}]
     assert page["properties"]["next_before_id"]["anyOf"] == [{"type": "integer"}, {"type": "null"}]
-    assert page["properties"]["notice"]["default"] == "AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."
+    assert page["properties"]["notice"]["default"] == "AI analysis is for reference only. The company makes the final hiring decision."
     assert set(summary["properties"]) == SUMMARY_FIELDS and set(summary["required"]) == SUMMARY_FIELDS
     assert "notice" not in summary["properties"]  # one notice for the page, none per item
     assert not {"topics", "turns", "plan_method", "plan", "coverage", "feedback"} & set(summary["properties"])
@@ -419,7 +419,7 @@ def test_the_feedback_route_contract():
     assert out["properties"]["report"] == {"$ref": "#/components/schemas/FeedbackReportOut"}
     assert out["properties"]["reason"]["anyOf"] == [{"type": "string"}, {"type": "null"}]
     assert out["properties"]["generated_at"]["anyOf"] == [{"type": "string", "format": "date-time"}, {"type": "null"}]
-    assert out["properties"]["notice"]["default"] == "AI 분석은 참고용입니다. 채용 여부는 기업이 최종 판단합니다."
+    assert out["properties"]["notice"]["default"] == "AI analysis is for reference only. The company makes the final hiring decision."
     assert not {"prompt_version", "attempts_used", "method", "score", "rank", "verdict"} & set(out["properties"])  # nothing internal, no second method
     report = schemas["FeedbackReportOut"]
     assert set(report["properties"]) == FEEDBACK_REPORT_FIELDS and set(report["required"]) == FEEDBACK_REPORT_FIELDS  # the `to_data()` of the report, exactly

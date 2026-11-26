@@ -73,8 +73,8 @@ or Groq key. How to run it is in [run-locally.md](run-locally.md#voice-interview
 For demo verification: log in as seeker, upload and confirm a text PDF CV,
 apply to the Nextcode job, then log in as hr@nextcode.test and view applicants.
 Job recommendations are real (`GET /api/recommendations/jobs`): the seeker's 추천 공고 (Recommended jobs)
-page shows a band (매우 적합 / 적합 / 참고: very good / good / reference), never a percentage. Jobs still being
-analyzed are counted as pending and appear after 새로고침 (refresh).
+page shows a band (Strong match / Good match / Possible match; API `very_good` / `good` / `reference`), never a percentage. Jobs still being
+analyzed are counted as pending and appear after Refresh.
 
 Local dev/demo setup (Vite dev server), not production. Ports bind to localhost
 only. `docker compose down -v` deletes the demo database and model cache.

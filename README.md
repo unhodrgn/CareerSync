@@ -79,7 +79,7 @@ To run the backend and frontend on your machine instead, see [Run locally](docs/
 | Applicant evaluation | Done | Apply → background scoring → recruiter sees applicants ranked by Fit with per-criterion score, evidence and comment, with quick filters. Weight edits re-rank without new AI calls |
 | Recruiter workflow | Done | Status changes (검토 전 submitted, 서류 검토 reviewing, 면접 예정 interview, 보류 on hold, 합격 passed, 불합격 rejected) happen only when the recruiter clicks |
 | Preferences and talent-pool opt-in | Done | Seeker sets desired locations, employment types and role keywords (희망 조건, preferences) and can opt in to the talent pool (D15) |
-| Job recommendation | Partial | 추천 공고 (Recommended jobs): jobs that match the seeker's preferences and the job's criteria, shown with a match score and band (매우 적합 / 적합 / 참고: very good / good / reference), category scores and the preference score; the job list and job detail show scores that already exist. Gap: no prompt yet asking a seeker with empty preferences to fill them in |
+| Job recommendation | Partial | 추천 공고 (Recommended jobs): jobs that match the seeker's preferences and the job's criteria, shown with a match score and band (Strong match / Good match / Possible match), category scores and the preference score; the job list and job detail show scores that already exist. Gap: no prompt yet asking a seeker with empty preferences to fill them in |
 | Job preparation | Done | 취업 준비 (Job preparation): skills the job asks for that the CV lacks, with a learning plan, and interview practice questions |
 | Talent recommendation | Done | Companies see anonymous opted-in seekers per published job and send offers; contact details only after the seeker accepts |
 | `docker compose up` | Done | Starts the database, migrations + demo seed, backend and frontend |
@@ -105,7 +105,7 @@ Rule-based scorers grade each company-defined criterion on the PII-masked CV tex
 
 | Layer | Technologies |
 | --- | --- |
-| Frontend | React 19 · TypeScript · Vite · React Router (Korean UI, desktop-first) |
+| Frontend | React 19 · TypeScript · Vite · React Router (English UI, desktop-first) |
 | Backend | Python 3.11+ · FastAPI · SQLAlchemy 2 · Alembic · Pydantic 2 |
 | AI | Groq (`openai/gpt-oss-120b`, demo default) or Anthropic API behind `LLMClient` (`LLM_PROVIDER`, D91) · sentence-transformers (multilingual-e5-base) · PyMuPDF · Tesseract (local poster OCR) |
 | Database | PostgreSQL 16 (tests use in-memory SQLite) |
@@ -135,7 +135,7 @@ API request and response schemas as implemented: Swagger at http://localhost:800
 | --- | --- |
 | `backend/` | FastAPI app, models, services, Alembic migrations and API tests (including the doc-drift guards) |
 | `ai/` | Parsing, PII masking, embeddings, scoring, guardrails, LLM client and prompts; never imports the backend |
-| `frontend/` | React + TypeScript + Vite app (Korean UI) |
+| `frontend/` | React + TypeScript + Vite app (English UI) |
 | `data/` | Blocklists, skill dictionary, learning resources and the synthetic demo CV |
 | `scripts/` | Demo seed, demo CV builder, Compose init and an end-to-end smoke test |
 | `docs/` | How-to guides, explanations, decisions, source PDFs and archived snapshots |
@@ -145,7 +145,7 @@ The full tree, file by file: [PROJECT_DOCUMENTATION.md §8](PROJECT_DOCUMENTATIO
 
 ## Scope
 
-**Assumptions:** IT/Software jobs only · Korean UI · 1 recruiter account = 1 company · text-based PDF CVs (≤ 5 MB, ≤ 5 pages) · synthetic demo data.
+**Assumptions:** IT/Software jobs only · English UI · 1 recruiter account = 1 company · text-based PDF CVs (≤ 5 MB, ≤ 5 pages) · synthetic demo data.
 
 What is required for the demo, what is in product scope and what is out of scope: [docs/DECISIONS.md §1](docs/DECISIONS.md#1-demo-scope). Performance targets for the demo are proposed but not measured yet: [Q27](docs/DECISIONS.md#32-undecided-scope).
 

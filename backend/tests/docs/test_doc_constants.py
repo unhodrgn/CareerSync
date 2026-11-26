@@ -49,7 +49,8 @@ def _fmt(values: tuple) -> str:
     return ", ".join(f"{v:g}" if isinstance(v, float) else str(v) for v in values)
 
 
-def constant_problems(docs: list[Doc], allowed: Allowlist, env_names: set[str]) -> list[str]:
+def constant_problems(docs: list[Doc], allowed: Allowlist, env_names: set[str], history: Allowlist | None = None) -> list[str]:
+    """`history`: old values quoted on purpose (a DECISIONS row is never rewritten), keyed "doc: NAME = value"."""
     problems = []
 
     def check(where: str, name: str, doc_value: str) -> None:
@@ -60,7 +61,7 @@ def constant_problems(docs: list[Doc], allowed: Allowlist, env_names: set[str]) 
                     f"{where} names `{name}`, which is neither a Settings field nor a constant of {', '.join(MODULES)}. "
                     f"Fix the name, or allowlist it in backend/tests/docs/allowlist.yaml [constants] with a reason."
                 )
-        elif not same(doc_value, value):
+        elif not same(doc_value, value) and not (history and history.covers(f"{where.rsplit(':', 1)[0]}: {name} = {doc_value}")):
             problems.append(f"{where} says {name} = {doc_value}; the code has {value!r} ({code_where}). {FIX}")
 
     for doc in docs:
@@ -98,9 +99,9 @@ def claim_problems(docs: list[Doc], claims: tuple[Claim, ...]) -> list[str]:
 
 
 def test_quoted_constants_match_the_code():
-    allowed = Allowlist("constants", "name")
+    allowed, history = Allowlist("constants", "name"), Allowlist("constant_history", "quote")
     env_names = {r.name for r in code_readers()}
-    problems = constant_problems(guarded_docs(), allowed, env_names) + allowed.problems()
+    problems = constant_problems(guarded_docs(), allowed, env_names, history) + allowed.problems() + history.problems()
     assert not problems, report(problems)
 
 

@@ -55,7 +55,7 @@ export function JobDiscovery({ sidebar, editorial = false }: { sidebar?: ReactNo
 
   const { state, reload } = useApi(() => api.jobs({ q: query || undefined, limit: LIMIT }), [query, user?.id]);
   const jobs = state.status === 'ok' ? state.data.items : [];
-  const locations = [...new Set([location, ...jobs.map(job => job.location)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const locations = [...new Set([location, ...jobs.map(job => job.location)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en'));
   const visibleJobs = filtered ? jobs.filter(job => {
     const requiresExperience = (job.min_experience_years ?? 0) > 0;
     return (!location || job.location === location)

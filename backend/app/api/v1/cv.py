@@ -16,7 +16,7 @@ router = APIRouter(prefix="/cv", tags=["cv"])
 def upload_cv(file: Annotated[UploadFile, File(description="Text PDF, at most 5 pages and 5 MB")], db: DbSession, user: CurrentUser):
     data = file.file.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
-        raise AppError(422, "CV_TOO_LARGE", "이력서 파일은 5MB 이하여야 합니다.")
+        raise AppError(422, "CV_TOO_LARGE", "The CV file must be 5 MB or smaller.")
     return cv_service.to_out(cv_service.upload(db, user, file.filename or "cv.pdf", data))
 
 

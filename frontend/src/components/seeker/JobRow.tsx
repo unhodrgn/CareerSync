@@ -15,7 +15,7 @@ import r from './jobRow.module.css';
  * A job as one row of the job list (DESIGN.md Job rows): built for scanning many jobs, so it carries only the job
  * icon, title, the company with location · employment type · experience, the criteria count, the deadline and — for a
  * seeker, where an evaluation already exists (D43) — the match score with its band. What the score is made of stays
- * on 추천 공고 and job detail. The title link is stretched over the row and is its only tab stop.
+ * on Recommended jobs and job detail. The title link is stretched over the row and is its only tab stop.
  */
 export function JobRow({
   to,

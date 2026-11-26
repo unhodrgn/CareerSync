@@ -112,7 +112,7 @@ def test_a_seeker_creates_a_session_and_gets_201_with_the_session_and_limited(ap
     assert (session["max_seconds"], session["end_reason"], session["started_at"], session["ended_at"], session["turns"]) == (settings.INTERVIEW_MAX_SECONDS, None, None, None, [])
     assert session["notice"] == AI_NOTICE
     assert session["topics"] and all(set(t) == {"topic_id", "kind", "criterion_name", "importance", "depth", "status"} for t in session["topics"])
-    assert {t["status"] for t in session["topics"]} == {"not_asked"} and {t["importance"] for t in session["topics"]} <= {"핵심", "중요", "일반", None}
+    assert {t["status"] for t in session["topics"]} == {"not_asked"} and {t["importance"] for t in session["topics"]} <= {"core", "important", "general", None}
     assert all((t["depth"] is None if t["topic_id"] in ("warmup", "behavioral") else t["depth"] == 2) for t in session["topics"])
 
 

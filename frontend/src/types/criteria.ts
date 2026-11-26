@@ -2,7 +2,7 @@
 
 export type Category = 'skill' | 'experience' | 'project' | 'certificate' | 'education' | 'other';
 /** Criterion importance shown to signed-in seekers (docs/DECISIONS.md D30); derived from the weight on the server. */
-export type Importance = '핵심' | '중요' | '일반';
+export type Importance = 'core' | 'important' | 'general';
 
 /** Owner company: full rows. */
 export interface CriterionOut {

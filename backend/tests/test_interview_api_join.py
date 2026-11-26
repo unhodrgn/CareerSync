@@ -225,7 +225,7 @@ def test_an_unconfigured_voice_service_is_503_after_every_other_check(api, db, w
     assert join(api, created, other.user).status_code == 404  # not the owner: nothing about the configuration is told
     response = join(api, created, world.user)
     assert response.status_code == 503 and no_store(response)
-    assert response.json() == {"code": "INTERVIEW_VOICE_UNAVAILABLE", "message": "음성 면접을 지금은 준비할 수 없습니다."}
+    assert response.json() == {"code": "INTERVIEW_VOICE_UNAVAILABLE", "message": "The voice interview cannot be prepared right now."}
 
 
 def test_a_short_agent_secret_is_not_configured(api, world, created, monkeypatch):

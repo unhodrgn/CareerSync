@@ -68,7 +68,7 @@ export default function CriteriaSuggestions({
         {result.analysis.criteria.some((c) => !has(c)) && (
           <button type="button" className={cx(ui.btn, ui.secondary, ui.small)}
             disabled={full} onClick={() => onAddAll(result.analysis.criteria.filter((c) => !has(c)))}>
-            추천 평가 기준 한 번에 추가
+            {t('editor.suggest.addAll')}
           </button>
         )}
         {result.blocked.length > 0 && (
