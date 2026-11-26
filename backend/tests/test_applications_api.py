@@ -147,14 +147,23 @@ def test_apply_evaluates_and_ranks(client, db, world, job):
     assert [i["name"] for i in ev["items"]] == [c["name"] for c in CRITERIA]
     for item in ev["items"]:
         assert item["score"] == 0 or item["evidence"]
+    java = ev["items"][0]
+    basis = java["direct_skill_basis"]
+    skill, = basis["skills"]
+    assert java["method"] == "rule:skill" and skill["skill"] == "Java"
+    assert java["score"] == min(basis["cap"], basis["base"] + basis["bonus"] * len(skill["entries"]))
+    assert skill["entries"]
+    assert ev["items"][-1]["direct_skill_basis"] is None
     assert ev["summary"] and "참고용" in ev["notice"]
     assert ev["embedding_model"] == "hashing-ngram-v1" and ev["prompt_version"] == "v1"
 
 
 def test_weight_change_reranks_without_rescoring(client, db, world, job, monkeypatch):
     kim = ready_seeker(client, db, "kim@seeker.test", "김지원")
-    client.post(f"/api/jobs/{job}/applications", headers=kim)
+    app_id = client.post(f"/api/jobs/{job}/applications", headers=kim).json()["id"]
     h = world["recruiter"]
+    evaluation_path = f"/api/applications/{app_id}/evaluation"
+    before_detail = client.get(evaluation_path, headers=h).json()
     before = client.get(f"/api/jobs/{job}/applications", headers=h).json()["items"][0]["fit"]
 
     def boom(*a, **k):
@@ -168,6 +177,12 @@ def test_weight_change_reranks_without_rescoring(client, db, world, job, monkeyp
     assert client.put(f"/api/jobs/{job}/criteria", json={"items": reweighted}, headers=h).status_code == 200
     after = client.get(f"/api/jobs/{job}/applications", headers=h).json()["items"][0]["fit"]
     assert after != before
+    after_detail = client.get(evaluation_path, headers=h).json()
+    assert [item["score"] for item in after_detail["items"]] == [item["score"] for item in before_detail["items"]]
+    assert [item["fit_contribution"] for item in after_detail["items"]] == pytest.approx(
+        [item["score"] * weight / 100 for item, weight in zip(after_detail["items"], [10, 10, 10, 60, 10], strict=True)]
+    )
+    assert round(sum(item["fit_contribution"] for item in after_detail["items"]), 1) == after
 
 
 def test_recruiter_only_and_own_company_only(client, db, world, job):
@@ -177,6 +192,30 @@ def test_recruiter_only_and_own_company_only(client, db, world, job):
     assert client.get(f"/api/applications/{app_id}/evaluation", headers=world["rival"]).status_code == 404
     assert client.get(f"/api/jobs/{job}/applications", headers=world["rival"]).status_code == 404
     assert client.put(f"/api/applications/{app_id}/status", json={"status": "interview"}, headers=world["rival"]).status_code == 404
+
+
+def test_cv_source_is_masked_owner_only_and_pinned_to_application(client, db, world, job):
+    kim = ready_seeker(client, db, "kim@seeker.test", "김지원")
+    application = client.post(f"/api/jobs/{job}/applications", headers=kim)
+    assert application.status_code == 201
+    app_id = application.json()["id"]
+    path = f"/api/applications/{app_id}/cv-source"
+
+    response = client.get(path, headers=world["recruiter"])
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    source = response.json()
+    assert (source["application_id"], source["job_id"]) == (app_id, job)
+    assert "Java" in source["text"]
+    assert "jiwon.kim@example.com" not in source["text"]
+    assert "김지원" not in source["text"]
+
+    latest = upload(client, kim, JUNIOR_CV).json()
+    assert confirm(client, kim, latest).status_code == 200
+    assert client.get(path, headers=world["recruiter"]).json() == source
+    assert client.get(path, headers=world["rival"]).status_code == 404
+    assert client.get(path, headers=kim).status_code == 403
+    assert client.get(path).status_code == 401
 
 
 def test_status_is_changed_only_by_recruiter(client, db, world, job):

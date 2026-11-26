@@ -105,38 +105,83 @@ def _entries(text: str, keys: tuple[str, ...] = ("experience", "project")) -> li
     return entries
 
 
-def _uses(skill: str, candidate: Candidate, ctx: ScoringContext) -> list[str]:
-    """First line of each 경력/프로젝트 entry of the CV text that mentions the skill."""
-    return [e[0] for e in _entries(candidate.text) if ctx.skills.lines_mentioning(skill, "\n".join(e))]
+def _skill_uses(skill: str, text: str, skills: SkillDictionary) -> list[str]:
+    """Headings of CV experience and project entries that mention the skill."""
+    return [entry[0] for entry in _entries(text) if skills.lines_mentioning(skill, "\n".join(entry))]
+
+
+def _direct_skill_score(skill: str, uses: list[str]) -> tuple[int, str]:
+    return (
+        min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)),
+        f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""),
+    )
+
+
+@dataclass(frozen=True)
+class SkillTraceItem:
+    skill: str
+    score: int
+    entries: tuple[str, ...] = ()
+    match: str = "direct"
+    related_skill: str | None = None
+
+
+@dataclass(frozen=True)
+class DirectSkillTrace:
+    skills: tuple[SkillTraceItem, ...]
+    base: int = SKILL_LISTED
+    bonus: int = SKILL_USE_BONUS
+    cap: int = 100
+
+
+def _score_named_skills(
+    criterion: Criterion, wanted: list[str], text: str, dictionary: SkillDictionary
+) -> tuple[CriterionResult, DirectSkillTrace]:
+    have = set(dictionary.find_in_text(text))
+    traces, reasons, evidence = [], [], []
+    for skill in wanted:
+        lines = dictionary.lines_mentioning(skill, text)
+        if lines:
+            uses = _skill_uses(skill, text, dictionary)
+            score, reason = _direct_skill_score(skill, uses)
+            traces.append(SkillTraceItem(skill, score, tuple(uses)))
+            reasons.append(reason)
+            evidence.extend(lines[:2])
+            continue
+        related = [name for name in dictionary.related_to(skill) if name in have]
+        if related:
+            name = related[0]
+            traces.append(SkillTraceItem(skill, RELATED_SCORE, match="related", related_skill=name))
+            reasons.append(f"{skill} 직접 경험은 없으나 같은 계열 기술 {name} 보유")
+            evidence.extend(dictionary.lines_mentioning(name, text)[:1])
+        else:
+            traces.append(SkillTraceItem(skill, 0, match="missing"))
+            reasons.append(f"{skill} 경험 확인 안 됨")
+    score = sum(item.score for item in traces) / len(traces)
+    result = _result(criterion, score, "; ".join(reasons), list(dict.fromkeys(evidence)), "rule:skill")
+    return result, DirectSkillTrace(tuple(traces))
+
+
+def verified_direct_skill_trace(
+    criterion: Criterion, text: str, skills: SkillDictionary, stored: CriterionResult
+) -> DirectSkillTrace | None:
+    """Expose replayed named-skill inputs only when they reproduce the persisted result."""
+    wanted = skills.find_in_text(f"{criterion.name}\n{criterion.description}")
+    if stored.method != "rule:skill" or criterion.category != "skill" or not wanted:
+        return None
+    replayed, trace = _score_named_skills(criterion, wanted, text, skills)
+    if replayed != stored or any(quote not in text for quote in stored.evidence):
+        return None
+    return trace
 
 
 def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
     wanted = ctx.skills.find_in_text(f"{c.name}\n{c.description}")
     if not wanted:
-        # No known technology named (e.g. Excel, Photoshop): look for it in the CV text (D28)
         return score_unlisted_skill(c, candidate, ctx)
-    # Skills the CV text mentions; the seeker-edited `profile.skills` is not trusted
-    have = set(ctx.skills.find_in_text(candidate.text))
-    scores, reasons, evidence = [], [], []
-    for skill in wanted:
-        lines = ctx.skills.lines_mentioning(skill, candidate.text)
-        if lines:
-            uses = _uses(skill, candidate, ctx)
-            scores.append(min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)))
-            reasons.append(f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""))
-            evidence.extend(lines[:2])
-            continue
-        related = [r for r in ctx.skills.related_to(skill) if r in have]
-        if related:
-            name = related[0]
-            scores.append(RELATED_SCORE)
-            reasons.append(f"{skill} 직접 경험은 없으나 같은 계열 기술 {name} 보유")
-            evidence.extend(ctx.skills.lines_mentioning(name, candidate.text)[:1])
-        else:
-            scores.append(0)
-            reasons.append(f"{skill} 경험 확인 안 됨")
-    evidence = list(dict.fromkeys(evidence))
-    return _result(c, sum(scores) / len(scores), "; ".join(reasons), evidence, "rule:skill")
+    # Read the masked CV text rather than seeker-edited profile fields.
+    result, _ = _score_named_skills(c, wanted, candidate.text, ctx.skills)
+    return result
 
 
 # ── experience ──

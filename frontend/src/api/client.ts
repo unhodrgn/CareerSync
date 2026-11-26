@@ -169,6 +169,8 @@ export const api = {
     const text = search.toString();
     return request<ApplicantList>('GET', `/jobs/${jobId}/applications${text ? `?${text}` : ''}`);
   },
+  applicationCvSource: (id: number) =>
+    request<{ application_id: number; job_id: number; text: string }>('GET', `/applications/${id}/cv-source`),
   evaluation: (applicationId: number) => request<EvaluationOut>('GET', `/applications/${applicationId}/evaluation`),
   verificationQuestions: (applicationId: number) => request<VerificationOut>('POST', `/applications/${applicationId}/verification-questions`),
   retryEvaluation: (applicationId: number) => request<EvaluationOut>('POST', `/applications/${applicationId}/evaluation/retry`),

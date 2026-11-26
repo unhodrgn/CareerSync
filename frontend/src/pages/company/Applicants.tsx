@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { generatePath, Link, useParams, useSearchParams } from 'react-router';
 import { api } from '@/api/client';
 import { useApi } from '@/api/useApi';
 import { AiBusy, AiMark } from '@/components/common/Ai';
@@ -23,6 +23,12 @@ import { APPLICATION_STATUSES, type ApplicantList, type ApplicationStatus, type 
 import { GATE_STATUSES, type GateStatusT } from '@/types/gate';
 
 const MIN_FITS = [60, 70, 80];
+export function topRankedPair(data: ApplicantList) {
+  const first = data.items.find(row => row.rank === 1 && row.evaluation_status === 'done' && row.fit !== null);
+  const second = data.items.find(row => row.rank === 2 && row.evaluation_status === 'done' && row.fit !== null);
+  return first && second ? [first, second] as const : null;
+}
+
 const EVAL_STATUSES: EvaluationStatus[] = ['done', 'pending', 'failed'];
 /**
  * Applicants ranked by Fit (D22): the quick filters apply after ranking, so a rank never shifts. The selected
@@ -42,6 +48,7 @@ export default function Applicants() {
     () => api.applicants(id, { status: statusFilter, min_fit: minFit, evaluation_status: evalFilter, required_gate: gateFilter }),
     [id, statusFilter.join(','), minFit, evalFilter, gateFilter],
   );
+  const comparisonList = useApi(() => api.applicants(id), [id]);
   const [params, setParams] = useSearchParams();
   const selected = Number(params.get('selected')) || null;
   const select = (applicationId: number) => setParams({ selected: String(applicationId) }, { replace: true });
@@ -68,7 +75,22 @@ export default function Applicants() {
   return (
     <div className={cx(ui.page, h.page)}>
       <JobHeader job={job.state.data} />
-      <h2 className={s.rankingHeading}>{t('jobTabs.applicants')}</h2>
+      <div className={s.compareHeading}>
+        <h2 className={s.rankingHeading}>{t('jobTabs.applicants')}</h2>
+        {comparisonList.state.status === 'ok' && comparisonList.state.data.job_id === id && topRankedPair(comparisonList.state.data) ? (
+          <Link className={cx(ui.btn, ui.primary, ui.small)} to={generatePath(paths.company.applicantComparison, { jobId: String(id) })}>
+            {t('compare.title')}
+          </Link>
+        ) : (
+          <>
+            <button type="button" className={cx(ui.btn, ui.secondary, ui.small)} disabled>{t('compare.title')}</button>
+            <span className={ui.caption}>{t(comparisonList.state.status === 'loading' ? 'compare.checking' : comparisonList.state.status === 'error' ? 'compare.unavailable' : 'compare.notEnough')}</span>
+            {comparisonList.state.status === 'error' && (
+              <button type="button" className={cx(ui.btn, ui.quiet, ui.small)} onClick={comparisonList.reload}>{t('common.refresh')}</button>
+            )}
+          </>
+        )}
+      </div>
       <div className={cx(ui.panel, s.filters)}>
         <span className={s.filterGroup} role="group" aria-label={t('apl.filter.status')}>
           {t('apl.filter.status')}
@@ -145,7 +167,7 @@ export default function Applicants() {
           data={list.state.data}
           selected={selected}
           onSelect={select}
-          onRefresh={list.reload}
+          onRefresh={() => { list.reload(); comparisonList.reload(); }}
           setData={list.setData}
           filtered={filtered}
           gated={gated}
@@ -344,6 +366,7 @@ function Board({
         <ApplicantDetail
           key={current.application_id}
           row={current}
+          jobId={data.job_id}
           criteriaCount={data.criteria.length}
           position={index + 1}
           total={items.length}

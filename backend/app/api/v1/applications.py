@@ -5,11 +5,12 @@ until it is done. Status changes are recruiter actions only.
 """
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Query, status
+from fastapi import APIRouter, BackgroundTasks, Query, Response, status
 
 from app.core.deps import CompanyUser, CurrentUser, DbSession
 from app.schemas.application import (
     ApplicantList,
+    ApplicationCvSource,
     ApplicationOut,
     ApplicationStatusT,
     EvaluationOut,
@@ -59,6 +60,21 @@ def list_applicants(
     ] = None,
 ):
     return svc.ranked(db, user, job_id, status_, min_fit, evaluation_status, required_gate)
+
+
+@router.get(
+    "/applications/{application_id}/cv-source",
+    response_model=ApplicationCvSource,
+    summary="Masked extracted text from the CV version attached to this application (owner only)",
+)
+def get_cv_source(application_id: int, db: DbSession, user: CompanyUser, response: Response):
+    application = svc.get_owned(db, user, application_id)
+    response.headers["Cache-Control"] = "no-store"
+    return ApplicationCvSource(
+        application_id=application.id,
+        job_id=application.job_id,
+        text=application.cv_profile.document.masked_text or "",
+    )
 
 
 @router.get(

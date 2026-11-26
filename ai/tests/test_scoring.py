@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -9,7 +10,7 @@ from ai.parsing.pii import mask_pii
 from ai.parsing.profile import Certificate, CvProfile, Education, Experience
 from ai.scoring.fit import RankItem, aggregate_fit, rank, score_candidate, summary_comment
 from ai.scoring.retrieval import keywords
-from ai.scoring.scorers import education_target, required_years, wanted_majors
+from ai.scoring.scorers import education_target, required_years, verified_direct_skill_trace, wanted_majors
 from ai.scoring.types import Candidate, Criterion, JobContext
 from ai.tests.helpers import EMBEDDER, SAMPLE_CV, SKILLS, FakeLLM
 
@@ -269,6 +270,34 @@ def test_skill_uses_are_counted_from_the_cv_text():
     assert r.score == 80 and "1건" in r.reason
     assert all(quote_in_text(q, candidate().text) for q in r.evidence)
 
+
+
+def test_multi_skill_trace_replays_saved_spring_and_jpa_score():
+    criterion = Criterion(2, "Spring 경험", "Spring Boot, JPA 실무 경험", "skill", 25)
+    cand = candidate("""경력
+서비스 개발 2021.01 ~ 2022.01
+- Spring Boot와 JPA로 서비스 개발
+
+프로젝트
+API 프로젝트 2022.01 ~ 2022.06
+- Spring Boot로 API 개발
+""")
+    result = run([criterion], cand=cand)[0]
+    trace = verified_direct_skill_trace(criterion, cand.text, SKILLS, result)
+    assert trace is not None
+    assert result.score == 85
+    assert {item.skill: (item.score, len(item.entries)) for item in trace.skills} == {"Spring": (90, 2), "JPA": (80, 1)}
+    assert verified_direct_skill_trace(criterion, cand.text, SKILLS, replace(result, score=86)) is None
+    assert verified_direct_skill_trace(criterion, cand.text, SKILLS, replace(result, evidence=("다른 인용",))) is None
+
+
+def test_multi_skill_trace_preserves_zero_and_evidence_absence():
+    criterion = Criterion(2, "Spring 경험", "Spring Boot, JPA 실무 경험", "skill", 25)
+    cand = candidate("기술\nJava")
+    result = run([criterion], cand=cand)[0]
+    trace = verified_direct_skill_trace(criterion, cand.text, SKILLS, result)
+    assert trace is not None and result.score == 0 and not result.evidence
+    assert {item.skill: item.match for item in trace.skills} == {"Spring": "missing", "JPA": "missing"}
 
 
 # ── Related skills (D27): groups in data/skills.yaml, never embedding similarity ──
