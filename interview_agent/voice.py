@@ -41,6 +41,7 @@ import contextlib
 import json
 import logging
 import sys
+import time
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -48,7 +49,7 @@ import httpx
 from livekit import rtc
 from livekit.agents import Agent, AgentServer, AgentSession, AutoSubscribe, JobContext, JobProcess, cli, inference, room_io
 from livekit.agents.llm import StopResponse
-from livekit.plugins import silero
+from livekit.plugins import anam, silero
 
 from ai.interview import mask_spoken
 from interview_agent.backend_client import SessionClient
@@ -65,6 +66,14 @@ READY_ATTRIBUTE = "cs_ready"  # page -> agent: the browser is attached and can h
 READY_TIMEOUT_SECONDS = 15.0
 CLOSE_TIMEOUT_SECONDS = 15.0
 TICK_SECONDS = 1.0
+AVATAR_IDENTITY = "anam-avatar-agent"
+PUBLISH_ON_BEHALF = "lk.publish_on_behalf"
+
+
+def is_avatar_participant(participant: Any) -> bool:
+    """True when participant is the Anam avatar worker rather than the candidate."""
+    attrs = getattr(participant, "attributes", None) or {}
+    return getattr(participant, "identity", None) == AVATAR_IDENTITY or bool(attrs.get(PUBLISH_ON_BEHALF))
 
 
 def mask_event(event: Any, names: Iterable[str] = ()) -> int:
@@ -124,16 +133,65 @@ def build_session(settings: VoiceSettings, vad) -> AgentSession:
     )
 
 
-def room_options() -> room_io.RoomOptions:
+def room_options(*, avatar_active: bool = False) -> room_io.RoomOptions:
     return room_io.RoomOptions(
         audio_input=True,
         video_input=False,  # the candidate's camera is never used (and the token does not allow it)
         text_input=False,
         text_output=False,  # no automatic transcription topic: the page reads the stored, masked transcript from the backend
-        audio_output=True,
+        # When Anam is active, TTS audio goes through the avatar worker; on fallback/audio-only the agent publishes directly (D90)
+        audio_output=not avatar_active,
         close_on_disconnect=True,  # only for CLIENT_INITIATED, ROOM_DELETED, USER_REJECTED: the departure handler covers the rest
         delete_room_on_close=True,  # the room goes as soon as the session ends, so a new join dispatches again
     )
+
+
+async def start_avatar(
+    session: AgentSession,
+    ctx: JobContext,
+    settings: VoiceSettings,
+    vad: Any,
+    timing: SessionTiming,
+) -> tuple[AgentSession, bool]:
+    """Start Anam Avatar if enabled; rebuild a fresh AgentSession for audio-only on failure or missing keys (D90)."""
+    mode = settings.avatar_mode
+    if ctx.is_fake_job():
+        timing.note_avatar(mode=mode, active=False, fallback_reason="console_mode")
+        return session, False
+    if not settings.avatar_requested:
+        timing.note_avatar(mode=mode, active=False, fallback_reason="disabled")
+        return session, False
+    if not settings.avatar_enabled:
+        if mode == "on":
+            log.warning("avatar requested (INTERVIEW_AGENT_AVATAR=on) without ANAM_API_KEY/ANAM_AVATAR_ID; falling back to audio-only")
+        timing.note_avatar(mode=mode, active=False, fallback_reason="missing_credentials")
+        return session, False
+
+    avatar = anam.AvatarSession(
+        persona_config=anam.PersonaConfig(name="AI Interviewer", avatarId=settings.anam_avatar_id),
+        session_options=anam.SessionOptions(show_ai_avatar_disclosure=True),
+        api_key=settings.anam_api_key,
+        avatar_participant_identity=AVATAR_IDENTITY,
+    )
+    started = time.monotonic()
+    try:
+        await avatar.start(session, room=ctx.room)
+        await avatar.wait_for_join(timeout=settings.avatar_join_timeout)
+    except Exception as error:  # noqa: BLE001  (audio-only fallback per D90; log type/status only, never key)
+        code = f"avatar_{type(error).__name__}"
+        log.warning(
+            "avatar setup failed (%s, status=%s); falling back to audio-only",
+            type(error).__name__,
+            getattr(error, "status_code", None),
+        )
+        with contextlib.suppress(Exception):
+            await avatar.aclose()
+        # Rebuild a clean AgentSession so any partial DataStreamAudioOutput or listener hooked by start() is discarded
+        fresh = build_session(settings, vad)
+        timing.note_avatar(mode=mode, active=False, fallback_reason=code)
+        return fresh, False
+    timing.note_avatar(mode=mode, active=True, start_to_join_s=time.monotonic() - started)
+    return session, True
 
 
 def turn_detection_label(session: AgentSession) -> str:
@@ -237,6 +295,7 @@ async def run_voice_interview(ctx: JobContext) -> None:
 
         vad = ctx.proc.userdata.get("vad") or silero.VAD.load()
         session = build_session(settings, vad)
+        session, avatar_active = await start_avatar(session, ctx, settings, vad, timing)
         agent = InterviewerAgent(runner.names)
         closed = asyncio.Event()
         background: set[asyncio.Task] = set()
@@ -265,8 +324,8 @@ async def run_voice_interview(ctx: JobContext) -> None:
         agent.on_turn = lambda text: (timing.mark("turn_committed"), controller.submit(text))
         timing.note_detector(requested=TURN_DETECTOR_VERSION, at_start=turn_detection_label(session))
         log.info(
-            "voice session %s: stt=%s tts=%s detector=%s endpointing min=%.1fs max=%.1fs ai_mode=%s",
-            session_id, settings.stt_model, settings.tts_model, turn_detection_label(session), settings.endpoint_min, settings.endpoint_max, agent_settings.ai_mode,
+            "voice session %s: stt=%s tts=%s detector=%s endpointing min=%.1fs max=%.1fs ai_mode=%s avatar=%s",
+            session_id, settings.stt_model, settings.tts_model, turn_detection_label(session), settings.endpoint_min, settings.endpoint_max, agent_settings.ai_mode, "anam" if avatar_active else "audio_only",
         )
 
         def watch_detector(where: str) -> None:
@@ -305,12 +364,17 @@ async def run_voice_interview(ctx: JobContext) -> None:
                 spawn(controller.candidate_left(f"session_closed:{getattr(event.reason, 'value', event.reason)}"))
 
         def on_participant_disconnected(participant) -> None:
+            if is_avatar_participant(participant):
+                log.warning("avatar participant disconnected mid-session")
+                if timing.avatar:
+                    timing.avatar["disconnected_mid_session"] = True
+                return
             if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_STANDARD:
                 spawn(controller.candidate_left("candidate_left"))
 
         ctx.room.on("participant_disconnected", on_participant_disconnected)
 
-        await session.start(agent=agent, room=ctx.room, room_options=room_options(), record=False)
+        await session.start(agent=agent, room=ctx.room, room_options=room_options(avatar_active=avatar_active), record=False)
     except Exception as error:
         # Nothing was spoken or stored yet, and the backend cannot end a `created` session. Deleting the room (the shutdown callback) lets the
         # candidate join the same session again within its join time, which dispatches a new job and takes no quota.

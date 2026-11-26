@@ -16,7 +16,7 @@ logged or printed.
 """
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -102,6 +102,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> AgentSettings:
 # | `INTERVIEW_AGENT_ENDPOINT_MAX_SECONDS` | `6.0` | Wait when it thinks the candidate is not done; the turn ends after this whatever it says |
 # | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | `5` | How often the worker asks the backend whether the session is still active (D80) |
 # | `INTERVIEW_AGENT_CONSOLE_SESSION_ID` | none | `console` mode only: the session to run (a console job carries no metadata) |
+# | `INTERVIEW_AGENT_AVATAR` | `auto` | `auto` (use Anam when keys are set), `on` (attempt Anam with audio-only fallback), or `off` (audio-only, D90) |
+# | `ANAM_API_KEY`, `ANAM_AVATAR_ID` | none | Optional Anam credentials; missing or failed avatar setup falls back to audio-only (D90) |
+# | `INTERVIEW_AGENT_AVATAR_JOIN_TIMEOUT_SECONDS` | `30` | Seconds to wait for the Anam avatar worker to join and publish video (`5` to `60`) |
 DEFAULT_AGENT_NAME = "careersync-interviewer"  # the default of the backend's INTERVIEW_AGENT_NAME; a backend test checks that they agree
 DEFAULT_STT_MODEL = "deepgram/nova-3"
 DEFAULT_TTS_MODEL = "cartesia/sonic-3"
@@ -109,6 +112,8 @@ DEFAULT_TTS_MODEL = "cartesia/sonic-3"
 DEFAULT_TTS_VOICE = "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
 LANGUAGE = "ko"
 TURN_DETECTOR_VERSION = "v1"  # the full model, served by LiveKit Inference; without a version `start` would run the local v1-mini
+DEFAULT_AVATAR_MODE = "auto"
+DEFAULT_AVATAR_JOIN_TIMEOUT_SECONDS = 30.0
 LIVEKIT_VARIABLES = ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")
 
 
@@ -124,6 +129,18 @@ class VoiceSettings:
     endpoint_max: float
     status_poll: float
     console_session_id: int | None
+    avatar_mode: str = DEFAULT_AVATAR_MODE
+    anam_api_key: str = field(default="", repr=False)
+    anam_avatar_id: str = ""
+    avatar_join_timeout: float = DEFAULT_AVATAR_JOIN_TIMEOUT_SECONDS
+
+    @property
+    def avatar_requested(self) -> bool:
+        return self.avatar_mode != "off"
+
+    @property
+    def avatar_enabled(self) -> bool:
+        return self.avatar_requested and bool(self.anam_api_key and self.anam_avatar_id)
 
 
 def agent_name_from_env(env: Mapping[str, str] | None = None) -> str:
@@ -154,6 +171,12 @@ def load_voice_settings(env: Mapping[str, str] | None = None) -> VoiceSettings:
     console = _get(env, "INTERVIEW_AGENT_CONSOLE_SESSION_ID")
     if console and not (console.isdigit() and 0 < int(console) < 2**31):
         raise ConfigError("INTERVIEW_AGENT_CONSOLE_SESSION_ID must be a session id (a positive integer)")
+    avatar_mode = _get(env, "INTERVIEW_AGENT_AVATAR", DEFAULT_AVATAR_MODE).lower()
+    if avatar_mode not in ("auto", "on", "off"):
+        raise ConfigError("INTERVIEW_AGENT_AVATAR must be auto, on or off")
+    avatar_join_timeout = _number(
+        env, "INTERVIEW_AGENT_AVATAR_JOIN_TIMEOUT_SECONDS", DEFAULT_AVATAR_JOIN_TIMEOUT_SECONDS, 5.0, 60.0
+    )
     return VoiceSettings(
         agent=agent,
         agent_name=agent_name_from_env(env),
@@ -165,4 +188,8 @@ def load_voice_settings(env: Mapping[str, str] | None = None) -> VoiceSettings:
         endpoint_max=high,
         status_poll=_number(env, "INTERVIEW_AGENT_STATUS_POLL_SECONDS", 5.0, 1.0, 30.0),
         console_session_id=int(console) if console else None,
+        avatar_mode=avatar_mode,
+        anam_api_key=_get(env, "ANAM_API_KEY"),
+        anam_avatar_id=_get(env, "ANAM_AVATAR_ID"),
+        avatar_join_timeout=avatar_join_timeout,
     )

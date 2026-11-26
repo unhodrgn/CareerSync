@@ -13,8 +13,9 @@
 </head>
 <body>
   <header>
-    <h1>모의 면접 음성 테스트 <span class="tag">개발용</span></h1>
-    <p class="note" role="note">개발자가 음성 면접을 시험해 보는 페이지입니다. 서비스 화면이 아닙니다. 가상의 계정과 가상의 답변만 쓰세요. 마이크 음성만 전달되고, 카메라는 쓰지 않습니다.</p>
+    <h1>모의 면접 음성·아바타 테스트 <span class="tag">개발용</span></h1>
+    <p class="note" role="note">개발자가 음성·아바타 모의 면접을 시험해 보는 페이지입니다. 서비스 화면이 아닙니다. 가상의 계정과 가상의 답변만 쓰세요. 마이크 음성만 LiveKit(면접관)으로 전달되며, 로컬 카메라 미리보기는 브라우저 안에서만 표시되고 전송되지 않습니다.</p>
+    <p class="ai-banner" role="note"><strong>AI 안내</strong> 화면의 아바타와 면접관은 AI입니다(D90: Anam 미설정·오류 시 음성 전용으로 자동 전환).</p>
   </header>
   <main>
     <section id="login-box" aria-label="로그인">
@@ -35,6 +36,16 @@
         <button id="start" type="button" disabled>면접 시작</button>
         <button id="end" type="button" disabled>종료</button>
         <button id="feedback" type="button" disabled>피드백 보기</button>
+      </div>
+    </section>
+    <section class="stage" aria-label="아바타 및 카메라 미리보기">
+      <div class="avatar-box">
+        <video id="avatar-video" autoplay playsinline aria-label="AI 면접관 아바타"></video>
+        <p id="avatar-placeholder" class="placeholder">면접을 시작하면 AI 면접관 아바타(또는 음성 전용 모드)가 연결됩니다.</p>
+      </div>
+      <div class="preview-box">
+        <video id="preview-video" autoplay muted playsinline aria-label="내 카메라 미리보기"></video>
+        <p class="note">내 카메라 미리보기는 이 브라우저 안에서만 보이며 어디로도 전송되지 않습니다.</p>
       </div>
     </section>
     <p id="status" class="status" role="status" aria-live="polite">대기 중</p>

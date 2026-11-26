@@ -89,6 +89,10 @@ services:
       AI_MODE: ${INTERVIEW_AGENT_AI_MODE:-${AI_MODE:-llm}}
       # Empty means the agent's default (3 s)
       INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS: ${INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS:-}
+      # Optional Anam avatar (D90): auto enables when ANAM_API_KEY + ANAM_AVATAR_ID are set, else audio-only fallback.
+      INTERVIEW_AGENT_AVATAR: ${INTERVIEW_AGENT_AVATAR:-auto}
+      ANAM_API_KEY: ${ANAM_API_KEY:-}
+      ANAM_AVATAR_ID: ${ANAM_AVATAR_ID:-}
     depends_on:
       backend:
         condition: service_healthy

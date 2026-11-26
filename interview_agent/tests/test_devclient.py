@@ -72,8 +72,10 @@ def test_the_page_pins_livekit_client_with_an_integrity_hash_and_publishes_the_m
     html = (DEVCLIENT / "index.html").read_text(encoding="utf-8")
     tag = re.search(r"<script src=\"https://cdn\.jsdelivr\.net/npm/livekit-client@(\d+\.\d+\.\d+)/[^\"]+\"\s+integrity=\"sha384-[A-Za-z0-9+/=]+\"\s+crossorigin=\"anonymous\"", html)
     assert tag and tag.group(1) == "2.24.1"  # an exact version with a Subresource Integrity hash, as the PoC page has
+    assert 'id="avatar-video"' in html and 'id="preview-video"' in html and "muted" in html
     script = (DEVCLIENT / "app.js").read_text(encoding="utf-8")
     assert "setMicrophoneEnabled(true)" in script and "setCameraEnabled" not in script and "setScreenShareEnabled" not in script
+    assert "setTrackSubscriptionPermissions" in script and "lk.publish_on_behalf" in script
     assert "innerHTML" not in script and "eval(" not in script  # everything shown goes in as text
 
 
