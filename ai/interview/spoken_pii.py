@@ -21,6 +21,14 @@ from ai.parsing.pii import _DETECT_SURNAMES, _PATTERNS, NAME_TOKEN, _name_patter
 
 _TOKENS = {kind: token for kind, token, _ in _PATTERNS}
 EMAIL, URL, RRN, PHONE, BIRTH = _TOKENS["email"], _TOKENS["url"], _TOKENS["rrn"], _TOKENS["phone"], _TOKENS["birth"]
+# Common spoken roles/titles after "저는 …입니다" whose leading syllable is a Korean surname
+_NON_NAME_ROLES = frozenset(
+    "이력서 지원서 지원자 구직자 성명 이름 이메일 주소 연락처 전화 생년월일 주민번호 링크 "
+    "백엔드 프론트엔드 풀스택 개발자 엔지니어 디자이너 기획자 연구원 연구생 인턴 신입 신입생 "
+    "경력직 정규직 계약직 지원자 고객 서비스 전문가 주니어 시니어 추천인 추천자 담당자 지도교수 "
+    "팀장 부장 과장 차장 대리 사원 대표 학생 대학생 졸업 졸업생 박사 석사 학사 전공자 담당 선배 후배 "
+    "동료 리더 사회자 면접자 설계자 운영자 관리자 교육생 수료생 안녕하세요 성별 국적 병역 장애".split()
+)
 
 _SPOKEN_DIGITS = "공영일이삼사오육칠팔구"
 _COMPOUND = "|".join(re.escape(s) for s in sorted(_DETECT_SURNAMES, key=len, reverse=True) if len(s) == 2)
@@ -72,11 +80,14 @@ def mask_spoken(text: str, names: Sequence[str] = ()) -> SpokenMaskResult:
             kinds[kind] += count
         return out
 
-    def sub_name(pattern: re.Pattern[str], source: str) -> str:
-        out, count = pattern.subn(lambda m: m.group("pre") + NAME_TOKEN, source)
-        if count:
-            kinds["name"] += count
-        return out
+    def sub_name(pattern: re.Pattern[str], source: str, stop: frozenset[str] = frozenset()) -> str:
+        def replace(m: re.Match[str]) -> str:
+            if m.group("name").strip() in stop:
+                return m.group(0)
+            kinds["name"] += 1
+            return m.group("pre") + NAME_TOKEN
+
+        return pattern.sub(replace, source)
 
     out = text or ""
     out = sub(_RRN_RE, RRN, "rrn", out)
@@ -86,8 +97,8 @@ def mask_spoken(text: str, names: Sequence[str] = ()) -> SpokenMaskResult:
     out = sub(_PHONE_RE, PHONE, "phone", out)
     out = sub(_PHONE_SPOKEN_RE, PHONE, "phone", out)
     out = sub(_BIRTH_RE, BIRTH, "birth_date", out)
-    out = sub_name(_LABELED_NAME_RE, out)
-    out = sub_name(_INTRO_NAME_RE, out)
+    out = sub_name(_LABELED_NAME_RE, out, _NON_NAME_ROLES)
+    out = sub_name(_INTRO_NAME_RE, out, _NON_NAME_ROLES)
     out = sub_name(_ENGLISH_NAME_RE, out)
     for pattern in _account_patterns(names):
         out = sub(pattern, NAME_TOKEN, "name", out)

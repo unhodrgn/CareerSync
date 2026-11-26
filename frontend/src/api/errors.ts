@@ -48,6 +48,12 @@ const CODE_TEXT: Partial<Record<string, MessageKey>> = {
   OFFER_DAILY_LIMIT: 'error.offerDailyLimit',
   PROJECT_NOT_FOUND: 'error.projectNotFound',
   PROJECT_LIMIT: 'error.projectLimit',
+  POSTER_SIZE: 'error.posterSize',
+  POSTER_FORMAT: 'error.posterFormat',
+  POSTER_OCR_UNAVAILABLE: 'error.posterOcrUnavailable',
+  POSTER_OCR_FAILED: 'error.posterOcrFailed',
+  POSTER_OCR_EMPTY: 'error.posterOcrEmpty',
+  POSTER_OCR_TOO_LONG: 'error.posterOcrTooLong',
 };
 
 /** The `code` of a failed request, or null for anything that is not an ApiError. */

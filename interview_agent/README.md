@@ -78,8 +78,8 @@ in the terminal that starts it.
 | `LIVEKIT_URL` | required | required | `wss://<your-project>.livekit.cloud` (LiveKit Cloud: Settings, Project) |
 | `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | required | required | An API key of the same project (Settings, API keys). The backend signs the join token with it; the agent registers with it and LiveKit Inference checks it |
 | `INTERVIEW_AGENT_BACKEND_URL` | | `http://127.0.0.1:8000` | The backend (default `http://localhost:8000`) |
-| `AI_MODE` | `rules` is enough | `llm` | Agent `llm`: Groq per turn. Backend `rules`: template questions and rules feedback, so the live run needs no Anthropic key |
-| `GROQ_API_KEY` | | required with `AI_MODE=llm` | A Groq key (console.groq.com/keys) |
+| `AI_MODE` | `rules` or `llm` | `llm` | Agent `llm`: Groq per turn. Backend `rules`: template questions and rules feedback; Compose/`.env.example` default both to `llm` via Groq (D91) |
+| `GROQ_API_KEY` | fallback when `LLM_PROVIDER=groq` | required with `AI_MODE=llm` | A Groq key (console.groq.com/keys) |
 | `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` | | `3` | Per-turn model timeout, above 0 and at most 30 |
 | `INTERVIEW_AGENT_LLM_MODEL` | | `openai/gpt-oss-120b` | A Claude model name is refused |
 | `INTERVIEW_AGENT_REASONING_EFFORT` | | `low` for gpt-oss | `low`, `medium` or `high` |
@@ -105,7 +105,7 @@ plain `docker compose up` leaves it out and needs no LiveKit key). The step-by-s
   the secret and the three `LIVEKIT_*` names), and sets `INTERVIEW_AGENT_BACKEND_URL=http://backend:8000` itself. Every other variable of the
   table above keeps its default under Compose.
 - **The agent's mode.** `INTERVIEW_AGENT_AI_MODE` (`rules` or `llm`) is read by Compose only: the container's `AI_MODE` is that value when it is
-  set, otherwise the backend's `AI_MODE`. So the agent can run `llm` (Groq) while the backend runs `rules` and needs no Anthropic key. Shell
+  set, otherwise the backend's `AI_MODE`. Both default to `llm` (Groq) under Compose (D91); set either to override per-service. Shell
   variables win over `.env`; the backend and the agent can only differ when the shell or `.env` says so.
 - **Change only the agent.** Set the variable, then `docker compose --profile voice up -d --no-deps agent`. `--no-deps` leaves the backend alone
   even when your shell differs from the one you started in.
@@ -119,16 +119,13 @@ plain `docker compose up` leaves it out and needs no LiveKit key). The step-by-s
   numbers are logged as `session summary: {...}`.
 - **Clock.** LiveKit rejects tokens when the clock is off by more than about a minute (`401`):
   [troubleshooting](../docs/how-to/troubleshooting.md#livekit-answers-401-in-the-voice-interview-although-the-keys-are-right).
-- **The lock.** The image installs `requirements.lock.txt`, which was resolved on Windows. pip still resolves, so Linux-only packages are added,
-  and `pip check` fails the build on a conflict; every pin has a Linux x86_64 wheel on PyPI (checked 23/11/2026), but a first build is the real
-  test; the first Linux build succeeded on 23/11/2026. **Follow-up, still open (redone together with the later Dockerfile switch; the lock file made from the first build was removed):** freeze the set the image really has, so later builds are reproducible:
+- **The lock.** `interview_agent/requirements.linux.lock.txt` holds the pinned Linux package set frozen from the Compose `agent` image, and `interview_agent/Dockerfile` installs it with `--no-deps` followed by `python -m pip check` and a local-model load check. Rebuilding the `agent` image on 25/11/2026 exited clean with `healthy` status and `"registered worker"`. To refresh the Linux lock after changing dependencies:
 
   ```powershell
   docker compose --profile voice run --rm -T --no-deps agent python -m pip freeze | Set-Content -Encoding utf8 interview_agent\requirements.linux.lock.txt
   ```
 
-  Then install that file in the Dockerfile with `--no-deps` instead of the Windows lock, and keep `pip check`. The Windows lock stays the lock of
-  the local virtual environment.
+  `requirements.lock.txt` remains the lock for the local Windows virtual environment.
 
 ## Run it
 
@@ -179,9 +176,7 @@ Do not run the worker with `--log-level debug`: the SDK then prints transcript l
 **Plan the sessions** (3 per account per day): the checks that are still open fit into four sessions on the Compose stack, set out step by step
 under the table ("The remaining checks in four sessions"). The first session of 22/11/2026 (manual run, `seeker2@demo.test`) passed C1, C3 and C4.
 
-**Status** (the results and their numbers are recorded in `PROJECT_PROGRESS.md` §5.9, "S4 live run" and "Live run on the Compose stack"): session 3
-on 22/11/2026 (seeker2) passed C1, C3 and C4; C7 was not confirmed in it. Session 6 on 23/11/2026 (Compose, seeker3) ran C2 (a variant result), C5,
-C6a and C7; the other checks have not run.
+**Status** (recorded with numbers in `PROJECT_PROGRESS.md` §5.9, "S4 live run", "Live run on the Compose stack", and "Phase 1 Compose close-out run"): session 3 on 22/11/2026 (`seeker2`) passed C1, C3 and C4; session 6 on 23/11/2026 (Compose, `seeker3`) ran C2 (a variant result), C5, C6a (functional) and C7 with live Korean speech; sessions 8 to 11 on 25/11/2026 (Compose, driven by a headless `livekit.rtc` participant joining real rooms and interrupting active agent TTS audio) closed C6a timing, C6b, C6c, C6d and C8.
 
 | # | Check | Do | Expect | Record | Status |
 |---|---|---|---|---|---|
@@ -190,25 +185,24 @@ C6a and C7; the other checks have not run.
 | C3 | Korean turn detection | Session A, answer each question in Korean. (a) One clause, silence ~1 s, then the rest, e.g. "멱등성은 같은 요청을 여러 번 보내도 결과가 같게 만드는 성질입니다 … (1 s) … 예를 들어 결제 요청에 멱등성 키를 붙였습니다." (b) Silence ~2.5 s inside an answer. (c) Silence ~3.5 s or more: the turn is expected to end. (d) Stop mid-thought ("그래서 멱등성은 …") and stay silent. Say nothing while the interviewer speaks | (a) and (b): one answer line on the page, no reply in between; (c) the turn ends; (d) it ends between about 3 and 6 s after your last word | Per turn, from the report: `endpointing_s`; `turn_detector.model_at_end` (must be `turn-detector-v1`) and `fell_back` (must be false); the number of answers the page shows split into two lines, and for which case | Passed (session 3) |
 | C4 | End-to-end latency | Session A: answer each question normally in 15 to 40 s, stay silent when done, all five questions | The interviewer speaks after your last word | The report's `turns[].gap_s` (last word to first sound, the headline), and its parts `stt_final_after_stop_s` (the final transcript against the stop; negative is normal), `endpointing_s`, `processing_s` (Groq + engine + two posts), `tts_start_s`; `gap_s` min, median, max. Not judged here: no target is decided (the PoC estimated about 4.4 s at 3.0 s endpointing, without Groq) | Passed (session 3) |
 | C5 | Groq timeout falls back to the rules | Session C: restart the worker with `$env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS = "0.2"`. Answer two questions. (Optionally first, with a wrong `GROQ_API_KEY`, to see `error:*`) | The interviewer still answers every time; the worker logs `turn analysis: timeout`; no error on the page | `llm_calls[].outcome` and `seconds` (`timeout` at ~0.2 s), `processing_s` of those turns. Then, with the 3 s default in session A: the share of `ok` against `timeout`, `error:*` and `rejected:*`, and the longest `seconds` | Passed (session 6: 3 of 3 `timeout` at 0.20 s) |
-| C6a | The seeker's End stops the voice | Session C: while the interviewer is speaking, press **종료** | Speech stops; the page shows `aborted (seeker_ended)`; the worker exits the room | Seconds from the click to silence (up to about 5 s) | Passed functionally (session 6); seconds to silence not measured |
-| C6b | Deleting a live session stops the voice | Session D: while the interviewer is speaking, `DELETE /api/interview-sessions/{id}` in Swagger (`/docs`, Authorize with the seeker's token) | The agent stops within about 5 s and the room is deleted | Seconds to silence; the worker's log line `runner stopped: gone` | Pending |
-| C6c | Closing the tab ends it | Session E: close the browser tab mid-answer | The session reads `aborted` with `candidate_left`; no closing line | The end reason in the page of a new tab or `GET /api/interview-sessions`; seconds until it appears | Pending |
-| C6d | Consent withdrawal stops it | Session F: `DELETE /api/users/me/consent/ai` in Swagger mid-interview; afterwards consent again (`POST /api/users/me/consent`) | The agent stops within about 5 s with no further model call; the session reads `aborted` (`consent_withdrawn`) | Seconds to silence; the worker log; no Groq call after the withdrawal | Pending |
+| C6a | The seeker's End stops the voice | Session C: while the interviewer is speaking, press **종료** | Speech stops; the page shows `aborted (seeker_ended)`; the worker exits the room | Seconds from the click to silence (up to about 5 s) | Passed (session 6 functionally; session 8 on 25/11/2026 via headless `livekit.rtc`: `2.093 s` to silence after `/end`, `aborted` / `seeker_ended`) |
+| C6b | Deleting a live session stops the voice | Session D: while the interviewer is speaking, `DELETE /api/interview-sessions/{id}` in Swagger (`/docs`, Authorize with the seeker's token) | The agent stops within about 5 s and the room is deleted | Seconds to silence; the worker's log line `runner stopped: gone` | Passed (session 9 on 25/11/2026 via headless `livekit.rtc`: `1.937 s` to silence after `DELETE` 204, post-delete `GET` 404, `runner stopped: gone`) |
+| C6c | Closing the tab ends it | Session E: close the browser tab mid-answer | The session reads `aborted` with `candidate_left`; no closing line | The end reason in the page of a new tab or `GET /api/interview-sessions`; seconds until it appears | Passed (session 10 on 25/11/2026 via headless `livekit.rtc`, agent `rules` mode: abrupt disconnect -> `aborted` / `candidate_left` after `0.562 s` poll, question turn only, no closing line) |
+| C6d | Consent withdrawal stops it | Session F: `DELETE /api/users/me/consent/ai` in Swagger mid-interview; afterwards consent again (`POST /api/users/me/consent`) | The agent stops within about 5 s with no further model call; the session reads `aborted` (`consent_withdrawn`) | Seconds to silence; the worker log; no Groq call after the withdrawal | Passed (session 11 on 25/11/2026 via headless `livekit.rtc`: `2.359 s` to silence after `DELETE /api/users/me/consent/ai` 200, `aborted` / `consent_withdrawn`, `runner stopped: consent_withdrawn`, no Groq call after withdrawal, consent restored) |
 | C7 | Masking in the live path | Session A: "제 이름은 홍길동이고 전화번호는 공일공 일이삼사 오육칠팔입니다 …" | The page's stored transcript shows `[이름]` and a phone placeholder, not the words | The page's line; confirm that the worker log holds no part of what you said | Done (session 6): own name, phone and email masked; a third-party name was misrecognized and not masked (recognizer limit, no change) |
-| C8 | A second session after the first | Start a session right after one ended | It works, in a new room | Whether the first attempt after an ended session connected | Pending |
+| C8 | A second session after the first | Start a session right after one ended | It works, in a new room | Whether the first attempt after an ended session connected | Passed (session 9 immediately after session 8 on the same worker without restart: first-attempt join in `0.703 s`, first audio at `3.312 s`) |
 
 ### The remaining checks in four sessions (Compose)
 
-Open: C6b to C6d and C8 (session 6, the first session of this plan, ran C2 as a variant, C5, C6a and C7). The four ways a session can be stopped (C6a to C6d) each end one
-session, so **four sessions** is the minimum; C2, C5, C7 and C8 ride along. Accounts: `seeker3@demo.test` for sessions 1 to 3 (its 3 sessions of
+Note: sessions 8 to 11 on 25/11/2026 closed C6a timing, C6b to C6d and C8 via headless `livekit.rtc`; the steps below remain as a repeatable manual runbook on the Compose stack. Accounts: `seeker3@demo.test` for sessions 1 to 3 (its 3 sessions of
 the day), then `seeker@demo.test`; every demo password is `demo1234`. Use only the synthetic sentences below. The quota is counted per
 database, and the Compose database (host port 5434) is separate from a manual one (5433).
 
 **Before session 1** (once). Window 1 is the Compose window: keep it open all day, because its variables decide what Compose passes on.
 
 ```powershell
-# Window 1, repo root
-$env:AI_MODE = "rules"                  # the backend: no Anthropic key needed
+# Window 1, repo root (optional override to run backend in rules mode while testing agent llm mode)
+$env:AI_MODE = "rules"                  # backend rules fallback override (Compose defaults to llm/groq per D91)
 $env:INTERVIEW_AGENT_AI_MODE = "llm"    # the agent: Groq per turn (GROQ_API_KEY in .env)
 docker compose --profile voice up --build -d
 docker compose --profile voice ps -a                       # the agent reads "healthy" about a minute after it started
@@ -356,5 +350,6 @@ live checklist above: dispatch into a real room, the real recognizer and synthes
 | `config.py` | Settings from the environment |
 | `text_cli.py` | The text driver |
 | `devclient/` | The developer test page and its server (localhost only; forwards `/api/`, never `/api/internal/`) |
-| `Dockerfile` | The Compose image: the pinned lock, `pip check`, the local-model check at build time, the worker as the command, its health endpoint as the healthcheck |
+| `requirements.linux.lock.txt` | Pinned Linux dependency lock frozen from the Compose `agent` image and installed with `--no-deps` in `Dockerfile` |
+| `Dockerfile` | The Compose image: installs `requirements.linux.lock.txt` with `--no-deps`, `pip check`, the local-model check at build time, the worker as the command, its health endpoint as the healthcheck |
 | `tests/` | Offline tests (agent environment) |

@@ -374,7 +374,7 @@ def structure_cv(masked_text: str, skills: SkillDictionary, llm: LLMClient | Non
             )
             return normalize_profile(profile, skills), f"llm:{llm.model}"
         except LLMError as e:
-            log.warning("CV structuring by LLM failed, using rules: %s", e)
+            log.warning("CV structuring by LLM failed, using rules: %s", type(e).__name__)
     return normalize_profile(structure_cv_rules(masked_text, skills), skills), "rules"
 
 
@@ -474,5 +474,5 @@ def analyze_jd(title: str, text: str, min_years: int | None, skills: SkillDictio
             result.criteria = fix_weights(result.criteria) or suggest_criteria(result.profile)
             return result, f"llm:{llm.model}"
         except LLMError as e:
-            log.warning("JD analysis by LLM failed, using rules: %s", e)
+            log.warning("JD analysis by LLM failed, using rules: %s", type(e).__name__)
     return analyze_jd_rules(title, text, min_years, skills), "rules"

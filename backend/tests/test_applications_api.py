@@ -7,8 +7,15 @@ from ai.tests.helpers import SAMPLE_CV, FakeLLM, make_pdf
 from app.core.config import settings
 from app.models import CvProfile, Evaluation, User
 from app.schemas.application import AI_NOTICE
-from app.services import ai_runtime
+from app.services import ai_runtime, verification_service
 from tests.conftest import _PASSWORD_HASH, auth
+
+
+@pytest.fixture(autouse=True)
+def _fresh_verification_counts():
+    verification_service.reset_counts()
+    yield
+    verification_service.reset_counts()
 
 CRITERIA = [
     {"name": "Java 활용 능력", "category": "skill", "weight": 30},
@@ -320,6 +327,47 @@ def test_no_personal_data_reaches_the_llm_on_the_company_verification_path(clien
     assert "이력서 인용문" in prompt and "[이름]" in prompt  # it was built from the masked claim lines, the named one included
     for secret in ("jiwon.kim@example.com", "010-1234-5678", "테헤란로", "김지원", "jiwon kim", "kim ji-won", "박서준"):
         assert secret not in prompt.lower()
+
+
+def test_verification_questions_auth_consent_and_daily_limit(client, db, world, job, monkeypatch):
+    h = seeker(db, "kim2@seeker.test", "김지원")
+    confirm(client, h, upload(client, h).json())
+    app_id = client.post(f"/api/jobs/{job}/applications", headers=h).json()["id"]
+
+    # Auth: guests, seekers, and other companies are denied
+    assert client.post(f"/api/applications/{app_id}/verification-questions").status_code == 401
+    assert client.post(f"/api/applications/{app_id}/verification-questions", headers=h).status_code == 403
+    assert client.post(f"/api/applications/{app_id}/verification-questions", headers=world["rival"]).status_code == 404
+
+    # LLM quota & fallback
+    quote = "- Kotlin, Spring, Redis로 결제 서비스 운영"
+    payload = {
+        "questions": [
+            {
+                "question": "결제 서비스 운영 시 트래픽 병목을 어떻게 모니터링하고 개선하셨나요?",
+                "criterion_id": 0,  # placeholder filled per job criteria below
+                "cv_quote": quote,
+                "reason": "운영 규모와 본인 기여 확인 필요",
+                "check_points": ["트래픽 규모", "본인 기여"],
+            }
+        ]
+    }
+    first_cid = client.get(f"/api/jobs/{job}/criteria", headers=world["recruiter"]).json()["items"][0]["id"]
+    payload["questions"][0]["criterion_id"] = first_cid
+    llm = FakeLLM(payload)
+    monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
+    monkeypatch.setattr(settings, "COMPANY_DAILY_LLM_VERIFICATIONS", 1)
+
+    r1 = client.post(f"/api/applications/{app_id}/verification-questions", headers=world["recruiter"])
+    assert r1.status_code == 200 and r1.json()["method"] == "llm:fake-llm" and r1.json()["limited"] is False
+    r2 = client.post(f"/api/applications/{app_id}/verification-questions", headers=world["recruiter"])
+    assert r2.status_code == 200 and r2.json()["method"] == "rules" and r2.json()["limited"] is True
+
+    # Consent withdrawn: 409 AI_CONSENT_WITHDRAWN
+    db.query(User).filter_by(email="kim2@seeker.test").update({"consent_ai_at": None})
+    db.commit()
+    r3 = client.post(f"/api/applications/{app_id}/verification-questions", headers=world["recruiter"])
+    assert r3.status_code == 409 and r3.json()["code"] == "AI_CONSENT_WITHDRAWN"
 
 
 def test_jd_analysis_suggests_criteria(client, world):

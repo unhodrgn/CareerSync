@@ -104,7 +104,7 @@ export default function JobDetail() {
         {/* One action panel (apply, and prep as a link), then the criteria */}
         <aside className={s.aside}>
           {!user && <GuestApply />}
-          {seeker && <ApplyPanel job={data} />}
+          {seeker && <ApplyPanel job={data} onApplied={match.reload} />}
           {seeker && matchData && <MatchSection data={matchData} />}
           <CriteriaSection jobId={data.id} scores={matchData?.match?.criteria} />
         </aside>
@@ -266,7 +266,7 @@ async function loadApplyContext(jobId: number): Promise<ApplyContext> {
 }
 
 /** Apply with the newest confirmed CV; the AI evaluation runs on the server and its status is the recruiter's call. */
-function ApplyPanel({ job }: { job: JobOut }) {
+function ApplyPanel({ job, onApplied }: { job: JobOut; onApplied: () => void }) {
   const { user } = useAuth();
   const location = useLocation();
   const { state, setData } = useApi(() => loadApplyContext(job.id), [job.id]);
@@ -298,9 +298,13 @@ function ApplyPanel({ job }: { job: JobOut }) {
       const created = await api.apply(job.id);
       setData({ application: created, cv });
       setConfirming(false);
+      onApplied();
     } catch (e) {
       setError(e);
-      if (errorCode(e) === 'ALREADY_APPLIED') setData(await loadApplyContext(job.id).catch(() => state.data));
+      if (errorCode(e) === 'ALREADY_APPLIED') {
+        setData(await loadApplyContext(job.id).catch(() => state.data));
+        onApplied();
+      }
     } finally {
       setBusy(false);
     }

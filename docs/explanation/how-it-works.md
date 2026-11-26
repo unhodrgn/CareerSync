@@ -31,13 +31,13 @@ Browser ──► Vite dev server :3000 ──(/api proxy)──► FastAPI :800
                                                         └──► ai/ (parsing, scoring, guardrails) ──► LLM API (optional)
 ```
 
-The backend calls the AI code only through `backend/app/services/ai_runtime.py`, and `ai/` never touches the database. The LLM is called only when `AI_MODE=llm`; every feature also works in the default `AI_MODE=rules`. Ports: 5433 is the manual setup's database; Docker Compose uses its own database on 5434 ([Run with Docker](../how-to/run-with-docker.md)).
+The backend calls the AI code only through `backend/app/services/ai_runtime.py`, and `ai/` never touches the database. The LLM (`LLM_PROVIDER=groq` default for demo or `anthropic`, D91) is called only when `AI_MODE=llm`; every feature also works in the code fallback `AI_MODE=rules`. Ports: 5433 is the manual setup's database; Docker Compose uses its own database on 5434 ([Run with Docker](../how-to/run-with-docker.md)).
 
 ## How scoring works
 
 | Step | Approach |
 | --- | --- |
-| CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (default `AI_MODE=rules`); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
+| CV / JD structuring | LLM with JSON output when `AI_MODE=llm`, rule-based otherwise (`AI_MODE=rules` fallback); skill names are normalized with `data/skills.yaml` and experience months are always computed in code. Prompts are versioned in `ai/prompts/v1/` |
 | Skill, experience, education, certificate criteria | Rule-based scoring on the masked CV text, in both modes. Skills are matched with a dictionary and declared groups of related skills (`data/skills.yaml`, D27), without embeddings; a skill the dictionary does not know is looked up by the keywords of its name (D28) |
 | Project / other (judgment) criteria | `AI_MODE=llm`: LLM with a rubric (0/25/50/75/100) and evidence quoted from the CV; the quotes are verified against the CV, with one retry, then retrieval. `AI_MODE=rules` (D28): a `project` criterion is scored from the entries of the CV's 프로젝트 (projects) section (any entry 25, one entry naming a skill or keyword of the criterion or job 50, two or more 75, no 프로젝트 section 0); an `other` criterion by keyword/embedding retrieval, with a neutral 50 when retrieval finds nothing (only `other` gets it) |
 | Retrieval (embeddings) | `intfloat/multilingual-e5-base` (fallback `hashing-ngram-v1`, D26) is used only to find the CV passages relevant to a criterion: for project/other criteria, for skills the dictionary does not know, and for the CV excerpts of interview questions. It never scores a skill on its own |

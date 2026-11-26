@@ -1,31 +1,30 @@
 ---
 name: CareerSync
-description: 기업 맞춤형 AI 채용 매칭 플랫폼. App pages follow the "job example" reference — white icon rail, segmented header tabs, gray content panel with white cards, one mint accent, dark gradient match panel. The landing page keeps its own legacy system.
+description: 기업 맞춤형 AI 채용 매칭 플랫폼. Shared Navy/Teal app theme in `frontend/src/styles/tokens.css` (D88; PR #26 redesign, responsive breakpoints, shared across roles). Planned M6 is a full frontend rebuild including the interview UI.
 scope:
-  app: every page except the landing (`/`) — signed-in shell, guest job pages, login, register, consent, not found
-  landing: "`/` only — legacy Dual-Trail system, documented at the end of this file"
+  app: every page except legacy tokens reserved on `:root`
 colors:
   bg: "#ffffff"
-  panel: "#f4f5f7"
+  panel: "#eef3f7"
   surface: "#ffffff"
   sunken: "#f7f8fa"
   chip: "#eceef1"
   chip-hover: "#e2e5e9"
   tag: "#eef3f1"
-  ink: "#111111"
-  ink-2: "#3a3a3c"
-  muted: "#646b78"
-  line: "#ececee"
-  line-strong: "#dcdfe3"
-  accent: "#00eb9c"
-  accent-hover: "#00d48c"
-  on-accent: "#0b0b0b"
-  accent-soft: "#b2fae2"
-  accent-wash: "#eef8f3"
-  ring: "#2dd4a7"
-  accent-text: "#067a55"
-  focus: "#0b8f6c"
-  halo: "0 0 0 4px rgb(0 235 156 / 0.3)"
+  ink: "#172c46"
+  ink-2: "#354d65"
+  muted: "#52677d"
+  line: "#dce5ee"
+  line-strong: "#c4d1de"
+  accent: "#193653"
+  accent-hover: "#254968"
+  on-accent: "#ffffff"
+  accent-soft: "#d5eeea"
+  accent-wash: "#eaf6f4"
+  ring: "#148577"
+  accent-text: "#11645d"
+  focus: "#13776e"
+  halo: "0 0 0 4px rgb(19 119 110 / 0.25)"
   disabled: "#e7e9ec"
   on-disabled: "#8b9099"
   ai: "#2563eb"
@@ -34,8 +33,8 @@ colors:
   ai-line: "#c7d7fe"
   ai-on-dark: "#bfdbfe"
   ai-gradient: "linear-gradient(135deg, #3b82f6, #2563eb)"
-  match-from: "#07120f"
-  match-to: "#0f5e4a"
+  match-from: "#142c48"
+  match-to: "#105b55"
   on-match: "#ffffff"
   on-match-muted: "rgb(255 255 255 / 0.78)"
   danger: "#b42318"
@@ -49,23 +48,19 @@ colors:
 typography:
   family: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif"
   weights: [400, 500, 700]
-  section: { fontSize: "24px", fontWeight: 700, letterSpacing: "-0.03em" }
-  job-title: { fontSize: "26px", fontWeight: 700, letterSpacing: "-0.03em" }
-  title: { fontSize: "22px", fontWeight: 700, letterSpacing: "-0.03em" }
-  job-card-title: { fontSize: "20px", fontWeight: 700, letterSpacing: "-0.02em" }
-  card-title: { fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }
-  heading: { fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }
-  body: { fontSize: "15px", fontWeight: 400, lineHeight: 1.5 }
+  section: { fontSize: "24px", fontWeight: 700 }
+  title: { fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 700 }
+  card-title: { fontSize: "18px", fontWeight: 700 }
+  heading: { fontSize: "18px", fontWeight: 700 }
+  body: { fontSize: "15px", fontWeight: 400 }
   meta: { fontSize: "14px", fontWeight: 400 }
   caption: { fontSize: "13px", fontWeight: 400 }
   tiny: { fontSize: "12px", fontWeight: 500 }
-  match-number: { fontSize: "34px", fontWeight: 500, letterSpacing: "-0.03em" }
 rounded:
   sm: "8px"
   chip: "10px"
   md: "12px"
   card: "16px"
-  surface: "20px"
   match: "20px"
   panel: "24px"
   pill: "999px"
@@ -74,43 +69,38 @@ shadow:
   pop: "0 8px 24px rgb(16 24 40 / 0.08)"
 spacing: [4, 8, 12, 14, 16, 20, 24, 32]
 layout:
-  min-width: "1280px"
+  breakpoints: ["1080px", "1050px", "1000px", "940px", "900px", "880px", "780px", "740px", "700px", "660px", "650px", "600px", "520px", "480px", "380px", "370px"]
   rail-width: "88px"
   header-height: "72px"
-  page-padding: "24px"
   aside: "360px"
 ---
 
 # Design System: CareerSync
 
-Tokens live in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css): the `--ds-*` variables are this system; the `--color-*` / `--radius-*` variables above them belong to the landing and must not change value.
+Tokens live in [`frontend/src/styles/tokens.css`](frontend/src/styles/tokens.css): the `--ds-*` variables are the current shared Navy/Teal system reflected in code (D88); `--color-*` / `--radius-*` legacy variables remain on `:root` above them.
 
 ## Overview
 
-**Reference:** `job example.jpg` (a job-feed screen), approved by Long on 2026-11-05 for every page except the landing ([docs/DECISIONS.md](docs/DECISIONS.md) Q28). It replaces the 2026-10-16 "Dual-Trail" reference for those pages. Only its design language is used — no product names, logos or sample content from it.
-
-**Character:** light, roomy and calm. A white frame (icon rail and header) holds one large gray panel; on it sit white cards that are almost flat. Black marks what is selected, a single mint green marks the one action that matters and every score ring, and one dark green-black gradient is reserved for the match score. Type is Pretendard at three weights; hierarchy comes from size and weight, not color.
+**Current codebase state (D87, D88):** App pages follow the redesigned shared Navy/Teal system shipped in PR #26 — white rail/header, cool gray content panel (`#eef3f7`), white cards, Navy primary actions (`#193653` with white text), Teal accent-wash/rings (`#148577`), dark Navy-to-Teal match gradient (`#142c48` → `#105b55`), responsive CSS media breakpoints across app modules, and shared public job discovery (`JobDiscovery`) on both `/` and `/jobs` with location/experience/employment filters. M6 is planned as a full frontend rebuild including the practice-interview UI.
 
 **Key characteristics:**
 - One palette for both roles. Seekers and companies share every color; the role shows in the navigation and wording only.
-- Desktop web only: `body { min-width: 1280px }`, laid out for 1280 px and wider, no breakpoints.
-- Korean-first: body text breaks between words (`word-break: keep-all`), and every UI string goes through `t()` (`frontend/src/i18n/ko.ts`).
+- Responsive web: CSS `@media` rules adapt layouts across desktop and narrower viewports while keeping `word-break: keep-all` and Pretendard `400 / 500 / 700` across `t()` localized copy.
 - Motion is feedback: page enters, list stagger, press scale; all of it off under `prefers-reduced-motion`.
 
 ## Colors
 
 - **Frame (bg, `#ffffff`):** the page behind everything, the rail, the header, the auth page.
-- **Content panel (panel, `#f4f5f7`):** the one large rounded area pages draw on. Also the form side of the auth pages and the not-found ground.
-- **Surface (`#ffffff`) and sunken (`#f7f8fa`):** cards; fills inside cards (quotes, project tiles).
+- **Content panel (panel, `#eef3f7`):** the large rounded area pages draw on.
+- **Surface (`#ffffff`) and sunken (`#f7f8fa`):** cards; fills inside cards.
 - **Chips (`#eceef1`, hover `#e2e5e9`):** filter-style chips, neutral tags, quiet-button hover.
-- **Ink (`#111111`), ink-2 (`#3a3a3c`), muted (`#646b78`):** titles and selected states; body text; meta, captions and placeholders. Muted passes 4.5:1 on white (5.4:1) and on the panel (4.9:1).
-- **Lines (`#ececee`, strong `#dcdfe3`):** dividers inside cards; input and outlined-control borders.
-- **Accent (mint `#00eb9c`, measured from the reference's APPLY NOW buttons; hover `#00d48c`):** the primary button fill (always with ink text, never white), the rank-1 tile, the current-group badge, published-status dots. **accent-soft** (`#b2fae2`, the reference's highlighted bubble) is the focus halo and tone chips; **accent-wash** (`#eef8f3`) the current rail item, the company tile on cards, icon circles and the selected applicant row.
-- **Ring (`#2dd4a7`):** score-ring arcs and the breakdown spark.
-- **Accent text (`#067a55`, 5.3:1 on white):** mint-family text and links on white, importance 핵심, done lines.
-- **Focus (`#0b8f6c`) and halo (`0 0 0 4px` mint at 30%):** focus outlines and focused input borders; the halo surrounds a focused input, checkbox or radio. Outlines appear only for keyboard focus (`:focus-visible`), never after a click.
+- **Ink (`#172c46`), ink-2 (`#354d65`), muted (`#52677d`):** titles and selected states; body text; meta, captions and placeholders.
+- **Lines (`#dce5ee`, strong `#c4d1de`):** dividers inside cards; input and outlined-control borders.
+- **Accent (navy `#193653`, hover `#254968`, on-accent `#ffffff`):** primary button fill; **accent-soft** (`#d5eeea`) and **accent-wash** (`#eaf6f4`) for selected rail highlights, status washes and company tiles.
+- **Ring (`#148577`) & accent-text (`#11645d`):** score-ring arcs (`--ds-ring`) and accent-colored links/text (`--ds-accent-text`).
+- **Focus (`#13776e`) and halo (`0 0 0 4px rgb(19 119 110 / 0.25)`):** focus outlines and focused input borders (`:focus-visible`).
 - **Disabled (`#e7e9ec`, text `#8b9099`):** every disabled button, the auth submit while busy and disabled checkboxes — a gray fill, never a faded copy of the enabled colour.
-- **Match gradient (`#07120f` → `#0f5e4a`):** the match panel, and the same gradient on the guest banner, the CV rule card and the auth field. White text; secondary text at 78% white.
+- **Match gradient (`#142c48` → `#105b55`):** the dark match panel, guest banner, and auth panels. White text; secondary text at 78% white.
 
 ### Named rules
 **The One Mint Rule.** Mint fills one primary action per view, plus score rings. It is never a background for text-heavy areas and never carries white text.
@@ -204,8 +194,8 @@ White, 1 px line-strong border, 12 px radius, 40 px (auth 44 px); hover border m
 - **Band pill** (where a band shows alone): 매우 적합 ink with a mint dot, 적합 accent-soft, 참고 outlined.
 
 ### Job card (`components/seeker/JobCard`)
-추천 공고 only (공고 목록 uses Job rows). The reference's feed card, compact. White, 20 px radius; the whole card is the title link and its only link to the job (D45: no 상세 보기 link, no second tab stop for the same page, no mint button on the card); the focus ring goes round the card and hover lifts it to the pop shadow. Left: the 48 px job icon tile (see Job icon), the 20/700 title and the company in muted; one row of facts with line icons (location, employment type, experience, deadline); then, under a hairline, the match reasons with the card's own actions at the end of the same line (준비하기 as a small secondary pill, raised above the card link; its accessible name is "{job title} 준비하기" so the links in a list are told apart, the visible label staying 준비하기). Right, only with a valid match score: a 168 px column on the same white behind a hairline that stops 16 px short of the card's edges, with the match summary centred in it. Cards stack 10 px apart and stagger in. On 추천 공고 the criteria count and the experience come from one shared `GET /api/jobs` request matched by job id (the recommendation response has neither); a job it does not return only loses those two facts.
-- **Match summary** (lists): the match score on white — 34/500 ink with a half-size "점" (87점; in a job row 20/700 with a 12 px 점 and the pill beside it) — and the band pill under it. Never "%": the score is not a probability (D47). Screen readers hear 적합도 87점; the visible number is hidden from them. No ring and no dark panel. Below 40, or with an unknown band, the number stands alone.
+Used on both recommended jobs and public job discovery (`/`, `/jobs`): compact white cards featuring the job icon tile, title, company/meta facts, optional match summary panel (dark Navy-to-Teal gradient when a match exists), and `상세 보기` link / `준비하기` action pill (D88, replacing D45).
+- **Match summary** (lists): the match score — 34/500 ink with a half-size "점" (87점; in a job row 20/700 with a 12 px 점 and the pill beside it) — and the band pill under it. Never "%": the score is not a probability (D47). Screen readers hear 적합도 87점; the visible number is hidden from them. Below 40, or with an unknown band, the number stands alone.
 - **Match reasons** (추천 공고 cards): what the score is made of, as one line with no boxes or fills — 평가 기준 N개 (12/700 muted; "평가 기준" when the count is not known; the same term as on job rows and job detail), then each category the job's criteria use with its score (the plain mean the API sends, no weights): a 13/500 ink-2 label, a 40 × 4 px meter in ring mint on the line track, the number 13/700; then, past a 1 px line-strong divider, 희망 조건 with its meter and number — or, per D46, a muted chip-gray pill **미설정** when the preferences API confirms none is set, **확인 불가** when that request failed, and a meter-shaped skeleton while it loads (never a bare 100). Missing parts are left out. Never per-criterion scores, weights, reasons or evidence (D42).
 
 ### Job rows (`components/seeker/JobRow`)
@@ -253,8 +243,7 @@ Where the reference shows profile photos, company pages show an abstract avatar:
   - **Criterion headers:** a name never breaks inside a word (`word-break: keep-all`); the full name is the cell's title and its accessible label (with the weight), however it is cut on screen. Columns of 80 px or more show the name on up to two lines with the weight (regular) under it. Narrower columns turn the names 45° on one line (up to 128 px, then an ellipsis), running down into their column from the upper left — over the empty space above 지원자 and Fit, never past the last column — in a 136 px header with the weights level underneath; neighbours sit at least 28 px apart across the slant, so they never touch.
   - **Rows:** 12 px vertical padding; status and experience side by side when the applicant column has room, on two lines when not, never cut short (about 68 px and 86 px rows).
   - One row is always selected: rank 1, or the first visible row when filtered (focus does not move on load). On a focused row ↑/↓ move the selection and focus to the next row up or down and Enter or Space opens the detail (focus to its heading); a click selects without moving focus. Moving only changes the selection, never the ranking or its order. The table keeps native semantics (no grid role): a focused row is read by its name, which Chromium does not build from a table row's cells, so each row is named "{rank}위 {name}" and the selected one "선택됨, {rank}위 {name}"; `aria-selected` (grids only) is not used, and `data-selected` draws the selection.
-- **Applicant detail** (지원자 순위): one white card in three parts. A strip at the top with the place in the visible list ("2 / 5", 13/500 muted) and quiet 32 px ↑/↓ buttons for the previous and next applicant (disabled at the ends; after a press focus stays on the button, or on the heading at an end, and the new name is announced). Then the body: the person (name, email cut with an ellipsis, whole in its title) and Fit ("기준 n개 중 m개 충족" on one line), the applied date and experience at full width under them, then 기준별 평가 with the evidence. Then the status in a footer under a hairline: 지원 상태 with the current status tag, and two labelled rows of 32 px options — 진행 (검토 전 · 서류 검토 · 면접 예정) and 결정 (보류 · 합격 · 불합격); the current one is ink. 합격 and 불합격 ask first in an inline confirm in the footer ("불합격으로 바꿀까요?", what the seeker will see, a secondary 불합격으로 바꾸기 and 취소; Esc or 취소 returns focus to the option); every other status applies at once. After any change a neutral line (ink-2, no check) says ‘불합격’ 상태로 바꿨습니다 with a quiet underlined 되돌리기 that sets the previous status in one click, without a second confirm. Undo lasts until the next change or another applicant opens; nothing reverts on a timer, because only a recruiter's click changes a status (AI rule 5). Esc elsewhere in the detail returns focus to the selected row.
-  - **Scrolling:** the page is the only scroll container — the card keeps its natural height, with no overflow of its own. It is CSS sticky at the top while it fits the window; a taller card moves its sticky top with the scroll (one update per frame, only while it is taller than the window), down until its bottom is in view and up until its top is, so all the evidence is read with the page scroll and the card never leaves the window. The top strip sticks to the top of the window (white, a hairline under it) and, once the heading has scrolled away, adds the applicant's name (13/700); the status footer sticks to the bottom of the window (white, hairline, a soft upward shadow `0 -8px 24px rgb(16 24 40 / .06)`) while the card runs past it. Choosing another applicant starts the card at its top; at the very end of a long table the card cannot rise above the table's bottom, and the strip's name keeps it identified.
+- **Applicant detail** (지원자 순위): one white card with top navigation strip, Fit summary ring/count, per-criterion evaluation evidence, recruiter-only verification questions panel (PR #30, D89), and the recruiter status footer. Choosing another applicant starts the card at its top; at the very end of a long table the card cannot rise above the table's bottom, and the strip's name keeps it identified.
 
 ### Tabs inside pages
 The header's segmented pills at 40 px: current tab ink with white text, hover chip gray.
@@ -301,19 +290,11 @@ Transform, opacity and colour only, on `cubic-bezier(0.2, 0, 0, 1)`; feedback 15
 - Keep secondary text at muted or darker; on the dark gradient at 66% white or more.
 
 **Don't**
-- Don't change a `--color-*` or `--radius-*` token, `global.css` or `pages/public/Home*`: the landing depends on them.
-- Don't bring back per-role colors (navy / green) on app pages.
-- Don't show weights, a criterion's reason or evidence, or any score for a job the seeker applied to.
+- Don't change legacy `:root` `--color-*` or `--radius-*` tokens referenced by existing landing/shared styles while maintaining PR #26.
+- Don't show weights, a criterion's reason or evidence, or any score for a job the seeker applied to (D43).
 - Don't use amber for anything but a missing skill, or red for anything but an error.
 - Don't add a fourth font weight or a second typeface.
 
-## Landing page (legacy system)
+## Discovery Home & Responsive Status
 
-The landing (`/`, `pages/public/Home.tsx` + `Home.module.css`) is outside this redesign and unchanged. It keeps the "Dual-Trail Outcome Flow" system confirmed on 2026-10-16:
-
-- **Tokens:** the `--color-*`, `--radius-*` and `--shadow-card` variables in `tokens.css` and the body defaults in `global.css` (canvas `#f5f5f7` ground, Pretendard, `min-width: 1280px`). Their values are frozen.
-- **Concept "One Spine, Two Fields":** a deep navy seeker field (`#102c54`), an off-white spine carrying the company's criteria on a 2 px axis, and a deep green employer field (`#0d4a3e`), in a `1fr / 324px / 1fr` grid with fixed zones 256 / 68 / (20 + 360) so rows align across columns.
-- **Rules that hold there:** navy means seekers and green means employers; amber only for a missing skill; Pretendard at 400 and 600 only; one shadow, only for white cards on the dark fields; the seeker card shows the band pill, score-worded labels (점수 반영, D42) and gaps, but no score figure.
-- **Signatures:** field expansion on hover (1.12fr / .88fr, 400 ms) and the criterion trail that lights one criterion across all three columns (220 ms).
-
-Changing the landing is a separate decision; until then, treat this section as a description, not a pattern for new screens.
+Current `Home.tsx` (`/`), `BrowseJobs` (`/jobs`), and responsive breakpoints were introduced in PR #26 (D88) and remain live until the planned M6 full frontend rebuild. Under `D88`, this document reflects those code tokens and layouts accurately without reverting PR #26 UI.

@@ -5,5 +5,5 @@ import os
 # Ignore a developer's .env (it may hold a real LLM key or database URL)
 os.environ["CAREERSYNC_DOTENV"] = "0"
 os.environ["EMBEDDING_MODEL"] = "hashing-ngram-v1"
-for key in ("AI_MODE", "LLM_API_KEY", "ANTHROPIC_API_KEY"):
+for key in ("AI_MODE", "LLM_PROVIDER", "LLM_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL", "LLM_EFFORT"):
     os.environ.pop(key, None)

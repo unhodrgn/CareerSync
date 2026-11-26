@@ -3,6 +3,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.deps import CompanyUser, DbSession, OptionalUser
 from app.models import JobPosting
@@ -84,13 +85,14 @@ def list_my_jobs(db: DbSession, user: CompanyUser):
 
 @router.post("/criteria-preview", response_model=CriteriaPreviewOut, summary="Suggest criteria from unsaved job or project text (not persisted)")
 def preview_criteria(body: CriteriaPreviewIn, user: CompanyUser):
-    return jd_service.preview(body)
+    return jd_service.preview(body, user.company_id)
 
 
 @router.post("/poster-text", response_model=PosterTextOut, summary="Extract editable Korean/English text from a hiring poster")
 async def poster_text(file: UploadFile, user: CompanyUser):
     image = await file.read(poster_service.MAX_IMAGE_BYTES + 1)
-    return PosterTextOut(text=poster_service.extract_text(image, file.content_type))
+    text = await run_in_threadpool(poster_service.extract_text, image, file.content_type)
+    return PosterTextOut(text=text)
 
 
 @router.get("/{job_id}", response_model=JobOut, summary="Job detail; no login needed (guests: published, unexpired; owner also sees drafts and closed jobs)")

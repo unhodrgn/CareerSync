@@ -127,11 +127,13 @@ def test_analyze_drops_blocked_suggestions(client, world, monkeypatch):
     llm = FakeLLM(
         {
             "profile": {"required_skills": ["Java"], "preferred_skills": [], "min_years": 3},
+            "requirements": [{"requirement_id": "R1", "role": "Backend Engineer", "kind": "required",
+                              "category": "skill", "text": "Java/Spring", "source": "Java/Spring", "logic": "single"}],
             "criteria": [
-                {"name": "Java 활용 능력", "description": "Java 실무 경험", "category": "skill", "weight": 40},
-                {"name": "남성 지원자", "description": "", "category": "other", "weight": 20},
-                {"name": "관련 전공", "description": "", "category": "education", "weight": 20},
-                {"name": "프로젝트 경험", "description": "API 설계 경험", "category": "project", "weight": 20},
+                {"name": "Java 활용 능력", "description": "Java 실무 경험", "category": "skill", "weight": 40, "requirement_ids": ["R1"]},
+                {"name": "남성 지원자", "description": "", "category": "other", "weight": 20, "requirement_ids": ["R1"]},
+                {"name": "관련 전공", "description": "", "category": "education", "weight": 20, "requirement_ids": ["R1"]},
+                {"name": "프로젝트 경험", "description": "API 설계 경험", "category": "project", "weight": 20, "requirement_ids": ["R1"]},
             ],
         }
     )
@@ -160,7 +162,10 @@ def test_analyze_without_blocked_suggestions_is_unchanged(client, world):
 def test_analyze_logs_nothing(client, world, db, monkeypatch):
     from app.models import CriteriaGuardrailLog
 
-    llm = FakeLLM({"profile": {}, "criteria": [{"name": "30세 이하", "category": "other", "weight": 100}]})
+    llm = FakeLLM({"profile": {},
+                   "requirements": [{"requirement_id": "R1", "role": "Backend Engineer", "kind": "required",
+                                     "category": "skill", "text": "Java/Spring", "source": "Java/Spring", "logic": "single"}],
+                   "criteria": [{"name": "30세 이하", "category": "other", "weight": 100, "requirement_ids": ["R1"]}]})
     monkeypatch.setattr(ai_runtime, "llm", lambda: llm)
     body = client.post(f"/api/jobs/{world['job'].id}/analyze", headers=world["recruiter"]).json()
     assert body["analysis"]["criteria"] == [] and body["blocked"][0]["code"] == "CRITERIA_BLOCKED"

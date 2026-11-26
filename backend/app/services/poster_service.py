@@ -28,7 +28,7 @@ def extract_text(data: bytes, mime: str | None) -> str:
         try:
             result = subprocess.run(
                 ["tesseract", path, "stdout", "-l", "kor+eng", "--psm", "3"],
-                capture_output=True, text=True, timeout=25, check=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=25, check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise AppError(503, "POSTER_OCR_UNAVAILABLE", "이미지 글자 인식 서비스를 사용할 수 없습니다.") from exc
