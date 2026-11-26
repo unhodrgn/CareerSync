@@ -1,0 +1,99 @@
+.layout { display: grid; gap: 14px; }
+.people { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
+.person, .summary, .matrix { padding: clamp(15px, 2vw, 22px); }
+.layout h2 { margin: 0 0 8px; font-size: 19px; }
+.fit, .criterionScore { margin: 0 0 8px; font-size: 24px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.fit span, .criterionScore span { color: var(--ds-muted); font-size: 13px; }
+.summary p { margin: 5px 0; }
+.highlight { color: var(--ds-accent-text); font-weight: 700; }
+.cv { margin-top: 8px; }
+.cv summary { width: fit-content; max-width: 100%; cursor: pointer; color: var(--ds-accent-text); font-weight: 700; padding-block: 8px; }
+.cvText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 6px 0;
+  padding: 12px;
+  border: 1px solid var(--ds-line);
+  border-radius: 8px;
+  background: var(--ds-sunken);
+}
+.cvText mark { background: #bde9df; color: #13352f; }
+.table { width: 100%; margin-top: 12px; border-collapse: collapse; table-layout: fixed; }
+.table th, .table td { padding: 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.table th:first-child { width: 25%; }
+.table thead th { background: var(--ds-sunken); font-size: 14px; }
+.table tbody tr { border-bottom: 1px solid var(--ds-line); }
+.table tbody th p { margin: 4px 0; font-size: 14px; font-weight: 400; }
+.mobileName { display: none; }
+.evidence { display: grid; gap: 8px; font-size: 13px; }
+.evidence strong { color: var(--ds-ink-2); font-size: 12px; }
+.evidence p { margin: 3px 0 0; }
+.quote { margin: 4px 0 0; padding: 7px 10px; border-left: 3px solid var(--ds-ring); background: var(--ds-accent-wash); overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .people { grid-template-columns: minmax(0, 1fr); }
+  .table, .table tbody, .table tbody tr { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table th:first-child, .table td { display: block; width: auto; }
+  .table tbody th { background: var(--ds-sunken); }
+  .table td + td { border-top: 1px dashed var(--ds-line); }
+  .mobileName { display: block; }
+}
+
+.basisEntries { margin: 4px 0 0; padding-left: 17px; color: var(--ds-muted); }
+
+.totals { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 10px 0; }
+.totals div { display: flex; align-items: baseline; gap: 6px; }
+.totals dt { color: var(--ds-muted); font-size: 14px; }
+.totals dd { margin: 0; font-size: 18px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.impactIntro { padding-top: 10px; font-size: 14px; }
+.impactTable { width: 100%; margin: 8px 0; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.impactTable th, .impactTable td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--ds-line); overflow-wrap: anywhere; }
+.impactTable thead { background: var(--ds-sunken); }
+.impactTable tr[data-leading] { background: var(--ds-accent-wash); }
+.impactResult { font-weight: 650; }
+.mobileLabel { display: none; }
+.calculationSteps { padding-left: 20px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 680px) {
+  .impactTable, .impactTable tbody { display: block; }
+  .impactTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .impactTable tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    padding: 10px;
+    margin-bottom: 6px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+  }
+  .impactTable th, .impactTable td { padding: 0; border: 0; }
+  .impactTable tbody th, .impactTable .impactResult { grid-column: 1 / -1; }
+  .impactTable .mobileLabel { display: inline; margin-right: 4px; color: var(--ds-muted); font-size: 13px; }
+  .totals { gap: 5px 14px; }
+}
+
+.leadReason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 10px;
+  padding: 13px 16px;
+  border-left: 4px solid var(--ds-ring);
+  border-radius: 8px;
+  background: var(--ds-accent-wash);
+}
+
+.leadReason h3 { margin: 0; font-size: 17px; }
+.leadPoints { color: var(--ds-accent-text); font-size: 16px; font-weight: 750; }
+.table tr[id] { scroll-margin-top: 14px; }
+.table tr[id]:focus { outline: 2px solid var(--ds-ring); outline-offset: -2px; }

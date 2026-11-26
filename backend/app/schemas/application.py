@@ -66,6 +66,14 @@ class ApplicantList(BaseModel):
     notice: str = AI_NOTICE
 
 
+class DirectSkillBasis(BaseModel):
+    skill: str
+    entries: list[str]
+    base: int
+    bonus: int
+    cap: int
+
+
 class CriterionEvaluation(BaseModel):
     criterion_id: int
     name: str
@@ -77,6 +85,14 @@ class CriterionEvaluation(BaseModel):
     reason: str
     evidence: list[str]
     method: str
+    fit_contribution: float | None = None
+    direct_skill_basis: DirectSkillBasis | None = None
+
+
+class ApplicationCvSource(BaseModel):
+    application_id: int
+    job_id: int
+    text: str
 
 
 class EvaluationOut(BaseModel):

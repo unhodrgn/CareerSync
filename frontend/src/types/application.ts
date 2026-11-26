@@ -85,6 +85,9 @@ export interface CriterionEvaluation {
   reason: string;
   evidence: string[];
   method: string;
+  /** Unrounded points from this criterion under the weights used for this response’s Fit. */
+  fit_contribution?: number | null;
+  direct_skill_basis?: { skill: string; entries: string[]; base: number; bonus: number; cap: number } | null;
 }
 
 export interface EvaluationOut {

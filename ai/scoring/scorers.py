@@ -105,9 +105,44 @@ def _entries(text: str, keys: tuple[str, ...] = ("experience", "project")) -> li
     return entries
 
 
-def _uses(skill: str, candidate: Candidate, ctx: ScoringContext) -> list[str]:
-    """First line of each 경력/프로젝트 entry of the CV text that mentions the skill."""
-    return [e[0] for e in _entries(candidate.text) if ctx.skills.lines_mentioning(skill, "\n".join(e))]
+def _skill_uses(skill: str, text: str, skills: SkillDictionary) -> list[str]:
+    """Headings of CV experience and project entries that mention the skill."""
+    return [entry[0] for entry in _entries(text) if skills.lines_mentioning(skill, "\n".join(entry))]
+
+
+def _direct_skill_score(skill: str, uses: list[str]) -> tuple[int, str]:
+    return (
+        min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)),
+        f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""),
+    )
+
+
+@dataclass(frozen=True)
+class DirectSkillTrace:
+    skill: str
+    entries: tuple[str, ...]
+    base: int = SKILL_LISTED
+    bonus: int = SKILL_USE_BONUS
+    cap: int = 100
+
+
+def verified_direct_skill_trace(
+    criterion: Criterion, text: str, skills: SkillDictionary, stored: CriterionResult
+) -> DirectSkillTrace | None:
+    """Expose deterministic inputs only when they reproduce the persisted single-skill result."""
+    wanted = skills.find_in_text(f"{criterion.name}\n{criterion.description}")
+    if stored.method != "rule:skill" or criterion.category != "skill" or len(wanted) != 1:
+        return None
+    skill = wanted[0]
+    lines = skills.lines_mentioning(skill, text)
+    if not lines:
+        return None
+    uses = _skill_uses(skill, text, skills)
+    score, reason = _direct_skill_score(skill, uses)
+    replayed = _result(criterion, score, reason, list(dict.fromkeys(lines[:2])), "rule:skill")
+    if replayed != stored or any(quote not in text for quote in stored.evidence):
+        return None
+    return DirectSkillTrace(skill, tuple(uses))
 
 
 def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
@@ -121,9 +156,9 @@ def score_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Crit
     for skill in wanted:
         lines = ctx.skills.lines_mentioning(skill, candidate.text)
         if lines:
-            uses = _uses(skill, candidate, ctx)
-            scores.append(min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)))
-            reasons.append(f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""))
+            score, reason = _direct_skill_score(skill, _skill_uses(skill, candidate.text, ctx.skills))
+            scores.append(score)
+            reasons.append(reason)
             evidence.extend(lines[:2])
             continue
         related = [r for r in ctx.skills.related_to(skill) if r in have]

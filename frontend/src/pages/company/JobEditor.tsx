@@ -858,7 +858,7 @@ function Editor({ initial }: { initial: { job: JobOut; criteria: CriteriaSetOut 
           )}
         </div>
 
-        <TwoWayPreview rows={rows} importance={(r) => importanceByName.get(`${r.name.trim()}|${Number(r.weight)}`)} />
+        <TwoWayPreview rows={rows} total={total} importance={(r) => importanceByName.get(`${r.name.trim()}|${Number(r.weight)}`)} />
       </div>
     </div>
   );
@@ -1121,12 +1121,10 @@ function CriterionRow({
  * One criteria set, two directions: what signed-in seekers read (name, category, importance; no weights, D30, D42)
  * and what the applicant ranking uses (weights). Importance comes from the last saved set.
  */
-function TwoWayPreview({ rows, importance }: { rows: Row[]; importance: (r: Row) => Importance | undefined }) {
+function TwoWayPreview({ rows, total, importance }: { rows: Row[]; total: number; importance: (r: Row) => Importance | undefined }) {
   return (
-    <aside className={cx(ui.panel, s.preview)} aria-labelledby="preview-title">
-      <h2 id="preview-title" className={ui.panelTitle} style={{ marginBottom: 14 }}>
-        {t('editor.preview.title')}
-      </h2>
+    <aside className={cx(ui.panel, s.preview)} aria-labelledby="weight-chart-title">
+      <WeightChart rows={rows} total={total} />
       <section className={s.previewSide}>
         <h3 className={s.previewHead}>
           <span className={s.dot} />
@@ -1154,27 +1152,54 @@ function TwoWayPreview({ rows, importance }: { rows: Row[]; importance: (r: Row)
           {t('editor.preview.seekerNote')}
         </p>
       </section>
-      <section className={s.previewSide}>
-        <h3 className={s.previewHead}>
-          <span className={s.dot} data-side="company" />
-          {t('editor.preview.company')}
-        </h3>
-        {rows.length === 0 ? (
-          <p className={ui.caption}>{t('editor.preview.empty')}</p>
-        ) : (
-          <ul className={ui.list}>
-            {rows.map((r) => (
-              <li key={r.key} className={ui.listRow}>
-                <span className={ui.listName}>{r.name || '—'}</span>
-                <span className={s.weightText}>{Number(r.weight) || 0}%</span>
+    </aside>
+  );
+}
+
+function WeightChart({ rows, total }: { rows: Row[]; total: number }) {
+  const groups = CATEGORIES.map(category => {
+    const items = rows.filter(row => row.category === category)
+      .map(row => ({ ...row, value: Number(row.weight) || 0 }))
+      .sort((a, b) => b.value - a.value);
+    return { category, items, weight: items.reduce((sum, item) => sum + item.value, 0) };
+  }).filter(group => group.items.length > 0)
+    .sort((a, b) => b.weight - a.weight);
+
+  return (
+    <section className={s.previewSide}>
+      <h2 className={s.weightHeading} id="weight-chart-title">{t('editor.weights.title')}</h2>
+      <p className={s.weightTotal} data-off={rows.length > 0 && total !== WEIGHT_TOTAL ? true : undefined} aria-live="polite">
+        {t('editor.weights.total')} <strong>{total}%</strong>
+      </p>
+      {groups.length === 0 ? (
+        <p className={ui.caption}>{t('editor.preview.empty')}</p>
+      ) : (
+        <>
+          <div className={s.weightScale} aria-hidden="true">
+            <div><span>0%</span><span>50%</span><span>100%</span></div>
+          </div>
+          <ul className={s.weightGroups}>
+            {groups.map(({ category, items, weight }) => (
+              <li key={category}>
+                <h3 className={s.weightGroup}>
+                  {t(`category.${category}`)} <strong>{weight}%</strong>
+                </h3>
+                <ul className={s.weightCriteria}>
+                  {items.map(item => (
+                    <li key={item.key} className={s.weightCriterion}>
+                      <span>{item.name.trim() || t('editor.weights.untitled')}</span>
+                      <span className={s.weightTrack} aria-hidden="true">
+                        <span style={{ width: `${Math.max(0, Math.min(100, item.value))}%` }} />
+                      </span>
+                      <strong>{item.value}%</strong>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>
-        )}
-        <p className={ui.caption} style={{ marginTop: 8 }}>
-          {t('editor.preview.companyNote')}
-        </p>
-      </section>
-    </aside>
+        </>
+      )}
+    </section>
   );
 }

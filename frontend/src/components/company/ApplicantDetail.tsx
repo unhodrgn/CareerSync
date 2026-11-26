@@ -12,6 +12,7 @@ import { applicantExperience, GateDetail, hasGate } from '@/components/common/Re
 import { ErrorPanel, InlineError, Loading, Notice } from '@/components/common/States';
 import { useConfirmFocus } from '@/components/common/useConfirmFocus';
 import ui from '@/components/common/ui.module.css';
+import { CandidateCv, CriterionEvidence } from './CandidateEvidence';
 import CandidateAvatar from './CandidateAvatar';
 import { t } from '@/i18n';
 import type { ApplicantRow, ApplicationStatus } from '@/types/application';
@@ -55,6 +56,7 @@ export interface DetailFocus {
  */
 export default function ApplicantDetail({
   row,
+  jobId,
   criteriaCount,
   position,
   total,
@@ -66,6 +68,7 @@ export default function ApplicantDetail({
   onEvaluationChanged,
 }: {
   row: ApplicantRow;
+  jobId: number;
   criteriaCount: number;
   /** 1-based place in the visible (ranked, filtered) list */
   position: number;
@@ -289,6 +292,8 @@ export default function ApplicantDetail({
           <h3 id="eval-title" className={ui.sectionTitle}>
             {t('apl.detail.criteria')}
           </h3>
+          <CandidateCv applicationId={row.application_id} jobId={jobId} name={row.name}
+            quotes={evaluation.state.data?.items.flatMap(item => item.evidence) ?? []} />
 
           {row.evaluation_status !== 'done' ? (
             <div className={ui.stack} style={{ gap: 10 }}>
@@ -331,20 +336,7 @@ export default function ApplicantDetail({
                       <CategoryTag category={asCategory(item.category)} quiet />
                       <span className={ui.categoryText}>{t('apl.detail.weight', { n: Math.round(item.weight) })}</span>
                     </span>
-                    {item.reason && (
-                      <p className={ui.body} style={{ fontSize: 13.5 }}>
-                        {item.reason}
-                      </p>
-                    )}
-                    {item.evidence.length > 0 ? (
-                      item.evidence.map((q, i) => (
-                        <p key={i} className={ui.quote}>
-                          {q}
-                        </p>
-                      ))
-                    ) : (
-                      <p className={ui.caption}>{t('apl.detail.noEvidence')}</p>
-                    )}
+                    <CriterionEvidence item={item} />
                   </div>
                 ))}
               </div>

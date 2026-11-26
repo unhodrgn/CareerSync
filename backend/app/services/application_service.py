@@ -2,6 +2,7 @@
 
 Status changes are recruiter actions only; the AI never accepts or rejects anyone (CLAUDE.md AI rule 5).
 """
+from dataclasses import asdict
 from datetime import UTC, date, datetime
 
 from sqlalchemy import select
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from ai.parsing.extract import verified_experience
 from ai.scoring.fit import RankItem, rank, summary_comment
+from ai.scoring.scorers import verified_direct_skill_trace
+from ai.scoring.types import Criterion, CriterionResult
 from app.core.errors import AppError
 from app.models import Application, Evaluation, JobPosting, User
 from app.models.application import EvaluationStatus
@@ -19,11 +22,12 @@ from app.schemas.application import (
     ApplicationOut,
     CriterionBrief,
     CriterionEvaluation,
+    DirectSkillBasis,
     EvaluationOut,
     ExcludedBrief,
     ScoreBrief,
 )
-from app.services import criteria_service, cv_service, evaluation_service, gate_service, job_service
+from app.services import ai_runtime, criteria_service, cv_service, evaluation_service, gate_service, job_service
 
 
 def _not_found() -> AppError:
@@ -193,12 +197,22 @@ def evaluation(db: Session, user: User, application_id: int) -> EvaluationOut:
     weights = {c.id: c.effective_weight for c in loaded.items}
     ev = _evaluation(db, app)
     fit, _ = evaluation_service.fit_of(ev, weights)
+    total_weight = sum(weights.values())
     by_id = {s.job_criteria_id: s for s in ev.scores} if ev else {}
+    skills = ai_runtime.skills() if ev and ev.status == EvaluationStatus.DONE else None
     items = []
     for c in loaded.items:
         s = by_id.get(c.id)
         if s is None:
             continue
+        trace = None
+        if ev and skills and ev.skills_version == skills.version and s.method == "rule:skill":
+            trace = verified_direct_skill_trace(
+                Criterion(c.id, c.name, c.description, c.category, c.effective_weight),
+                app.cv_profile.document.masked_text,
+                skills,
+                CriterionResult(c.id, s.score, s.level, s.reason, tuple(s.evidence or ()), s.method),
+            )
         items.append(
             CriterionEvaluation(
                 criterion_id=c.id,
@@ -211,6 +225,8 @@ def evaluation(db: Session, user: User, application_id: int) -> EvaluationOut:
                 reason=s.reason,
                 evidence=list(s.evidence or []),
                 method=s.method,
+                direct_skill_basis=DirectSkillBasis(**asdict(trace)) if trace else None,
+                fit_contribution=c.effective_weight * s.score / total_weight if fit is not None and total_weight else None,
             )
         )
     summary = (

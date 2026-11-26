@@ -5,6 +5,7 @@ import RouteError from '@/components/common/RouteError';
 import CompanyLayout from '@/components/layout/CompanyLayout';
 import PublicLayout from '@/components/layout/PublicLayout';
 import SeekerLayout from '@/components/layout/SeekerLayout';
+import ApplicantComparison from '@/pages/company/ApplicantComparison';
 import Applicants from '@/pages/company/Applicants';
 import CompanyProfile from '@/pages/company/CompanyProfile';
 import JobEditor from '@/pages/company/JobEditor';
@@ -104,6 +105,7 @@ export const router = createBrowserRouter([
               { path: paths.company.jobs, element: <CompanyJobList />, handle: title('page.company.jobList.title') },
               { path: paths.company.jobNew, element: <JobEditor />, handle: title('page.company.jobEditor.title') },
               { path: paths.company.jobEdit, element: <JobEditor />, handle: title('jobTabs.edit') },
+              { path: paths.company.applicantComparison, element: <ApplicantComparison />, handle: title('compare.title') },
               { path: paths.company.applicants, element: <Applicants />, handle: title('page.company.applicants.title') },
               { path: paths.company.talent, element: <Talent />, handle: title('page.company.talent.title') },
               { path: paths.company.offers, element: <SentOffers />, handle: title('page.company.sentOffers.title') },
