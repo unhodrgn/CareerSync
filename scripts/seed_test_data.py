@@ -1,24 +1,30 @@
 """Seed the synthetic test data in test_data/ so every feature can be demoed with realistic, varied data.
 
+Everything is English: the data is read from test_data/en/ (an English translation of the package, same IDs, file names and
+structure) and everything the script writes itself (company names, intros, projects, offer message, locations) is English.
+`--source original` reads the untranslated files of test_data/ instead.
+
 Loads, through the app's services (so every guardrail and derived field stays correct):
 - 15 fictional companies with a recruiter each (hr-<slug>@sample.test); the real company names of the data are replaced
   by the fictional ones below, also inside titles and job text (source URLs are never loaded);
-- the 12 jobs of test_data/01_model_input with criteria mapped from job_criteria_staging.csv, and the 33 Vietnamese jobs of
-  test_data/04_old_VN_33_NOT_IN_TEST with criteria from the product's own JD analyzer (rules); every job is published,
+- the 12 jobs of 01_model_input with criteria mapped from job_criteria_staging.csv, and the 33 Vietnamese-market jobs of
+  04_old_VN_33_NOT_IN_TEST with criteria from the product's own JD analyzer (rules); every job is published,
   five of the 33 are then closed;
-- 20 seekers (seeker-kr01@sample.test, ...) with their CV text as a confirmed PDF and the preferences of the CSV, 10 of them
-  in the talent pool;
+- 20 seekers (seeker-kr01@sample.test, ...), each with a fictional name that is also written on the CV's `Name:` line (so
+  the name is masked), the CV text as a confirmed PDF and the preferences of the CSV, 10 of them in the talent pool;
 - applications (all 14 test pairs and more) with their evaluations and a mix of statuses, job recommendations, talent offers
   in every state, running projects, roadmaps and interview questions.
 
 Never read: 02_expected_results_HUMAN_ONLY, 03_source_reference_REVIEW_ONLY, expected labels, notes. test_data/ is gitignored.
 The script never calls the LLM (AI_MODE=rules in its own process), never deletes anything and is safe to run again: what
 exists is skipped, a run that stopped halfway is completed by the next one, and a status a recruiter already set is kept.
-It uses the embedder the app is configured with, so scores match the demo.
+It uses the embedder the app is configured with, so scores match the demo. New accounts get the current consent version.
 
     python scripts/seed_test_data.py --dry-run     # print the plan, write nothing (reads the database to show what exists)
     python scripts/seed_test_data.py               # from the repo root, after `alembic upgrade head`
-    python scripts/seed_test_data.py --skip-vn33   # without the 33 extra Vietnamese jobs
+    python scripts/seed_test_data.py --skip-vn33   # without the 33 extra Vietnamese-market jobs
+    python scripts/seed_test_data.py --source original   # the untranslated files
+    python scripts/seed_test_data.py --check-source      # no database: test_data/en/ against the originals (IDs, skills, numbers)
 
 Which database it writes to is printed first (the password is hidden). See docs/how-to/run-locally.md.
 """
@@ -40,12 +46,13 @@ sys.path[:0] = [str(ROOT), str(ROOT / "backend"), str(ROOT / "scripts")]
 # Before anything asks for the LLM client (it reads AI_MODE on every call); also wins over .env
 os.environ["AI_MODE"] = "rules"
 
-from sqlalchemy import func, select  # noqa: E402
+import pymupdf  # noqa: E402
+from sqlalchemy import func, or_, select  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.core.errors import AppError  # noqa: E402
 from app.db.session import SessionLocal, engine  # noqa: E402
-from app.models import Application, Company, Evaluation, JobPosting, TalentOffer, User  # noqa: E402
+from app.models import Application, CareerContent, Company, Evaluation, JobPosting, TalentOffer, User  # noqa: E402
 from app.models.application import EvaluationStatus  # noqa: E402
 from app.models.job import JobStatus  # noqa: E402
 from app.schemas.auth import RegisterIn  # noqa: E402
@@ -75,55 +82,74 @@ from make_demo_cv import build_pdf, missing_lines  # noqa: E402  (scripts/ is on
 from seed import PASSWORD  # noqa: E402  (the one demo password)
 
 TEST_DATA = ROOT / "test_data"
-CORE = TEST_DATA / "01_model_input"
-VN33_CSV = TEST_DATA / "04_old_VN_33_NOT_IN_TEST" / "vietnam_jobs_33.csv"
+
+
+@dataclass(frozen=True)
+class Source:
+    """Where the CSV and text files are: the 01_model_input folder and the 33-jobs CSV."""
+
+    name: str
+    core: Path
+    vn33: Path
+
+
+def _source(name: str, base: Path) -> Source:
+    return Source(name, base / "01_model_input", base / "04_old_VN_33_NOT_IN_TEST" / "vietnam_jobs_33.csv")
+
+
+SOURCES = {"en": _source("en", TEST_DATA / "en"), "original": _source("original", TEST_DATA)}
 
 # ── Fictional companies ──
 # slug → (name, intro, talent profile, running projects (name, description, technologies))
 COMPANIES: dict[str, tuple[str, str, str, list[tuple[str, str, list[str]]]]] = {
-    "byeolbit-insurance": (
-        "별빛손해보험", "디지털 보험 상품과 계약 시스템을 만드는 가상의 손해보험사입니다.", "복잡한 도메인을 단순하게 모델링하는 개발자",
-        [("계약 심사 자동화", "보험 계약 심사 규칙을 코드로 옮기고 처리 시간을 줄이는 프로젝트", ["Kotlin", "Spring Boot", "MySQL"]),
-         ("DB 운영 자동화", "백업, 복구, 장애 대응 스크립트를 표준화하는 프로젝트", ["MySQL", "Terraform"])],
+    "starlight-insurance": (
+        "Starlight Insurance", "A fictional property and casualty insurer that builds digital insurance products and policy systems.",
+        "Developers who model complex domains simply",
+        [("Policy review automation", "A project that turns insurance policy review rules into code and cuts processing time", ["Kotlin", "Spring Boot", "MySQL"]),
+         ("DB operations automation", "A project that standardizes backup, recovery and incident response scripts", ["MySQL", "Terraform"])],
     ),
-    "byeolbit-pay": (
-        "별빛페이", "간편 결제와 자산 서비스를 만드는 가상의 핀테크 기업입니다.", "데이터로 판단하고 끝까지 책임지는 사람",
-        [("데이터 플랫폼 API", "결제 데이터를 빠르게 제공하는 고성능 조회 API", ["Kotlin", "Spring Boot", "Redis"]),
-         ("자산 서비스 웹", "자산 현황 화면을 만드는 프론트엔드 프로젝트", ["React", "TypeScript"])],
+    "starlight-pay": (
+        "Starlight Pay", "A fictional fintech company that builds easy payment and asset services.", "People who decide with data and see things through",
+        [("Data platform API", "A high-performance query API that serves payment data fast", ["Kotlin", "Spring Boot", "Redis"]),
+         ("Asset service web", "A frontend project that builds the asset overview screens", ["React", "TypeScript"])],
     ),
-    "byeolbit-mobility": (
-        "별빛모빌리티", "내비게이션과 공간정보 서비스를 만드는 가상의 모빌리티 기업입니다.", "대규모 트래픽을 두려워하지 않는 엔지니어",
-        [("내비 경로 서비스", "실시간 경로 탐색 백엔드 개편", ["Java", "Spring", "Redis"]),
-         ("공간정보 시스템", "지도 데이터를 저장하고 조회하는 시스템", ["PostgreSQL", "Java"])],
+    "starlight-mobility": (
+        "Starlight Mobility", "A fictional mobility company that builds navigation and geospatial services.", "Engineers who are not afraid of large-scale traffic",
+        [("Navigation route service", "A rework of the real-time route search backend", ["Java", "Spring", "Redis"]),
+         ("Geospatial information system", "A system that stores and queries map data", ["PostgreSQL", "Java"])],
     ),
     "lotus-build": (
-        "Lotus Build Vietnam", "건설 현장 관리 SaaS를 만드는 가상의 베트남 법인입니다.", "기술 리더십과 영어 소통이 강한 엔지니어",
-        [("현장 관리 플랫폼", "Go 마이크로서비스 기반 현장 관리 백엔드", ["Go", "gRPC", "AWS"]),
-         ("관리자 웹 개편", "프론트엔드 관리자 화면 개편 프로젝트", ["React", "TypeScript"])],
+        "Lotus Build Vietnam", "A fictional Vietnamese subsidiary that builds construction site management SaaS.",
+        "Engineers with strong technical leadership and English communication",
+        [("Site management platform", "A site management backend built on Go microservices", ["Go", "gRPC", "AWS"]),
+         ("Admin web redesign", "A frontend project that redesigns the admin screens", ["React", "TypeScript"])],
     ),
     "mimosa-pay": (
-        "Mimosa Pay", "모바일 결제와 금융 서비스를 만드는 가상의 베트남 핀테크 기업입니다.", "문제를 끝까지 파고드는 플랫폼 엔지니어",
-        [("결제 플랫폼 개편", "결제 API와 플랫폼 서비스 개편", ["Python", "PostgreSQL", "Redis"]),
-         ("AI 데이터 팀 파이프라인", "데이터 파이프라인과 분석 기반 구축", ["Python", "Kafka"])],
+        "Mimosa Pay", "A fictional Vietnamese fintech company that builds mobile payments and financial services.",
+        "Platform engineers who dig into a problem until it is solved",
+        [("Payment platform rework", "A rework of the payment API and platform services", ["Python", "PostgreSQL", "Redis"]),
+         ("AI data team pipeline", "Building data pipelines and an analytics foundation", ["Python", "Kafka"])],
     ),
     "cedar-tech": (
-        "Cedar Tech & Solution", "소프트웨어 개발 아웃소싱과 솔루션을 제공하는 가상의 IT 기업입니다.", "넓게 배우고 빠르게 적응하는 풀스택 개발자",
-        [("물류 관리 시스템", "Java와 Go로 만든 물류 관리 백엔드", ["Java", "Spring Boot", "Go"]),
-         ("IoT 모니터링", "장비 데이터를 수집해 보여주는 모니터링 시스템", ["MQTT", "Grafana", "Kafka"])],
+        "Cedar Tech & Solution", "A fictional IT company that provides software development outsourcing and solutions.",
+        "Full-stack developers who learn widely and adapt quickly",
+        [("Logistics management system", "A logistics management backend built with Java and Go", ["Java", "Spring Boot", "Go"]),
+         ("IoT monitoring", "A monitoring system that collects and shows equipment data", ["MQTT", "Grafana", "Kafka"])],
     ),
-    "sunrise-softworks": ("Sunrise Softworks", "금융권 소프트웨어를 만드는 가상의 개발사입니다.", "꼼꼼하고 협업을 즐기는 개발자", []),
-    "verdant-bank": ("Verdant Bank", "디지털 뱅킹을 만드는 가상의 은행입니다.", "안정성과 속도를 함께 챙기는 엔지니어", []),
-    "tidal-tech": ("Tidal Tech Group", "여러 산업의 소프트웨어를 만드는 가상의 IT 서비스 그룹입니다.", "스스로 배우며 팀을 이끄는 개발자", []),
-    "vela-digital": ("Vela Digital", "게임과 소셜 서비스를 만드는 가상의 디지털 기업입니다.", "사용자 경험을 숫자로 증명하는 엔지니어", []),
-    "kite-labs": ("Kite Labs Vietnam", "미국 고객의 소프트웨어를 개발하는 가상의 베트남 개발사입니다.", "품질에 진심인 풀스택 엔지니어", []),
-    "meridian-bank": ("Meridian Bank", "모바일 뱅킹을 만드는 가상의 은행입니다.", "고객 데이터를 책임감 있게 다루는 개발자", []),
-    "fjord-software": ("Fjord Software", "글로벌 고객을 위한 소프트웨어를 만드는 가상의 개발사입니다.", "데이터 제품을 끝까지 만드는 엔지니어", []),
-    "nimbus-innovation": ("Nimbus Innovation Centre Vietnam", "은행 서비스를 위한 기술 센터인 가상의 조직입니다.", "깊이 있게 설계하는 백엔드 엔지니어", []),
-    "tidewater-bank": ("Tidewater Bank", "디지털 금융을 만드는 가상의 은행입니다.", "리더십과 기술 깊이를 함께 갖춘 엔지니어", []),
+    "sunrise-softworks": ("Sunrise Softworks", "A fictional software house that builds software for the financial sector.", "Careful developers who enjoy collaboration", []),
+    "verdant-bank": ("Verdant Bank", "A fictional bank that builds digital banking.", "Engineers who take care of both stability and speed", []),
+    "tidal-tech": ("Tidal Tech Group", "A fictional IT services group that builds software for many industries.", "Developers who learn on their own and lead teams", []),
+    "vela-digital": ("Vela Digital", "A fictional digital company that builds games and social services.", "Engineers who prove user experience with numbers", []),
+    "kite-labs": ("Kite Labs Vietnam", "A fictional Vietnamese software house that develops software for US customers.", "Full-stack engineers who care about quality", []),
+    "meridian-bank": ("Meridian Bank", "A fictional bank that builds mobile banking.", "Developers who handle customer data responsibly", []),
+    "fjord-software": ("Fjord Software", "A fictional software house that builds software for global customers.", "Engineers who build data products end to end", []),
+    "nimbus-innovation": ("Nimbus Innovation Centre Vietnam", "A fictional technology centre for banking services.", "Backend engineers who design in depth", []),
+    "tidewater-bank": ("Tidewater Bank", "A fictional bank that builds digital finance.", "Engineers with both leadership and technical depth", []),
 }
-# Real company name in the data → fictional company slug
+# Real company name in the data (English and original forms) → fictional company slug
 COMPANY_OF = {
-    "카카오페이손해보험": "byeolbit-insurance", "카카오페이": "byeolbit-pay", "카카오모빌리티": "byeolbit-mobility",
+    "Kakao Pay Insurance": "starlight-insurance", "Kakao Pay": "starlight-pay", "Kakao Mobility": "starlight-mobility",
+    "카카오페이손해보험": "starlight-insurance", "카카오페이": "starlight-pay", "카카오모빌리티": "starlight-mobility",
     "ANDPAD Vietnam": "lotus-build", "MoMo": "mimosa-pay", "M_Service (MoMo)": "mimosa-pay", "CMC Technology & Solution": "cedar-tech",
     "DOSOFTPRO": "sunrise-softworks", "VPBank": "verdant-bank", "TMA Solutions / TMA Tech Group": "tidal-tech", "VNG": "vela-digital",
     "KMS Technology": "kite-labs", "MB Bank": "meridian-bank", "FPT Software": "fjord-software",
@@ -131,7 +157,8 @@ COMPANY_OF = {
 }
 # Real names to scrub from titles and job text (longest first), with their replacement
 _SCRUB = {
-    "카카오페이손해보험": "별빛손해보험", "카카오페이": "별빛페이", "카카오모빌리티": "별빛모빌리티", "카카오": "별빛",
+    "Kakao Pay Insurance": "Starlight Insurance", "Kakao Pay": "Starlight Pay", "Kakao Mobility": "Starlight Mobility", "Kakao": "Starlight",
+    "카카오페이손해보험": "Starlight Insurance", "카카오페이": "Starlight Pay", "카카오모빌리티": "Starlight Mobility", "카카오": "Starlight",
     "ANDPAD Vietnam": "Lotus Build Vietnam", "ANDPAD": "Lotus Build", "M_Service (MoMo)": "Mimosa Pay", "M_Service": "Mimosa Pay",
     "MoMo": "Mimosa Pay", "CMC Technology & Solution": "Cedar Tech & Solution", "CMC": "Cedar Tech", "DOSOFTPRO": "Sunrise Softworks",
     "VPBank": "Verdant Bank", "TMA Solutions / TMA Tech Group": "Tidal Tech Group", "TMA Solutions": "Tidal Tech Group",
@@ -145,12 +172,12 @@ _SCRUB_RE = re.compile(
 _SCRUB_LOWER = {k.lower(): v for k, v in _SCRUB.items()}
 
 # ── Mappings of the CSV values ──
-LOCATION_OF_JOB = {  # the KR jobs only say "한국(상세 근무지는 원문 확인)"
-    "KR-J01": "서울 강남구", "KR-J02": "서울 강남구", "KR-J03": "경기 성남시 판교", "KR-J04": "경기 성남시 판교",
-    "KR-J05": "경기 성남시 판교", "KR-J06": "서울 강남구",
+LOCATION_OF_JOB = {  # the KR jobs only say "Korea (see the original posting for the exact work location)"
+    "KR-J01": "Gangnam-gu, Seoul", "KR-J02": "Gangnam-gu, Seoul", "KR-J03": "Pangyo, Seongnam-si, Gyeonggi-do",
+    "KR-J04": "Pangyo, Seongnam-si, Gyeonggi-do", "KR-J05": "Pangyo, Seongnam-si, Gyeonggi-do", "KR-J06": "Gangnam-gu, Seoul",
 }
 LOCATION_OF_CV = {  # preferred_locations tokens → text that the job locations contain
-    "SEOUL": "서울", "PANGYO": "판교", "HO_CHI_MINH": "Ho Chi Minh", "HA_NOI": "Ha Noi", "DA_NANG": "Da Nang", "REMOTE": "원격",
+    "SEOUL": "Seoul", "PANGYO": "Pangyo", "HO_CHI_MINH": "Ho Chi Minh", "HA_NOI": "Ha Noi", "DA_NANG": "Da Nang", "REMOTE": "Remote",
 }
 EMPLOYMENT_OF_CV = {"FULLTIME": "full_time"}
 DEADLINE_DAYS = (10, 30, 60)  # every third job gets one, relative to the run date; the rest stay open
@@ -188,11 +215,14 @@ APPLICATIONS: list[tuple[str, str, str]] = [
 OFFERS: list[tuple[str, str, str]] = [
     ("KR-J01", "KR06", "pending"), ("KR-J02", "KR09", "pending"), ("KR-J04", "VN02", "pending"),
     ("KR-J02", "KR07", "accepted"), ("KR-J05", "KR02", "accepted"),
-    ("KR-J03", "KR09", "rejected"), ("KR-J05", "KR09", "rejected"),
-    ("VN-J03", "KR05", "cancelled"),
+    ("KR-J03", "KR09", "rejected"), ("KR-J01", "VN05", "rejected"),
+    ("VN-J03", "VN01", "cancelled"),
 ]
-OFFER_MESSAGE = "안녕하세요, 이력서를 인상 깊게 보았습니다. 저희 팀과 함께할 의향이 있으신지 여쭙습니다. (샘플 제안)"
+OFFER_MESSAGE = "Hello, your CV impressed us. We would like to ask whether you are interested in joining our team. (sample offer)"
 RECOMMENDED = ["KR02", "KR03", "KR04", "KR07", "VN01", "VN02"]  # seekers whose job recommendations are computed up front
+# The only two CVs of test_data/en/ that deliberately have no "Years of experience:" line, so that the required gate shows REVIEW
+# ("experience cannot be confirmed") on their applications to jobs with a minimum; --check-source accepts exactly these two.
+NO_YEARS_LINE = ("KR05", "VN10")
 CAREER = [("KR01", "KR-J03"), ("KR08", "KR-J06"), ("VN01", "VN-J01"), ("VN07", "KR-J04"), ("KR05", "VN-J03"), ("KR10", "KR-J05")]
 
 
@@ -201,7 +231,8 @@ CAREER = [("KR01", "KR-J03"), ("KR08", "KR-J06"), ("VN01", "VN-J01"), ("VN07", "
 
 def read_csv(path: Path) -> list[dict]:
     if not path.exists():
-        sys.exit(f"{path.relative_to(ROOT)} not found. test_data/ is gitignored: copy it from the test data package first.")
+        sys.exit(f"{path.relative_to(ROOT)} not found. test_data/ is gitignored: copy it from the test data package first"
+                 + (" (test_data/en/ is the English translation, see docs/how-to/run-locally.md)." if "en" in path.parts else "."))
     with open(path, encoding="utf-8-sig", newline="") as f:
         return list(csv.DictReader(f))
 
@@ -211,23 +242,26 @@ def scrub(text: str) -> str:
 
 
 def fold(text: str) -> str:
-    """ASCII Vietnamese: the built-in PDF font cannot write the diacritics, and no font file is added to the repo."""
+    """ASCII Vietnamese, only for `--source original`: the built-in PDF font cannot write the diacritics of the original
+    Vietnamese CVs, and no font file is added to the repo. The English CVs never need it."""
     text = text.replace("đ", "d").replace("Đ", "D")
     stripped = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
     return unicodedata.normalize("NFC", stripped)  # NFD also split the Hangul of the CV (한국어) into jamo
 
 
-_EXPERIENCE = re.compile(r"\d+\s*(?:~\s*\d+\s*)?년|경력|신입")
+# English ("3+ years", "3-7 years", "entry-level") and original Korean forms
+_EXPERIENCE = re.compile(r"\d+\s*(?:[~\-–]\s*\d+\s*)?\+?\s*(?:년|years?\b)|경력|신입|entry[- ]level", re.IGNORECASE)
+_PROJECT = re.compile(r"프로젝트|설계|경험|개발|project|design|experience|development", re.IGNORECASE)
 
 
 def classify(text: str, skills) -> str:
-    """Criterion category of a requirement text: years/경력 → experience, a skill of data/skills.yaml → skill,
+    """Criterion category of a requirement text: years of experience → experience, a skill of data/skills.yaml → skill,
     a described task → project, anything else (soft skills, languages) → other. No education/certificate in the data."""
     if _EXPERIENCE.search(text):
         return "experience"
     if skills.find_in_text(text):
         return "skill"
-    if re.search(r"프로젝트|설계|경험|개발", text):
+    if _PROJECT.search(text):
         return "project"
     return "other"
 
@@ -292,16 +326,16 @@ class SeekerSpec:
     preferences: PreferenceIn
 
 
-def core_jobs(skills) -> list[JobSpec]:
-    criteria = read_csv(CORE / "job_criteria_staging.csv")
+def core_jobs(skills, src: Source) -> list[JobSpec]:
+    criteria = read_csv(src.core / "job_criteria_staging.csv")
     out = []
-    for j in read_csv(CORE / "job_postings_staging_clean.csv"):
+    for j in read_csv(src.core / "job_postings_staging_clean.csv"):
         rows = [r for r in criteria if r["job_id"] == j["id"]]
-        lines = [f"{scrub(j['title'])} 포지션입니다.", "", "자격 요건", *[f"- {scrub(r['requirement_text'])}" for r in rows if r["requirement_type"] == "REQUIRED"]]
+        lines = [f"This is the {scrub(j['title'])} position.", "", "Requirements", *[f"- {scrub(r['requirement_text'])}" for r in rows if r["requirement_type"] == "REQUIRED"]]
         if preferred := [r for r in rows if r["requirement_type"] == "PREFERRED"]:
-            lines += ["", "우대 사항", *[f"- {scrub(r['requirement_text'])}" for r in preferred]]
+            lines += ["", "Preferred qualifications", *[f"- {scrub(r['requirement_text'])}" for r in preferred]]
         if j["language"].strip():
-            lines += ["", f"언어: {j['language'].strip()}"]
+            lines += ["", f"Language: {j['language'].strip()}"]
         out.append(JobSpec(
             key=j["id"], company=COMPANY_OF[j["company"]], title=scrub(j["title"])[:200], description="\n".join(lines),
             min_years=int(j["min_years"]) if j["min_years"].strip() else None,
@@ -310,9 +344,9 @@ def core_jobs(skills) -> list[JobSpec]:
     return out
 
 
-def vn33_jobs() -> list[JobSpec]:
+def vn33_jobs(src: Source) -> list[JobSpec]:
     out = []
-    for j in read_csv(VN33_CSV):
+    for j in read_csv(src.vn33):
         years = j["min_experience_years"].strip()
         location = j["location"].strip()
         out.append(JobSpec(
@@ -323,13 +357,13 @@ def vn33_jobs() -> list[JobSpec]:
     return out
 
 
-def seekers() -> list[SeekerSpec]:
+def seekers(src: Source) -> list[SeekerSpec]:
     out = []
-    for c in read_csv(CORE / "cv_profiles_staging_clean.csv"):
-        text = (CORE / "cv_texts" / f"{c['cv_id']}_synthetic_cv.txt").read_text(encoding="utf-8")
+    for c in read_csv(src.core / "cv_profiles_staging_clean.csv"):
+        text = (src.core / "cv_texts" / f"{c['cv_id']}_synthetic_cv.txt").read_text(encoding="utf-8")
         # The display name is the name written in the CV, so it is masked before any model call (AI rule 3)
-        name = re.search(r"^(?:이름|Họ tên):\s*(.+?)\s*\(", text, re.MULTILINE).group(1).strip()
-        if c["country"] == "VN":
+        name = re.search(r"^(?:Name|이름|Họ tên):\s*(.+?)\s*(?:\(|$)", text, re.MULTILINE).group(1).strip()
+        if src.name == "original" and c["country"] == "VN":
             text, name = fold(text), fold(name)
         out.append(SeekerSpec(
             c["cv_id"], f"seeker-{c['cv_id'].lower()}@sample.test", name, text,
@@ -342,19 +376,50 @@ def seekers() -> list[SeekerSpec]:
     return out
 
 
-def cv_pdf(text: str) -> bytes:
+def _latin_pdf(text: str) -> tuple[str, bytes]:
+    """(wrapped text, PDF) of an English CV in PyMuPDF's built-in Helvetica, which covers ASCII and the dash, so no font file is
+    added. Lines are wrapped to the real text width: a sentence stays on one line where it fits (the CV parser reads line by
+    line), and no text passes the right page edge, where extraction would lose it."""
+    page, size, margin = pymupdf.paper_rect("a4"), 9, 50
+    width = lambda s: pymupdf.get_text_length(s, fontname="helv", fontsize=size)  # noqa: E731
+    # Helvetica has no dash glyph (extraction reads "·") and extraction collapses repeated spaces, so write what reads back
+    text = re.sub(r" {2,}", " ", text.replace("—", "-").replace("–", "-"))
     lines = []
     for line in text.splitlines():
-        lines += textwrap.wrap(line, 45) or [""]
+        current = ""
+        for word in line.split(" "):
+            trial = f"{current} {word}" if current else word
+            if current and width(trial) > page.width - 2 * margin:
+                lines.append(current)
+                current = word
+            else:
+                current = trial
+        lines.append(current)
+    if len(lines) * size * 1.2 > page.height - 2 * margin:
+        raise ValueError("the CV does not fit on one page")
     wrapped = "\n".join(lines)
-    pdf = build_pdf(wrapped)
+    doc = pymupdf.open()
+    doc.set_metadata({})  # no creation date, so the same text gives the same bytes
+    doc.new_page(width=page.width, height=page.height).insert_text((margin, margin + size), wrapped, fontname="helv", fontsize=size)
+    return wrapped, doc.tobytes(garbage=3, deflate=True, no_new_id=True)
+
+
+def cv_pdf(text: str, src: Source) -> bytes:
+    if src.name == "original":  # Korean and Vietnamese text: the built-in CJK font, 45 characters per line
+        lines = []
+        for line in text.splitlines():
+            lines += textwrap.wrap(line, 45) or [""]
+        wrapped = "\n".join(lines)
+        pdf = build_pdf(wrapped)
+    else:
+        wrapped, pdf = _latin_pdf(text)
     if missing := missing_lines(pdf, wrapped):
         raise ValueError(f"the PDF does not read back these lines: {missing}")
     return pdf
 
 
 def plan_jobs(args, skills) -> list[JobSpec]:
-    jobs = core_jobs(skills) + ([] if args.skip_vn33 else vn33_jobs())
+    jobs = core_jobs(skills, args.src) + ([] if args.skip_vn33 else vn33_jobs(args.src))
     for i, job in enumerate(jobs):
         if i % 3 == 0 and not job.closed:
             job.deadline = date.today() + timedelta(days=DEADLINE_DAYS[(i // 3) % 3])
@@ -365,8 +430,9 @@ def plan_jobs(args, skills) -> list[JobSpec]:
 
 
 class Seed:
-    def __init__(self, db):
+    def __init__(self, db, src: Source):
         self.db = db
+        self.src = src
         self.stats = Counter()
         self.problems: list[str] = []
 
@@ -410,7 +476,7 @@ class Seed:
 
     def company(self, slug: str) -> User:
         name, intro, talent, projects = COMPANIES[slug]
-        recruiter = self.register(f"hr-{slug}@sample.test", f"{name} 채용담당"[:50], "company", name)
+        recruiter = self.register(f"hr-{slug}@sample.test", f"{name} Recruiting Team"[:50], "company", name)
         company = self.db.get(Company, recruiter.company_id)
         if not company.intro:
             company.intro, company.talent_profile = intro, talent
@@ -459,7 +525,7 @@ class Seed:
         try:
             profile = cv_service.latest(db, user)
         except AppError:  # CV_NOT_FOUND
-            profile = cv_service.upload(db, user, f"{spec.cv_id}_synthetic_cv.pdf", cv_pdf(spec.text))
+            profile = cv_service.upload(db, user, f"{spec.cv_id}_synthetic_cv.pdf", cv_pdf(spec.text, self.src))
             self.stats["CVs uploaded"] += 1
         if profile.confirmed_at is None:
             cv_service.update(db, user, profile.id, cv_service.to_profile_data(profile), confirm=True)
@@ -491,7 +557,7 @@ class Seed:
             self.problem(f"evaluation {seeker.email} → {job.title} did not finish ({ev.error[:80]})")
 
     def recommendations(self, user: User) -> None:
-        for _ in range(6):  # at most 10 evaluations are queued per call
+        for _ in range(20):  # only a few evaluations are queued per call; ask again until nothing is queued
             try:
                 queued = recommendation_service.recommend(self.db, user, 20).queued
             except AppError as e:
@@ -499,8 +565,12 @@ class Seed:
             if not queued:
                 return
             for evaluation_id, token in queued:
-                evaluation_service.evaluate(self.db, self.db.get(Evaluation, evaluation_id), token)
-                self.stats["recommendation evaluations"] += 1
+                ev = self.db.get(Evaluation, evaluation_id)
+                if self.settle(ev, token):
+                    self.stats["recommendation evaluations"] += 1
+                else:
+                    self.problem(f"recommendation evaluation {user.email} → job {ev.job_id} did not finish ({ev.error[:80]})")
+        self.problem(f"recommendations {user.email}: evaluations were still being queued after 20 rounds")
 
     def offer(self, recruiter: User, job: JobPosting, seeker: User, final: str) -> None:
         db = self.db
@@ -525,10 +595,12 @@ class Seed:
         self.stats["offers created"] += 1
 
     def career(self, user: User, job: JobPosting) -> None:
+        count = lambda: self.db.scalar(select(func.count()).select_from(CareerContent))  # noqa: E731  (both calls return stored content on a repeat)
+        before = count()
         try:
             career_service.roadmap(self.db, user, job.id)
             career_service.interview_questions(self.db, user, job.id)
-            self.stats["roadmap + interview question sets"] += 1
+            self.stats["roadmap + interview question sets" if count() > before else "roadmap + interview question sets skipped"] += 1
         except AppError as e:
             self.problem(f"career content {user.email} → {job.title}", e)
 
@@ -538,24 +610,29 @@ def summary(db) -> None:
     recruiters = select(User.company_id).where(User.email.like("hr-%@sample.test"))
     apps = list(db.scalars(select(Application).where(Application.seeker_id.in_(seekers_))))
     gates = Counter(gate_service.compute(a.cv_profile, db.get(JobPosting, a.job_id).min_experience_years).status for a in apps)
-    evs = Counter(db.scalars(select(Evaluation.status).join(Application, (Application.job_id == Evaluation.job_id) & (Application.cv_profile_id == Evaluation.cv_profile_id))
-                             .where(Application.seeker_id.in_(seekers_))))
+    # every evaluation of the seeded jobs: applications, recommendations and offers
+    evs = Counter(db.scalars(select(Evaluation.status).join(JobPosting, JobPosting.id == Evaluation.job_id).where(JobPosting.company_id.in_(recruiters))))
     jobs = Counter(db.scalars(select(JobPosting.status).where(JobPosting.company_id.in_(recruiters))))
     offers = Counter(db.scalars(select(TalentOffer.status).where(TalentOffer.company_id.in_(recruiters))))
+    reconsent = db.scalar(select(func.count()).select_from(User).where(
+        User.email.like("%@sample.test"), or_(User.consent_version.is_(None), User.consent_version != settings.CONSENT_VERSION)))
     print("\n== Summary ==")
     print("jobs          ", dict(jobs))
     print("applications  ", dict(Counter(a.status for a in apps)), f"(total {len(apps)})")
     print("required gate ", dict(gates))
     print("evaluations   ", dict(evs))
     print("offers        ", dict(offers))
+    print(f"consent       accounts that must re-consent (version is not {settings.CONSENT_VERSION}): {reconsent}"
+          + (" (accounts from an older run: reset the database and seed again)" if reconsent else ""))
 
 
-def print_target() -> None:
-    print(f"database: {engine.url.render_as_string(hide_password=True)}   AI_MODE=rules   embedding: {os.getenv('EMBEDDING_MODEL', '(app default)')}")
+def print_target(args) -> None:
+    print(f"database: {engine.url.render_as_string(hide_password=True)}   AI_MODE=rules   embedding: {os.getenv('EMBEDDING_MODEL', '(app default)')}"
+          f"   source: {args.source}")
 
 
 def dry_run(args, skills) -> None:
-    jobs, people = plan_jobs(args, skills), seekers()
+    jobs, people = plan_jobs(args, skills), seekers(args.src)
     exists = {"user": set(), "job": set()}
     try:
         with SessionLocal() as db:
@@ -586,20 +663,106 @@ def dry_run(args, skills) -> None:
     print("\nDry run: nothing was written.")
 
 
+def check_source(skills) -> int:
+    """No database: test_data/en/ against the originals. Same IDs and rows, same non-text columns, same skills (as the
+    app's skill dictionary finds them), same numbers, same stated years of experience, same criterion categories, criteria
+    names that fit the 50-character limit, and no Hangul or Vietnamese letters left. Returns the number of problems."""
+    from ai.parsing.extract import stated_experience
+
+    en, orig = SOURCES["en"], SOURCES["original"]
+    bad: list[str] = []
+
+    def same(label, a, b):
+        if a != b:
+            bad.append(f"{label}: {a!r} != {b!r}")
+
+    def same_text(label, original_text, english_text):
+        # The skill matcher reads an accented Vietnamese word that starts with c ("công", "cơ") as the language C, so the
+        # Vietnamese originals carry a spurious "C"; it is ignored here, the English text must not have it either way.
+        accented = any(c.isalpha() and not c.isascii() and not "가" <= c <= "힣" for c in original_text)
+        skip = {"C"} if accented else set()
+        same(f"{label} skills", sorted(set(skills.find_in_text(original_text)) - skip), sorted(set(skills.find_in_text(english_text)) - skip))
+        same(f"{label} numbers", sorted(re.findall(r"\d+", original_text)), sorted(re.findall(r"\d+", english_text)))
+
+    def pair(name, translated=()):
+        a, b = read_csv(orig.core / name), read_csv(en.core / name)
+        same(f"{name} rows", len(a), len(b))
+        keep = [k for k in a[0] if k not in translated]
+        for x, y in zip(a, b):
+            same(f"{name} {x[keep[0]]} columns", [x[k] for k in keep], [y[k] for k in keep])
+        return a, b
+
+    cvs, cvs_en = pair("cv_profiles_staging_clean.csv", translated=("candidate_label", "title", "experience", "project", "education",
+                                                                    "languages", "work_authorization", "language"))
+    for x, y in zip(cvs, cvs_en):
+        cid = x["cv_id"]
+        a = (orig.core / "cv_texts" / f"{cid}_synthetic_cv.txt").read_text(encoding="utf-8")
+        b = (en.core / "cv_texts" / f"{cid}_synthetic_cv.txt").read_text(encoding="utf-8")
+        # The old name line ("가상 지원자 KR01") repeated the ID; the new fictional names do not, so that line is left out
+        without_name = lambda t: re.sub(r"^(?:Name|이름|Họ tên):.*$", "", t, flags=re.MULTILINE)
+        deliberate = cid in NO_YEARS_LINE  # the English CV lacks the years line on purpose (the original must have it)
+        a_text = re.sub(r"^(?:경력|Số năm kinh nghiệm):.*$", "", without_name(a), flags=re.MULTILINE) if deliberate else without_name(a)
+        same_text(f"{cid} CV", a_text, without_name(b))
+        if deliberate:
+            same(f"{cid} (deliberately without years) original states its years", stated_experience(a) is not None, True)
+        same(f"{cid} stated experience", None if deliberate else (stated_experience(a) or (None,))[0], (stated_experience(b) or (None,))[0])
+        name = re.search(r"^Name:\s*(.+?)\s*\(", b, re.MULTILINE)
+        same(f"{cid} Name line", name and name.group(1), y["candidate_label"])
+    posts, posts_en = pair("job_postings_staging_clean.csv", translated=("company", "title", "location", "employment", "required",
+                                                                           "preferred", "deadline"))
+    for x, y in zip(posts, posts_en):
+        for col in ("required", "preferred", "title"):
+            same_text(f"{x['id']} {col}", x[col], y[col])
+        same(f"{x['id']} deadline numbers", re.findall(r"\d+", x["deadline"]), re.findall(r"\d+", y["deadline"]))
+        same(f"{x['id']} company known", y["company"] in COMPANY_OF, True)
+        a = (orig.core / "job_texts_summary" / f"{x['id']}_job_summary.txt").read_text(encoding="utf-8")
+        b = (en.core / "job_texts_summary" / f"{x['id']}_job_summary.txt").read_text(encoding="utf-8")
+        same_text(f"{x['id']} summary", a, b)
+    crit, crit_en = pair("job_criteria_staging.csv", translated=("requirement_text", "criterion_category", "review_status"))
+    for x, y in zip(crit, crit_en):
+        name, name_en = scrub(x["requirement_text"].strip()), scrub(y["requirement_text"].strip())
+        same(f"{x['criterion_id']} category", classify(name, skills), classify(name_en, skills))
+        same_text(f"{x['criterion_id']} text", name, name_en)
+        same(f"{x['criterion_id']} name fits 50 characters", len(name_en) <= 50, True)
+    a, b = read_csv(orig.vn33), read_csv(en.vn33)
+    same("vietnam_jobs_33.csv rows", len(a), len(b))
+    for x, y in zip(a, b):
+        same(f"{x['job_ref']} columns", [v for k, v in x.items() if k not in ("title", "job_text", "content_language")],
+             [v for k, v in y.items() if k not in ("title", "job_text", "content_language")])
+        same_text(f"{x['job_ref']} title", x["title"], y["title"])
+        same_text(f"{x['job_ref']} text", x["job_text"], y["job_text"])
+    files = [p for p in (TEST_DATA / "en").rglob("*") if p.is_file()]
+    for p in files:
+        if left := sorted({c for c in p.read_text(encoding="utf-8-sig") if c.isalpha() and not c.isascii()}):
+            bad.append(f"{p.relative_to(TEST_DATA)}: non-English letters left: {''.join(left)}")
+    print(f"checked {len(files)} files of test_data/en/ against the originals: "
+          f"{len(cvs)} CVs, {len(posts)} jobs, {len(crit)} criteria, {len(a)} Vietnamese-market jobs")
+    for line in bad:
+        print(f"  MISMATCH {line}")
+    print(f"{len(bad)} problem(s)" if bad else "OK: same IDs and rows, same skills, numbers, stated experience and criterion categories; nothing left untranslated"
+          f"\n    deliberate differences: no years line in {' and '.join(NO_YEARS_LINE)} (gate REVIEW cases)")
+    return len(bad)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed the synthetic test data (see the top of this file).")
     parser.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
-    parser.add_argument("--skip-vn33", action="store_true", help="leave out the 33 extra Vietnamese jobs")
+    parser.add_argument("--skip-vn33", action="store_true", help="leave out the 33 extra Vietnamese-market jobs")
+    parser.add_argument("--source", choices=sorted(SOURCES), default="en", help="en (default): test_data/en/; original: the untranslated files")
+    parser.add_argument("--check-source", action="store_true", help="no database: check test_data/en/ against the originals and exit")
     args = parser.parse_args()
-    print_target()
+    args.src = SOURCES[args.source]
     skills = ai_runtime.skills()
+    if args.check_source:
+        sys.exit(1 if check_source(skills) else 0)
+    print_target(args)
     if args.dry_run:
         return dry_run(args, skills)
 
-    jobs, people = plan_jobs(args, skills), seekers()
+    jobs, people = plan_jobs(args, skills), seekers(args.src)
     db = SessionLocal()
     try:
-        s = Seed(db)
+        s = Seed(db, args.src)
         recruiters = {slug: s.company(slug) for slug in sorted({j.company for j in jobs})}
         posted = {j.key: (recruiters[j.company], s.job(recruiters[j.company], j)) for j in jobs}
         users = {p.cv_id: s.seeker(p) for p in people}
@@ -616,13 +779,13 @@ def main() -> None:
                 s.career(users[cv], posted[key][1])
         print("\n== Created / skipped ==")
         for k, v in sorted(s.stats.items()):
-            print(f"{k:<36}{v}")
+            print(f"{k:<44}{v}")
         summary(db)
         if s.problems:
             print(f"\n{len(s.problems)} step(s) could not be done:")
             for p in s.problems:
                 print(f"  - {p}")
-        print(f"\nAll accounts (hr-<slug>@sample.test, seeker-kr01@sample.test ... seeker-vn10@sample.test) use the password: {PASSWORD}")
+        print(f"\nAll accounts (hr-starlight-pay@sample.test ..., seeker-kr01@sample.test ... seeker-vn10@sample.test) use the password: {PASSWORD}")
     finally:
         db.close()
 
