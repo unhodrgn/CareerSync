@@ -41,13 +41,13 @@ and the Compose `agent` service (reproducible via `requirements.linux.lock.txt`)
 Read from the installed packages (livekit-agents 1.8.12, `interview_agent/.venv`), not from the plan. There is no Deepgram or Cartesia plugin
 installed: everything goes through LiveKit Inference, whose gateway routes by the model id.
 
-| Part | Model id (default) | Where it runs | Korean |
+| Part | Model id (default) | Where it runs | Language support |
 |---|---|---|---|
-| Speech recognition | `deepgram/nova-3` (`inference.STT`, `provider == "livekit"`) | LiveKit Inference gateway | `ko` and `ko-KR` listed in LiveKit's model table |
-| Speech synthesis | `cartesia/sonic-3` (`inference.TTS`, `provider == "livekit"`) with the voice `INTERVIEW_AGENT_TTS_VOICE` | LiveKit Inference gateway | `ko` listed; the default voice is a sample voice with no Korean claim: listen and change it |
-| Turn detection | `turn-detector-v1` (`inference.TurnDetector(version="v1", local_fallback=True)`) | LiveKit Inference gateway; falls back to the local `v1-mini` | Korean is supported by the detector (PoC README) |
+| Speech recognition | `deepgram/nova-3` (`inference.STT`, `provider == "livekit"`) | LiveKit Inference gateway | Defaults to English (`INTERVIEW_AGENT_LANGUAGE=en`); `ko` / `ko-KR` also supported |
+| Speech synthesis | `cartesia/sonic-3` (`inference.TTS`, `provider == "livekit"`) with the voice `INTERVIEW_AGENT_TTS_VOICE` | LiveKit Inference gateway | Defaults to `en` with a Cartesia sample voice; change voice/language via env vars |
+| Turn detection | `turn-detector-v1` (`inference.TurnDetector(version="v1", local_fallback=True)`) | LiveKit Inference gateway; falls back to the local `v1-mini` | English & Korean supported by the detector |
 | Voice activity | Silero VAD (`livekit-plugins-silero`) | local, in the worker | language independent |
-| Per-turn analysis | `openai/gpt-oss-120b` (`livekit-plugins-groq`) | Groq, `AI_MODE=llm` only | Groq cites Korean support; unmeasured |
+| Per-turn analysis | `openai/gpt-oss-120b` (`livekit-plugins-groq`) | Groq, `AI_MODE=llm` only | English & Korean supported |
 | Session LLM | none (`session.llm is None`, a test checks it) | | |
 | Avatar (optional) | Anam (`livekit-plugins-anam`, `D90`) | Anam Cloud (`avatar.start`); falls back cleanly to audio-only when unconfigured or failing | watermark (`show_ai_avatar_disclosure=True`) + spoken greeting |
 
@@ -86,6 +86,7 @@ in the terminal that starts it.
 | `INTERVIEW_AGENT_NAME` | `careersync-interviewer` | `careersync-interviewer` | Leave both unset; a test checks that the defaults agree |
 | `INTERVIEW_AGENT_STT_MODEL`, `INTERVIEW_AGENT_TTS_MODEL` | | `deepgram/nova-3`, `cartesia/sonic-3` | Change the model without code |
 | `INTERVIEW_AGENT_TTS_VOICE` | | a Cartesia sample voice | The voice id |
+| `INTERVIEW_AGENT_LANGUAGE` | | `en` | Language passed to STT and TTS (`en`, `ko`, …) |
 | `INTERVIEW_AGENT_ENDPOINT_MIN_SECONDS`, `..._MAX_SECONDS` | | `3.0`, `6.0` | End-of-turn waits (the PoC's values) |
 | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | | `5` | How often the worker asks the backend whether the session is still active |
 | `INTERVIEW_AGENT_CONSOLE_SESSION_ID` | | | `console` mode only |
@@ -183,16 +184,16 @@ under the table ("The remaining checks in four sessions"). The first session of 
 
 | # | Check | Do | Expect | Record | Status |
 |---|---|---|---|---|---|
-| C1 | Dispatch into a new room | Page: log in, tick the consent, job id, **면접 시작**. Allow the microphone | Within 20 s the page says the interviewer joined; the worker logs the session line; the greeting ("저는 CareerSync의 AI 면접관입니다 …") and then the first question are spoken | The page's "joined the room -> the interviewer (agent) joined" and "-> first interviewer audio track" seconds; the report's `opening.say_to_first_audio_s` | Passed (session 3) |
-| C2 | Dispatch when the room already exists | LiveKit applies a token's room settings only when it creates the room. Session B. (1) Stop the worker (Ctrl+C). (2) Page, tab 1: start, so a room exists with no agent; wait for the 20 s error. (3) Start the worker again. (4) Tab 2: fill **기존 세션 번호** with that session's id and start: the room exists. (5) Close both tabs, wait 40 s (the empty room expires after 30 s), join that session again from the page | (3) the dispatch made when the room was created is still pending, so the agent joins that room when the worker registers (session 6: after 57.6 s); (4) a second join into the existing room makes no new dispatch of its own (LiveKit's documentation; not observed yet), so an agent seen then is the pending one from (2); (5) a new room is created and the agent arrives, if the session is still `created` (5 minutes from creation) | Whether an agent joined after (3), in (4) and in (5), and after how many seconds. If (5) fails, say so: the remedy (an explicit dispatch call from the backend) is not built | Variant result (session 6): steps (4) and (5) not done as written; with the worker stopped at the join, the agent joined the same existing room 57.6 s later, from the pending dispatch |
-| C3 | Korean turn detection | Session A, answer each question in Korean. (a) One clause, silence ~1 s, then the rest, e.g. "멱등성은 같은 요청을 여러 번 보내도 결과가 같게 만드는 성질입니다 … (1 s) … 예를 들어 결제 요청에 멱등성 키를 붙였습니다." (b) Silence ~2.5 s inside an answer. (c) Silence ~3.5 s or more: the turn is expected to end. (d) Stop mid-thought ("그래서 멱등성은 …") and stay silent. Say nothing while the interviewer speaks | (a) and (b): one answer line on the page, no reply in between; (c) the turn ends; (d) it ends between about 3 and 6 s after your last word | Per turn, from the report: `endpointing_s`; `turn_detector.model_at_end` (must be `turn-detector-v1`) and `fell_back` (must be false); the number of answers the page shows split into two lines, and for which case | Passed (session 3) |
+| C1 | Dispatch into a new room | Page: log in, tick the consent, job id, **Start interview**. Allow the microphone | Within 20 s the page says the interviewer joined; the worker logs the session line; the greeting (`"Hello. I am the AI interviewer for CareerSync. ..."`) and then the first question are spoken | The page's "joined the room -> interviewer joined" and "-> first interviewer audio track" seconds; the report's `opening.say_to_first_audio_s` | Passed (session 3, pre-D95 Korean) |
+| C2 | Dispatch when the room already exists | LiveKit applies a token's room settings only when it creates the room. Session B. (1) Stop the worker (Ctrl+C). (2) Page, tab 1: start, so a room exists with no agent; wait for the 20 s error. (3) Start the worker again. (4) Tab 2: fill **Existing session ID** with that session's id and start: the room exists. (5) Close both tabs, wait 40 s (the empty room expires after 30 s), join that session again from the page | (3) the dispatch made when the room was created is still pending, so the agent joins that room when the worker registers (session 6: after 57.6 s); (4) a second join into the existing room makes no new dispatch of its own (LiveKit's documentation; not observed yet), so an agent seen then is the pending one from (2); (5) a new room is created and the agent arrives, if the session is still `created` (5 minutes from creation) | Whether an agent joined after (3), in (4) and in (5), and after how many seconds. If (5) fails, say so: the remedy (an explicit dispatch call from the backend) is not built | Variant result (session 6): steps (4) and (5) not done as written; with the worker stopped at the join, the agent joined the same existing room 57.6 s later, from the pending dispatch |
+| C3 | Turn detection (`en` default since D95) | Session A, answer each question. (a) One clause, silence ~1 s, then the rest, e.g. `"Idempotency makes repeated requests safe ... (1 s) ... for instance I used an idempotency key on checkout."` (b) Silence ~2.5 s inside an answer. (c) Silence ~3.5 s or more: the turn is expected to end. (d) Stop mid-thought (`"So idempotency is ..."`) and stay silent. Say nothing while the interviewer speaks | (a) and (b): one answer line on the page, no reply in between; (c) the turn ends; (d) it ends between about 3 and 6 s after your last word | Per turn, from the report: `endpointing_s`; `turn_detector.model_at_end` (must be `turn-detector-v1`) and `fell_back` (must be false); the number of answers the page shows split into two lines, and for which case | Passed (session 3, Korean) |
 | C4 | End-to-end latency | Session A: answer each question normally in 15 to 40 s, stay silent when done, all five questions | The interviewer speaks after your last word | The report's `turns[].gap_s` (last word to first sound, the headline), and its parts `stt_final_after_stop_s` (the final transcript against the stop; negative is normal), `endpointing_s`, `processing_s` (Groq + engine + two posts), `tts_start_s`; `gap_s` min, median, max. Not judged here: no target is decided (the PoC estimated about 4.4 s at 3.0 s endpointing, without Groq) | Passed (session 3) |
 | C5 | Groq timeout falls back to the rules | Session C: restart the worker with `$env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS = "0.2"`. Answer two questions. (Optionally first, with a wrong `GROQ_API_KEY`, to see `error:*`) | The interviewer still answers every time; the worker logs `turn analysis: timeout`; no error on the page | `llm_calls[].outcome` and `seconds` (`timeout` at ~0.2 s), `processing_s` of those turns. Then, with the 3 s default in session A: the share of `ok` against `timeout`, `error:*` and `rejected:*`, and the longest `seconds` | Passed (session 6: 3 of 3 `timeout` at 0.20 s) |
-| C6a | The seeker's End stops the voice | Session C: while the interviewer is speaking, press **종료** | Speech stops; the page shows `aborted (seeker_ended)`; the worker exits the room | Seconds from the click to silence (up to about 5 s) | Passed (session 6 functionally; session 8 on 25/11/2026 via headless `livekit.rtc`: `2.093 s` to silence after `/end`, `aborted` / `seeker_ended`) |
+| C6a | The seeker's End stops the voice | Session C: while the interviewer is speaking, press **End** | Speech stops; the page shows `aborted (seeker_ended)`; the worker exits the room | Seconds from the click to silence (up to about 5 s) | Passed (session 6 functionally; session 8 on 25/11/2026 via headless `livekit.rtc`: `2.093 s` to silence after `/end`, `aborted` / `seeker_ended`) |
 | C6b | Deleting a live session stops the voice | Session D: while the interviewer is speaking, `DELETE /api/interview-sessions/{id}` in Swagger (`/docs`, Authorize with the seeker's token) | The agent stops within about 5 s and the room is deleted | Seconds to silence; the worker's log line `runner stopped: gone` | Passed (session 9 on 25/11/2026 via headless `livekit.rtc`: `1.937 s` to silence after `DELETE` 204, post-delete `GET` 404, `runner stopped: gone`) |
 | C6c | Closing the tab ends it | Session E: close the browser tab mid-answer | The session reads `aborted` with `candidate_left`; no closing line | The end reason in the page of a new tab or `GET /api/interview-sessions`; seconds until it appears | Passed (session 10 on 25/11/2026 via headless `livekit.rtc`, agent `rules` mode: abrupt disconnect -> `aborted` / `candidate_left` after `0.562 s` poll, question turn only, no closing line) |
 | C6d | Consent withdrawal stops it | Session F: `DELETE /api/users/me/consent/ai` in Swagger mid-interview; afterwards consent again (`POST /api/users/me/consent`) | The agent stops within about 5 s with no further model call; the session reads `aborted` (`consent_withdrawn`) | Seconds to silence; the worker log; no Groq call after the withdrawal | Passed (session 11 on 25/11/2026 via headless `livekit.rtc`: `2.359 s` to silence after `DELETE /api/users/me/consent/ai` 200, `aborted` / `consent_withdrawn`, `runner stopped: consent_withdrawn`, no Groq call after withdrawal, consent restored) |
-| C7 | Masking in the live path | Session A: "제 이름은 홍길동이고 전화번호는 공일공 일이삼사 오육칠팔입니다 …" | The page's stored transcript shows `[이름]` and a phone placeholder, not the words | The page's line; confirm that the worker log holds no part of what you said | Done (session 6): own name, phone and email masked; a third-party name was misrecognized and not masked (recognizer limit, no change) |
+| C7 | Masking in the live path | Session A: `"My name is Alex Morgan and my phone number is 555-010-9876. My email is alex at example dot com."` | The page's stored transcript shows `[NAME]`, `[PHONE]`, and `[EMAIL]`, not the words | The page's line; confirm that the worker log holds no part of what you said | Done (session 6, Korean): own name, phone and email masked; a third-party name was misrecognized and not masked (recognizer limit, no change) |
 | C8 | A second session after the first | Start a session right after one ended | It works, in a new room | Whether the first attempt after an ended session connected | Passed (session 9 immediately after session 8 on the same worker without restart: first-attempt join in `0.703 s`, first audio at `3.312 s`) |
 
 ### The remaining checks in four sessions (Compose)
@@ -226,9 +227,7 @@ function Get-SeekerHeaders($email) {
 function Show-Sessions { (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).items | Select-Object id, status, end_reason, created_at }
 ```
 
-On the page: log in, tick the consent, job id `1`, press **면접 시작** (Start interview), allow the microphone. **기존 세션 번호** (existing session
-number) stays empty for a new session; **종료** (End) ends it. The status line shows `세션 N: …` (the session number N). A new session needs a
-reloaded page (F5) and a new login. The join window of a created session is 5 minutes.
+On the page: log in, tick the consent, job id `1`, press **Start interview**, allow the microphone. **Existing session ID** stays empty for a new session; **End** ends it. The status line shows `Session N: ...` (the session number N). A new session needs a reloaded page (F5) and a new login. The join window of a created session is 5 minutes.
 
 After every session, before you recreate the agent container, copy the timing reports out and collect the log lines (the commands are the same
 each time; use the session's `--since`):
@@ -241,29 +240,26 @@ docker compose --profile voice logs --no-color --since 20m agent | Select-String
 **Session 1: `seeker3@demo.test`, C2, C7, C5, C6a.** The agent runs `llm` with a 0.2 s model timeout from step 3.
 
 1. Window 1: `docker compose --profile voice stop agent`. There is no worker now.
-2. Page, tab 1: log in as seeker3, tick the consent, **면접 시작**. Note N. Leave tab 1 open: it keeps the room alive. The 5 minutes start now.
+2. Page, tab 1: log in as seeker3, tick the consent, **Start interview**. Note N. Leave tab 1 open: it keeps the room alive. The 5 minutes start now.
    Wait for the page's 20-second message (no interviewer arrived) before step 3.
 3. Window 1: `$env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS = "0.2"`, then `docker compose --profile voice up -d --no-deps agent`. Wait until `ps` says healthy.
-4. Tab 2 (a new tab on the same page address): log in, tick the consent, type N into **기존 세션 번호**, **면접 시작**. The room exists, so this join makes
+4. Tab 2 (a new tab on the same page address): log in, tick the consent, type N into **Existing session ID**, **Start interview**. The room exists, so this join makes
    no new dispatch (LiveKit's documentation); an interviewer that joins now is the one still pending from step 2, delivered when the worker registered
    in step 3 (session 6: 57.6 s after tab 1 joined). **Record: did an interviewer join (yes or no), and when.** (C2 (3), (4))
 5. Close tab 1 and tab 2. Wait 40 s: an empty room expires after 30 s. (C2 (5))
-6. Tab 3: log in, tick the consent, type N, **면접 시작**. **Record the seconds** to "the interviewer joined" and to the first audio (the page's
+6. Tab 3: log in, tick the consent, type N, **Start interview**. **Record the seconds** to "interviewer joined" and to the first audio (the page's
    measurements). A 409 `INTERVIEW_NOT_JOINABLE` means the 5 minutes passed: record that, and do not repeat it with a new session. (C2 (5))
-7. Answer the first question with this, in Korean, then stay silent (C7): "제 이름은 홍길동이고 전화번호는 공일공 일이삼사 오육칠팔입니다. 이메일은
-   hong 골뱅이 example 점 com 입니다. 같이 일한 한도윤 님과 주문 API를 개발하면서 멱등성 키를 적용했습니다." When the interviewer has answered, the
-   page's transcript line must read like "제 이름은 [이름]이고 전화번호는 [전화번호]입니다. 이메일은 [이메일] 입니다. …" with none of 홍길동, 한도윤 or the
-   digits. The recognizer may write the number in digits: it is masked either way. **Record the line exactly as the page shows it.**
+7. Answer the first question with this, in English, then stay silent (C7): `"My name is Alex Morgan and my phone number is 555-010-9876. My email is alex at example dot com. Working with Doyun Han, I built the checkout API using idempotency keys."` When the interviewer has answered, the page's transcript line must read like `"My name is [NAME] and my phone number is [PHONE]. My email is [EMAIL]. ..."` with none of Alex Morgan, Doyun Han, or the digits. **Record the line exactly as the page shows it.**
 8. Answer the next two questions in full sentences, 15 to 30 s each (a very short answer is decided by the rules alone and asks no model). The
    interviewer must answer every time and the page shows no error. (C5)
-9. While the interviewer is speaking its next line, press **종료**. **Record the seconds from the click to silence.** The page reads `aborted (seeker_ended)`. (C6a)
+9. While the interviewer is speaking its next line, press **End**. **Record the seconds from the click to silence.** The page reads `aborted (seeker_ended)`. (C6a)
 
 Send back: N; yes or no (step 4); the seconds (step 6); the transcript line (step 7); the seconds (step 9); the log lines of the command above
 (`turn analysis: timeout in 0.2x s` for each answer that asked the model: a very short answer asks none and writes no such line; and `runner stopped: <reason>`); the report file `interview_agent/.runs/session-N-*.json`.
 
 **Session 2: `seeker3@demo.test`, C8, C6b.** Do not restart anything between session 1 and 2 (C8 is about the same worker taking the next room).
 
-1. Window 3: `$h = Get-SeekerHeaders "seeker3@demo.test"`. Reload the page, log in, tick the consent, **면접 시작** with **기존 세션 번호** empty, within a minute
+1. Window 3: `$h = Get-SeekerHeaders "seeker3@demo.test"`. Reload the page, log in, tick the consent, **Start interview** with **Existing session ID** empty, within a minute
    of the end of session 1. **Record whether the interviewer joined on this first attempt, and the seconds.** (C8) The session count is now 2 of 3.
 2. Window 3: `$id = (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).active.id`
 3. Answer the first question. When the interviewer starts speaking its next line, run
@@ -277,7 +273,7 @@ Send back: yes or no and the seconds (step 1); the seconds (step 3); the log lin
 1. Copy the reports and the logs of session 2 first (the commands above). Then Window 1:
    `$env:INTERVIEW_AGENT_AI_MODE = "rules"; Remove-Item Env:INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS; docker compose --profile voice up -d --no-deps agent`.
    Wait until healthy. A session's log line must now say `ai_mode=rules`.
-2. Reload the page, log in as seeker3, tick the consent, **면접 시작** (the third session). Window 3:
+2. Reload the page, log in as seeker3, tick the consent, **Start interview** (the third session). Window 3:
    `$id = (Invoke-RestMethod "$base/api/interview-sessions" -Headers $h).active.id` (a 401 means the token of `$h` expired after 2 hours: run
    `Get-SeekerHeaders` again). Answer the first two questions normally: the interviewer must answer from the engine's rules, with no model call
    (`turn analysis` does not appear in the log).
@@ -290,10 +286,10 @@ Send back: the seconds, the end reason, the last turns' roles, the log lines, th
 
 **Session 4: `seeker@demo.test`, C6d.** The account has no CV: this part costs no interview session.
 
-1. Browser, http://localhost:3000 (the Compose frontend): log in as `seeker@demo.test`, open 내 이력서 (My CV), upload `data/demo/demo_cv.pdf`, confirm it.
+1. Browser, http://localhost:3000 (the Compose frontend): log in as `seeker@demo.test`, open My CV, upload `data/demo/demo_cv.pdf`, confirm it.
 2. Copy the reports and the logs of session 3. Then Window 1: `$env:INTERVIEW_AGENT_AI_MODE = "llm"; docker compose --profile voice up -d --no-deps agent`
    (the timeout variable was removed in session 3, so the default of 3 s applies). Wait until healthy. Window 3: `$h = Get-SeekerHeaders "seeker@demo.test"`.
-3. Test page: reload, log in as `seeker@demo.test`, tick the consent, **면접 시작**. Answer the first question normally (its model call should be `ok`).
+3. Test page: reload, log in as `seeker@demo.test`, tick the consent, **Start interview**. Answer the first question normally (its model call should be `ok`).
 4. When the interviewer starts speaking its next line, withdraw the AI consent and start counting, then stay silent:
    `Invoke-RestMethod -Method Delete -Uri "$base/api/users/me/consent/ai" -Headers $h` (C6d). **Record the seconds to silence.** The page must read
    `aborted (consent_withdrawn)`, and no model call may follow the withdrawal.
@@ -337,7 +333,7 @@ The Compose wiring (the `voice` profile, the backend URL, the shared secret, the
 statically by `backend/tests/docs/test_compose_agent.py`; it cannot build an image. The runner and the controller are also tested against the real
 application in `backend/tests/test_interview_agent_runner.py` and
 `backend/tests/test_interview_voice.py` (the backend suite). No test makes a model, Groq, LiveKit or network call. What no test covers is the
-live checklist above: dispatch into a real room, the real recognizer and synthesizer, the turn detector on real Korean speech, and the latency.
+live checklist above: dispatch into a real room, the real recognizer and synthesizer, the turn detector on live speech, and the latency.
 
 ## Files
 

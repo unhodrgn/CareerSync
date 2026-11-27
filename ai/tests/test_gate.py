@@ -48,7 +48,7 @@ def test_tc14_zero_stated_years_against_three_required_fails():
     assert g.status == c.status == "FAIL"
     assert (c.kind, c.source, c.required_months, c.candidate_months, c.basis) == ("min_experience", MIN_EXPERIENCE_SOURCE, 36, 0, "stated")
     assert c.evidence == ("Số năm kinh nghiệm: 0",)
-    assert "최소 경력 3년에 미달" in c.reason
+    assert "below minimum 3 years of experience" in c.reason
 
 
 def test_tc02_passes_although_a_required_skill_scores_zero():
@@ -59,7 +59,7 @@ def test_tc02_passes_although_a_required_skill_scores_zero():
     assert scores[0].score == 0
     g, c = only_check(TC02_CV, 3)
     assert (g.status, c.basis, c.candidate_months, c.evidence) == ("PASS", "stated", 60, ("경력: 5년",))
-    assert "근무 기간은 확인되지 않음" in c.reason
+    assert "employment periods could not be verified" in c.reason
 
 
 @pytest.mark.parametrize(
@@ -116,7 +116,7 @@ def test_short_periods_with_a_higher_stated_total_need_review():
     text = "경력: 10년\n경력\nAcme 개발자 2024.11 ~ 2026.10"
     g, c = only_check(text, 3)
     assert (g.status, c.basis, c.candidate_months) == ("REVIEW", "periods", 24)
-    assert set(c.evidence) == {"Acme 개발자 2024.11 ~ 2026.10", "경력: 10년"} and "일치하지 않아" in c.reason
+    assert set(c.evidence) == {"Acme 개발자 2024.11 ~ 2026.10", "경력: 10년"} and "do not match stated experience" in c.reason
 
 
 def test_short_periods_alone_need_review():
@@ -163,7 +163,7 @@ def test_stated_totals(line, min_years, status):
 def test_conflicting_stated_totals_need_review():
     g, c = only_check("경력: 2년\n자기소개\n총 경력 7년", 3)
     assert (g.status, c.candidate_months) == ("REVIEW", 24)
-    assert c.evidence == ("경력: 2년", "총 경력 7년") and "서로 다른 경력" in c.reason
+    assert c.evidence == ("경력: 2년", "총 경력 7년") and "Conflicting stated experience" in c.reason
 
 
 def test_stated_totals_that_agree_on_the_outcome_decide():

@@ -111,7 +111,7 @@ def test_every_item_has_two_to_four_ai_generated_rubric_points(item_index):
     assert 2 <= len(item.rubric) <= 4
     assert [p.id for p in item.rubric] == [f"p{n}" for n in range(1, len(item.rubric) + 1)]
     assert all(p.source == AI_GENERATED and p.keywords and p.text for p in item.rubric)
-    assert plan.rubric_notice == RUBRIC_NOTICE and "기업의 요구사항이 아닙니다" in plan.rubric_notice
+    assert plan.rubric_notice == RUBRIC_NOTICE and "not company requirements" in plan.rubric_notice
 
 
 def test_rubric_points_come_from_the_criterion_description_first():

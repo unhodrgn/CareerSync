@@ -35,7 +35,7 @@ MIN_RUBRIC_POINTS = 2
 MAX_RUBRIC_POINTS = 4
 
 AI_GENERATED = "ai_generated"
-RUBRIC_NOTICE = "평가 항목은 AI가 만든 기대 답변이며 기업의 요구사항이 아닙니다."
+RUBRIC_NOTICE = "Rubric points are AI-generated expectations, not company requirements."
 
 
 @dataclass(frozen=True)
@@ -337,7 +337,7 @@ class TurnContext:
         out: list[tuple[str, tuple[SafeText, ...]]] = [("question", (safe_text(self.question),))]
         if name := safe_text(self.criterion_name):
             out.append(("criterion", (safe_text(f"{name} ({self.importance or 'general'})"),)))
-        out.append(("rubric", tuple(safe_text(f"{pid} | {safe_text(text) or '(제외됨)'}") for pid, text in self.rubric)))
+        out.append(("rubric", tuple(safe_text(f"{pid} | {safe_text(text) or '(excluded)'}") for pid, text in self.rubric)))
         if previous := tuple(line for line in map(safe_text, self.previous) if line):
             out.append(("previous", previous))
         out.append(("asked", tuple(line for line in map(safe_text, self.asked) if line)))

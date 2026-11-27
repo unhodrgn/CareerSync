@@ -122,7 +122,7 @@ def build_session(settings: VoiceSettings, vad) -> AgentSession:
         vad=vad,
         # No `llm`: see the module docstring. The per-turn model call is `turn_model`'s, through the engine's `ask`.
         turn_handling={
-            # The Korean-capable audio turn detector, asked for by version: without `version`, `start` would run the local v1-mini. v1 streams
+            # The multi-language audio turn detector (supports English and Korean), asked for by version: without `version`, `start` would run the local v1-mini. v1 streams
             # the candidate's audio to LiveKit Inference a second time (Q35). With `local_fallback=True` a failure, a timeout or a used-up
             # allowance moves the session to v1-mini for the rest of it instead of ending turns on the delay alone; the report shows it.
             "turn_detection": inference.TurnDetector(version=TURN_DETECTOR_VERSION, local_fallback=True),

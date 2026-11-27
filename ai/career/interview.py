@@ -78,55 +78,55 @@ def _clean(text: str, limit: int) -> str:
 
 # ── Template (AI_MODE=rules) ──
 
-_TIPS_EXPERIENCE = ("상황과 본인의 역할을 먼저 설명하기", "어려웠던 점과 해결 과정을 구체적으로", "결과와 배운 점으로 마무리하기")
+_TIPS_EXPERIENCE = ("Describe the situation and your role first", "Explain the challenges and how you resolved them step by step", "Close with measurable results and lessons learned")
 _TIPS_BY_DEPTH: dict[tuple[str, int], tuple[str, ...]] = {
-    ("technical", 1): ("핵심 개념의 정의를 먼저 말하기", "왜 필요한지 목적과 장점을 설명하기", "간단한 활용 예시 하나 덧붙이기"),
-    ("technical", 2): ("실무나 프로젝트에서 적용한 구체적 사례를 들기", "사용하며 겪은 문제와 해결 과정을 설명하기", "결과나 주의할 점으로 마무리하기"),
-    ("technical", 3): ("설계 선택의 이유와 트레이드오프를 비교하기", "트러블슈팅 또는 확장성 고려 사항 설명하기", "대안 기술과 비교한 판단 근거 제시하기"),
-    ("other", 1): ("핵심 배경과 중요하다고 보는 이유를 먼저 말하기", "본인의 생각이나 기준을 간결히 정리하기", "간단한 관련 경험으로 연결하기"),
+    ("technical", 1): ("Define the core concept clearly first", "Explain why it is needed and its main benefits", "Include one brief usage example"),
+    ("technical", 2): ("Share a concrete example from production or a project", "Explain problems you encountered and how you fixed them", "Mention the outcome or key caveats"),
+    ("technical", 3): ("Compare architectural trade-offs and design choices", "Discuss troubleshooting or scalability considerations", "Explain why you chose it over alternatives"),
+    ("other", 1): ("State the core context and why it matters first", "Summarize your principles or perspective concisely", "Connect it to a brief relevant experience"),
     ("other", 2): _TIPS_EXPERIENCE,
-    ("other", 3): ("당시 고려했던 선택지와 트레이드오프를 설명하기", "문제·갈등의 원인과 해결 과정을 구체적으로", "재발 방지나 구조·방식 개선점으로 마무리하기"),
+    ("other", 3): ("Explain the options and trade-offs you weighed", "Walk through the root cause and resolution steps concretely", "Close with how you prevented recurrence or improved the process"),
 }
 _BY_CATEGORY: dict[str, dict[int, tuple[str, Kind, str]]] = {
     # category: {depth: (question template, kind, intent template)}
     "skill": {
-        1: ("{name}의 핵심 개념은 무엇이고 왜 사용하나요?", "technical", "{name}의 기본 개념과 사용 이유 이해 확인"),
-        2: ("{name}을(를) 실무나 프로젝트에서 어떻게 사용했는지 구체적인 사례로 설명해 주세요.", "technical", "{name} 활용 경험과 이해 수준 확인"),
-        3: ("{name}을(를) 도입하거나 설계할 때 고려해야 할 트레이드오프, 성능·확장성 이슈 또는 대안은 무엇인가요?", "technical", "{name}의 심화 설계, 트러블슈팅 및 대안 비교 역량 확인"),
+        1: ("What is the core concept of {name}, and why is it used?", "technical", "Check understanding of core {name} concepts and purpose"),
+        2: ("Can you share a concrete example of how you used {name} in work or a project?", "technical", "Check hands-on experience and understanding of {name}"),
+        3: ("What trade-offs, performance or scalability challenges, and alternatives do you consider when adopting or designing with {name}?", "technical", "Check advanced design, troubleshooting, and trade-off reasoning for {name}"),
     },
     "experience": {
-        1: ("'{name}'와(과) 같은 직무 역량이 실무에서 왜 중요하다고 생각하시나요?", "experience", "'{name}' 관련 기본 직무 이해와 필요성 인식 확인"),
-        2: ("지금까지의 경력 중 '{name}'와(과) 가장 관련 있는 경험을 소개해 주세요.", "experience", "직무 관련 경력의 깊이 확인"),
-        3: ("'{name}'와(과) 관련된 업무에서 복잡한 문제나 장애를 해결하고 구조·프로세스를 개선한 경험을 설명해 주세요.", "experience", "심화 문제 해결, 의사결정 트레이드오프 및 개선 역량 확인"),
+        1: ("Why is competency in '{name}' important in day-to-day engineering work?", "experience", "Check foundational understanding and awareness of '{name}'"),
+        2: ("Tell me about the experience in your career most relevant to '{name}'.", "experience", "Check depth of relevant work experience"),
+        3: ("Describe a complex issue or incident in '{name}' where you diagnosed the root cause and improved the system or process.", "experience", "Check advanced problem-solving, trade-offs, and improvement ownership"),
     },
     "project": {
-        1: ("'{name}'와(과) 같은 프로젝트를 수행할 때 가장 중요한 기본 원칙은 무엇이라고 생각하나요?", "experience", "'{name}' 관련 프로젝트 기본 이해와 접근 방식 확인"),
-        2: ("'{name}'와(과) 관련해 진행한 프로젝트에서 맡은 역할과 성과를 설명해 주세요.", "experience", "프로젝트 수행 방식과 기여도 확인"),
-        3: ("'{name}'와(과) 관련된 프로젝트에서 아키텍처·기술 선택의 트레이드오프, 병목 해결 또는 확장성 개선 경험을 말씀해 주세요.", "experience", "프로젝트 설계 트레이드오프와 트러블슈팅·확장 역량 확인"),
+        1: ("What do you consider the most important principle when working on a project like '{name}'?", "experience", "Check baseline project understanding and approach for '{name}'"),
+        2: ("Describe your role and measurable outcomes in a project related to '{name}'.", "experience", "Check project execution and individual contribution"),
+        3: ("In a project related to '{name}', tell me about a key architecture trade-off, bottleneck fix, or scaling improvement you made.", "experience", "Check project design trade-offs, troubleshooting, and scaling depth"),
     },
     "certificate": {
-        1: ("{name}의 핵심 지식 체계는 무엇이고 이 직무에 왜 도움이 된다고 생각하나요?", "technical", "{name} 핵심 개념과 직무 연관성 이해 확인"),
-        2: ("{name} 준비 과정에서 익힌 지식을 이 직무에 어떻게 적용할 수 있을까요?", "technical", "자격 관련 지식의 실무 적용 능력 확인"),
-        3: ("{name}에서 다루는 원리를 실제 시스템 설계나 트러블슈팅, 대안 비교에 적용한다면 어떻게 활용하시겠어요?", "technical", "자격 지식 기반 심화 설계 및 문제 해결 적용력 확인"),
+        1: ("What are the core areas covered by {name}, and why do they matter for this role?", "technical", "Check understanding of {name} core concepts and job relevance"),
+        2: ("How can you apply what you studied for {name} to daily work in this role?", "technical", "Check practical application of certification knowledge"),
+        3: ("How would you use the principles from {name} in system design, troubleshooting, or evaluating alternatives?", "technical", "Check advanced design and problem-solving application of credential knowledge"),
     },
     "education": {
-        1: ("전공의 핵심 기초 개념 중 이 직무의 바탕이 되는 것은 무엇이고 왜 중요한가요?", "experience", "전공 기초 지식의 이해와 필요성 확인"),
-        2: ("전공에서 배운 내용 중 이 직무에 가장 도움이 되는 것은 무엇인가요?", "experience", "전공 지식과 직무의 연결 확인"),
-        3: ("전공 지식을 바탕으로 실제 문제나 설계의 한계를 분석하고 대안을 비교해 해결해 본 경험이 있나요?", "experience", "전공 지식의 심화 응용, 설계 및 트레이드오프 사고력 확인"),
+        1: ("Which foundational concepts from your major connect most closely to this role, and why?", "experience", "Check foundational academic knowledge and job relevance"),
+        2: ("What part of your academic coursework has been most useful in practice?", "experience", "Check connection between academic study and practical work"),
+        3: ("Have you applied principles from your major to analyze a design limitation, compare alternatives, and solve a real problem?", "experience", "Check advanced application, analysis, and trade-off thinking from coursework"),
     },
     "other": {
-        1: ("'{name}'이(가) 팀과 업무에서 왜 중요하다고 생각하시나요?", "behavioral", "'{name}'의 의미와 중요성에 대한 기본 이해 확인"),
-        2: ("'{name}'에 해당하는 본인의 경험을 사례로 설명해 주세요.", "behavioral", "'{name}' 관련 태도와 경험 확인"),
-        3: ("'{name}'과(와) 관련해 이해관계나 기술·업무 방식이 충돌했을 때 어떤 기준으로 트레이드오프를 조율하고 해결했나요?", "behavioral", "'{name}' 관련 복합 상황 판단과 갈등·문제 해결 역량 확인"),
+        1: ("Why do you think '{name}' is important for a team and its day-to-day work?", "behavioral", "Check baseline understanding of why '{name}' matters"),
+        2: ("Tell me about an experience where you demonstrated '{name}'.", "behavioral", "Check attitude and past experience related to '{name}'"),
+        3: ("Tell me about a time '{name}' involved competing priorities or technical disagreement, and how you navigated the trade-offs.", "behavioral", "Check complex judgment and conflict/problem resolution around '{name}'"),
     },
 }
 _GENERAL = (
-    Question("이 회사와 직무에 지원한 이유는 무엇인가요?", None, None, "behavioral", "지원 동기와 직무 이해도 확인",
-             ("회사와 직무에서 끌린 점을 구체적으로", "본인의 경험과 연결하기")),
-    Question("팀에서 의견이 달랐던 경험과 어떻게 해결했는지 말씀해 주세요.", None, None, "behavioral", "협업과 소통 방식 확인",
+    Question("What drew you to this company and role?", None, None, "behavioral", "Check motivation and understanding of the role",
+             ("Highlight specific aspects of the company and role", "Connect them to your own background")),
+    Question("Tell me about a time your team disagreed on an approach and how you resolved it.", None, None, "behavioral", "Check collaboration and communication style",
              _TIPS_EXPERIENCE),
-    Question("최근에 새로 배운 기술과 학습 방법을 소개해 주세요.", None, None, "behavioral", "학습 태도와 성장 가능성 확인",
-             ("무엇을 왜 배웠는지", "어떻게 적용해 봤는지")),
+    Question("Tell me about a technology you learned recently and how you studied it.", None, None, "behavioral", "Check learning mindset and growth potential",
+             ("Explain what you learned and why", "Show how you put it into practice")),
 )
 
 

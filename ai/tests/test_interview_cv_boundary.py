@@ -410,7 +410,7 @@ def test_to_text_cuts_by_itself_without_prepare_turn():
     text = context.to_text()
     assert leaks(text, ["군 복무", "병역", "남성", "스물일곱", "29세"]) == []
     assert "Java는 어떻게 쓰셨나요?" in text or "Java로 주문 API를 개발했습니다." in text
-    assert "p1 | (제외됨)" in text and "p2 | Java 활용 사례" in text
+    assert "p1 | (excluded)" in text and "p2 | Java 활용 사례" in text
     assert "이전 답변입니다." in text and "다른 질문입니다." in text
     assert text.count("<answer>") == 1 and text.count("</answer>") == 1  # a tag in the answer is neutralized too
 

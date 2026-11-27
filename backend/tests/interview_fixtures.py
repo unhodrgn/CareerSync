@@ -78,7 +78,7 @@ def make_session(ids: Ids, **overrides) -> InterviewSession:
         "job_id": ids.job_id,
         "cv_profile_id": ids.cv_id,
         "status": "created",
-        "prompt_version": "v1",
+        "prompt_version": "v2",
         "limits": dict(LIMITS),
         "consent_version": CONSENT_VERSION,
         "consent_at": now,

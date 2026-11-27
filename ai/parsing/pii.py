@@ -17,17 +17,32 @@ from ai.embedding.skills import SkillDictionary
 from ai.parsing.sections import heading_key
 
 _PATTERNS: tuple[tuple[str, str, re.Pattern], ...] = (
-    ("email", "[이메일]", re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")),
-    ("url", "[링크]", re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)),
+    ("email", "[EMAIL]", re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")),
+    ("url", "[URL]", re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)),
     # Resident registration number (주민등록번호) before phone, since both are digit runs
-    ("rrn", "[주민번호]", re.compile(r"\b\d{6}\s*-\s*[1-4]\d{6}\b")),
-    ("phone", "[전화번호]", re.compile(r"(?:\+82[\s-]?)?0\d{1,2}[\s.-]?\d{3,4}[\s.-]?\d{4}\b")),
-    # Birth date lines (생년월일 / 출생) keep the label but drop the date; the end must not eat the
-    # line break, or the next line (often a section heading such as 경력) merges into this one
-    ("birth", "[생년월일]", re.compile(r"(?<=생년월일)\s*[:：]?\s*\d{4}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}(?:[ \t]*일)?")),
-    ("address", "[주소]", re.compile(r"(?<=주소)\s*[:：]?\s*[^\n]+")),
+    ("rrn", "[RRN]", re.compile(r"\b\d{6}\s*-\s*[1-4]\d{6}\b")),
+    (
+        "phone",
+        "[PHONE]",
+        re.compile(
+            r"(?:\+82[\s-]?)?0\d{1,2}[\s.-]?\d{3,4}[\s.-]?\d{4}\b"
+            r"|\+\d{1,3}[\s.-](?:\(\d{2,4}\)|\d{2,4})[\s.-]\d{3,4}[\s.-]\d{4}\b"
+            r"|(?:\(\d{3}\)[\s.-]?|\b\d{3}[\s.-])\d{3}[\s.-]\d{4}\b"
+        ),
+    ),
+    # Birth date lines keep the label but drop the date; the end must not eat the
+    # line break, or the next line (often a section heading) merges into this one
+    (
+        "birth",
+        "[DOB]",
+        re.compile(
+            r"(?:(?<=생년월일)\s*[:：]?|(?<=[Dd]ate of [Bb]irth)\s*[:：]|(?<=[Bb]irth [Dd]ate)\s*[:：]|(?<=[Bb]irthday)\s*[:：]|(?<=DOB)\s*[:：])"
+            r"\s*(?:\d{4}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}(?:[ \t]*일)?|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})"
+        ),
+    ),
+    ("address", "[ADDRESS]", re.compile(r"(?<=주소)\s*[:：]?\s*[^\n]+|(?<=[Aa]ddress)\s*[:：][ \t]*[^\n]+")),
 )
-NAME_TOKEN = "[이름]"
+NAME_TOKEN = "[NAME]"
 
 # ── Names: tables ──
 

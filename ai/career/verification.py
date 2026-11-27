@@ -21,11 +21,18 @@ from ai.parsing.extract import PROMPT_DIR
 log = logging.getLogger(__name__)
 MAX_QUESTIONS = 3
 _TERMS = re.compile(r"[A-Za-z][A-Za-z0-9.+#-]*|[가-힣]{2,}")
-_CLAIM = re.compile(r"개선|최적화|구현|개발|구축|설계|운영|전환|리팩터링|develop|improv|migrat", re.I)
-_NUMBER = re.compile(r"\d+(?:\.\d+)?\s*(?:%|ms|초|건|배|TPS|QPS|명)", re.I)
-_STOP = {"경험", "능력", "프로젝트", "관련", "실무", "활용", "개발", "기술", "직무", "업무", "역량", "우대", "필수"}
+_CLAIM = re.compile(
+    r"개선|최적화|구현|개발|구축|설계|운영|전환|리팩터링|"
+    r"develop|improv|optim|migrat|built|design|implement|creat|architect|reduc|increas|launch|lead|led|manag|deploy|automat|scal",
+    re.I,
+)
+_NUMBER = re.compile(r"\d+(?:\.\d+)?\s*(?:%|ms|초|건|배|TPS|QPS|명|s\b|sec|x\b|users?|requests?|req/s)", re.I)
+_STOP = {
+    "경험", "능력", "프로젝트", "관련", "실무", "활용", "개발", "기술", "직무", "업무", "역량", "우대", "필수",
+    "experience", "ability", "project", "projects", "related", "practical", "work", "using", "skill", "skills", "role", "required", "preferred", "proficiency",
+}
 _URL = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|io|dev|net|kr)/\S*", re.IGNORECASE)
-_MASK_TOKEN = re.compile(r"\[(?:이름|이메일|전화번호|주민번호|주소|생년월일|링크)\]")
+_MASK_TOKEN = re.compile(r"\[(?:NAME|EMAIL|PHONE|RRN|ADDRESS|DOB|URL)\]")
 
 
 def _escape_tags(text: str) -> str:
@@ -93,9 +100,11 @@ def evidence_candidates(masked_cv: str, criteria: Sequence[CriterionInfo]) -> li
             if not common and criterion.category != "project":
                 continue
             # A quantified result WITH explicit ownership is relatively well explained.
-            if _NUMBER.search(quote) and re.search(r"직접|담당|제가|본인", quote):
+            if _NUMBER.search(quote) and re.search(
+                r"직접|담당|제가|본인|\b(?:i|led|owned|designed|built|implemented|developed|architected)\b", quote, re.I
+            ):
                 continue
-            priority = len(common) * 10 + (5 if "개선" in quote or "최적화" in quote else 0)
+            priority = len(common) * 10 + (5 if any(k in quote.lower() for k in ("개선", "최적화", "improv", "optim")) else 0)
             ranked.append((priority, criterion, quote))
     ranked.sort(key=lambda x: -x[0])
     found: list[tuple[CriterionInfo, str]] = []
@@ -115,14 +124,14 @@ def _rules(items: list[tuple[CriterionInfo, str]]) -> list[VerificationQuestion]
     seen_questions: set[str] = set()
     seen_quotes: set[str] = set()
     for criterion, quote in items:
-        if any(word in quote for word in ("개선", "최적화", "성능")):
-            question = f"{criterion.name} 관련 경험의 개선 전후 성능을 어떤 지표와 도구로 측정했으며, 본인이 직접 수정한 부분은 어디인가요?"
-            reason = "성과의 측정 방식과 개인 기여 범위에 대한 근거가 부족합니다."
-            checks = ("측정 지표와 비교 환경", "직접 담당한 코드", "성과 재현 방법")
+        if any(word in quote.lower() for word in ("개선", "최적화", "성능", "improv", "optim", "perform", "latenc", "throughput", "reduc", "faster")):
+            question = f"For {criterion.name}, how did you measure performance before and after optimization, and which part did you modify directly?"
+            reason = "Measurement metrics and your individual contribution need clarification."
+            checks = ("Baseline and post-change metrics/tools", "Code changes you directly made", "How the improvement was verified")
         else:
-            question = f"{criterion.name} 관련 경험에서 본인이 담당한 부분과 실제 구현 과정을 설명해 주세요."
-            reason = "구체적인 역할 및 구현 과정은 이력서만으로 확인하기 어렵습니다."
-            checks = ("개인 담당 범위", "구현 및 검증 과정", "문제와 해결 근거")
+            question = f"In your work related to {criterion.name}, which parts did you own and how did you implement them?"
+            reason = "Individual ownership and implementation details are unclear from the CV alone."
+            checks = ("Scope of your personal ownership", "Implementation and testing steps", "Challenges and resolution rationale")
         if question in seen_questions or quote in seen_quotes:
             continue
         seen_questions.add(question)
@@ -161,7 +170,7 @@ def generate_questions(
             f"<job_title>{_escape_tags(job_title)}</job_title>\n"
             f"<jd>\n{_escape_tags(job_description[:4000])}\n</jd>\n"
             f"<criteria>\n{criteria_lines}\n</criteria>\n"
-            f"이력서 인용문:\n<cv_quotes>\n{excerpts}\n</cv_quotes>"
+            f"Verified CV quotes:\n<cv_quotes>\n{excerpts}\n</cv_quotes>"
         )
         try:
             output = llm.complete_json(system, user_prompt, _LlmResult, max_tokens=1500)

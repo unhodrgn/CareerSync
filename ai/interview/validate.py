@@ -52,8 +52,8 @@ _REASONS = frozenset({"no_slot", "no_question"})
 _DEPTHS = frozenset({1, 2, 3})
 DEFAULT_DEPTH = 2
 MAX_NAME_CHARS, MAX_INTENT_CHARS, MAX_TIP_CHARS, MAX_TIPS = 80, 200, 150, 3
-MAX_POINT_CHARS, MAX_KEYWORDS, MAX_QUOTE_CHARS = 120, 8, 300
-EXCLUDED = "(제외됨)"  # shown in place of a criterion name that could not be kept
+MAX_POINT_CHARS, MAX_KEYWORDS, MAX_QUOTE_CHARS = 120, 18, 300
+EXCLUDED = "(excluded)"  # shown in place of a criterion name that could not be kept
 
 
 @dataclass(frozen=True)
@@ -101,9 +101,9 @@ class _Checker:
         if MIN_RUBRIC_POINTS <= len(points) <= MAX_RUBRIC_POINTS:
             return tuple(points)
         self.issues.append(f"{tag}:rubric")
-        generic = rules.make_rubric(name or "이 질문", _CATEGORY_OF_KIND.get(item.kind, "experience"), "", self.skills)
+        generic = rules.make_rubric(name or "this question", _CATEGORY_OF_KIND.get(item.kind, "experience"), "", self.skills)
         if not all(self.text_ok(p.text, MAX_POINT_CHARS) for p in generic):  # the name itself is the problem
-            generic = rules.make_rubric("이 질문", "other", "", self.skills)
+            generic = rules.make_rubric("this question", "other", "", self.skills)
         return generic
 
     def item(self, item: object) -> PlanItem | None:

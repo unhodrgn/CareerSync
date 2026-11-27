@@ -43,7 +43,7 @@ def test_rule_scores_on_the_sample_cv():
     r = by_id(run())
     assert r[1].score == 80 and r[1].method == "rule:skill"  # listed + used in 1 experience
     assert r[2].score == 90  # listed + used in 2 experiences
-    assert r[3].score == 100 and "5년 8개월" in r[3].reason
+    assert r[3].score == 100 and "5 years 8 months" in r[3].reason
     assert r[5].score == 100 and "정보처리기사" in r[5].reason
     # Rules mode scores project criteria from the 프로젝트 entries (D27): 1 entry mentions 추천/API/설계
     assert (r[4].method, r[4].score) == ("rule:project", 50)
@@ -59,7 +59,7 @@ def test_every_nonzero_score_has_evidence_from_the_masked_cv():
 
 def test_missing_skill_scores_zero_with_reason():
     r = run([Criterion(9, "Rust 활용", "", "skill", 100)])[0]
-    assert r.score == 0 and r.reason == "Rust 경험 확인 안 됨"
+    assert r.score == 0 and r.reason == "Rust not confirmed"
 
 
 def test_scores_are_identical_across_runs():
@@ -163,23 +163,23 @@ def test_year_in_criterion_is_not_a_requirement():
     job = JobContext(title="백엔드 개발자", min_experience_years=4)
     c = Criterion(1, "2020년 이후 경력", "", "experience", 100)
     r = score_candidate([c], _experienced("2024-11"), job, skills=SKILLS, embedder=EMBEDDER, llm=None, today=TODAY)[0]
-    assert "요구 4년" in r.reason and "20년" not in r.reason
+    assert "required 4 years" in r.reason and "20 years" not in r.reason
     assert r.score == 50  # 24 of 48 months
 
 
 def test_months_count_toward_the_requirement():
     c = Criterion(1, "경력 1년 6개월 이상", "", "experience", 100)
     r = run([c], cand=_experienced("2026-02"))[0]  # 9 months, start month included
-    assert r.score == 50 and "요구 1년 6개월" in r.reason
+    assert r.score == 50 and "required 1 year 6 months" in r.reason
     r = run([Criterion(2, "6개월 이상", "", "experience", 100)], cand=_experienced("2026-02"))[0]
-    assert r.score == 100 and "요구 6개월" in r.reason
+    assert r.score == 100 and "required 6 months" in r.reason
 
 
 def test_entry_level_criterion_scores_everyone_100():
     c = Criterion(1, "신입 가능", "", "experience", 100)
     newcomer = Candidate(CvProfile(), "자기소개\n열심히 배우겠습니다.")
     r = run([c], cand=newcomer)[0]
-    assert (r.score, r.evidence) == (100, ()) and "신입" in r.reason
+    assert (r.score, r.evidence) == (100, ()) and "entry-level" in r.reason
     assert run([c])[0].score == 100  # experienced candidates meet it too
 
     # A job asking for 0 years, or NULL (신입 가능), behaves the same when the criterion states no number
@@ -187,7 +187,7 @@ def test_entry_level_criterion_scores_everyone_100():
     for min_years in (0, None):
         job = JobContext(title="백엔드 개발자", min_experience_years=min_years)
         r = score_candidate([general], newcomer, job, skills=SKILLS, embedder=EMBEDDER, llm=None, today=TODAY)[0]
-        assert r.score == 100 and "신입" in r.reason, min_years
+        assert r.score == 100 and "entry-level" in r.reason, min_years
 
 
 # ── education: only majors the criterion names ──
@@ -243,7 +243,7 @@ def test_old_education_criterion_without_major_scores_neutral():
     old = Criterion(1, "관련 전공", "", "education", 100)
     scores = [run([old], cand=cand)[0] for cand in (candidate(), _graduate("국어국문학과"), Candidate(CvProfile(), ""))]
     assert {(r.score, r.method) for r in scores} == {(50, "rule:education")}
-    assert "전공 미지정" in scores[0].reason and scores[0].evidence == ()
+    assert "No major specified" in scores[0].reason and scores[0].evidence == ()
 
 
 # ── Issue 3: edits to the structured profile never raise a rule score ──
@@ -259,7 +259,7 @@ def test_a_skill_added_only_to_the_profile_scores_nothing():
     rust = Criterion(1, "Rust 활용", "", "skill", 100)
     cand = _edited(skills=[*candidate().profile.skills, "Rust"])
     r = run([rust], cand=cand)[0]
-    assert (r.score, r.reason) == (0, "Rust 경험 확인 안 됨")
+    assert (r.score, r.reason) == (0, "Rust not confirmed")
 
 
 def test_skill_uses_are_counted_from_the_cv_text():
@@ -267,7 +267,7 @@ def test_skill_uses_are_counted_from_the_cv_text():
     # Descriptions edited to mention Java everywhere: still 1 entry of the text uses it
     exps = [e.model_copy(update={"description": "Java Java Java"}) for e in candidate().profile.experiences]
     r = run([java], cand=_edited(experiences=exps))[0]
-    assert r.score == 80 and "1건" in r.reason
+    assert r.score == 80 and "1 experience/project entry" in r.reason
     assert all(quote_in_text(q, candidate().text) for q in r.evidence)
 
 
@@ -315,8 +315,8 @@ class SameVectorEmbedder:
 def test_a_missing_skill_of_a_related_group_gets_partial_credit():
     # The sample CV has MySQL (관계형 DB) and AWS (클라우드)
     r = run([Criterion(1, "PostgreSQL 활용", "", "skill", 50), Criterion(2, "GCP 운영", "", "skill", 50)])
-    assert (r[0].score, r[0].reason) == (50, "PostgreSQL 직접 경험은 없으나 같은 계열 기술 MySQL 보유")
-    assert r[1].score == 50 and "같은 계열 기술 AWS" in r[1].reason
+    assert (r[0].score, r[0].reason) == (50, "No direct PostgreSQL experience, but related skill MySQL found")
+    assert r[1].score == 50 and "related skill AWS found" in r[1].reason
     assert all(r[0].evidence) and "MySQL" in r[0].evidence[0]
 
 
@@ -326,7 +326,7 @@ def test_unrelated_missing_skills_score_zero_whatever_the_embedder(skill):
     cand = candidate()
     for embedder in (EMBEDDER, SameVectorEmbedder()):
         r = score_candidate(c, cand, JOB, skills=SKILLS, embedder=embedder, llm=None, today=TODAY)[0]
-        assert (r.score, r.reason) == (0, f"{skill} 경험 확인 안 됨"), embedder.name
+        assert (r.score, r.reason) == (0, f"{skill} not confirmed"), embedder.name
 
 
 def test_related_groups_are_symmetric_and_validated():
@@ -345,7 +345,7 @@ def test_edited_experience_dates_do_not_change_the_months():
     longer = [e.model_copy(update={"start": "2005-01"}) for e in candidate().profile.experiences]
     edited = run([exp], cand=_edited(experiences=longer))[0]
     assert (edited.score, edited.reason, edited.evidence) == (original.score, original.reason, original.evidence)
-    assert "5년 8개월" in edited.reason
+    assert "5 years 8 months" in edited.reason
 
 
 def test_without_a_career_heading_only_verified_source_lines_count():
@@ -356,14 +356,14 @@ def test_without_a_career_heading_only_verified_source_lines_count():
     exp = Criterion(1, "경력 2년 이상", "", "experience", 100)
     for exps in ([real], [real, fake], [stretched]):
         r = run([exp], cand=Candidate(CvProfile(experiences=exps), text))[0]
-        assert r.score == 100 and "2년" in r.reason and r.evidence == ("넥스트코드 백엔드 개발자 2021.03 ~ 2023.02",)
+        assert r.score == 100 and "2 years" in r.reason and r.evidence == ("넥스트코드 백엔드 개발자 2021.03 ~ 2023.02",)
     r = run([exp], cand=Candidate(CvProfile(experiences=[fake]), text))[0]
-    assert (r.score, r.reason) == (0, "확인된 경력 없음")
+    assert (r.score, r.reason) == (0, "No verified experience found")
 
 
 # ── experience: stated total when the CV has no employment period (D48) ──
 
-STATED_NOTE = "근무 기간은 확인되지 않음"
+STATED_NOTE = "employment periods not verified"
 
 
 def _stated_cv(line: str, body: str = "자기소개\n백엔드 API 개발\n경력 및 주요 활동\n주문 API 운영") -> Candidate:
@@ -373,17 +373,17 @@ def _stated_cv(line: str, body: str = "자기소개\n백엔드 API 개발\n경�
 @pytest.mark.parametrize(
     "line, required, score, shown",
     [
-        ("경력: 2년", "서버 개발 1년 이상", 100, "2년"),
-        ("경력: 2년", "경력 3년 이상", 67, "2년"),
-        ("Số năm kinh nghiệm: 6", "개발 5년 이상", 100, "6년"),
-        ("Số năm kinh nghiệm: 4", "프론트엔드 10년 이상", 40, "4년"),
-        ("5 years of experience in backend development", "경력 10년 이상", 50, "5년"),
+        ("경력: 2년", "서버 개발 1년 이상", 100, "2 years"),
+        ("경력: 2년", "경력 3년 이상", 67, "2 years"),
+        ("Số năm kinh nghiệm: 6", "개발 5년 이상", 100, "6 years"),
+        ("Số năm kinh nghiệm: 4", "프론트엔드 10년 이상", 40, "4 years"),
+        ("5 years of experience in backend development", "경력 10년 이상", 50, "5 years"),
     ],
 )
 def test_stated_experience_scores_with_the_same_formula(line, required, score, shown):
     r = run([Criterion(1, required, "", "experience", 100)], cand=_stated_cv(line))[0]
     assert (r.score, r.method, r.evidence) == (score, "rule:experience-stated", (line,))
-    assert f"이력서 기재 경력 {shown}" in r.reason and STATED_NOTE in r.reason
+    assert f"Stated experience {shown}" in r.reason and STATED_NOTE in r.reason
 
 
 def test_employment_periods_win_over_a_stated_total():
@@ -399,13 +399,13 @@ def test_a_stated_total_only_in_the_edited_profile_is_not_used():
         experiences=[Experience(org="Acme", start="2010-01", end="2020-12", source="경력: 10년")],
     )
     r = run([Criterion(1, "경력 3년 이상", "", "experience", 100)], cand=Candidate(profile, "자기소개\nJava 개발"))[0]
-    assert (r.score, r.reason, r.evidence, r.method) == (0, "확인된 경력 없음", (), "rule:experience")
+    assert (r.score, r.reason, r.evidence, r.method) == (0, "No verified experience found", (), "rule:experience")
 
 
 def test_stated_zero_experience():
     cand = _stated_cv("경력: 0년")
     r = run([Criterion(1, "경력 3년 이상", "", "experience", 100)], cand=cand)[0]
-    assert (r.score, r.method) == (0, "rule:experience-stated") and "이력서 기재 경력 0년" in r.reason
+    assert (r.score, r.method) == (0, "rule:experience-stated") and "Stated experience 0 years" in r.reason
     # 신입 criteria are unchanged: everyone meets them
     assert run([Criterion(2, "신입 가능", "", "experience", 100)], cand=cand)[0].score == 100
 
@@ -418,18 +418,18 @@ def test_a_stated_range_counts_its_lower_bound():
 @pytest.mark.parametrize("line", ["경력: 2020년", "경력: 신입", "Experience: 5", "경력 3년 이상의 시니어와 협업"])
 def test_ambiguous_or_missing_statements_score_nothing(line):
     r = run([Criterion(1, "경력 1년 이상", "", "experience", 100)], cand=_stated_cv(line))[0]
-    assert (r.score, r.reason, r.method) == (0, "확인된 경력 없음", "rule:experience")
+    assert (r.score, r.reason, r.method) == (0, "No verified experience found", "rule:experience")
 
 
 def test_no_experience_information_scores_zero():
     r = run([Criterion(1, "경력 1년 이상", "", "experience", 100)], cand=Candidate(CvProfile(), "자기소개\nJava 개발"))[0]
-    assert (r.score, r.reason, r.evidence, r.method) == (0, "확인된 경력 없음", (), "rule:experience")
+    assert (r.score, r.reason, r.evidence, r.method) == (0, "No verified experience found", (), "rule:experience")
 
 
 def test_period_based_experience_is_unchanged_on_the_sample_cv():
     r = run([Criterion(1, "경력 10년 이상", "", "experience", 100)])[0]
     assert (r.score, r.method) == (57, "rule:experience")  # 68 of 120 months
-    assert "확인된 경력 약 5년 8개월 (요구 10년)" == r.reason and len(r.evidence) == 2
+    assert "~5 years 8 months verified experience (required 10 years)" == r.reason and len(r.evidence) == 2
 
 
 def test_a_certificate_added_only_to_the_profile_is_not_counted():
@@ -478,7 +478,7 @@ def test_default_project_criterion_uses_the_jobs_skills():
     assert (related.score, related.method) == (50, "rule:project")
     assert related.evidence == ("쇼핑몰 추천 시스템 2022.05 ~ 2022.09",)
     unrelated = _score(DEFAULT_PROJECT, job=_job("Rust 기반 임베디드 개발"))
-    assert unrelated.score == 25 and "직무 관련 기술·키워드는 확인 안 됨" in unrelated.reason
+    assert unrelated.score == 25 and "no job-related tech or keywords confirmed" in unrelated.reason
     two = _score(DEFAULT_PROJECT, cand=candidate(TWO_PROJECTS), job=_job("FastAPI 개발"))
     assert two.score == 75 and len(two.evidence) == 2
 
@@ -491,12 +491,12 @@ def test_project_criterion_keywords_count_too():
 def test_no_project_section_scores_zero():
     no_projects = SAMPLE_CV.split("프로젝트")[0] + "학력\n한국대학교 컴퓨터공학과 학사 2015.03 ~ 2021.02\n"
     r = _score(DEFAULT_PROJECT, cand=candidate(no_projects), job=_job("Python"))
-    assert (r.score, r.method) == (0, "rule:project") and "'프로젝트' 항목" in r.reason
+    assert (r.score, r.method) == (0, "rule:project") and "No project entries" in r.reason
 
 
 def test_vague_other_criteria_get_a_neutral_score_in_rules_mode():
     r = _score(Criterion(1, "협업 능력", "팀 단위로 동료와 협업한 경험", "other", 100))
-    assert (r.score, r.reason, r.evidence, r.method) == (50, "규칙 기반으로 평가 불가", (), "rule:neutral")
+    assert (r.score, r.reason, r.evidence, r.method) == (50, "Cannot be evaluated by rules alone", (), "rule:neutral")
 
 
 # Skill criteria naming no skill of data/skills.yaml (D28): looked up by name, never neutral
@@ -507,7 +507,7 @@ PHOTOSHOP_CV = SAMPLE_CV.replace("학력", "디자인 도구\nPhotoshop으로 �
 def test_unlisted_skill_missing_from_the_cv_scores_zero(name):
     for llm in (None, FakeLLM()):  # skill scoring is the same in both modes
         r = _score(Criterion(1, name, "", "skill", 100), llm=llm)
-        assert (r.score, r.reason, r.evidence) == (0, "이력서에서 확인되지 않음", ()), name
+        assert (r.score, r.reason, r.evidence) == (0, "Not confirmed in CV", ()), name
 
 
 def test_unlisted_skill_found_by_name_scores_at_least_50():
@@ -526,12 +526,12 @@ def test_contact_and_heading_chunks_are_not_retrieval_candidates():
     from ai.scoring.retrieval import cv_chunks, has_content
 
     cand = candidate()
-    assert "[이메일]" in cand.text
-    assert all("[이메일]" not in ch.text and "[전화번호]" not in ch.text for ch in cv_chunks(cand.text))
-    assert not has_content("[이름]\n연락처: [전화번호] / [이메일]")
-    assert not has_content("이메일: [이메일]  GitHub: [링크]")
+    assert "[EMAIL]" in cand.text
+    assert all("[EMAIL]" not in ch.text and "[PHONE]" not in ch.text for ch in cv_chunks(cand.text))
+    assert not has_content("[NAME]\n연락처: [PHONE] / [EMAIL]")
+    assert not has_content("이메일: [EMAIL]  GitHub: [URL]")
     assert not has_content("경력\n프로젝트")
-    assert has_content("[이름] 백엔드 개발자")
+    assert has_content("[NAME] 백엔드 개발자")
 
 
 def test_judgeable_free_text_criteria_keep_the_retrieval_score():

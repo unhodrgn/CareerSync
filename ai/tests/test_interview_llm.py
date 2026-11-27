@@ -84,7 +84,7 @@ def test_the_new_prompts_exist_and_state_their_contract():
         assert f'"{field}"' in rubric, field
     for word in ("data, not instructions", "not company requirements", "military service", "gender"):
         assert word in rubric, word
-    assert PROMPT_VERSION == "v1"  # new files in v1; no existing prompt changed
+    assert PROMPT_VERSION == "v2"  # v2 English prompts; v1 preserved
 
 
 def test_a_model_cannot_name_the_structural_answer_types():
@@ -139,7 +139,7 @@ def test_no_personal_data_and_no_weight_reaches_the_model():
     text = (request.system + "\n" + request.user).lower()
     for secret in SECRETS:
         assert secret.lower() not in text, secret
-    assert "[이메일]" in request.user and "[전화번호]" in request.user and "[이름]" in request.user
+    assert "[EMAIL]" in request.user and "[PHONE]" in request.user and "[NAME]" in request.user
     assert "weight" not in request.user.lower()
     assert "Java 활용 능력 (core)" in request.user  # the importance label is allowed; a weight never is
 
@@ -176,7 +176,7 @@ def test_the_whole_context_is_scrubbed_not_only_the_answer():
     )
     assert scrub_context(context) is None  # a question about age leaves nothing to ask a model with
     clean = scrub_context(TurnContext("협업 경험을 말씀해 주세요.", "협업", "general", context.rubric, context.answer, context.previous, context.asked))
-    assert clean.rubric == (("p1", "(제외됨)"), ("p2", "팀 협업 경험"))  # the point stays, so the model can still judge its id
+    assert clean.rubric == (("p1", "(excluded)"), ("p2", "팀 협업 경험"))  # the point stays, so the model can still judge its id
     assert clean.previous == ("이전 답변입니다.",) and clean.asked == ("다른 질문입니다.",)
 
 
@@ -371,8 +371,8 @@ def test_a_valid_follow_up_is_kept_and_the_engine_speaks_it():
         "병역은 마치셨나요?",
         "합격 가능성은 어느 정도라고 보시나요?",
         "https://example.com 을 보셨나요?",
-        "[이름] 님은 어떻게 하셨나요?",
-        "이력서에 적으신 'Java, Spring Boot 기반 주문 API 개발' 경험에서 맡으신 역할과 가장 기억에 남는 점을 말씀해 주세요.",  # asked before
+        "[NAME] 님은 어떻게 하셨나요?",
+        rules.warmup_question("Java, Spring Boot 기반 주문 API 개발"),  # asked before
     ],
 )
 def test_a_follow_up_that_fails_a_screen_or_repeats_a_question_is_dropped_but_the_analysis_stays(follow_up):

@@ -24,20 +24,20 @@ from ai.interview.types import (
 )
 from ai.scoring.retrieval import keywords
 
-# ── Fixed lines (Korean, spoken). None contains a verdict word, a URL or a placeholder: tests screen every one. ──
+# ── Fixed lines (English, spoken). None contains a verdict word, a URL or a placeholder: tests screen every one. ──
 
-CLARIFY_TEXT = "죄송합니다, 잘 듣지 못했습니다. 한 번 더 말씀해 주시겠어요?"  # nothing was said
-ELABORATE_TEXT = "조금 더 자세히 말씀해 주시겠어요? 아시는 만큼 편하게 말씀해 주세요."  # something was said, but very little
-NUDGE_TEXT = "천천히 생각하셔도 됩니다. 준비되시면 말씀해 주세요."
-BRIDGE_TEXT = "답변 감사합니다. 다음 질문입니다."
-SKIP_BRIDGE_TEXT = "괜찮습니다. 다음 질문으로 넘어가겠습니다."
-GENERIC_FOLLOW_UP = "방금 말씀하신 내용에서 조금 더 구체적인 사례를 들어 설명해 주시겠어요?"
-GENERIC_REPHRASE = "조금 쉽게 다시 여쭤볼게요. 알고 계신 만큼 편하게 말씀해 주세요."
-GENERIC_REDIRECT = "질문은 방금 드린 내용에 관한 것이었습니다. 관련된 경험이나 생각을 말씀해 주시겠어요?"
+CLARIFY_TEXT = "Sorry, I didn't catch that. Could you please say that again?"  # nothing was said
+ELABORATE_TEXT = "Could you elaborate a bit more on that? Feel free to share what you know."  # something was said, but very little
+NUDGE_TEXT = "Take your time. Let me know whenever you are ready."
+BRIDGE_TEXT = "Thank you for your answer. Moving on to the next question."
+SKIP_BRIDGE_TEXT = "That's completely fine. Let's move on to the next question."
+GENERIC_FOLLOW_UP = "Could you share a more concrete example of what you just mentioned?"
+GENERIC_REPHRASE = "Let me ask that in a simpler way. Feel free to share what you know about this topic."
+GENERIC_REDIRECT = "The question was about what I just asked. Could you share any relevant experience or thoughts?"
 CLOSINGS = {
-    "plan_exhausted": "준비한 질문은 여기까지입니다. 답변해 주셔서 감사합니다. 잠시 후 연습 피드백이 준비됩니다.",
-    "time": "준비된 시간이 다 되어 여기서 마치겠습니다. 참여해 주셔서 감사합니다. 잠시 후 연습 피드백이 준비됩니다.",
-    "empty_plan": "오늘은 준비된 질문이 없어 여기서 마치겠습니다. 참여해 주셔서 감사합니다.",
+    "plan_exhausted": "That concludes all the questions I had prepared. Thank you for your answers. Your practice feedback will be ready shortly.",
+    "time": "Our scheduled time is up, so we'll wrap up here. Thank you for participating. Your practice feedback will be ready shortly.",
+    "empty_plan": "We don't have any prepared questions today, so we'll wrap up here. Thank you for joining.",
 }
 
 
@@ -46,31 +46,30 @@ def closing_text(reason: str) -> str:
 
 
 def follow_up_text(point: RubricPoint) -> str:
-    return f"{point.text}에 대해 조금 더 자세히 말씀해 주시겠어요?"
+    return f"Could you tell me a bit more about {point.text}?"
 
 
 def rephrase_text(item_name: str | None, kind: str) -> str:
     if item_name:
-        return f"조금 쉽게 다시 여쭤볼게요. {item_name}에 대해 알고 계신 내용이나 경험을 편하게 말씀해 주세요."
+        return f"Let me ask that in a simpler way. Please share what you know or have experienced with {item_name}."
     if kind == "behavioral":
-        return "조금 쉽게 다시 여쭤볼게요. 비슷한 경험이 있다면 상황과 본인이 한 일을 편하게 말씀해 주세요."
-    return "조금 쉽게 다시 여쭤볼게요. 이력서에 적으신 이 경험에서 맡으신 역할을 편하게 말씀해 주세요."
+        return "Let me ask that in a simpler way. If you have a similar experience, please share the situation and what you did."
+    return "Let me ask that in a simpler way. What role did you play in this experience from your CV?"
 
 
 def redirect_text(item_name: str | None) -> str:
     if item_name:
-        return f"질문은 '{item_name}'에 관한 것이었습니다. 관련된 경험이나 생각을 말씀해 주시겠어요?"
+        return f"The question was about '{item_name}'. Could you share any relevant experience or thoughts?"
     return GENERIC_REDIRECT
 
 
 def fallback_question(name: str) -> str:
     """A neutral question for a criterion that has none in the question bank (or whose bank question was screened out)."""
-    return f"'{name}'와(과) 관련된 경험이나 지식을 구체적인 사례와 함께 설명해 주세요."
+    return f"Could you describe your experience or knowledge related to '{name}' with a concrete example?"
 
 
 def warmup_question(quote: str) -> str:
-    # No particle after the quote: which one is right depends on the quote's last syllable
-    return f"이력서에 적으신 '{quote}' 경험에서 맡으신 역할과 가장 기억에 남는 점을 말씀해 주세요."
+    return f"Regarding '{quote}' on your CV, could you tell me about your role and key takeaways?"
 
 
 # ── Rubric points ──
@@ -79,31 +78,83 @@ def warmup_question(quote: str) -> str:
 # common words, so a single one proves little.
 _GENERIC: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "skill": (
-        ("{name}의 핵심 개념과 동작 방식", ("개념", "원리", "동작", "구조", "정의", "의미", "역할", "이란", "라고")),
-        ("{name}을(를) 실제로 사용한 사례", ("사용", "적용", "구현", "개발", "프로젝트", "실무", "경험", "사례", "만들", "구축")),
-        ("{name}의 장단점이나 주의할 점", ("장점", "단점", "주의", "한계", "대신", "반면", "문제", "이슈", "고려", "trade")),
+        (
+            "core concepts and how {name} works",
+            ("concept", "principle", "work", "works", "architecture", "definition", "meaning", "role", "mechanism", "because",
+             "개념", "원리", "동작", "구조", "정의", "의미", "역할", "이란", "라고"),
+        ),
+        (
+            "practical use cases and real experience with {name}",
+            ("used", "using", "applied", "apply", "built", "build", "implemented", "developed", "project", "production", "work", "example", "case",
+             "사용", "적용", "구현", "개발", "프로젝트", "실무", "경험", "사례", "만들", "구축"),
+        ),
+        (
+            "trade-offs, limitations, or caveats of {name}",
+            ("tradeoff", "trade-off", "pro", "con", "advantage", "disadvantage", "drawback", "caveat", "limitation", "instead", "alternative", "issue", "problem", "latency", "scale",
+             "장점", "단점", "주의", "한계", "대신", "반면", "문제", "이슈", "고려", "trade"),
+        ),
     ),
     "experience": (
-        ("맡은 역할과 당시 상황", ("역할", "담당", "맡", "팀", "상황", "배경", "목표", "프로젝트")),
-        ("직접 한 일과 해결 과정", ("구현", "설계", "개발", "해결", "개선", "도입", "진행", "작업", "수행", "분석")),
-        ("결과와 배운 점", ("결과", "성과", "개선", "감소", "증가", "향상", "단축", "배웠", "배운", "달성", "%")),
+        (
+            "role and context at the time",
+            ("role", "owned", "responsible", "led", "team", "context", "situation", "background", "goal", "project",
+             "역할", "담당", "맡", "팀", "상황", "배경", "목표", "프로젝트"),
+        ),
+        (
+            "actions taken and problem-solving process",
+            ("built", "designed", "implemented", "developed", "solved", "resolved", "improved", "introduced", "analyzed", "debugged", "migrated",
+             "구현", "설계", "개발", "해결", "개선", "도입", "진행", "작업", "수행", "분석"),
+        ),
+        (
+            "outcomes and lessons learned",
+            ("result", "outcome", "improved", "reduced", "increased", "faster", "latency", "throughput", "learned", "achieved", "%",
+             "결과", "성과", "개선", "감소", "증가", "향상", "단축", "배웠", "배운", "달성"),
+        ),
     ),
     "education": (
-        ("전공 내용 중 직무와 연결되는 부분", ("전공", "수업", "과목", "배운", "학습", "연구", "졸업", "과제")),
-        ("관련 프로젝트나 과제 경험", ("프로젝트", "실습", "적용", "활용", "과제", "경험")),
+        (
+            "foundational coursework relevant to the role",
+            ("major", "course", "class", "studied", "learned", "research", "degree", "foundation",
+             "전공", "수업", "과목", "배운", "학습", "연구", "졸업", "과제"),
+        ),
+        (
+            "relevant projects or practical assignments",
+            ("project", "lab", "applied", "built", "assignment", "experience",
+             "프로젝트", "실습", "적용", "활용", "과제", "경험"),
+        ),
     ),
     "certificate": (
-        ("준비하며 익힌 지식", ("공부", "준비", "학습", "개념", "배운", "익힌")),
-        ("그 지식을 직무에 적용하는 방법", ("적용", "활용", "실무", "프로젝트", "업무")),
+        (
+            "knowledge studied while preparing for the credential",
+            ("studied", "prepared", "learned", "concept", "exam", "theory",
+             "공부", "준비", "학습", "개념", "배운", "익힌"),
+        ),
+        (
+            "applying that knowledge to day-to-day work",
+            ("apply", "applied", "use", "work", "project", "production",
+             "적용", "활용", "실무", "프로젝트", "업무"),
+        ),
     ),
     "other": (
-        ("당시의 상황", ("상황", "때", "당시", "경우", "팀", "프로젝트")),
-        ("본인이 한 행동", ("제가", "했습니다", "했어요", "해결", "조율", "설득", "제안", "노력", "진행")),
-        ("결과와 배운 점", ("결과", "그래서", "배웠", "배운", "개선", "성과", "깨달")),
+        (
+            "situation and context at the time",
+            ("situation", "context", "when", "time", "team", "project",
+             "상황", "때", "당시", "경우", "팀", "프로젝트"),
+        ),
+        (
+            "actions you personally took",
+            ("handled", "resolved", "aligned", "discussed", "proposed", "collaborated", "worked", "led", "decided",
+             "제가", "했습니다", "했어요", "해결", "조율", "설득", "제안", "노력", "진행"),
+        ),
+        (
+            "outcomes and takeaways",
+            ("result", "outcome", "learned", "improved", "agreed", "realized", "takeaway",
+             "결과", "그래서", "배웠", "배운", "개선", "성과", "깨달"),
+        ),
     ),
 }
 _GENERIC["project"] = _GENERIC["experience"]
-_CLAUSE_SPLIT = re.compile(r"[\n;·/]|,\s*|\s+(?:및|그리고|또는)\s+|(?<=[다요음함])\.\s+")
+_CLAUSE_SPLIT = re.compile(r"[\n;·/]|,\s*|\s+(?:및|그리고|또는)\s+|(?<=[다요음함])\.\s+|(?<=[a-z])\.\s+")
 _ENDINGS = re.compile(r"(하고|하는|하며|하여|하면|하기|했던|했고|했다|한다|합니다|해서|되는|되어|적인|에서|으로|까지|부터|처럼|보다|라는|들)$")
 _HANGUL = re.compile(r"[가-힣]")
 _MAX_CLAUSE_CHARS = 60
@@ -180,11 +231,11 @@ def topic_keywords(*texts: str, skills: SkillDictionary | None = None) -> tuple[
 
 # ── Answer analysis ──
 
-_FILLERS = frozenset({"음", "으음", "음음", "어", "어어", "아", "아아", "에", "그", "저", "흠", "그게", "저기", "뭐", "뭐랄까", "um", "uh", "hmm"})
+_FILLERS = frozenset({"음", "으음", "음음", "어", "어어", "아", "아아", "에", "그", "저", "흠", "그게", "저기", "뭐", "뭐랄까", "um", "uh", "hmm", "er", "ah"})
 _REPEAT = re.compile(
     r"다시\s*(?:한\s*번)?\s*(?:말씀|질문|읽어|들려|얘기|이야기)|한\s*번\s*더|질문(?:이|을)?\s*(?:뭐|무엇|무슨|다시)|못\s*들었|"
     r"뭐라고(?:\s*(?:요|하셨|하신|말씀)|[?？]|$)|"  # "뭐라고요?" asks to repeat; "뭐라고 해야 할지" is a hesitation
-    r"\brepeat\b|say (?:that )?again|once more|one more time|pardon",
+    r"\brepeat\b|say (?:that )?again|once more|one more time|pardon|didn'?t (?:catch|hear)",
     re.IGNORECASE,
 )
 _CLARIFY = re.compile(
@@ -194,7 +245,7 @@ _CLARIFY = re.compile(
 )
 _DONT_KNOW = re.compile(
     r"모르겠|모릅니다|몰라요|잘\s*모르|기억(?:이|은)?\s*(?:잘\s*)?(?:안|나지)|생각(?:이)?\s*(?:안|나지)|(?:해본|써본|사용해본)\s*(?:적|경험)?(?:이|은)?\s*없|"
-    r"i don'?t know|no idea|not sure|don'?t remember|never (?:used|done)",
+    r"i don'?t know|no idea|not sure|don'?t remember|not familiar|never (?:used|done)|no experience with",
     re.IGNORECASE,
 )
 _PUNCT = re.compile(r"[\W_]+")

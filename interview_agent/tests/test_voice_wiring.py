@@ -74,7 +74,7 @@ def test_the_speech_services_are_livekit_inference_with_the_models_of_the_decisi
     session = built(monkeypatch)
     assert (type(session.stt).__name__, session.stt.model, session.stt.provider) == ("STT", "deepgram/nova-3", "livekit")
     assert (type(session.tts).__name__, session.tts.model, session.tts.provider) == ("TTS", "cartesia/sonic-3", "livekit")
-    assert session.tts._opts.language == "ko" and session.tts._opts.voice
+    assert session.tts._opts.language == "en" and session.tts._opts.voice
     assert voice.turn_detection_label(session) == "turn-detector-v1"  # asked for by version: `start` would run the local v1-mini otherwise
 
 
@@ -146,7 +146,8 @@ def test_an_invalid_voice_setting_is_refused(overrides):
 
 def test_the_voice_defaults_and_the_console_session():
     s = settings(INTERVIEW_AGENT_CONSOLE_SESSION_ID="12")
-    assert (s.stt_model, s.tts_model, s.language, s.status_poll, s.console_session_id) == ("deepgram/nova-3", "cartesia/sonic-3", "ko", 5.0, 12)
+    assert (s.stt_model, s.tts_model, s.language, s.status_poll, s.console_session_id) == ("deepgram/nova-3", "cartesia/sonic-3", "en", 5.0, 12)
+    assert settings(INTERVIEW_AGENT_LANGUAGE="ko").language == "ko"
     assert settings().console_session_id is None
 
 

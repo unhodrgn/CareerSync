@@ -31,7 +31,7 @@ MAX_LLM_ITEMS = 5
 MAX_STRENGTHS = 5
 MAX_IMPROVEMENTS = 10
 _URL = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|io|dev|net|kr)/\S*", re.IGNORECASE)
-_SECTION_LABELS = {"experience": "경력", "project": "프로젝트", "education": "학력", "skill": "기술"}
+_SECTION_LABELS = {"experience": "Experience", "project": "Projects", "education": "Education", "skill": "Skills"}
 # Missing these headings changes scoring: periods and skill uses are read from the 경력/프로젝트 sections
 _SCORED_SECTIONS = ("experience", "project")
 
@@ -81,9 +81,11 @@ def _entries(text: str, keys: Sequence[str]) -> list[list[str]]:
 
 def _span(months: int) -> str:
     years, rest = divmod(months, 12)
+    y_str = f"{years} year{'s' if years != 1 else ''}"
+    m_str = f"{rest} month{'s' if rest != 1 else ''}"
     if not years:
-        return f"{rest}개월"
-    return f"{years}년 {rest}개월" if rest else f"{years}년"
+        return m_str
+    return f"{y_str} {m_str}" if rest else y_str
 
 
 # ── Rule checks ──
@@ -97,32 +99,32 @@ def scoring_checks(text: str, profile: CvProfile, skills: SkillDictionary) -> li
         if key not in sections:
             label = _SECTION_LABELS[key]
             items.append(ReviewItem(
-                f"'{label}' 제목 없음",
-                f"이력서에서 '{label}' 제목을 찾지 못했습니다. {label}이(가) 있다면 '{label}' 제목을 한 줄에 따로 적어야 "
-                "기간과 사용 기술이 평가에 반영됩니다.",
+                f"Missing '{label}' heading",
+                f"No '{label}' heading was found in the CV. Put '{label}' on its own line so periods and used skills "
+                "count toward scoring.",
                 affects_scoring=True,
             ))
     if (exp := sections.get("experience")) is not None and not _RANGE.search(exp.text):
         first = next((line.strip() for line in exp.text.splitlines() if line.strip()), None)
         items.append(ReviewItem(
-            "경력 기간을 읽을 수 없음",
-            "경력 기간을 'YYYY.MM ~ YYYY.MM'(재직 중이면 '~ 현재') 형식으로 적어야 경력 기간이 평가에 반영됩니다.",
+            "Unreadable experience dates",
+            "Write work periods as 'YYYY.MM ~ YYYY.MM' (or '~ present' for current roles) so experience duration counts toward scoring.",
             first,
             True,
         ))
     missing_skills = [s for s in profile.skills if s.strip() and not skills.lines_mentioning(s, text)]
     if missing_skills:
         items.append(ReviewItem(
-            "이력서 원문에 없는 기술",
-            f"{', '.join(missing_skills[:8])}: 수정 화면에서만 추가한 기술은 PDF 원문에 없어 평가에 반영되지 않습니다. "
-            "반영하려면 PDF에 적은 뒤 다시 업로드하세요.",
+            "Skills missing from CV text",
+            f"{', '.join(missing_skills[:8])}: Skills added only on the edit screen are absent from the PDF text and do not count toward scoring. "
+            "Add them to your PDF and re-upload.",
             affects_scoring=True,
         ))
     missing_certs = [c.name for c in profile.certificates if c.name.strip() and not line_in_text(c.name, text)]
     if missing_certs:
         items.append(ReviewItem(
-            "이력서 원문에 없는 자격증",
-            f"{', '.join(missing_certs[:5])}: PDF 원문에 없는 자격증은 평가에 반영되지 않습니다. PDF에 적은 뒤 다시 업로드하세요.",
+            "Certificates missing from CV text",
+            f"{', '.join(missing_certs[:5])}: Certificates absent from the PDF text do not count toward scoring. Add them to your PDF and re-upload.",
             affects_scoring=True,
         ))
     if "education" in sections or profile.education:
@@ -132,15 +134,15 @@ def scoring_checks(text: str, profile: CvProfile, skills: SkillDictionary) -> li
         ]
         if not verified:
             items.append(ReviewItem(
-                "전공을 확인할 수 없음",
-                "학력 줄에 전공(예: '컴퓨터공학과')을 함께 적어야 전공 요건이 있는 공고에서 평가됩니다.",
+                "Major could not be verified",
+                "Include your major (e.g., 'Computer Science') on your education line so postings requiring a major can evaluate it.",
                 affects_scoring=True,
             ))
     no_tech = [e[0] for e in _entries(text, ("project",)) if not skills.find_in_text("\n".join(e))]
     for line in no_tech[:2]:
         items.append(ReviewItem(
-            "기술 스택이 없는 프로젝트",
-            "프로젝트에 사용한 기술을 적으면 해당 기술의 사용 경험으로 평가됩니다.",
+            "Project without listed technologies",
+            "List the technologies used in this project so your experience with them counts toward skill scoring.",
             line,
             True,
         ))
@@ -151,12 +153,12 @@ def _extra_checks(text: str) -> list[ReviewItem]:
     """Advice that does not change scoring."""
     items = []
     if "education" not in {s.key for s in split_sections(text)}:
-        items.append(ReviewItem("'학력' 제목 없음", "학력이 있다면 '학력' 제목 아래에 학교, 전공, 기간을 적으세요."))
+        items.append(ReviewItem("Missing 'Education' heading", "If you have education history, list your school, major, and dates under an 'Education' heading."))
     flat = [e for e in _entries(text, ("experience", "project")) if len(e) > 1]
     for entry in [e for e in flat if not any(re.search(r"\d", line) for line in e[1:])][:2]:
         items.append(ReviewItem(
-            "성과를 수치로 보여 주기",
-            "맡은 일과 함께 결과를 숫자(처리량, 개선 비율, 사용자 수 등)로 적으면 기여도가 더 잘 드러납니다.",
+            "Quantify results with numbers",
+            "Include measurable outcomes (throughput, improvement percentage, users served, etc.) alongside your work to make impact clear.",
             entry[0],
         ))
     return items
@@ -166,7 +168,7 @@ def _strengths(text: str, profile: CvProfile, skills: SkillDictionary, today: st
     items = []
     months, lines = verified_experience(text, profile.experiences, today)
     if months:
-        items.append(ReviewItem("경력 기간이 명확함", f"이력서에서 약 {_span(months)}의 경력 기간이 확인됩니다.", lines[0]))
+        items.append(ReviewItem("Clear employment periods", f"Verified approximately {_span(months)} of experience from your CV.", lines[0]))
     entries = _entries(text, ("experience", "project"))
     used = []
     for skill in skills.find_in_text(text):
@@ -174,14 +176,14 @@ def _strengths(text: str, profile: CvProfile, skills: SkillDictionary, today: st
         if len(hits) >= 2:
             used.append((len(hits), skill, hits[0]))
     for count, skill, line in sorted(used, key=lambda x: -x[0])[:3]:
-        items.append(ReviewItem(f"{skill} 활용 경험", f"{skill}을(를) 경력·프로젝트 {count}건에서 사용했습니다.", line))
+        items.append(ReviewItem(f"{skill} hands-on experience", f"Used {skill} across {count} experience and project entries.", line))
     certs = list(dict.fromkeys(skills.find_certificates(text)))
     if certs:
         names = list(dict.fromkeys(name for name, _ in certs))
-        items.append(ReviewItem("자격증 보유", f"{', '.join(names[:3])} 자격증이 이력서에 있습니다.", certs[0][1].strip()))
+        items.append(ReviewItem("Verified certificates", f"Listed in CV: {', '.join(names[:3])}.", certs[0][1].strip()))
     with_tech = [e[0] for e in _entries(text, ("project",)) if skills.find_in_text("\n".join(e))]
     if len(with_tech) >= 2:
-        items.append(ReviewItem("기술 스택이 드러난 프로젝트", f"사용 기술이 적힌 프로젝트가 {len(with_tech)}건 있습니다.", with_tech[0]))
+        items.append(ReviewItem("Projects with clear tech stacks", f"Found {len(with_tech)} project entries specifying technologies used.", with_tech[0]))
     return items[:MAX_STRENGTHS]
 
 

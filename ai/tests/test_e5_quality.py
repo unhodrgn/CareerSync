@@ -59,14 +59,14 @@ def test_e5_is_really_used(e5):
 def test_unrelated_skill_in_the_dictionary_gets_no_partial_credit(e5):
     # Before D27 e5 similarity gave Figma 50 ("유사 기술 JPA")
     r = _score(Criterion(1, "Figma 활용", "", "skill", 100), e5)
-    assert (r.score, r.reason) == (0, "Figma 경험 확인 안 됨")
+    assert (r.score, r.reason) == (0, "Figma not confirmed")
 
 
 @pytest.mark.parametrize("skill", ["Excel", "Photoshop"])
 def test_skills_outside_the_dictionary_missing_from_the_cv_score_zero(e5, skill):
     # Not in data/skills.yaml and not on the CV: 0, never "유사"/"계열" and never the neutral score (D28)
     r = _score(Criterion(1, f"{skill} 활용", "", "skill", 100), e5)
-    assert (r.score, r.reason) == (0, "이력서에서 확인되지 않음")
+    assert (r.score, r.reason) == (0, "Not confirmed in CV")
 
 
 def test_skill_outside_the_dictionary_on_the_cv_scores_higher(e5):
@@ -84,13 +84,13 @@ def test_contact_block_is_never_retrieved_for_a_project_criterion(e5):
     cand = candidate()
     query = "프로젝트 경험. 직무와 관련된 프로젝트 경험과 본인의 역할"
     passages = retrieve(query, cv_chunks(cand.text), e5, k=10, prefer=("project", "experience"))
-    assert passages and all("[이메일]" not in p.chunk.text and "[전화번호]" not in p.chunk.text for p in passages)
+    assert passages and all("[EMAIL]" not in p.chunk.text and "[PHONE]" not in p.chunk.text for p in passages)
     assert passages[0].chunk.section in ("project", "experience")
 
 
 def test_related_group_credit_does_not_depend_on_the_embedder(e5):
     r = _score(Criterion(1, "PostgreSQL 활용", "", "skill", 100), e5)
-    assert (r.score, r.reason) == (50, "PostgreSQL 직접 경험은 없으나 같은 계열 기술 MySQL 보유")
+    assert (r.score, r.reason) == (50, "No direct PostgreSQL experience, but related skill MySQL found")
 
 
 def test_default_project_criterion_from_analyze_is_not_zero(e5):

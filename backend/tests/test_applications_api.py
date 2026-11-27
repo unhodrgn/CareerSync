@@ -155,7 +155,7 @@ def test_apply_evaluates_and_ranks(client, db, world, job):
     assert skill["entries"]
     assert ev["items"][-1]["direct_skill_basis"] is None
     assert ev["summary"] and "for reference only" in ev["notice"]
-    assert ev["embedding_model"] == "hashing-ngram-v1" and ev["prompt_version"] == "v1"
+    assert ev["embedding_model"] == "hashing-ngram-v1" and ev["prompt_version"] == "v2"
 
 
 def test_weight_change_reranks_without_rescoring(client, db, world, job, monkeypatch):
@@ -363,7 +363,7 @@ def test_no_personal_data_reaches_the_llm_on_the_company_verification_path(clien
 
     assert len(llm.calls) == 1  # the verification prompt, and nothing else
     prompt = llm.calls[0][1]
-    assert "이력서 인용문" in prompt and "[이름]" in prompt  # it was built from the masked claim lines, the named one included
+    assert "Verified CV quotes" in prompt and "[NAME]" in prompt  # it was built from the masked claim lines, the named one included
     for secret in ("jiwon.kim@example.com", "010-1234-5678", "테헤란로", "김지원", "jiwon kim", "kim ji-won", "박서준"):
         assert secret not in prompt.lower()
 

@@ -30,7 +30,18 @@ _NON_NAME_ROLES = frozenset(
     "동료 리더 사회자 면접자 설계자 운영자 관리자 교육생 수료생 안녕하세요 성별 국적 병역 장애".split()
 )
 
+_EN_NON_NAME_ROLES = frozenset({
+    "a", "an", "the", "senior", "junior", "backend", "frontend", "fullstack", "full-stack",
+    "software", "developer", "engineer", "designer", "manager", "lead", "principal", "architect",
+    "student", "intern", "applicant", "candidate", "korean", "english", "seoul", "korea",
+    "java", "spring", "boot", "python", "fastapi", "django", "docker", "kubernetes", "aws", "gcp",
+    "sorry", "glad", "happy", "excited", "ready", "sure", "fine", "good", "great", "interested",
+    "working", "currently", "building", "using", "not", "looking", "applying", "familiar",
+    "experience", "experienced", "project", "projects", "team", "company", "role", "system",
+})
+
 _SPOKEN_DIGITS = "공영일이삼사오육칠팔구"
+_EN_DIGIT_WORD = r"(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)"
 _COMPOUND = "|".join(re.escape(s) for s in sorted(_DETECT_SURNAMES, key=len, reverse=True) if len(s) == 2)
 _SINGLE = "".join(re.escape(s) for s in sorted(_DETECT_SURNAMES) if len(s) == 1)
 _SURNAME = rf"(?:{_COMPOUND}|[{_SINGLE}])"
@@ -39,19 +50,34 @@ _AFTER_NAME = r"(?=\s*(?:입니다|이에요|예요|이라고|라고|이고|인�
 
 _RRN_RE = re.compile(r"(?<!\d)\d{6}\s?-?\s?[1-4]\d{6}(?!\d)")
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-_EMAIL_SPOKEN_RE = re.compile(r"[\w.\-]+\s*(?:골뱅이|앳)\s*[\w\-]+(?:\s*(?:점|\.)\s*[\w\-]+)+")
+_EMAIL_SPOKEN_RE = re.compile(
+    r"[\w.\-]+\s*(?:골뱅이|앳)\s*[\w\-]+(?:\s*(?:점|닷|\bdot\b|\.)\s*[\w\-]+)+"
+    r"|\b[\w-]+(?:\s*(?:\.|닷|\bdot\b)\s*[\w-]+)*\s*\bat\b\s*[\w-]+(?:\s*(?:닷|\bdot\b)\s*[\w-]+)+",
+    re.IGNORECASE,
+)
 _URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
-_PHONE_RE = re.compile(r"(?<!\d)(?:\+?82[-.\s]?)?(?:0?1[016-9]|0\d{1,2})[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)")
+_PHONE_RE = re.compile(
+    r"(?<!\d)(?:\+?82[-.\s]?)?(?:0?1[016-9]|0\d{1,2})[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)"
+    r"|(?<!\d)(?:\+?1[-.\s]?)?(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}(?!\d)"
+)
 _PHONE_SPOKEN_RE = re.compile(
     rf"(?<![가-힣])(?:공일공|영일영)(?:[\s-]*[{_SPOKEN_DIGITS}]){{7,8}}"
     rf"|(?<!\S)(?:[{_SPOKEN_DIGITS}](?:\s+|-)){{7,}}[{_SPOKEN_DIGITS}](?!\S)"
+    rf"|(?i:(?<!\w)(?:{_EN_DIGIT_WORD}(?:\s+|-)){{7,}}{_EN_DIGIT_WORD}(?!\w))"
 )
-_BIRTH_RE = re.compile(rf"(?:(?:생년월일|생일|출생)[은는이가:\s]*){_BIRTH_DATE}|{_BIRTH_DATE}(?=\s*(?:에\s*)?(?:태어났|출생))")
+_BIRTH_RE = re.compile(
+    rf"(?:(?:생년월일|생일|출생)[은는이가:\s]*){_BIRTH_DATE}|{_BIRTH_DATE}(?=\s*(?:에\s*)?(?:태어났|출생))"
+    r"|(?i:\b(?:date of birth|birthday|dob)\b\s*(?:is|:)?\s*)(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})"
+)
 # "이름은 철수입니다", "성함은 홍길동"
 _LABELED_NAME_RE = re.compile(rf"(?P<pre>(?:이름|성함|성명)\s*(?:은|는|이|가)?\s*)(?P<name>[가-힣]{{2,4}}){_AFTER_NAME}")
 # "저는 김철수입니다" (a surname, then 1-2 syllables): "저는 개발자입니다" is not a name and stays
 _INTRO_NAME_RE = re.compile(rf"(?P<pre>(?:저는|전|제\s*이름은)\s*)(?P<name>{_SURNAME}[가-힣]{{1,2}})(?=\s*(?:입니다|이에요|예요|이라고|라고\s*합니다))")
-_ENGLISH_NAME_RE = re.compile(r"(?P<pre>\bmy\s+name\s+is\s+)(?P<name>[A-Za-z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*)?)", re.IGNORECASE)
+# Keep <name> case-sensitive so lowercase words ("and", "I") are not swallowed after an introduced name
+_ENGLISH_NAME_RE = re.compile(
+    r"(?P<pre>(?i:\b(?:my\s+name\s+is|call\s+me)\s+))(?P<name>(?:[A-Z][A-Za-z'-]*(?:\s+[A-Z][A-Za-z'-]*)?|[a-z]{2,15}))"
+    r"|(?P<pre2>(?i:\b(?:i\s+am|i'm|this\s+is)\s+))(?P<name2>[A-Z][A-Za-z'-]+\s+[A-Z][A-Za-z'-]+)"
+)
 
 
 @dataclass(frozen=True)
@@ -82,10 +108,13 @@ def mask_spoken(text: str, names: Sequence[str] = ()) -> SpokenMaskResult:
 
     def sub_name(pattern: re.Pattern[str], source: str, stop: frozenset[str] = frozenset()) -> str:
         def replace(m: re.Match[str]) -> str:
-            if m.group("name").strip() in stop:
+            pre = m.group("pre") if "pre" in m.groupdict() and m.group("pre") is not None else m.group("pre2")
+            raw = m.group("name") if "name" in m.groupdict() and m.group("name") is not None else m.group("name2")
+            parts = raw.strip().split()
+            if any(part.lower() in stop for part in parts):
                 return m.group(0)
             kinds["name"] += 1
-            return m.group("pre") + NAME_TOKEN
+            return pre + NAME_TOKEN
 
         return pattern.sub(replace, source)
 
@@ -99,7 +128,7 @@ def mask_spoken(text: str, names: Sequence[str] = ()) -> SpokenMaskResult:
     out = sub(_BIRTH_RE, BIRTH, "birth_date", out)
     out = sub_name(_LABELED_NAME_RE, out, _NON_NAME_ROLES)
     out = sub_name(_INTRO_NAME_RE, out, _NON_NAME_ROLES)
-    out = sub_name(_ENGLISH_NAME_RE, out)
+    out = sub_name(_ENGLISH_NAME_RE, out, _EN_NON_NAME_ROLES)
     for pattern in _account_patterns(names):
         out = sub(pattern, NAME_TOKEN, "name", out)
     return SpokenMaskResult(" ".join(out.split()), dict(kinds))

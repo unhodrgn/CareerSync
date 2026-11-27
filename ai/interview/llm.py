@@ -142,7 +142,7 @@ def scrub_context(context: TurnContext) -> TurnContext | None:
         context,
         question=question,
         criterion_name=_flat(context.criterion_name) or None,
-        rubric=tuple((pid, _flat(text) or "(제외됨)") for pid, text in context.rubric),
+        rubric=tuple((pid, _flat(text) or "(excluded)") for pid, text in context.rubric),
         answer=answer,
         previous=tuple(line for line in map(_flat, context.previous) if line),
         asked=tuple(line for line in map(_flat, context.asked) if line),

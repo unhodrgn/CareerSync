@@ -235,7 +235,7 @@ def test_uncovered_entries_bank_method_and_notice_are_validated():
     ]
     plan = InterviewPlan((item(),), tuple(entries), rubric_notice="이 면접은 합격을 보장합니다", bank_method="evil\nmethod")
     out = validate_plan(plan, blocklists=BLOCKLISTS).plan
-    assert [(u.criterion_id, u.name, u.importance, u.reason) for u in out.uncovered] == [(2, "(제외됨)", "important", "no_slot"), (3, "협업 태도", "general", "no_question")]
+    assert [(u.criterion_id, u.name, u.importance, u.reason) for u in out.uncovered] == [(2, "(excluded)", "important", "no_slot"), (3, "협업 태도", "general", "no_question")]
     assert out.rubric_notice == RUBRIC_NOTICE and out.bank_method == "rules"
     assert validate_plan(dataclasses.replace(plan, bank_method="llm:claude-sonnet-5-5"), blocklists=BLOCKLISTS).plan.bank_method == "llm:claude-sonnet-5-5"
 
@@ -367,7 +367,7 @@ def test_a_description_with_sentences_about_the_topics_gives_a_clean_rubric():
 def test_a_criterion_name_about_the_topics_is_reported_not_planned():
     plan = build_plan([crit(1, "남성 우대", "other", "", "core"), crit(2, "Java 활용 능력", "skill", "Java 17 사용 경험", "core")], (), MASKED, [], BLOCKLISTS, skills=SKILLS)
     assert [i.topic_id for i in plan.items if i.criterion_id is not None] == ["c2"]
-    assert [(u.criterion_id, u.name, u.reason) for u in plan.uncovered] == [(1, "(제외됨)", "no_question")]
+    assert [(u.criterion_id, u.name, u.reason) for u in plan.uncovered] == [(1, "(excluded)", "no_question")]
 
 
 def test_lines_a_caller_passes_get_the_evidence_filters_too():

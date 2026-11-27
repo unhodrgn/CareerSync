@@ -58,7 +58,7 @@ Binding product rules that every screen must respect (see `docs/DECISIONS.md` fo
   - Seeker card: the 4 criteria names with a neutral "점수 반영" badge, the AWS row as the amber "이력서에 없음" gap (D21), the JD-only gap in the footer; no "Matched" rows, no numbers (D1, D16, D21).
   - Spine: neutral category tags instead of the High / Core / Gap badges (importance levels are Q2, undecided).
   - Employer card: named applicants (not anonymous); anonymity is stated only for talent recommendation, in the trust note.
-  - Copy goes through `t()` (English since D94; the Korean strings quoted above are the `ko.ts` versions); the example uses the seed job 클라우드랩 · 데이터 엔지니어, labeled 예시.
+  - Copy goes through `t()` (English since D94; the Korean strings quoted above are the `ko.ts` versions); the example uses the seed job CloudLab · Data Engineer (클라우드랩 · 데이터 엔지니어 before D95), labeled Example.
 
 ## Evidence on Hand
 

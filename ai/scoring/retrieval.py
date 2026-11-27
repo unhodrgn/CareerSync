@@ -7,8 +7,10 @@ from ai.parsing.sections import Chunk, chunk_sections, heading_key, split_sectio
 
 # Generic words that say nothing about the content (D27: 직무, 본인, 역할 added)
 _STOP = {
-    "경험", "능력", "역량", "관련", "있는", "및", "또는", "등", "the", "and", "with", "for", "of", "a", "to", "보유", "활용", "이해",
-    "직무", "본인", "역할",
+    "경험", "능력", "역량", "관련", "있는", "및", "또는", "등", "보유", "활용", "이해", "직무", "본인", "역할",
+    "the", "and", "with", "for", "of", "a", "to", "in", "on", "or",
+    "experience", "ability", "skill", "skills", "related", "relevant", "role", "own", "proficiency",
+    "understanding", "hands-on", "work", "using", "use",
 }
 
 
@@ -37,7 +39,7 @@ class Passage:
 
 
 # Masked personal data (ai/parsing/pii.py) and contact labels: a chunk with nothing else is no evidence (issue 32)
-_PII_TOKEN = re.compile(r"\[(?:이름|이메일|전화번호|주소|생년월일|링크|주민번호)\]")
+_PII_TOKEN = re.compile(r"\[(?:NAME|EMAIL|PHONE|ADDRESS|DOB|URL|RRN)\]")
 _CONTACT_LABEL = re.compile(
     r"성명|이름|연락처|이메일|e-?mail|휴대\s*(?:폰|전화)|핸드폰|전화\s*번호|전화|phone|mobile|tel|주소|address|생년월일|"
     r"birth(?:day)?|링크|github|blog|블로그|포트폴리오|portfolio",

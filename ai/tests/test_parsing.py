@@ -27,13 +27,13 @@ def test_pii_is_masked():
 
 def test_masking_a_birth_date_keeps_the_next_line_separate():
     m = mask_pii("생년월일: 1997.05.12\n\n경력\n넥스트코드 2021.03 ~ 현재", [])
-    assert "1997" not in m.text and "[생년월일]\n\n경력" in m.text
+    assert "1997" not in m.text and "[DOB]\n\n경력" in m.text
     assert [s.key for s in split_sections(m.text)] == ["other", "experience"]
-    assert mask_pii("생년월일 1997년 5월 12 일\n학력", []).text.endswith("[생년월일]\n학력")
+    assert mask_pii("생년월일 1997년 5월 12 일\n학력", []).text.endswith("[DOB]\n학력")
 
 
 def test_name_with_spaces_between_syllables_is_masked():
-    assert "[이름]" in mask_pii("지원자: 김 지 원", ["김지원"]).text
+    assert "[NAME]" in mask_pii("지원자: 김 지 원", ["김지원"]).text
 
 
 def test_sections_by_heading():
@@ -178,7 +178,7 @@ def test_rules_structure_the_sample_cv():
     ]
     assert profile.projects[0].name == "쇼핑몰 추천 시스템"
     assert profile.projects[0].tech == ["Python", "FastAPI", "Docker", "AWS"]
-    assert (profile.education[0].major, profile.education[0].degree) == ("컴퓨터공학과", "학사")
+    assert (profile.education[0].major, profile.education[0].degree) == ("컴퓨터공학과", "Bachelor")
     assert [c.name for c in profile.certificates] == ["정보처리기사", "SQLD"]
 
 
@@ -256,7 +256,7 @@ def test_headed_jd_takes_required_and_preferred_from_their_sections():
     assert analysis.profile.preferred_skills == ["Kafka", "Redis"]
     assert analysis.profile.min_years == 2
     names = [c.name for c in analysis.criteria]
-    assert names[:3] == ["Java 활용 능력", "Spring 활용 능력", "PostgreSQL 활용 능력"] and "MSA 활용 능력" not in names
+    assert names[:3] == ["Java proficiency", "Spring proficiency", "PostgreSQL proficiency"] and "MSA proficiency" not in names
 
 
 @pytest.mark.parametrize("required, preferred", [("[필수]", "[우대]"), ("■ 지원 자격 :", "◆ 우대조건"), ("Requirements", "Preferred")])

@@ -1,9 +1,9 @@
 # CareerSync — Project Progress Tracker
 
 > **Mục đích:** Theo dõi các phase, milestone, task, kết quả kiểm thử, quyết định và blockers của dự án CareerSync.  
-> **Last updated:** 22/11/2026 (KST)  
+> **Last updated:** 27/11/2026 (KST)  
 > **Repository:** `D:\dev\project\CareerSync`  
-> **Branch (last reported):** `feature/ai-avatar-poc`  
+> **Branch (last reported):** `before_m6`  
 > **Product:** CareerSync — Criteria-Based Hiring & Job Matching Platform
 
 ---
@@ -37,7 +37,8 @@
 - [x] PostgreSQL test tiers, JSONB diagnostics and concurrency verification against the same database *(§4A.5; Tiers A, B and C, the race repeats and the JSONB diagnostics passed on 21 and 22/11/2026 after the fixes of D73 to D75; the schema was restored and `alembic check` passed on 22/11/2026; outcome in D77)*
 - [x] Q42 resolved *(the one index `uq_job_criteria_job_name` is filtered out of the comparison in `backend/migrations/env.py`; `alembic check` exits 0 at head; D76)*
 - [x] M5 — realtime interview agent *(S0–S5 done; Linux lock frozen and live checklist C1–C8 closed on Compose; not production-ready: Q24, Q35 open)*
-- [ ] Anam Avatar integration on `interview_agent/` + `devclient/` with audio-only fallback (D90) *(implemented, offline tests + Compose Case 1 audio-only + Case 2 error fallback + Case 3 live Anam video/audio session 14 verified; pending user's visual lip-sync check on `devclient/`)*
+- [x] Full English conversion before M6 (D94 PR 2/3 & PR 3/3, D95) *(11 `v2` English prompts, English PII tokens, rules outputs, blocklists/resources, `interview_agent/` default `en` + spoken PII + `devclient/`, English `demo_cv.pdf` + `scripts/seed.py`, and synced docs; verified offline via `scripts/run_all_tests.py` + `frontend` build)*
+- [ ] Anam Avatar integration on `interview_agent/` + `devclient/` with audio-only fallback (D90) *(implemented, offline tests + Compose Case 1 audio-only + Case 2 error fallback + Case 3 live Anam video/audio session 14 verified; pending user's visual lip-sync & live English voice check on `devclient/`)*
 - [ ] M6 — full frontend rebuild including AI Interview UI (D88)
 - [ ] Final integration, end-to-end testing and release readiness
 
@@ -1273,8 +1274,9 @@ No new package in `backend/` other than `livekit-api`; no Groq SDK, no `openai` 
 | PostgreSQL safety hardening | Completed; exercised on PostgreSQL | W1/W2/W3/W5 and 80 N1–N9 tests added; the guards ran in front of every PostgreSQL step and the N1–N9 tests passed on PostgreSQL (D77). |
 | PostgreSQL QA | Passed: migration QA (M0 + M1) 21/11/2026; test tiers, restore and `alembic check` 22/11/2026 | Tiers A, B and C passed after the fixes of D73 to D75 (outcome D77); the schema was restored, and `alembic check` exits 0 with the filter of D76. The database is at `0012` (28 application tables), no data, no seed. Scope in D71; procedures and results in §4A.4 and §4A.5. The close-out is complete (CO4, the docstrings of eight test files, done 22/11/2026). |
 | M5 — Realtime agent | Implemented, locally verified, and live-verified on Compose (not production-ready: Q24, Q35 open) | Internal agent API, the agent core, consent withdrawal (D81), join token route, and LiveKit voice worker/controller/`devclient/` exist; the 147 gated tests (the 7 of M5 included) passed on PostgreSQL; Compose `agent` image uses frozen `requirements.linux.lock.txt` (`--no-deps` + `pip check`); live checklist C1–C8 closed across sessions 3, 6 (live Korean speech), and 8–11 (25/11/2026, headless `livekit.rtc` on Compose). |
-| Anam Avatar (D90) | Implemented, locally verified, and live-verified on Compose (`Case 1`–`3` headless; visual lip-sync check on `devclient/` pending) | `livekit-plugins-anam==1.8.12` wired in `voice.py`, `config.py`, `timing.py`, Compose, and `devclient/` (avatar video + local-only muted camera preview + `setTrackSubscriptionPermissions`); rebuilds a fresh `AgentSession` on failure/timeout; verified in offline tests (`125 passed`) and live Compose sessions 12 (`INTERVIEW_AGENT_AVATAR=off`), 13 (`APIStatusError` 401 -> `avatar=audio_only`), and 14 (live Anam `avatar=anam`, `start_to_join_s=1.301`, `409` video frames, synchronized audio playback, `1.312 s` cutoff on `/end`). Human visual lip-sync check on `devclient/` remains optional/pending before M6. |
-| M6 — Frontend rebuild & interview UI | Not Started | Full frontend rebuild including interview UI (D88); comes after Anam avatar (D90). |
+| Anam Avatar (D90) | Implemented, locally verified, and live-verified on Compose (`Case 1`–`3` headless; visual lip-sync check on `devclient/` pending) | `livekit-plugins-anam==1.8.12` wired in `voice.py`, `config.py`, `timing.py`, Compose, and `devclient/` (avatar video + local-only muted camera preview + `setTrackSubscriptionPermissions`); rebuilds a fresh `AgentSession` on failure/timeout; verified in offline tests and live Compose sessions 12 (`INTERVIEW_AGENT_AVATAR=off`), 13 (`APIStatusError` 401 -> `avatar=audio_only`), and 14 (live Anam `avatar=anam`, `start_to_join_s=1.301`, `409` video frames, synchronized audio playback, `1.312 s` cutoff on `/end`). Default speech language switched to `en` per D95 (`devclient/` and `interview_agent` offline tests updated). Live English voice + human visual lip-sync check on `devclient/` remains optional before M6. |
+| Pre-M6 English completion (D95) | Implemented, doc-synced, and offline-verified | `before_m6` Batches 1–4 complete: `ai/prompts/v2/` (`PROMPT_VERSION` = `v2`), English PII tokens/rules/blocklists/resources, English `interview_agent` (`en` default) + `devclient/`, English `data/demo/demo_cv.pdf` + `scripts/seed.py`, D95 + doc sync. Full offline `run_all_tests.py` + `frontend` build passed. |
+| M6 — Frontend rebuild & interview UI | Ready to start | Full frontend rebuild including interview UI (D88); pre-M6 English conversion (D94/D95) complete. |
 | Platform integration/release | Not Started | Depends on Anam avatar (D90), M6 rebuild (D88), and open legal/matching decisions (Q14, Q24, Q35). |
 
 ### Current Blocking Issue
@@ -1311,11 +1313,9 @@ No new package in `backend/` other than `livekit-api`; no Groq SDK, no `openai` 
 
 **Last reported Git state — refresh before acting:**
 
-- Branch: `feature/ai-avatar-poc`.
-- Last shared commit: `8a094f1` — `feat: add AI interviewsystem and avatar POC`.
-- The branch was reported synchronized with `origin/feature/ai-avatar-poc` at that point.
-- PostgreSQL safety hardening, N1–N9 tests and Unicode surrogate hardening were added after that commit and were still uncommitted in the last reported working-tree state.
-- `.mcp.json` was reported as untracked. Do not open, read, stage or commit it as part of this workflow.
+- Branch: `before_m6`.
+- Uncommitted working-tree changes cover `before_m6` Batches 1–4 (D95: `ai/prompts/v2/`, English AI/voice/seed code and tests, regenerated `data/demo/demo_cv.pdf`, and doc sync including `docs/DECISIONS.md`).
+- `.mcp.json` / `.env` / `.claude` stay untracked or excluded; never read, stage or commit secrets/DB config.
 
 Before creating a commit:
 
@@ -1358,6 +1358,7 @@ Use this section to record major completed or blocked batches. Record actual out
 | 22/11/2026 | D82 (web framework pinned); S3 implemented (D81, Q39); consent drafts and Q38 text prepared for review | Venv reinstalled from the pinned file; full runs: backend and AI 3,613 passed, 147 skipped, 0 failed; agent 36 passed. S3 demo over real HTTP (a counting fake model, not Groq). Consent wording and CLAUDE.md rule 2 NOT applied. PostgreSQL-gated tests (7 of M5) not run. |
 | 22/11/2026 | M5 plan approved with changes; S0, S1 and S2 implemented; D79, D80, D81 written, Q35 widened, Q39 closed | Full run (`scripts/run_all_tests.py`, SQLite, rules): backend and AI 3,588 passed, 1 failed, 142 skipped; agent 35 passed. The failure is the middleware-stack guard, tripped by FastAPI 0.165 installed in the repository venv before this work (§5.9). Text-driver demo against a local backend on a scratch SQLite file: one session `aborted` (`candidate_left`), one `completed`. PostgreSQL-gated tests and a real Groq call not run. |
 | 26/11/2026 | English product language, PR 1 of 3 (UI, backend user-facing text, data labels; D94) | `frontend/src/i18n/en.ts` (every `ko.ts` key, plus 20 new keys for text moved out of `SourceImportPanel`, `ApplicantDetail` and `CriteriaSuggestions`), `DEFAULT_LOCALE` `en` with English fallback, `<html lang="en">`, `en-US` dates and numbers; backend messages, `AI_NOTICE`, interview consent text and OpenAPI descriptions in English; importance `core`/`important`/`general` and bands `very_good`/`good`/`reference` in the API, the interview plan and the feedback prompt label list; `CONSENT_VERSION` and `INTERVIEW_CONSENT_VERSION` `2026-11-26` (interview consent digest re-pinned); doc guard `test_doc_constants` gained a `constant_history` allowlist for the two old versions quoted in D16 and D65. No legacy mapping: local databases are reset (`docs/how-to/run-locally.md`, Compose reset row). Full run (`scripts/run_all_tests.py -q`, SQLite, rules): backend and AI 3,747 passed, 152 skipped, 0 failed; agent 126 passed; `npm run build` passed. Not verified: the UI in a browser, a Compose reset, `llm` mode. AI output text, prompts, blocklists and the voice interview are PR 2 and PR 3. |
+| 27/11/2026 | Full English AI/voice/seed conversion before M6 (D94 PR 2/3 & PR 3/3, English demo seed; D95) | Completed all 4 Batches on `before_m6`: created 11 English prompts in `ai/prompts/v2/` (`PROMPT_VERSION` = `v2`, `v1/` kept), English PII tokens (`[NAME]`, `[EMAIL]`, `[PHONE]`, `[ADDRESS]`, `[DOB]`, `[URL]`, `[RRN]`), degree outputs, rules outputs/reasons/templates (`MAX_KEYWORDS = 18` for bilingual rubric cues), `data/blocklist.yaml`, `data/interview_blocklist.yaml` (`2026.11.1`), `data/learning_resources.yaml`, `frontend/src/components/seeker/JdText.tsx` headings; switched `interview_agent` default to `en` (`INTERVIEW_AGENT_LANGUAGE`), English `GREETING`, English spoken PII patterns (`ai/interview/spoken_pii.py`), English `devclient/` UI and `text_cli.py`; regenerated English `data/demo/demo_cv.pdf` (`scripts/make_demo_cv.py` using `"helv"`, `Doyun Han`, `B.S. in Computer Science`, `OCJP`) and `scripts/seed.py` (`NextCode`, `CloudLab`, `locations=["Seoul"]`, preserving the 5 demo emails and `demo1234`); recorded D95 and synced docs. Full run (`scripts/run_all_tests.py -q --tb=short` with `CAREERSYNC_DOTENV=0`, `AI_MODE=rules`, `HF_HUB_OFFLINE=1`): backend and AI **3,757 passed, 152 skipped** in 481.87 s (skipped = PostgreSQL-gated tests without `TEST_DATABASE_URL`); `interview_agent`: **126 passed** in 42.19 s; `backend/tests/docs`: **65 passed** in 7.50 s; `frontend` (`tsc -b` + `vite build`): passed in 3.92 s. Not verified in this pass: live English voice + Anam Avatar room run on `devclient/`, Compose database reset, `llm` mode, and PostgreSQL-gated tests against PostgreSQL. |
 
 Add a new row whenever a coherent implementation, verification, migration, decision or blocker changes the project state.
 

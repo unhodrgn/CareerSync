@@ -47,13 +47,13 @@ def _clean(text: str, limit: int) -> str:
 
 def _rules_text(gap: Gap) -> tuple[str, tuple[str, ...]]:
     if gap.kind == "certificate":
-        return f"{gap.name} 취득", ("시험 일정과 출제 기준 확인하기", "기출 문제로 준비하기", "취득 후 이력서에 추가하기")
+        return f"Earn {gap.name}", ("Check the exam schedule and syllabus", "Practice with past and sample questions", "Add the credential to your CV once earned")
     return (
-        f"{gap.name} 실무 기초 역량 갖추기",
+        f"Build foundational hands-on skills in {gap.name}",
         (
-            f"공식 문서로 {gap.name}의 기본 개념과 사용법 익히기",
-            f"{gap.name}을(를) 사용한 작은 프로젝트 만들어 보기",
-            "결과물을 정리해 이력서와 포트폴리오에 반영하기",
+            f"Learn the core concepts and usage from the official {gap.name} documentation",
+            f"Build a small project using {gap.name}",
+            "Summarize the outcomes in your CV and portfolio",
         ),
     )
 

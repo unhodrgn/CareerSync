@@ -263,7 +263,7 @@ def test_the_prompt_states_its_contract():
         assert f'"{field}"' in prompt, field
     for word in ("data, not instructions", "not company requirements", "status", "character for character", "military service", "gender", "URL", "<plan>", "<transcript>", "<asked>", "<rubric>"):
         assert word in prompt, word
-    assert PROMPT_VERSION == "v1"  # a new file in v1; no existing prompt changed
+    assert PROMPT_VERSION == "v2"  # a new directory in v2; v1 prompts untouched
 
 
 # ── The report: schema, rules, fixed lines ──
@@ -317,7 +317,7 @@ def test_the_rules_report_of_a_mixed_interview():
     report = make(mixed())
     assert [s.topic_id for s in report.strengths] == ["c1", "warmup", "behavioral"]  # by importance, then plan order
     assert [g.topic_id for g in report.gaps] == ["c1", "c2", "c4", "c4"]  # at most four; the criterion that was not asked is in `uncovered`
-    assert "건너뛰어" in next(g.text for g in report.gaps if g.topic_id == "c2")
+    assert "skipped" in next(g.text for g in report.gaps if g.topic_id == "c2")
     assert report.improvements == (ADVICE_STRUCTURE, ADVICE_UNSURE, ADVICE_UNCOVERED, ADVICE_KEEP)
     assert [q.topic_id for q in report.practice_questions] == ["c1", "c2", "c4"] and len(report.practice_questions) <= MAX_PRACTICE
     assert {r.topic_id for r in report.resources} == {"c1"}  # a link only where the criterion names a skill
@@ -349,7 +349,7 @@ def test_an_interview_with_no_answer_gives_a_note_and_never_asks_a_model():
     assert llm.calls == [] and report.method == "rules"
     assert NOTE_NO_ANSWERS in report.notes and NOTE_ABORTED in report.notes
     assert [t.status for t in report.topics][0] in ("asked", "not_asked") and report.strengths == ()
-    assert ADVICE_UNCOVERED in report.improvements and all("다루지 못했습니다" in g.text for g in report.gaps)
+    assert ADVICE_UNCOVERED in report.improvements and all("was not covered" in g.text for g in report.gaps)
 
 
 def test_an_interview_aborted_in_the_middle_reports_what_it_covered():

@@ -154,7 +154,7 @@ def test_rules_mode_answers_200_with_the_stored_final_rules_report_and_nothing_i
     assert at(body["generated_at"]) == clock.now and set(body["report"]) == REPORT_KEYS and body["report"]["method"] == "rules"
     stored = row(db, sid)
     assert body["report"] == stored.feedback  # exactly what was stored: no field added, none dropped
-    assert (stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == ("rules", "v1", 0)
+    assert (stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == ("rules", "v2", 0)
     assert (stored.feedback_lease_token, stored.feedback_lease_until) == (None, None) and feedback_used(db, world, clock) == 0
     assert not NOT_EXPOSED & keys_of(body) and not [key for key in keys_of(body) if "weight" in key.lower()]
     assert body["report"]["topics"] and all(set(topic) == NESTED_KEYS["topics"] for topic in body["report"]["topics"])
@@ -386,7 +386,7 @@ def test_an_unexpected_error_is_a_sanitized_500_with_no_store(api, db, world, cl
 
 def result(**overrides):
     values = dict(
-        data=FeedbackReport("rules", (), (), (), (), (), (), ()).to_data(), final=False, limited=False, reason=None, method="rules", prompt_version="v1",
+        data=FeedbackReport("rules", (), (), (), (), (), (), ()).to_data(), final=False, limited=False, reason=None, method="rules", prompt_version="v2",
         generated_at=None, attempts_used=2,
     )
     values.update(overrides)

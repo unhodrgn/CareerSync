@@ -82,7 +82,7 @@ def test_rules_mode_template_is_cached(client, db, world):
     assert body["method"] == "rules" and body["limited"] is False and body["notice"].startswith("AI analysis is for reference only")
     assert body["gaps"] == [{"name": "Kubernetes", "kind": "skill"}, {"name": "Kafka", "kind": "skill"}, {"name": "SQLP", "kind": "certificate"}]
     assert [s["skill"] for s in body["steps"]] == ["Kubernetes", "Kafka", "SQLP"]
-    assert body["steps"][0]["resources"] == [{"title": "Kubernetes 기초 튜토리얼", "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"}]
+    assert body["steps"][0]["resources"] == [{"title": "Kubernetes Basics Tutorial", "url": "https://kubernetes.io/docs/tutorials/kubernetes-basics/"}]
     assert _roadmap(client, h, job_id).json() == body
     assert [(c.kind, c.method) for c in _rows(db)] == [("roadmap", "rules")]
 

@@ -118,7 +118,7 @@ def test_an_empty_answer_is_clarified_once_then_the_item_is_skipped(silent):
     second = engine.on_answer(silent, now + 20)
     assert second.kind is ActionKind.ASK and second.topic_id == "c2" and second.reason.startswith("skipped:")
     assert status(engine, "c1") is TopicStatus.SKIPPED
-    assert second.text.startswith("괜찮습니다. 다음 질문으로 넘어가겠습니다.")
+    assert second.text.startswith("That's completely fine. Let's move on to the next question.")
 
 
 @pytest.mark.parametrize("brief", ["네", "그렇습니다", "글쎄요"])
@@ -130,7 +130,7 @@ def test_a_very_short_answer_is_asked_about_once_then_accepted_and_never_skipped
     second = engine.on_answer(brief, now + 20)
     assert second.kind is ActionKind.ASK and second.topic_id == "c2" and second.reason == "too_short_again"
     assert status(engine, "c1") is TopicStatus.NOT_SHOWN  # taken as given: it showed nothing, but it was not skipped
-    assert second.text.startswith("답변 감사합니다. 다음 질문입니다.")  # the neutral thanks, not the skip line
+    assert second.text.startswith("Thank you for your answer. Moving on to the next question.")  # the neutral thanks, not the skip line
 
 
 def test_a_repeat_request_repeats_the_question_once_then_the_item_is_skipped():
@@ -195,7 +195,7 @@ def test_follow_ups_stop_at_the_limit_and_never_repeat_a_line():
 def test_a_complete_answer_moves_on_with_a_neutral_thanks_and_no_judgement():
     engine, now = at("c1")
     action = engine.on_answer(GOOD["c1"], now)
-    assert action.kind is ActionKind.ASK and action.text.startswith("답변 감사합니다. 다음 질문입니다.")
+    assert action.kind is ActionKind.ASK and action.text.startswith("Thank you for your answer. Moving on to the next question.")
 
 
 def test_a_larger_follow_up_budget_is_honoured():
@@ -218,7 +218,7 @@ def test_silence_gets_one_nudge_then_a_skip():
     engine, now = at("c1")
     assert engine.on_silence(19.0, now + 19) is None
     nudge = engine.on_silence(20.0, now + 20)
-    assert nudge.kind is ActionKind.NUDGE and "천천히" in nudge.text and status(engine, "c1") is TopicStatus.ASKED
+    assert nudge.kind is ActionKind.NUDGE and nudge.text == rules.NUDGE_TEXT and status(engine, "c1") is TopicStatus.ASKED
     assert engine.on_silence(30.0, now + 30) is None  # one nudge per item
     skip = engine.on_silence(45.0, now + 45)
     assert skip.kind is ActionKind.ASK and skip.topic_id == "c2" and skip.reason == "skipped:silence"
@@ -337,7 +337,7 @@ def test_no_personal_data_reaches_the_state_or_the_model_input():
     for secret in SECRETS:
         assert secret.lower() not in dump, secret
     answer_turn = [t for t in engine.state.turns if t.role == "candidate"][-1]
-    assert "[이메일]" in answer_turn.text and "[전화번호]" in answer_turn.text and "[이름]" in answer_turn.text
+    assert "[EMAIL]" in answer_turn.text and "[PHONE]" in answer_turn.text and "[NAME]" in answer_turn.text
     assert answer_turn.masked_kinds.get("email") == 1 and answer_turn.masked_kinds.get("phone") == 1  # counts, never the text
 
     for given in (PRIVATE_ANSWER, answer_turn.text):  # even a raw transcript handed to the model input is masked again

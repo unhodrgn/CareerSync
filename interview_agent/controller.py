@@ -28,7 +28,7 @@ from interview_agent.runner import InterviewRunner, Stopped
 
 log = logging.getLogger("interview_agent.controller")
 
-GREETING = "안녕하세요. 저는 CareerSync의 AI 면접관입니다. 이 모의 면접은 연습용이며 채용 결정에 쓰이지 않습니다. 지금부터 질문을 드리겠습니다."
+GREETING = "Hello. I am the AI interviewer for CareerSync. This mock interview is for practice only and is not used for employment decisions. Let's begin with the first question."
 
 
 class VoiceController:

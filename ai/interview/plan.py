@@ -33,7 +33,7 @@ from ai.parsing.sections import heading_key
 from ai.scoring.retrieval import has_content
 
 _EVIDENCE_MIN_CHARS, _EVIDENCE_MAX_CHARS = 12, 90
-_TIPS = ("상황과 본인의 역할을 먼저 설명하기", "어려웠던 점과 해결 과정을 구체적으로", "결과와 배운 점으로 마무리하기")
+_TIPS = ("Start with the context and your role", "Walk through challenges and how you solved them", "Finish with the outcome and what you learned")
 _KIND = {"skill": "technical", "certificate": "technical", "other": "behavioral"}  # any other category: "experience"
 _VALID_DEPTHS = frozenset({1, 2, 3})
 
@@ -99,7 +99,7 @@ def _item(
         kind=q.kind,
         question=q.question,
         rephrase=rephrase,
-        rubric=rules.make_rubric(name or "이 질문", category, description, skills),
+        rubric=rules.make_rubric(name or "this question", category, description, skills),
         topic_keywords=keywords,
         criterion_id=q.criterion_id,
         criterion_name=name,
@@ -130,7 +130,7 @@ def _criterion_item(
         candidates.extend(q for q in templates if type(q.depth) is int and q.depth == d)
     candidates.extend(q for q in bank_questions if not (type(q.depth) is int and q.depth in _VALID_DEPTHS))
     fallback = Question(
-        rules.fallback_question(c.name), c.id, c.name, _KIND.get(c.category, "experience"), f"'{c.name}' 관련 경험과 이해 수준 확인", _TIPS[:2]
+        rules.fallback_question(c.name), c.id, c.name, _KIND.get(c.category, "experience"), f"Check experience and understanding related to '{c.name}'", _TIPS[:2]
     )
     for q in [*candidates, fallback]:
         # Exact duplicates only: templates of two criteria differ in the name alone and are still two questions
@@ -161,7 +161,7 @@ def _warmup(
     for line in evidence_lines(lines):  # the caller's lines get the same filters as lines made by `evidence_lines`
         if not clean.contains(line):  # word for word: a line that only resembles a cleaned one is not grounded
             continue
-        q = Question(rules.warmup_question(line), None, None, "experience", "이력서에 적은 경험의 역할과 기여 확인", _TIPS, line)
+        q = Question(rules.warmup_question(line), None, None, "experience", "Check role and contributions in the experience listed on the CV", _TIPS, line)
         if _screened(q, blocklists, clean):
             return _item("warmup", q, category="experience", name=None, description="", importance=None,
                          blocklists=blocklists, skills=skills, topic_text=(line,))

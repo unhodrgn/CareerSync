@@ -1,7 +1,7 @@
 """Seed demo data: two companies with recruiters, jobs with criteria, and three seekers.
 
 - seeker@demo.test: no CV and no preferences, for uploading data/demo/demo_cv.pdf live.
-- seeker2@demo.test: that CV uploaded and confirmed, preferences 서울 · 정규직, in the talent pool.
+- seeker2@demo.test: that CV uploaded and confirmed, preferences Seoul · full_time, in the talent pool.
 - seeker3@demo.test: that CV uploaded and confirmed only (no preferences, not in the talent pool): a second account for the live checks of
   the practice interview, which need a confirmed CV and allow 3 sessions per seeker per day.
 
@@ -41,41 +41,41 @@ PASSWORD = "demo1234"
 COMPANIES = [
     {
         "email": "hr@nextcode.test",
-        "display_name": "넥스트코드 인사팀",
+        "display_name": "NextCode HR Team",
         "profile": CompanyUpdate(
-            name="넥스트코드",
-            intro="중소기업용 ERP SaaS를 만드는 B2B 스타트업입니다.",
-            talent_profile="문제를 스스로 정의하고, 코드 리뷰로 함께 성장하는 개발자",
+            name="NextCode",
+            intro="A B2B startup building ERP SaaS for small and mid-sized businesses.",
+            talent_profile="Engineers who frame problems independently and grow together through code reviews",
         ),
         "jobs": [
             (
                 JobCreate(
-                    title="백엔드 개발자 (Java/Spring)",
-                    description="Spring Boot 기반 ERP API 개발 및 운영. PostgreSQL 쿼리 최적화, 배치 작업 설계.",
+                    title="Backend Developer (Java/Spring)",
+                    description="Build and operate Spring Boot ERP APIs, optimize PostgreSQL queries, and design batch jobs.",
                     min_experience_years=2,
-                    location="서울 강남구",
-                    salary_note="회사 내규에 따름",
+                    location="Seoul, Gangnam-gu",
+                    salary_note="Per company policy",
                 ),
                 [
-                    CriterionIn(name="Java 활용 능력", category="skill", weight=30, description="Java 17, 컬렉션·동시성 이해"),
-                    CriterionIn(name="Spring 경험", category="skill", weight=25, description="Spring Boot, JPA 실무 경험"),
-                    CriterionIn(name="DB 경험", category="skill", weight=20, description="PostgreSQL 쿼리 튜닝, 인덱스 설계"),
-                    CriterionIn(name="프로젝트 경험", category="project", weight=15, description="API 서버를 직접 설계·배포한 경험"),
-                    CriterionIn(name="관련 자격증", category="certificate", weight=10, description="정보처리기사 등"),
+                    CriterionIn(name="Java proficiency", category="skill", weight=30, description="Java 17, collections and concurrency fundamentals"),
+                    CriterionIn(name="Spring experience", category="skill", weight=25, description="Production experience with Spring Boot and JPA"),
+                    CriterionIn(name="Database experience", category="skill", weight=20, description="PostgreSQL query tuning and index design"),
+                    CriterionIn(name="Project experience", category="project", weight=15, description="Designing and deploying an API server end to end"),
+                    CriterionIn(name="Relevant certification", category="certificate", weight=10, description="OCJP, SQLD, or equivalent"),
                 ],
                 True,
             ),
             (
                 JobCreate(
-                    title="프론트엔드 개발자 (React)",
-                    description="React/TypeScript로 ERP 관리 화면 개발.",
+                    title="Frontend Developer (React)",
+                    description="Build ERP admin interfaces using React and TypeScript.",
                     employment_type="contract",
-                    location="서울 강남구",
+                    location="Seoul, Gangnam-gu",
                 ),
                 [
-                    CriterionIn(name="React 경험", category="skill", weight=50),
+                    CriterionIn(name="React experience", category="skill", weight=50),
                     CriterionIn(name="TypeScript", category="skill", weight=30),
-                    CriterionIn(name="UI 프로젝트 경험", category="project", weight=20),
+                    CriterionIn(name="UI project experience", category="project", weight=20),
                 ],
                 False,  # left as a draft
             ),
@@ -83,26 +83,26 @@ COMPANIES = [
     },
     {
         "email": "hr@cloudlab.test",
-        "display_name": "클라우드랩 채용담당",
+        "display_name": "CloudLab Recruiting",
         "profile": CompanyUpdate(
-            name="클라우드랩",
-            intro="데이터 파이프라인과 AI 에이전트 솔루션을 만듭니다.",
-            talent_profile="데이터로 판단하고 새로운 기술을 빠르게 익히는 사람",
+            name="CloudLab",
+            intro="We build data pipelines and AI agent solutions.",
+            talent_profile="Data-driven builders who learn new technologies quickly",
         ),
         "jobs": [
             (
                 JobCreate(
-                    title="데이터 엔지니어",
-                    description="Airflow·Spark 기반 데이터 파이프라인 구축, AWS 운영.",
+                    title="Data Engineer",
+                    description="Build Airflow and Spark data pipelines and operate workloads on AWS.",
                     min_experience_years=None,
-                    location="경기 성남시 판교",
-                    salary_note="협의",
+                    location="Seongnam, Pangyo",
+                    salary_note="Negotiable",
                 ),
                 [
-                    CriterionIn(name="Python 활용 능력", category="skill", weight=30),
-                    CriterionIn(name="데이터 파이프라인 경험", category="experience", weight=30),
-                    CriterionIn(name="AWS 클라우드 운영 경험", category="skill", weight=20),
-                    CriterionIn(name="컴퓨터공학 관련 전공", category="education", weight=20),
+                    CriterionIn(name="Python proficiency", category="skill", weight=30),
+                    CriterionIn(name="Data pipeline experience", category="experience", weight=30),
+                    CriterionIn(name="AWS cloud operations", category="skill", weight=20),
+                    CriterionIn(name="Computer Science major", category="education", weight=20),
                 ],
                 True,
             ),
@@ -112,7 +112,7 @@ COMPANIES = [
 
 SEEKER = {"email": "seeker@demo.test", "display_name": CV_NAME}
 SEEKER_WITH_CV = {"email": "seeker2@demo.test", "display_name": CV_NAME}
-SEEKER_WITH_CV_PREFERENCES = PreferenceIn(locations=["서울"], employment_types=["full_time"], profile_public=True)
+SEEKER_WITH_CV_PREFERENCES = PreferenceIn(locations=["Seoul"], employment_types=["full_time"], profile_public=True)
 SEEKER_WITH_CV_ONLY = {"email": "seeker3@demo.test", "display_name": CV_NAME}
 
 
@@ -156,7 +156,7 @@ def _seed_seeker_with_cv(db, spec: dict, preferences: PreferenceIn | None) -> No
         print(f"cv    {email} · confirmed as version {profile.version}")
     if preferences is not None and preference_service.get_mine(db, user) is None:
         preference_service.replace_mine(db, user, preferences)
-        print(f"pref  {email} · 서울, 정규직, talent pool on")
+        print(f"pref  {email} · Seoul, full_time, talent pool on")
 
 
 def main() -> None:

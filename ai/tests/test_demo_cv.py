@@ -31,7 +31,7 @@ def test_demo_cv_pdf_reads_back_and_parses_into_every_section():
     assert pdf.pages == 1
     masked = mask_pii(pdf.text, [gen.CV_NAME])
     assert set(masked.masked) == {"email", "phone", "name"}
-    for secret in (gen.CV_NAME, "doyun.han@example.com", "010-0000-0000"):
+    for secret in (gen.CV_NAME, "doyun.han@example.com", "555-010-0000"):
         assert secret not in masked.text
 
     sections = {s.key for s in split_sections(masked.text)}
@@ -39,10 +39,10 @@ def test_demo_cv_pdf_reads_back_and_parses_into_every_section():
 
     profile, method = structure_cv(masked.text, SKILLS, None)
     assert method == "rules"
-    assert len(profile.experiences) == 1 and profile.experiences[0].end is None  # 현재
+    assert len(profile.experiences) == 1 and profile.experiences[0].end is None  # present
     assert len(profile.projects) == 3
-    assert [(e.major, e.degree) for e in profile.education] == [("컴퓨터공학과", "학사")]
-    assert [c.name for c in profile.certificates] == ["정보처리기사"]
+    assert [(e.major, e.degree) for e in profile.education] == [("Computer Science", "Bachelor")]
+    assert [c.name for c in profile.certificates] == ["OCJP"]
     assert {"Java", "Spring", "JPA", "PostgreSQL", "Python"} <= set(profile.skills)
     # The data engineer job's skills stay missing, so the roadmap has gaps to show
     assert not {"AWS", "Airflow", "Spark"} & set(profile.skills)
