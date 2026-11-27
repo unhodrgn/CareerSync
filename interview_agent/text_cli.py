@@ -27,7 +27,7 @@ from interview_agent.backend_client import SessionClient
 from interview_agent.config import ConfigError, load_settings
 from interview_agent.runner import InterviewRunner, Stopped
 
-GREETING = "안녕하세요. 저는 CareerSync의 AI 면접관입니다. 이 모의 면접은 연습용이며 채용 결정에 쓰이지 않습니다."
+GREETING = "Hello. I am the AI interviewer for CareerSync. This mock interview is for practice only and is not used for employment decisions."
 
 
 def parse_command(line: str) -> tuple[str, float | str]:
@@ -88,12 +88,12 @@ async def run(args: argparse.Namespace, read=input, write=print) -> int:
         write(f"session {session_id} (AI_MODE={settings.ai_mode})")
         try:
             await runner.open()
-            write(f"면접관> {GREETING}")
+            write(f"Interviewer> {GREETING}")
             for line in await runner.start():
-                write(f"면접관> {line}")
+                write(f"Interviewer> {line}")
             while not runner.finished:
                 try:
-                    typed = await asyncio.to_thread(read, "지원자> ")
+                    typed = await asyncio.to_thread(read, "Candidate> ")
                 except EOFError:
                     typed = "/quit"
                 kind, value = parse_command(typed)
@@ -103,7 +103,7 @@ async def run(args: argparse.Namespace, read=input, write=print) -> int:
                 await runner.check()
                 lines = await (runner.silence(value) if kind == "silence" else runner.answer(value))
                 for line in lines:
-                    write(f"면접관> {line}")
+                    write(f"Interviewer> {line}")
         except Stopped as stop:
             write(f"[stopped: {stop.reason}]")
         write(f"[session {session_id}: {runner.stopped}] model calls: {[(o, round(s, 2)) for o, s in runner.timings]}")
@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--job-id", type=int)
     parser.add_argument("--email", help="the seeker to log in as, with --job-id")
     parser.add_argument("--consent", action="store_true", help="accept the transcript consent text, with --job-id")
-    parser.add_argument("--depth", type=int, choices=(1, 2, 3), default=2, help="question depth (1 기초, 2 적용, 3 심화), with --job-id")
+    parser.add_argument("--depth", type=int, choices=(1, 2, 3), default=2, help="question depth (1 introductory, 2 applied, 3 advanced), with --job-id")
     parser.add_argument("--create-only", action="store_true", help="with --job-id: create the session, print its id and stop (for the voice worker's console mode)")
     args = parser.parse_args(argv)
     if args.job_id is not None and not args.email:

@@ -112,7 +112,7 @@ def test_a_rules_session_is_created_and_stored_canonically(db, world, clock):
     (row,) = sessions(db)
     assert (row.status, row.plan_method, row.consent_version) == ("created", "rules", VERSION) and row.consent_at is not None
     assert row.plan_sha256 == plans.plan_digest(row.plan) and row.coverage is None and row.feedback is None
-    assert row.limits["max_seconds"] == 600 and row.prompt_version == "v1"
+    assert row.limits["max_seconds"] == 600 and row.prompt_version == "v2"
     assert (used(db, world, QuotaKind.SESSION, clock), used(db, world, QuotaKind.PLAN_MODEL, clock)) == (1, 0)  # rules mode asks no model
 
 

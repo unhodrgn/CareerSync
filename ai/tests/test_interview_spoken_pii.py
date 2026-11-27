@@ -14,7 +14,7 @@ def masked(text: str, names=NAMES) -> str:
 
 
 def test_the_tokens_are_the_ones_of_the_cv_masking():
-    assert (EMAIL, URL, RRN, PHONE, BIRTH, NAME_TOKEN) == ("[이메일]", "[링크]", "[주민번호]", "[전화번호]", "[생년월일]", "[이름]")
+    assert (EMAIL, URL, RRN, PHONE, BIRTH, NAME_TOKEN) == ("[EMAIL]", "[URL]", "[RRN]", "[PHONE]", "[DOB]", "[NAME]")
 
 
 @pytest.mark.parametrize(
@@ -94,8 +94,41 @@ def test_whitespace_is_normalized_and_empty_input_is_fine():
     assert mask_spoken("", NAMES).text == "" and mask_spoken(None, NAMES).text == ""  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("spoken", "secret", "token"),
+    [
+        ("My email is alice.park at example dot com and I built APIs", "alice.park", EMAIL),
+        ("You can reach me at 555-234-5678 anytime", "555-234-5678", PHONE),
+        ("My number is five five five two three four five six seven eight", "six seven eight", PHONE),
+        ("My name is Alice Park and I worked on Kafka", "Alice Park", NAME_TOKEN),
+        ("I'm Jordan Lee, I built distributed caches", "Jordan Lee", NAME_TOKEN),
+        ("Call me Alex when we discuss Spring Boot", "Alex", NAME_TOKEN),
+    ],
+)
+def test_english_spoken_pii_is_masked_and_prose_survives(spoken, secret, token):
+    out = masked(spoken, ("Jordan Lee",))
+    assert secret not in out and token in out
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "I am a backend developer working on Spring Boot at node.js services",
+        "I'm sorry, I have not deployed that in production yet",
+        "We scaled from one instance to two nodes in Seoul",
+        "My name is John and I built REST APIs",  # check below: "John" is masked, "and I built" stays!
+    ],
+)
+def test_english_technical_prose_is_not_overmasked(prose):
+    if "John" in prose:
+        out = masked(prose, ())
+        assert out == f"My name is {NAME_TOKEN} and I built REST APIs"
+    else:
+        assert masked(prose, ()) == prose
+
+
 def test_the_cv_masking_is_unchanged_and_still_handles_what_speech_must_not():
     # mask_pii keeps masking everything after 주소 and a label's name; the speech masker must not do that to an answer
     cv = mask_pii("이름: 김지원\n주소: 서울시 강남구 테헤란로 1\n이메일: jiwon.kim@example.com", ["김지원"])
-    assert "[주소]" in cv.text and "[이름]" in cv.text and "[이메일]" in cv.text and "테헤란로" not in cv.text
+    assert "[ADDRESS]" in cv.text and "[NAME]" in cv.text and "[EMAIL]" in cv.text and "테헤란로" not in cv.text
     assert masked("리소스 주소는 URI입니다 그리고 이름은 짓기 나름입니다") == "리소스 주소는 URI입니다 그리고 이름은 짓기 나름입니다"

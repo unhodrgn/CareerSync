@@ -113,7 +113,7 @@ def test_the_opening_says_it_is_an_ai_then_stores_the_first_question_then_speaks
         return controller, runner, voice
 
     controller, runner, voice = run(go())
-    assert voice.spoken == [GREETING, "첫 질문입니다."] and "AI" in GREETING and "연습" in GREETING
+    assert voice.spoken == [GREETING, "첫 질문입니다."] and "AI" in GREETING and "practice" in GREETING.lower()
     assert runner.calls == ["start"] and not controller.busy and not controller.done.is_set()
 
 

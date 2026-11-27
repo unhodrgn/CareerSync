@@ -40,8 +40,8 @@ from ai.interview.types import (
 )
 
 _CONTEXT_TURNS = 4  # masked lines before the answer that a model may see: two exchanges
-_FINAL_FALLBACK = "수고하셨습니다."
-_REPEAT_PREFIX = "질문을 다시 말씀드리겠습니다."
+_FINAL_FALLBACK = "Thank you for your time today."
+_REPEAT_PREFIX = "Let me repeat the question."
 
 
 class InterviewStateError(RuntimeError):

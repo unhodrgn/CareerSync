@@ -40,7 +40,7 @@ def _item(title, detail="구체적인 내용입니다.", quote=None):
 def test_rules_on_a_complete_cv():
     r = review_rules(TEXT, PROFILE, SKILLS, TODAY)
     titles = [s.title for s in r.strengths]
-    assert "경력 기간이 명확함" in titles and "자격증 보유" in titles
+    assert "Clear employment periods" in titles and "Verified certificates" in titles
     assert all(s.cv_quote and line_in_text(s.cv_quote, TEXT) for s in r.strengths)
     assert not any(i.affects_scoring for i in r.improvements)
     assert all(i.cv_quote is None or line_in_text(i.cv_quote, TEXT) for i in r.improvements)
@@ -54,19 +54,19 @@ def test_editor_only_skills_and_certificates_are_flagged():
         }
     )
     found = {i.title: i for i in scoring_checks(TEXT, edited, SKILLS)}
-    assert "Kubernetes" in found["이력서 원문에 없는 기술"].detail
-    assert "Java" not in found["이력서 원문에 없는 기술"].detail
-    assert "AWS SAA" in found["이력서 원문에 없는 자격증"].detail
+    assert "Kubernetes" in found["Skills missing from CV text"].detail
+    assert "Java" not in found["Skills missing from CV text"].detail
+    assert "AWS SAA" in found["Certificates missing from CV text"].detail
     assert all(i.affects_scoring for i in found.values())
 
 
 def test_missing_headings_and_unreadable_periods():
     text = "경력\n넥스트코드 백엔드 개발자 (2년간 근무)\n- Java로 주문 API 개발\n"
     found = {i.title: i for i in scoring_checks(text, CvProfile(), SKILLS)}
-    assert "'프로젝트' 제목 없음" in found and "'경력' 제목 없음" not in found
-    assert found["경력 기간을 읽을 수 없음"].cv_quote == "넥스트코드 백엔드 개발자 (2년간 근무)"
+    assert "Missing 'Projects' heading" in found and "Missing 'Experience' heading" not in found
+    assert found["Unreadable experience dates"].cv_quote == "넥스트코드 백엔드 개발자 (2년간 근무)"
     no_headings = {i.title for i in scoring_checks("Java 개발 5년", CvProfile(), SKILLS)}
-    assert {"'경력' 제목 없음", "'프로젝트' 제목 없음"} <= no_headings
+    assert {"Missing 'Experience' heading", "Missing 'Projects' heading"} <= no_headings
 
 
 def test_major_and_project_technologies():
@@ -74,8 +74,8 @@ def test_major_and_project_technologies():
     profile = CvProfile(education=[Education(school="한국대학교", major="컴퓨터공학과", source="한국대학교 학사 2015.03 ~ 2021.02")])
     found = {i.title: i for i in scoring_checks(text, profile, SKILLS)}
     # The edited major is not on the CV line, so scoring cannot read it
-    assert "전공을 확인할 수 없음" in found
-    assert found["기술 스택이 없는 프로젝트"].cv_quote == "동아리 홈페이지 2020.01 ~ 2020.06"
+    assert "Major could not be verified" in found
+    assert found["Project without listed technologies"].cv_quote == "동아리 홈페이지 2020.01 ~ 2020.06"
 
 
 def test_llm_strengths_need_a_verified_quote():
@@ -133,7 +133,7 @@ def test_combine_puts_scoring_findings_first():
     edited = PROFILE.model_copy(update={"skills": [*PROFILE.skills, "Kubernetes"]})
     part = CvReview((ReviewItem("성능 개선 경험", "수치", QUOTE_1),), (ReviewItem("자기소개 추가", "짧게"),))
     r = combine(part, TEXT, edited, SKILLS)
-    assert [i.title for i in r.improvements] == ["이력서 원문에 없는 기술", "자기소개 추가"]
+    assert [i.title for i in r.improvements] == ["Skills missing from CV text", "자기소개 추가"]
     assert r.improvements[0].affects_scoring and r.strengths == part.strengths
 
 

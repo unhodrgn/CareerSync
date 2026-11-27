@@ -144,7 +144,7 @@ def test_a_usable_model_report_is_validated_stored_and_returned_as_final(api, db
     assert body["report"]["method"] == "llm:claude-test" and body["report"]["improvements"] == USABLE["improvements"]  # what the pipeline kept of the reply
     stored = row(db, sid)
     assert body["report"] == stored.feedback  # the answer is the stored report, field for field
-    assert (stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == ("llm:claude-test", "v1", 1)
+    assert (stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == ("llm:claude-test", "v2", 1)
     assert (stored.feedback_lease_token, stored.feedback_lease_until) == (None, None)  # the lease is gone with the store
     assert len(llm.calls) == 1 and feedback_used(db, world, clock) == 1
     assert len(token_seen[0]) == 32 and token_seen[0] not in response.text  # the lease token was real, and is nowhere in the answer
@@ -248,7 +248,7 @@ def test_three_failed_attempts_are_provisional_twice_then_the_rules_report_is_st
     third = reply_of(request(api, headers, sid))
     assert (third["final"], third["reason"], third["report"]["method"]) == (True, None, "rules") and at(third["generated_at"]) == clock.now
     stored = row(db, sid)
-    assert (stored.feedback, stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == (third["report"], "rules", "v1", 3)
+    assert (stored.feedback, stored.feedback_method, stored.feedback_prompt_version, stored.feedback_attempts) == (third["report"], "rules", "v2", 3)
     assert (stored.feedback_lease_token, stored.feedback_lease_until) == (None, None)
     assert len(llm.calls) == 3 and feedback_used(db, world, clock) == 3
     for _ in range(2):  # the report is final now: a fourth call is not made, whatever the model would say

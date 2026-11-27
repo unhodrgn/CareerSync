@@ -100,7 +100,7 @@ def test_fail_jobs_are_left_out_and_never_queued(client, db, world, queued):
     items = client.get(RECO, headers=h).json()["items"]
     assert [i["job_id"] for i in items] == [open_job]
     gate = items[0]["required_gate"]
-    assert set(gate) == GATE_KEYS and (gate["status"], gate["checks"], gate["reason"]) == ("PASS", [], "필수 경력 조건 없음")
+    assert set(gate) == GATE_KEYS and (gate["status"], gate["checks"], gate["reason"]) == ("PASS", [], "No minimum experience requirement")
 
 
 def test_pass_jobs_follow_the_existing_flow(client, db, world, queued):
@@ -121,7 +121,7 @@ def test_review_jobs_stay_in_the_flow(client, db, world, queued):
     _finish(db, job, cv, 80)
     gate = client.get(RECO, headers=h).json()["items"][0]["required_gate"]
     assert (gate["status"], gate["basis"], gate["evidence"]) == ("REVIEW", None, [])
-    assert "확인 필요" in gate["reason"]
+    assert "review needed" in gate["reason"]
 
 
 # ── Seeker job detail ──
@@ -134,7 +134,7 @@ def test_job_detail_shows_the_gate_with_every_status(client, db, world, queued):
     assert body["status"] == "none" and body["required_gate"]["status"] == "FAIL"
     check = body["required_gate"]["checks"][0]
     assert (check["required_months"], check["candidate_months"], check["basis"]) == (36, 0, "stated")
-    assert body["required_gate"]["evidence"] == ["경력: 0년"] and "최소 경력 3년에 미달" in body["required_gate"]["reason"]
+    assert body["required_gate"]["evidence"] == ["경력: 0년"] and "below minimum 3 years of experience" in body["required_gate"]["reason"]
 
     # Read-only scores (D43) are still shown next to a FAIL gate; nothing is queued by job detail
     _finish(db, job, cv, 70)

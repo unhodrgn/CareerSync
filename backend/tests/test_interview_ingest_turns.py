@@ -308,7 +308,7 @@ def test_the_identity_of_a_turn_is_its_masked_text(db, clock, sid):
     plan = started(db, sid, clock)
     rec(db, sid, ev(plan, 2, "candidate", "answer", text="제 이메일은 a@example.com 입니다"), clock)
     again = rec(db, sid, ev(plan, 2, "candidate", "answer", text="제 이메일은 other@example.org 입니다"), clock)
-    assert again.outcome == "duplicate"  # both are the same masked text: "[이메일]"
+    assert again.outcome == "duplicate"  # both are the same masked text: "[EMAIL]"
 
 
 def test_a_duplicate_is_only_acknowledged_after_the_plan_and_the_topic_echo_are_checked(db, clock, sid):
@@ -426,7 +426,7 @@ def test_candidate_text_is_masked_again_and_the_counts_are_merged(db, world, clo
     raw = "저는 Jordan Lee입니다. 이메일은 kim@example.com 이고 전화는 010-1234-5678 입니다"
     rec(db, sid, ev(plan, 2, "candidate", "answer", text=raw, masked_kinds={"email": 2, "name": 1}), clock)
     stored = turn_rows(db, sid)[-1]
-    assert stored.text == "저는 [이름]입니다. 이메일은 [이메일] 이고 전화는 [전화번호] 입니다"
+    assert stored.text == "저는 [NAME]입니다. 이메일은 [EMAIL] 이고 전화는 [PHONE] 입니다"
     assert stored.masked_kinds == {"email": 3, "name": 2, "phone": 1}  # the agent's counts plus what this masking found
     for secret in ("Jordan", "kim@example.com", "010-1234-5678"):
         assert secret not in stored.text
@@ -434,16 +434,16 @@ def test_candidate_text_is_masked_again_and_the_counts_are_merged(db, world, clo
 
 def test_masked_text_is_left_as_it_is_and_the_counts_stay_the_agents(db, clock, sid):
     plan = started(db, sid, clock)
-    rec(db, sid, ev(plan, 2, "candidate", "answer", text="이메일은 [이메일] 입니다", masked_kinds={"email": 1}), clock)
+    rec(db, sid, ev(plan, 2, "candidate", "answer", text="이메일은 [EMAIL] 입니다", masked_kinds={"email": 1}), clock)
     stored = turn_rows(db, sid)[-1]
-    assert (stored.text, stored.masked_kinds) == ("이메일은 [이메일] 입니다", {"email": 1})
+    assert (stored.text, stored.masked_kinds) == ("이메일은 [EMAIL] 입니다", {"email": 1})
 
 
 def test_the_agents_own_lines_are_masked_again_too(db, clock, sid):
     plan = started(db, sid, clock)
     rec(db, sid, ev(plan, 2, "agent", "follow_up", text="말씀하신 kim@example.com 에 대해 더 설명해 주시겠어요?"), clock)
     stored = turn_rows(db, sid)[-1]
-    assert stored.text == "말씀하신 [이메일] 에 대해 더 설명해 주시겠어요?" and stored.masked_kinds == {"email": 1}
+    assert stored.text == "말씀하신 [EMAIL] 에 대해 더 설명해 주시겠어요?" and stored.masked_kinds == {"email": 1}
 
 
 def test_a_long_prefixed_line_of_the_interviewer_is_not_cut_by_the_question_limit(db, clock, sid):

@@ -24,7 +24,7 @@ def test_questions_have_original_cv_quotes():
     assert method == "rules"
     assert 0 < len(questions) <= 3
     assert all(q.cv_quote in CV and q.criterion_id in {1, 2} for q in questions)
-    assert any("측정" in q.question for q in questions)
+    assert any("measure" in q.question.lower() for q in questions)
 
 
 def test_rules_keep_distinct_criterion_performance_questions():

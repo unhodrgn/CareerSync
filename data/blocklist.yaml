@@ -16,7 +16,7 @@ rules:
   - id: physical.height
     category: physical_condition
     law_ref: "채용절차법 제4조의3 제1호"
-    reason: "키는 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Height is a physical trait unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '키\s*1[4-9]\d(?!\d)'  # 140~199; not "RSA 키 2048"
       - '키\s*(가|는)?\s*(큰|작은|크신|작으신|크고|작고)'  # not "키 크기"
@@ -29,7 +29,7 @@ rules:
   - id: physical.weight
     category: physical_condition
     law_ref: "채용절차법 제4조의3 제1호"
-    reason: "체중은 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Body weight is a physical trait unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '체중'
       - '몸무게'
@@ -38,7 +38,7 @@ rules:
   - id: physical.appearance
     category: physical_condition
     law_ref: "채용절차법 제4조의3 제1호"
-    reason: "용모·외모는 직무 수행과 무관한 신체 조건이므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Physical appearance is unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '용모'
       - '외모'
@@ -59,7 +59,7 @@ rules:
   - id: origin.region
     category: origin_region
     law_ref: "채용절차법 제4조의3 제2호"
-    reason: "출신지역은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Region of origin is unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '출신\s*지역'
       - '지역\s*출신'
@@ -70,7 +70,7 @@ rules:
   - id: marital.status
     category: marital_status
     law_ref: "채용절차법 제4조의3 제2호"
-    reason: "혼인 여부는 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Marital status is unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '혼인'
       - '기혼'
@@ -84,7 +84,7 @@ rules:
   - id: wealth.assets
     category: wealth
     law_ref: "채용절차법 제4조의3 제2호"
-    reason: "재산은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Personal wealth or assets are unrelated to job performance and cannot be used as an evaluation criterion."
     patterns:
       - '재산'
       - '재력'
@@ -100,7 +100,7 @@ rules:
   - id: family.background
     category: family_background
     law_ref: "채용절차법 제4조의3 제3호"
-    reason: "가족의 학력·직업·재산은 직무 수행과 무관하므로 평가 기준으로 사용할 수 없습니다."
+    reason: "Family members' education, occupation, or assets are unrelated to job performance and cannot be used as evaluation criteria."
     patterns:
       - '(부모|부친|모친|아버지|어머니|형제|자매|가족|친인척|직계|존속|비속)\S{0,3}\s*(의\s*)?(학력|직업|직장|재산|직위|직급|근무처|출신|소득)'
       - '가정\s*환경'
@@ -112,7 +112,7 @@ rules:
   - id: gender
     category: gender
     law_ref: "남녀고용평등법 제7조"
-    reason: "성별·임신·출산 계획은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    reason: "Gender, pregnancy, or childbirth plans cannot be used as a basis for discrimination in hiring."
     patterns:
       - '(남성|여성|남자|여자)\s*(우대|만|한정|지원자|선호|우선|채용)'
       - '성별'
@@ -124,7 +124,7 @@ rules:
   - id: age
     category: age
     law_ref: "고령자고용법 제4조의4"
-    reason: "연령은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    reason: "Age cannot be used as a basis for discrimination in hiring."
     patterns:
       - '\d{2}\s*(세|살)\s*(이하|이상|미만|까지|이내|초과|미만인)'
       - '만\s*\d{2}\s*세'
@@ -139,7 +139,7 @@ rules:
   - id: religion
     category: religion
     law_ref: "고용정책기본법 제7조"
-    reason: "종교·신앙은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    reason: "Religion or beliefs cannot be used as a basis for discrimination in hiring."
     patterns:
       - '종교'
       - '신앙'
@@ -148,7 +148,7 @@ rules:
   - id: health.disability
     category: disability_health
     law_ref: "장애인차별금지법 제10조, 고용정책기본법 제7조"
-    reason: "장애 여부와 병력은 모집·채용에서 차별 사유로 사용할 수 없습니다."
+    reason: "Disability status and medical history cannot be used as a basis for discrimination in hiring."
     patterns:
       - '장애\s*(가\s*)?(없|여부|유무)'
       - '장애인\s*(제외|불가|아닌)'
@@ -165,7 +165,7 @@ rules:
   - id: school.prestige
     category: school_prestige
     law_ref: "고용정책기본법 제7조"
-    reason: "출신학교·학벌은 차별 사유이므로 평가 기준으로 사용할 수 없습니다. 전공·학위는 '학력(education)' 항목으로 평가할 수 있습니다."
+    reason: "School prestige or alma mater is discriminatory and cannot be used as an evaluation criterion. Evaluate major or degree under 'education' instead."
     patterns:
       - '출신\s*(학교|대학|대)'
       - '학벌'

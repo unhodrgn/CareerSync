@@ -142,7 +142,7 @@ def test_anonymous_profile_shows_only_safe_fields(client, db, world, job, queued
     assert "Java" in item["skills"] and "Rust" not in item["skills"]
     assert item["roles"] == ["백엔드 개발자", "서버 개발"]
     assert {"Python", "FastAPI", "Docker", "AWS"} <= set(item["project_techs"])
-    assert item["education"] == [{"degree": "학사", "major": "컴퓨터공학과"}]
+    assert item["education"] == [{"degree": "Bachelor", "major": "컴퓨터공학과"}]
     assert "정보처리기사" in item["certificates"]
     assert item["desired"]["job_keywords"] == ["백엔드"]
     assert {c["name"] for c in item["criteria"]} == {c["name"] for c in CRITERIA}

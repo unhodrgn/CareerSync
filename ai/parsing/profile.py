@@ -31,7 +31,7 @@ class Project(BaseModel):
 class Education(BaseModel):
     school: str = Field("", max_length=100)
     major: str = Field("", max_length=100)
-    degree: str = Field("", max_length=20, description="고졸, 전문학사, 학사, 석사, 박사 or empty")
+    degree: str = Field("", max_length=20, description="High School, Associate, Bachelor, Master, Doctorate, or empty")
     source: str = Field("", max_length=500)
 
 
@@ -47,7 +47,7 @@ class CvProfile(BaseModel):
     projects: list[Project] = Field(default_factory=list, max_length=50)
     education: list[Education] = Field(default_factory=list, max_length=10)
     certificates: list[Certificate] = Field(default_factory=list, max_length=30)
-    summary: str = Field("", max_length=500, description="2 neutral sentences on the candidate's main skills, in Korean")
+    summary: str = Field("", max_length=500, description="2 neutral sentences on the candidate's main skills, in English")
 
 
 class JdProfile(BaseModel):

@@ -137,16 +137,19 @@ PowerShell is the same (`cd backend`, `alembic upgrade head`, `python ..\scripts
 `alembic` **must run inside `backend/`** (that is where `alembic.ini` is). On an empty database the seed then prints:
 
 ```
-job   넥스트코드 · 백엔드 개발자 (Java/Spring) (published)
-job   넥스트코드 · 프론트엔드 개발자 (React) (draft)
+job   NextCode · Backend Developer (Java/Spring) (published)
+job   NextCode · Frontend Developer (React) (draft)
 added hr@nextcode.test
-job   클라우드랩 · 데이터 엔지니어 (published)
+job   CloudLab · Data Engineer (published)
 added hr@cloudlab.test
 added seeker@demo.test
 added seeker2@demo.test
 cv    seeker2@demo.test · demo_cv.pdf (rules)
 cv    seeker2@demo.test · confirmed as version 2
-pref  seeker2@demo.test · 서울, 정규직, talent pool on
+pref  seeker2@demo.test · Seoul, full_time, talent pool on
+added seeker3@demo.test
+cv    seeker3@demo.test · demo_cv.pdf (rules)
+cv    seeker3@demo.test · confirmed as version 2
 
 All demo accounts use the password: demo1234
 ```
@@ -238,15 +241,15 @@ All passwords are `demo1234`.
 
 | Role | Email | What to try |
 | --- | --- | --- |
-| Company | `hr@nextcode.test` | 넥스트코드: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. "키 175cm 이상", height of at least 175 cm), see 지원자 순위 (Applicant ranking) and 인재 추천 (Talent recommendation) of a job |
-| Company | `hr@cloudlab.test` | 클라우드랩: one published data engineer job |
+| Company | `hr@nextcode.test` | NextCode: one published backend job with criteria, one draft frontend job. Edit criteria, try a blocked one (e.g. `"Minimum height 175cm"` or `"키 175cm 이상"`), see 지원자 순위 (Applicant ranking) and 인재 추천 (Talent recommendation) of a job |
+| Company | `hr@cloudlab.test` | CloudLab: one published data engineer job |
 | Seeker | `seeker@demo.test` | No CV yet. Upload the synthetic demo CV `data/demo/demo_cv.pdf` in 내 이력서 (My CV), confirm it, set 희망 조건 (Preferences), see 추천 공고 (Recommended jobs), apply to a job, check 지원 현황 (My applications) |
-| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, 희망 조건 서울 · 정규직 (Seoul, full-time), in the talent pool. Shows 추천 공고, 취업 준비 (Job preparation) and the CV self-check at once, and appears in 인재 추천 for the companies |
+| Seeker | `seeker2@demo.test` | Ready-made: the same demo CV uploaded and confirmed, Preferences Seoul · full_time, in the talent pool. Shows 추천 공고 (Recommended jobs), 취업 준비 (Job preparation) and the CV self-check at once, and appears in 인재 추천 for the companies |
 | Seeker | `seeker3@demo.test` | Demo CV uploaded and confirmed only (no preferences, not in talent pool): dedicated second seeker account for practice interview checks |
 
-The demo CV is made up (`scripts/make_demo_cv.py` builds it). Both seekers carry the CV's name, so the name is masked before any text reaches the LLM.
+The demo CV is made up (`scripts/make_demo_cv.py` builds it). The seeker accounts carry the CV's name (`Doyun Han`), so the name is masked before any text reaches the LLM.
 
-A typical demo: log in as the seeker, upload and confirm a CV, apply to the 넥스트코드 backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 tab to see the ranked applicant with per-criterion scores and evidence.
+A typical demo: log in as the seeker, upload and confirm a CV, apply to the NextCode backend job; then log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 (Applicant ranking) tab to see the ranked applicant with per-criterion scores and evidence.
 
 ## 9. Run the tests
 
@@ -302,7 +305,7 @@ The practice interview by voice (M5) runs as the `agent` service of Compose, nex
    python -m interview_agent.devclient.serve        # http://127.0.0.1:8788/ in Chrome
    ```
 
-   The page forwards `/api/` to `http://127.0.0.1:8000` (the published backend port; set `INTERVIEW_AGENT_BACKEND_URL` first if you changed `COMPOSE_BACKEND_PORT`). Log in as `seeker2@demo.test` or `seeker3@demo.test` (password `demo1234`; both have the demo CV confirmed), tick the consent, enter the job id (the 넥스트코드 (Nextcode) backend job is normally 1) and press **면접 시작** (Start interview). Allow the microphone. Press **종료** (End) to stop.
+   The page forwards `/api/` to `http://127.0.0.1:8000` (the published backend port; set `INTERVIEW_AGENT_BACKEND_URL` first if you changed `COMPOSE_BACKEND_PORT`). Log in as `seeker2@demo.test` or `seeker3@demo.test` (password `demo1234`; both have the demo CV confirmed), tick the consent, enter the job id (the NextCode backend job is normally 1) and press **Start interview**. Allow the microphone. Press **End** to stop.
 4. Stop with `docker compose --profile voice down`. Name the profile: a plain `docker compose down` names none, so it may leave the agent container (and the network it uses) behind.
 
 To change only the agent (for example its mode, avatar toggle `INTERVIEW_AGENT_AVATAR=off`, or the model timeout) without touching the backend, set the variable and run `docker compose --profile voice up -d --no-deps agent`. `INTERVIEW_AGENT_LLM_TIMEOUT_SECONDS` (default 3) and optional `ANAM_API_KEY`/`ANAM_AVATAR_ID` are passed on the same way.

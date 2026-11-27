@@ -65,22 +65,22 @@ MAX_TEXT_CHARS, MAX_QUESTION_CHARS = 200, 200
 MIN_QUOTE_CHARS, MAX_QUOTE_CHARS, MAX_QUOTES = 8, 120, 2  # evidence is a phrase, not a word
 MAX_TRANSCRIPT_CHARS = 12000  # the earliest turns that fit go into the request; the quote check uses exactly those
 
-WARMUP_LABEL = "이력서 기반 경험"  # shown for the CV-grounded warm-up, whose question text is never repeated in the report
-BEHAVIORAL_LABEL = "경험 사례"
+WARMUP_LABEL = "CV-based experience"  # shown for the CV-grounded warm-up, whose question text is never repeated in the report
+BEHAVIORAL_LABEL = "Behavioral example"
 STRENGTH_STATUSES = frozenset({"demonstrated", "partial"})
 GAP_STATUSES = frozenset({"partial", "not_shown", "skipped", "asked", "not_asked"})
 SECTIONS = ("strengths", "gaps", "improvements", "practice_questions")
 
 # Fixed sentences of the rules report; a test screens every one of them
-NOTE_NO_ITEMS = "준비된 질문이 없어 확인할 내용이 없습니다."
-NOTE_NO_ANSWERS = "기록된 답변이 없어 확인할 내용이 없습니다. 마이크 연결을 확인하고 다시 연습해 보세요."
-NOTE_ABORTED = "연습이 도중에 중단되어 다루지 못한 질문이 있습니다."
-NOTE_TIME = "준비된 시간이 끝나 다루지 못한 질문이 있습니다."
-ADVICE_STRUCTURE = "답변을 상황, 맡은 역할, 해결 과정, 결과 순서로 구성하면 근거가 더 분명해집니다."
-ADVICE_UNSURE = "잘 모르는 질문도 아는 부분부터 말씀해 보세요. 이해한 만큼 말하는 것이 연습에 도움이 됩니다."
-ADVICE_UNCOVERED = "다루지 못한 항목은 다시 연습해 보세요."
-ADVICE_KEEP = "근거가 잘 드러난 답변의 구성을 다른 질문에서도 이어 가 보세요."
-BEHAVIORAL_PRACTICE = "비슷한 경험이 있다면 상황, 본인이 한 일, 결과 순서로 설명해 보세요."
+NOTE_NO_ITEMS = "There are no prepared questions to review."
+NOTE_NO_ANSWERS = "No answers were recorded to review. Please check your microphone and try practicing again."
+NOTE_ABORTED = "The practice session ended early, so some questions were not covered."
+NOTE_TIME = "Scheduled time ended before all questions were covered."
+ADVICE_STRUCTURE = "Structuring answers by situation, your role, actions taken, and outcomes makes evidence clearer."
+ADVICE_UNSURE = "Even on unfamiliar topics, start with what you do know so you can practice explaining your reasoning."
+ADVICE_UNCOVERED = "Try practicing the topics that were not covered next time."
+ADVICE_KEEP = "Carry the clear structure of your strongest answers into other questions as well."
+BEHAVIORAL_PRACTICE = "If you have a similar experience, try explaining the situation, what you did, and the outcome."
 FIXED_LINES = (NOTE_NO_ITEMS, NOTE_NO_ANSWERS, NOTE_ABORTED, NOTE_TIME, ADVICE_STRUCTURE, ADVICE_UNSURE, ADVICE_UNCOVERED, ADVICE_KEEP)
 
 # A number with a unit, a rank, a grade, a verdict: things a feedback text must not say. (A bare number such as "Java 17" is fine.)
@@ -94,8 +94,26 @@ _SCORE_LIKE = re.compile(
 # A model sentence about the company, a requirement or an expectation: the report never says what a job or a company wants
 _CLAIMS = re.compile(r"회사|기업|공고|요구|필수|우대|요건|기대|\b(?:company|employer|requirements?|required|expect\w*)\b", re.IGNORECASE)
 _LATIN = re.compile(r"[A-Za-z][A-Za-z0-9+#]*(?:[.\-][A-Za-z0-9+#]+)*")
+_SENTENCE_START_ALLOW = frozenset({
+    "you", "your", "try", "consider", "explain", "describe", "share", "walk", "focus", "keep", "start",
+    "finish", "build", "based", "overall", "when", "while", "where", "what", "how", "why", "this", "that",
+    "these", "those", "the", "a", "an", "for", "in", "on", "to", "with", "without", "during", "before",
+    "after", "more", "some", "no", "not", "none", "good", "clear", "specific", "concrete", "adding",
+    "providing", "explaining", "describing", "highlighting", "discussing", "structuring", "connecting",
+    "practicing", "reviewing", "preparing", "answering", "instead", "however", "additionally", "furthermore",
+    "next", "remember", "make", "use", "avoid", "include", "cover", "mention", "even", "although", "though",
+    "since", "because", "if", "as", "there", "here", "it", "also", "please", "give", "state", "clarify",
+    "specify", "summarize", "practice", "review", "carry", "regarding", "having", "using", "showing", "star",
+})
 _WORD = re.compile(r"[a-z0-9+#.\-]{2,}|[가-힣]{2,}")  # Latin and Hangul runs apart: "API를" is "api" and a particle
-_STOP = ("설명", "경험", "사례", "대해", "구체", "있는", "해보", "보세요", "주세요", "관련", "내용", "방법", "어떻게", "무엇", "실제", "이번", "연습", "활용", "능력", "이해", "수준", "지식")
+_STOP = (
+    "설명", "경험", "사례", "대해", "구체", "있는", "해보", "보세요", "주세요", "관련", "내용", "방법", "어떻게", "무엇", "실제", "이번", "연습", "활용", "능력", "이해", "수준", "지식",
+    "explain", "describe", "experience", "example", "examples", "practical", "detail", "details", "about",
+    "please", "could", "would", "should", "what", "how", "why", "this", "that", "your", "with", "from",
+    "into", "related", "relevant", "topic", "question", "answer", "answers", "using", "used", "work",
+    "concept", "concepts", "knowledge", "understanding", "proficiency", "skill", "skills", "share", "tell",
+    "walk", "through", "concrete", "practice", "based", "real", "level", "more", "most",
+)
 _FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL | re.IGNORECASE)
 
 
@@ -332,14 +350,30 @@ def _grounded_in(line: str, topic: str, ctx: _Context) -> bool:
     return any(_same_word(q, c) for q in _tokens(line) for c in context)
 
 
+def _looks_like_invented_tech(line: str, ctx: _Context) -> bool:
+    for m in _LATIN.finditer(line):
+        token = m.group(0)
+        if len(token) < 2 or token.lower() in ctx.latin:
+            continue
+        if any(ch.isdigit() or ch in "+#." for ch in token):
+            return True
+        if token.isupper() or any(ch.isupper() for ch in token[1:]):
+            return True
+        if token[0].isupper():
+            before = line[: m.start()].rstrip()
+            at_sentence_start = not before or before[-1] in ".!?"
+            if not at_sentence_start or token.lower() not in _SENTENCE_START_ALLOW:
+                return True
+    return False
+
+
 def _invents(line: str, ctx: _Context, skills: SkillDictionary | None) -> bool:
     """The sentence names a technology or certification that neither the plan nor the candidate's own lines name."""
-    if any(len(token) >= 2 and token.lower() not in ctx.latin for token in _LATIN.findall(line)):
-        return True
     if skills is not None:
         mentioned = set(skills.find_in_text(line)) | {name for name, _ in skills.find_certificates(line)}
-        return not mentioned <= ctx.skills
-    return False
+        if not mentioned <= ctx.skills:
+            return True
+    return _looks_like_invented_tech(line, ctx)
 
 
 def _valid_quotes(raw: Iterable[object], lines: Sequence[str]) -> tuple[str, ...]:
@@ -381,10 +415,13 @@ def _rules_strengths(ctx: _Context, plan: SafePlan, blocklists: Sequence[Blockli
         levels = dict(item.levels)
         wanted = ("demonstrated",) if item.status == "demonstrated" else ("demonstrated", "partial")
         shown = [text.value for pid, text in item.rubric if levels.get(pid) in wanted and text]
-        verb = "근거를 들어 설명했습니다." if item.status == "demonstrated" else "일부 설명했습니다."
         name = _name(item)
-        candidates = [f"'{name}' 질문에서 {', '.join(shown[:n])}에 대해 {verb}" for n in (2, 1) if shown[:n]]
-        candidates.append(f"'{name}' 질문에서 관련 내용을 {verb}")
+        if item.status == "demonstrated":
+            candidates = [f"In '{name}', you clearly explained {', '.join(shown[:n])}." for n in (2, 1) if shown[:n]]
+            candidates.append(f"In '{name}', you explained the topic with clear supporting details.")
+        else:
+            candidates = [f"In '{name}', you partially covered {', '.join(shown[:n])}." for n in (2, 1) if shown[:n]]
+            candidates.append(f"In '{name}', you shared some relevant points.")
         if (text := _first_ok(candidates, blocklists)) is not None:
             out.append(Strength(item.topic_id, text, quotes))
         if len(out) == MAX_STRENGTHS:
@@ -395,9 +432,9 @@ def _rules_strengths(ctx: _Context, plan: SafePlan, blocklists: Sequence[Blockli
 def _gap_lines(item: SafeItem) -> list[str]:
     name = _name(item)
     if item.status == "skipped":
-        return [f"'{name}' 질문은 건너뛰어 확인하지 못했습니다."]
+        return [f"You skipped the question on '{name}', so those details were not covered."]
     if item.status in ("asked", "not_asked"):
-        return [f"'{name}' 항목은 이번 연습에서 다루지 못했습니다."]
+        return [f"'{name}' was not covered during this practice session."]
     levels = dict(item.levels)
     lines = []
     for pid, text in item.rubric:
@@ -405,11 +442,11 @@ def _gap_lines(item: SafeItem) -> list[str]:
         if level == "demonstrated" or not text:
             continue
         lines.append(
-            f"'{name}'에서 {text.value}에 대한 설명이 아직 나오지 않았습니다."
+            f"In '{name}', {text.value} has not been covered yet."
             if level == "not_shown"
-            else f"'{name}'에서 {text.value}에 대해서는 더 구체적인 설명이 필요합니다."
+            else f"In '{name}', adding more detail on {text.value} would help."
         )
-    return lines[:2] or [f"'{name}' 질문에서 확인된 내용이 충분하지 않았습니다."]
+    return lines[:2] or [f"There was limited detail shown for '{name}'."]
 
 
 def _rules_gaps(ctx: _Context, plan: SafePlan, blocklists: Sequence[Blocklist]) -> tuple[Gap, ...]:
@@ -418,7 +455,7 @@ def _rules_gaps(ctx: _Context, plan: SafePlan, blocklists: Sequence[Blocklist]) 
         if item.status in GAP_STATUSES:
             out += [Gap(item.topic_id, line) for text in _gap_lines(item) if (line := screen_feedback(text, blocklists)) is not None]
     for tid, u in ctx.uncovered.items():
-        if line := screen_feedback(f"'{u.name.value}' 항목은 이번 연습에서 다루지 못했습니다.", blocklists):
+        if line := screen_feedback(f"'{u.name.value}' was not covered during this practice session.", blocklists):
             out.append(Gap(tid, line))
     return tuple(out[:MAX_GAPS])
 
@@ -446,7 +483,7 @@ def _rules_practice(ctx: _Context, plan: SafePlan, blocklists: Sequence[Blocklis
         levels = dict(item.levels)
         missing = [text.value for pid, text in item.rubric if levels.get(pid, "not_shown") != "demonstrated" and text]
         if item.topic_id.startswith("c"):
-            candidates = [f"{missing[0]}에 대해 실제 경험이나 사례를 들어 설명해 보세요."] if missing else []
+            candidates = [f"Could you give a concrete example from your work about {missing[0]}?"] if missing else []
             candidates.append(rules.fallback_question(_name(item)))
         else:
             candidates = [BEHAVIORAL_PRACTICE]

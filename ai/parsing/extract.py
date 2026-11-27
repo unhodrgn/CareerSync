@@ -25,8 +25,8 @@ from ai.parsing.sections import split_sections
 
 log = logging.getLogger(__name__)
 
-PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts" / "v1"
-PROMPT_VERSION = "v1"
+PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts" / "v2"
+PROMPT_VERSION = "v2"
 
 
 def _prompt(name: str) -> str:
@@ -223,8 +223,15 @@ def stated_experience(text: str) -> tuple[int, str] | None:
 
 # ── Rule-based CV structuring ──
 
-_DEGREES = (("박사", "박사"), ("석사", "석사"), ("전문학사", "전문학사"), ("학사", "학사"), ("대학교", "학사"),
-            ("대학", "학사"), ("고등학교", "고졸"), ("ph.d", "박사"), ("master", "석사"), ("bachelor", "학사"))
+_DEGREES = (
+    ("박사", "Doctorate"), ("ph.d", "Doctorate"), ("phd", "Doctorate"), ("doctorate", "Doctorate"),
+    ("석사", "Master"), ("master", "Master"), ("m.s.", "Master"), ("m.eng", "Master"),
+    ("전문학사", "Associate"), ("associate", "Associate"),
+    ("학사", "Bachelor"), ("대학교", "Bachelor"), ("대학", "Bachelor"),
+    ("bachelor", "Bachelor"), ("b.s.", "Bachelor"), ("b.a.", "Bachelor"), ("b.eng", "Bachelor"),
+    ("university", "Bachelor"),
+    ("고등학교", "High School"), ("high school", "High School"),
+)
 _MAJOR_END = ("학과", "학부", "공학", "전공", "과학", "학")
 
 
@@ -234,8 +241,16 @@ def _major(line: str) -> str:
             continue
         if word.endswith(_MAJOR_END) and len(word) >= 3:
             return word
-    m = re.search(r"(?:major|전공)\s*[:：]?\s*([A-Za-z가-힣 ]{2,40})", line, re.IGNORECASE)
-    return m.group(1).strip() if m else ""
+    m = re.search(r"(?:major|전공)\s*[:：]?\s*([A-Za-z가-힣0-9 &/\-]{2,50})", line, re.IGNORECASE)
+    if m:
+        return m.group(1).strip(" .|,/()")
+    m = re.search(
+        r"\b(?:b\.?s\.?|b\.?a\.?|b\.?eng\.?|m\.?s\.?|m\.?eng\.?|ph\.?d\.?|bachelor(?:'s)?|master(?:'s)?|doctorate|associate(?:'s)?)"
+        r"\s+(?:of\s+(?:science|arts|engineering)\s+)?in\s+([^,|\n()]{2,50})",
+        line,
+        re.IGNORECASE,
+    )
+    return m.group(1).strip(" .|,/()") if m else ""
 
 
 def _clean(line: str) -> str:
@@ -309,7 +324,10 @@ def _education(text: str) -> list[Education]:
         major = _major(line)
         if not degree and not major:
             continue
-        school = re.search(r"([가-힣A-Za-z]+(?:대학교|대학|고등학교|University))", line)
+        school = re.search(
+            r"([가-힣A-Za-z]+(?:대학교|대학|고등학교)|[A-Za-z0-9'&.\-]+(?: [A-Za-z0-9'&.\-]+){0,5} (?:University|College|Institute of Technology|High School))",
+            line,
+        )
         out.append(
             Education(
                 school=school.group(1)[:100] if school else "",
@@ -432,12 +450,12 @@ def suggest_criteria(profile: JdProfile) -> list[SuggestedCriterion]:
     """A starting criteria set from the JD; the recruiter edits it and the guardrail checks it on save."""
     items: list[tuple[str, str, str, int]] = []
     for s in profile.required_skills[:3]:
-        items.append((f"{s} 활용 능력", f"실무 또는 프로젝트에서 {s} 사용 경험", "skill", 3))
+        items.append((f"{s} proficiency", f"Hands-on experience using {s} in work or projects", "skill", 3))
     if profile.min_years:
-        items.append((f"경력 {profile.min_years}년 이상", "관련 직무 경력", "experience", 2))
-    items.append(("프로젝트 경험", "직무와 관련된 프로젝트 경험과 본인의 역할", "project", 2))
+        items.append((f"{profile.min_years}+ years of experience", "Relevant work experience", "experience", 2))
+    items.append(("Project experience", "Project experience and personal role relevant to the job", "project", 2))
     if profile.certificates:
-        items.append(("관련 자격증", ", ".join(profile.certificates[:3]), "certificate", 1))
+        items.append(("Relevant certificates", ", ".join(profile.certificates[:3]), "certificate", 1))
     total = sum(w for *_, w in items)
     weights = [max(1, round(100 * w / total)) for *_, w in items]
     weights[0] += 100 - sum(weights)

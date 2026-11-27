@@ -55,7 +55,7 @@ def preview(body: CriteriaPreviewIn, company_id: int | None = None) -> CriteriaP
     llm, limited = ai_runtime.llm(), False
     if llm is not None and company_id is not None and not take_preview_llm_slot(company_id):
         llm, limited = None, True
-    label = "내부 프로젝트 기술서" if body.source_type == "project_spec" else "채용공고 원문"
+    label = "Internal project specification" if body.source_type == "project_spec" else "Job posting text"
     analysis, method = analyze_jd(
         body.title, f"{label}\n{body.text}", body.min_experience_years,
         ai_runtime.skills(), llm,

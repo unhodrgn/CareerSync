@@ -90,10 +90,10 @@ def three_items():
 def test_rules_mode_stores_the_rules_report_as_final_and_asks_for_no_quota(db, world, clock, sid, monkeypatch):
     install(monkeypatch, None)
     result = fb.ensure(db, world.user, sid, clock=clock)
-    assert (result.final, result.limited, result.reason, result.method, result.prompt_version) == (True, False, None, "rules", "v1")
+    assert (result.final, result.limited, result.reason, result.method, result.prompt_version) == (True, False, None, "rules", "v2")
     assert result.attempts_used == 0 and result.generated_at == clock() and result.data["method"] == "rules"
     r = row(db, sid)
-    assert (r.feedback, r.feedback_method, r.feedback_prompt_version) == (result.data, "rules", "v1")
+    assert (r.feedback, r.feedback_method, r.feedback_prompt_version) == (result.data, "rules", "v2")
     assert (r.feedback_lease_until, r.feedback_lease_token, r.feedback_attempts) == (None, None, 0)
     assert feedback_used(db, world, clock) == 0
 
@@ -138,10 +138,10 @@ def test_a_usable_model_report_is_stored_with_its_method_and_prompt_version(db, 
     llm = SpyLLM(db, model="claude-test")
     install(monkeypatch, llm)
     result = fb.ensure(db, world.user, sid, clock=clock)
-    assert (result.final, result.limited, result.reason, result.method, result.prompt_version) == (True, False, None, "llm:claude-test", "v1")
+    assert (result.final, result.limited, result.reason, result.method, result.prompt_version) == (True, False, None, "llm:claude-test", "v2")
     assert result.attempts_used == 1 and result.data["improvements"] == USABLE["improvements"]
     r = row(db, sid)
-    assert (r.feedback, r.feedback_method, r.feedback_prompt_version, r.feedback_attempts) == (result.data, "llm:claude-test", "v1", 1)
+    assert (r.feedback, r.feedback_method, r.feedback_prompt_version, r.feedback_attempts) == (result.data, "llm:claude-test", "v2", 1)
     assert (r.feedback_lease_until, r.feedback_lease_token) == (None, None)
     assert len(llm.calls) == 1 and feedback_used(db, world, clock) == 1
 
@@ -165,7 +165,7 @@ def test_failures_on_attempts_one_and_two_are_provisional_the_third_stores_the_r
     third = fb.ensure(db, world.user, sid, clock=clock)
     assert (third.final, third.method, third.attempts_used, third.reason) == (True, "rules", 3, None)
     r = row(db, sid)
-    assert (r.feedback, r.feedback_method, r.feedback_prompt_version, r.feedback_attempts) == (third.data, "rules", "v1", 3)
+    assert (r.feedback, r.feedback_method, r.feedback_prompt_version, r.feedback_attempts) == (third.data, "rules", "v2", 3)
     assert r.feedback_lease_token is None
     fourth = fb.ensure(db, world.user, sid, clock=clock)
     assert fourth.final and fourth.data == third.data

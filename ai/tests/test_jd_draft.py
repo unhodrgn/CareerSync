@@ -91,19 +91,19 @@ def test_job_sentences_pass(text):
 
 def test_template_uses_the_inputs():
     d = screen(draft_rules(INPUT, SKILLS), BLOCKLIST)
-    assert "Acme" in d.intro and "정규직" in d.intro and "결제팀 백엔드" in d.intro
+    assert "Acme" in d.intro and "Full-time" in d.intro and "결제팀 백엔드" in d.intro
     assert any("결제 시스템 MSA 전환" in r and "Kafka" in r for r in d.responsibilities)
-    assert d.requirements[0] == "관련 경력 3년 이상"
-    assert "Java 실무 또는 프로젝트 경험" in d.requirements  # keyword normalized
-    assert "Kafka 사용 경험" in d.preferred and not any("Java 사용" in p for p in d.preferred)
+    assert d.requirements[0] == "3+ years of relevant experience"
+    assert "Hands-on or project experience with Java" in d.requirements  # keyword normalized
+    assert "Experience using Kafka" in d.preferred and not any("experience using Java" in p.lower() for p in d.preferred)
     assert not d.dropped
 
 
 def test_template_without_years_or_keywords():
     d = draft_rules(DraftInput(title="데이터 엔지니어", min_experience_years=None), SKILLS)
-    assert d.requirements[0] == "신입 지원 가능"
-    assert "데이터 엔지니어 직무 관련 지식과 경험" in d.requirements
-    assert draft_rules(DraftInput(title="x", min_experience_years=0), SKILLS).requirements[0] == "신입 지원 가능"
+    assert d.requirements[0] == "Open to entry-level applicants"
+    assert "Knowledge and experience relevant to the 데이터 엔지니어 role" in d.requirements
+    assert draft_rules(DraftInput(title="x", min_experience_years=0), SKILLS).requirements[0] == "Open to entry-level applicants"
 
 
 def test_template_is_screened_too():
@@ -119,9 +119,9 @@ def test_template_is_screened_too():
 def test_description_lists_sections_in_order_for_analyze_jd():
     d = screen(draft_rules(INPUT, SKILLS), BLOCKLIST)
     text = d.description
-    assert text.index("주요 업무") < text.index("자격 요건") < text.index("우대 사항")
-    assert "- 관련 경력 3년 이상" in text
-    # analyze_jd reads requirements before "우대": the draft round-trips into criteria suggestions
+    assert text.index("Responsibilities") < text.index("Qualifications") < text.index("Preferred Qualifications")
+    assert "- 3+ years of relevant experience" in text
+    # analyze_jd reads requirements before Preferred Qualifications: the draft round-trips into criteria suggestions
     analysis = analyze_jd_rules(INPUT.title, text, None, SKILLS)
     assert "Java" in analysis.profile.required_skills and analysis.profile.min_years == 3
 
@@ -154,7 +154,7 @@ def test_long_and_extra_items():
 
 def test_llm_error_falls_back_to_the_template():
     d, method = make_draft(INPUT, SKILLS, BLOCKLIST, FakeLLM(LLMError("down")))
-    assert method == "rules" and d.requirements[0] == "관련 경력 3년 이상"
+    assert method == "rules" and d.requirements[0] == "3+ years of relevant experience"
 
 
 def test_no_requirements_left_falls_back_to_the_template():
@@ -167,13 +167,13 @@ def test_no_requirements_left_falls_back_to_the_template():
 def test_bad_notes_drop_only_the_notes_sentence():
     inp = DraftInput(title="백엔드 개발자", company_name="Acme", notes="연봉 6천만원 이상, 남성 우대")
     d, _ = make_draft(inp, SKILLS, BLOCKLIST, None)
-    assert d.intro == "Acme에서 백엔드 개발자(정규직)을(를) 찾습니다."
+    assert d.intro == "Acme is looking for a 백엔드 개발자 (Full-time)."
     assert [x.text for x in d.dropped] == ["연봉 6천만원 이상, 남성 우대"]
 
 
 def test_good_notes_stay_after_the_intro_sentence():
     d, _ = make_draft(DraftInput(title="백엔드 개발자", company_name="Acme", notes="결제팀 백엔드"), SKILLS, BLOCKLIST, None)
-    assert d.intro == "Acme에서 백엔드 개발자(정규직)을(를) 찾습니다. 결제팀 백엔드" and not d.dropped
+    assert d.intro == "Acme is looking for a 백엔드 개발자 (Full-time). 결제팀 백엔드" and not d.dropped
 
 
 def test_llm_intro_is_screened_per_sentence():

@@ -203,7 +203,7 @@ def test_the_closing_line_is_masked_and_never_cut_or_oversized(db, clock, sid):
     refuse_end(db, sid, end_ev(plan, seq, text="가" * 8001), clock, 422, "INTERVIEW_TURN_TOO_LONG")
     still_live(db, sid, 2)
     end(db, sid, end_ev(plan, seq, text="연락은 kim@example.com 으로 드리겠습니다"), clock)
-    assert closings(db, sid)[0].text == "연락은 [이메일] 으로 드리겠습니다"
+    assert closings(db, sid)[0].text == "연락은 [EMAIL] 으로 드리겠습니다"
 
 
 def test_the_closing_line_follows_the_last_turn_exactly(db, clock, sid):

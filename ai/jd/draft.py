@@ -25,13 +25,14 @@ MAX_ITEM_CHARS = 200
 MAX_INTRO_CHARS = 500
 MAX_DESCRIPTION_CHARS = 10000
 
-EMPLOYMENT_LABELS = {"full_time": "정규직", "contract": "계약직", "intern": "인턴"}
-SECTION_TITLES = (("responsibilities", "주요 업무"), ("requirements", "자격 요건"), ("preferred", "우대 사항"))
+EMPLOYMENT_LABELS = {"full_time": "Full-time", "contract": "Contract", "intern": "Internship"}
+SECTION_TITLES = (("responsibilities", "Responsibilities"), ("requirements", "Qualifications"), ("preferred", "Preferred Qualifications"))
 
-# Pay words and amounts ("4,000만 원", "5천만원"); "5억 건" (a count) and "3원칙" are not amounts
+# Pay words and amounts ("4,000만 원", "5천만원", "$120,000"); "5억 건" (a count) and "3원칙" are not amounts
 _MONEY = re.compile(
     r"연봉|급여|월급|시급|일급|임금|성과급|인센티브|스톡\s*옵션"
-    r"|\d[\d,.]*\s*(?:만|천|백만|억)?\s*원(?!칙|활|리|인|격|본|래)|₩|\bKRW\b|\$\s*\d",
+    r"|\b(?:salary|salaries|compensation|wage|wages|bonus|bonuses|equity|stock\s*options?|signing\s+bonus|hourly\s+rate|annual\s+pay|remuneration)\b"
+    r"|\d[\d,.]*\s*(?:만|천|백만|억)?\s*원(?!칙|활|리|인|격|본|래)|₩|\b(?:KRW|USD)\b|\$\s*\d",
     re.IGNORECASE,
 )
 # A scheme or www, or a domain followed by a path ("Node.js", "Socket.io" stay), as in ai/career/roadmap.py
@@ -42,9 +43,9 @@ _PHONE = re.compile(r"(?<!\d)0\d{1,2}[-.\s)]?\d{3,4}[-.\s]?\d{4}(?!\d)")
 # Sentence ends followed by space, or line breaks
 _SENTENCE_BREAK = re.compile(r"(?<=[.!?。])\s+|\n+")
 
-REASON_MONEY = "급여·금액 정보는 AI가 쓰지 않습니다. 필요하면 직접 입력하세요."
-REASON_CONTACT = "링크·이메일·전화번호는 넣지 않습니다."
-REASON_LENGTH = f"{MAX_ITEM_CHARS}자를 넘는 문장입니다."
+REASON_MONEY = "Salary and compensation details are not written by AI. Enter them directly if needed."
+REASON_CONTACT = "Links, email addresses, and phone numbers are not allowed."
+REASON_LENGTH = f"Exceeds {MAX_ITEM_CHARS} characters."
 
 
 @dataclass(frozen=True)
@@ -122,7 +123,7 @@ def screen(draft: JdDraft, blocklist: Blocklist) -> JdDraft:
 
     def keep(text: str, limit: int) -> bool:
         if len(text) > limit:
-            dropped.append(Dropped(text, REASON_LENGTH if limit == MAX_ITEM_CHARS else f"{limit}자를 넘는 소개입니다."))
+            dropped.append(Dropped(text, REASON_LENGTH if limit == MAX_ITEM_CHARS else f"Exceeds {limit} characters."))
             return False
         if reason := drop_reason(text, blocklist):
             dropped.append(Dropped(text, reason))
@@ -160,8 +161,8 @@ def _skills(inp: DraftInput, skills: SkillDictionary) -> tuple[list[str], list[s
 def draft_rules(inp: DraftInput, skills: SkillDictionary) -> JdDraft:
     wanted, extra_techs = _skills(inp, skills)
     employment = EMPLOYMENT_LABELS.get(inp.employment_type, "")
-    who = f"{inp.company_name}에서" if inp.company_name else "함께"
-    intro = f"{who} {inp.title}" + (f"({employment})" if employment else "") + "을(를) 찾습니다."
+    who = f"{inp.company_name} is" if inp.company_name else "We are"
+    intro = f"{who} looking for a {inp.title}" + (f" ({employment})" if employment else "") + "."
     if inp.notes.strip():
         # The company's memo is its own sentence: if it is dropped, the intro sentence stays
         intro += "\n" + _norm(inp.notes)
@@ -169,21 +170,21 @@ def draft_rules(inp: DraftInput, skills: SkillDictionary) -> JdDraft:
     responsibilities = []
     for p in inp.projects[:3]:
         techs = ", ".join(skills.normalize_list(list(p.techs))[:5])
-        responsibilities.append(f"{p.name} 프로젝트 개발 및 운영" + (f" ({techs})" if techs else ""))
-    responsibilities.append(f"{inp.title} 직무 관련 기능 설계·개발 및 유지보수")
-    responsibilities.append("코드 리뷰와 문서화를 통한 팀 협업")
+        responsibilities.append(f"Develop and operate {p.name}" + (f" ({techs})" if techs else ""))
+    responsibilities.append(f"Design, build, and maintain features for the {inp.title} role")
+    responsibilities.append("Collaborate with the team through code reviews and documentation")
 
     years = inp.min_experience_years
-    requirements = [f"관련 경력 {years}년 이상" if years else "신입 지원 가능"]
-    requirements += [f"{s} 실무 또는 프로젝트 경험" for s in wanted[:5]]
+    requirements = [f"{years}+ years of relevant experience" if years else "Open to entry-level applicants"]
+    requirements += [f"Hands-on or project experience with {s}" for s in wanted[:5]]
     if not wanted:
-        requirements.append(f"{inp.title} 직무 관련 지식과 경험")
-    requirements.append("원활한 커뮤니케이션과 협업 능력")
+        requirements.append(f"Knowledge and experience relevant to the {inp.title} role")
+    requirements.append("Strong communication and collaboration skills")
 
-    preferred = [f"{t} 사용 경험" for t in extra_techs[:4]]
-    preferred.append("스스로 문제를 정의하고 해결해 본 경험")
+    preferred = [f"Experience using {t}" for t in extra_techs[:4]]
+    preferred.append("Ability to identify and solve problems independently")
     if inp.talent_profile.strip() and len(inp.talent_profile) <= 150:
-        preferred.append(f"회사의 인재상에 공감하는 분: {_norm(inp.talent_profile)}")
+        preferred.append(f"Alignment with our ideal candidate profile: {_norm(inp.talent_profile)}")
     return JdDraft(intro=intro, responsibilities=responsibilities, requirements=requirements, preferred=preferred)
 
 
@@ -192,13 +193,13 @@ def draft_rules(inp: DraftInput, skills: SkillDictionary) -> JdDraft:
 
 def _llm_input(inp: DraftInput) -> str:
     years = "" if inp.min_experience_years is None else str(inp.min_experience_years)
-    projects = "\n".join(f"- {p.name}: {p.description} (기술: {', '.join(p.techs)})" for p in inp.projects)
+    projects = "\n".join(f"- {p.name}: {p.description} (tech: {', '.join(p.techs)})" for p in inp.projects)
     return (
         f"<job>\ntitle: {inp.title}\nemployment_type: {EMPLOYMENT_LABELS.get(inp.employment_type, inp.employment_type)}\n"
         f"min_experience_years: {years}\n</job>\n"
         f"<keywords>\n{', '.join(inp.keywords)}\n</keywords>\n"
         f"<notes>\n{inp.notes}\n</notes>\n"
-        f"<company>\nname: {inp.company_name}\nintro: {inp.company_intro}\n인재상: {inp.talent_profile}\n</company>\n"
+        f"<company>\nname: {inp.company_name}\nintro: {inp.company_intro}\nideal_candidate: {inp.talent_profile}\n</company>\n"
         f"<projects>\n{projects}\n</projects>"
     )
 

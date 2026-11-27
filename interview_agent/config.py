@@ -95,9 +95,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> AgentSettings:
 # |---|---|---|
 # | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | none (required) | The LiveKit Cloud project |
 # | `INTERVIEW_AGENT_NAME` | `careersync-interviewer` | The agent name the worker registers under; the backend's join token dispatches this name |
-# | `INTERVIEW_AGENT_STT_MODEL` | `deepgram/nova-3` | LiveKit Inference speech recognition model (Korean is listed for it) |
-# | `INTERVIEW_AGENT_TTS_MODEL` | `cartesia/sonic-3` | LiveKit Inference speech synthesis model (Korean is listed for it) |
-# | `INTERVIEW_AGENT_TTS_VOICE` | a Cartesia sample voice | The voice id; listen to the Korean output and change it if it sounds wrong |
+# | `INTERVIEW_AGENT_STT_MODEL` | `deepgram/nova-3` | LiveKit Inference speech recognition model |
+# | `INTERVIEW_AGENT_TTS_MODEL` | `cartesia/sonic-3` | LiveKit Inference speech synthesis model |
+# | `INTERVIEW_AGENT_TTS_VOICE` | a Cartesia sample voice | The voice id; change it to customize the interviewer's voice |
+# | `INTERVIEW_AGENT_LANGUAGE` | `en` | Language passed to STT and TTS (`en`, `ko`, …) |
 # | `INTERVIEW_AGENT_ENDPOINT_MIN_SECONDS` | `3.0` | Wait after the candidate's last speech when the turn detector thinks the sentence is complete |
 # | `INTERVIEW_AGENT_ENDPOINT_MAX_SECONDS` | `6.0` | Wait when it thinks the candidate is not done; the turn ends after this whatever it says |
 # | `INTERVIEW_AGENT_STATUS_POLL_SECONDS` | `5` | How often the worker asks the backend whether the session is still active (D80) |
@@ -108,9 +109,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> AgentSettings:
 DEFAULT_AGENT_NAME = "careersync-interviewer"  # the default of the backend's INTERVIEW_AGENT_NAME; a backend test checks that they agree
 DEFAULT_STT_MODEL = "deepgram/nova-3"
 DEFAULT_TTS_MODEL = "cartesia/sonic-3"
-# The sample voice of LiveKit's Cartesia page. It documents no Korean voice: the voice is checked by listening in the live run
+# The sample English voice of LiveKit's Cartesia page; override via INTERVIEW_AGENT_TTS_VOICE if desired
 DEFAULT_TTS_VOICE = "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
-LANGUAGE = "ko"
+LANGUAGE = "en"
 TURN_DETECTOR_VERSION = "v1"  # the full model, served by LiveKit Inference; without a version `start` would run the local v1-mini
 DEFAULT_AVATAR_MODE = "auto"
 DEFAULT_AVATAR_JOIN_TIMEOUT_SECONDS = 30.0
@@ -183,7 +184,7 @@ def load_voice_settings(env: Mapping[str, str] | None = None) -> VoiceSettings:
         stt_model=_get(env, "INTERVIEW_AGENT_STT_MODEL", DEFAULT_STT_MODEL),
         tts_model=_get(env, "INTERVIEW_AGENT_TTS_MODEL", DEFAULT_TTS_MODEL),
         tts_voice=_get(env, "INTERVIEW_AGENT_TTS_VOICE", DEFAULT_TTS_VOICE),
-        language=LANGUAGE,
+        language=_get(env, "INTERVIEW_AGENT_LANGUAGE", LANGUAGE),
         endpoint_min=low,
         endpoint_max=high,
         status_poll=_number(env, "INTERVIEW_AGENT_STATUS_POLL_SECONDS", 5.0, 1.0, 30.0),

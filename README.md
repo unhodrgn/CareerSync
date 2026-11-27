@@ -48,8 +48,8 @@ Demo accounts (password `demo1234` for all):
 
 | Role | Email | Start with |
 | --- | --- | --- |
-| Company | `hr@nextcode.test` | One published backend job with criteria and one draft job: edit criteria, try a blocked one, open 지원자 순위 (Applicant ranking) and 인재 추천 (Talent recommendation) |
-| Company | `hr@cloudlab.test` | One published data engineer job |
+| Company | `hr@nextcode.test` | NextCode: one published backend job with criteria and one draft job: edit criteria, try a blocked one, open 지원자 순위 (Applicant ranking) and 인재 추천 (Talent recommendation) |
+| Company | `hr@cloudlab.test` | CloudLab: one published data engineer job |
 | Seeker | `seeker@demo.test` | No CV yet: upload `data/demo/demo_cv.pdf`, confirm it, set preferences, apply |
 | Seeker | `seeker2@demo.test` | Ready-made: demo CV confirmed, preferences set, in the talent pool |
 | Seeker | `seeker3@demo.test` | Demo CV confirmed only (no preferences, not in the talent pool): a second account for the practice interview's live checks |
@@ -57,10 +57,10 @@ Demo accounts (password `demo1234` for all):
 A typical demo:
 
 1. Log in as `seeker@demo.test`, open 내 이력서 (My CV), upload `data/demo/demo_cv.pdf` and confirm the extracted profile.
-2. Open 추천 공고 (Recommended jobs). The first visit only starts scoring ("분석 중", analyzing); press 새로고침 (refresh) after a few seconds to see the jobs with their match score and band. Open the 넥스트코드 backend job and press 지원하기 (Apply).
-3. Log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 tab: the applicant is ranked by Fit with a score, evidence and comment per criterion.
-4. In the job's 공고 수정 (Edit job) tab, move weight from one criterion to another (the total must stay 100) and save: the Fit is recomputed without new AI calls. To see the guardrail, open the draft 프론트엔드 개발자 (React) job instead, add a criterion such as "키 175cm 이상" (height of at least 175 cm) and leave the field: it is blocked with the law that forbids it. A published job's criteria are fixed, so this only works on a draft.
-5. Open the backend job's 인재 추천 tab; after 새로고침, `seeker2@demo.test` appears as an anonymous seeker. Send an offer, then log in as that seeker and accept it in 받은 제안 (Received offers).
+2. Open 추천 공고 (Recommended jobs). The first visit only starts scoring ("Analyzing"); press Refresh after a few seconds to see the jobs with their match score and band. Open the NextCode Backend Developer job and press Apply.
+3. Log in as `hr@nextcode.test`, open the job in 공고 관리 (Job management) and its 지원자 순위 (Applicant ranking) tab: the applicant is ranked by Fit with a score, evidence and comment per criterion.
+4. In the job's Edit job tab, move weight from one criterion to another (the total must stay 100) and save: the Fit is recomputed without new AI calls. To see the guardrail, open the draft Frontend Developer (React) job instead, add a criterion such as `"Minimum height 175cm"` (or Korean `"키 175cm 이상"`) and leave the field: it is blocked with the law that forbids it. A published job's criteria are fixed, so this only works on a draft.
+5. Open the backend job's 인재 추천 (Talent recommendation) tab; after Refresh, `seeker2@demo.test` appears as an anonymous seeker. Send an offer, then log in as that seeker and accept it in 받은 제안 (Received offers).
 
 To run the backend and frontend on your machine instead, see [Run locally](docs/how-to/run-locally.md); if something fails, see [Troubleshooting](docs/how-to/troubleshooting.md).
 

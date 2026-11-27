@@ -56,7 +56,7 @@ def test_template_has_one_step_per_gap_with_yaml_resources():
     assert method == "rules"
     assert [(s.order, s.skill, s.kind) for s in steps] == [(1, "Kubernetes", "skill"), (2, "Kafka", "skill"), (3, "SQLP", "certificate")]
     assert steps[0].goal and len(steps[0].activities) == 3 and "Kubernetes" in steps[0].activities[0]
-    assert steps[2].goal == "SQLP 취득" and steps[2].resources[0].url == "https://www.dataq.or.kr/"
+    assert steps[2].goal == "Earn SQLP" and steps[2].resources[0].url == "https://www.dataq.or.kr/"
     assert all("http" not in s.goal + "".join(s.activities) for s in steps)
 
 
@@ -84,7 +84,7 @@ def test_llm_steps_are_validated():
     assert [s.skill for s in steps] == ["Kubernetes", "Kafka", "SQLP"]
     k8s, kafka, sqlp = steps
     assert k8s.goal == "클러스터 배포 자동화 익히기" and k8s.activities == ("읽기", "Helm 차트 작성")
-    assert kafka.goal == "Kafka 실무 기초 역량 갖추기"  # skipped by the model: the template fills it
+    assert kafka.goal == "Build foundational hands-on skills in Kafka"  # skipped by the model: the template fills it
     assert sqlp.activities == ("기출 풀이", "참고")
     assert k8s.resources[0].url.startswith("https://kubernetes.io/")  # resources from the YAML, not the model
 

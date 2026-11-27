@@ -19,8 +19,15 @@ from ai.guardrails.evidence import verify_quotes
 from ai.interview.sensitive import is_sensitive, strip_sensitive  # noqa: F401  (strip_sensitive stays importable from here)
 from ai.interview.types import DUPLICATE_RATIO, LEVEL_RANK, PlanItem, TurnAnalysis
 
-# Words the interviewer never says: no verdict, no score, nothing about hiring (the PoC list, kept as is)
+# Words the interviewer never says: no verdict, no score, nothing about hiring (Korean list + English regex)
 VERDICT_WORDS = ("합격", "불합격", "탈락", "점수", "채용", "선발", "뽑")
+_EN_VERDICT = re.compile(
+    r"\b(?:hired|hiring|reject(?:ed|ion)?|eliminat(?:ed|ing)|scor(?:e|ed|es|ing)|rank(?:ed|ing)?|percentile|verdict|rating|graded|grading)\b"
+    r"|\b(?:pass(?:ed)?|fail(?:ed)?)\b(?=\s+(?:this|the)\s+(?:interview|round|stage|test|assessment))"
+    r"|\byou\s+(?:would\s+|will\s+)?(?:pass|fail|passed|failed)\b"
+    r"|\b(?:pass|fail)\s+(?:or\s+(?:pass|fail)|rate|this|the)\b",
+    re.IGNORECASE,
+)
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 MAX_QUESTION_CHARS = 300  # D21 allows questions up to 300 characters
 MAX_STATEMENT_CHARS = 200
@@ -56,7 +63,7 @@ def screen_spoken(text: str, blocklists: Sequence[Blocklist], kind: LineKind = "
         return None
     if kind == "closing" and ("?" in line or "？" in line):
         return None
-    if any(word in line for word in VERDICT_WORDS):
+    if any(word in line for word in VERDICT_WORDS) or _EN_VERDICT.search(line):
         return None
     if is_sensitive(line):  # the interviewer never asks about or mentions age, gender or military service (D59, D62)
         return None

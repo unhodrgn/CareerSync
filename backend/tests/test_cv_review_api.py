@@ -120,7 +120,7 @@ def test_llm_review_is_validated_cached_and_sees_masked_text_only(client, db, ll
     assert "자기소개 추가" in [i["title"] for i in body["improvements"]]
     assert "나이 기재" not in [i["title"] for i in body["improvements"]]  # blocklist
     [sent] = llm_mode.calls
-    assert "[이메일]" in sent and "jiwon.kim@example.com" not in sent and "김지원" not in sent and "010-1234" not in sent
+    assert "[EMAIL]" in sent and "jiwon.kim@example.com" not in sent and "김지원" not in sent and "010-1234" not in sent
     assert len(db.scalars(select(CvReview)).all()) == 1
 
     # Another version of the same document reuses the LLM part; its own rule findings are added

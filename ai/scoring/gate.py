@@ -21,7 +21,7 @@ from ai.parsing.profile import Experience
 GateStatus = Literal["PASS", "FAIL", "REVIEW"]
 MIN_EXPERIENCE = "min_experience"
 MIN_EXPERIENCE_SOURCE = "job.min_experience_years"
-NO_REQUIREMENT_REASON = "필수 경력 조건 없음"
+NO_REQUIREMENT_REASON = "No minimum experience requirement"
 
 
 @dataclass(frozen=True)
@@ -46,17 +46,19 @@ class RequiredGate:
 
 def _span(months: int) -> str:
     years, rest = divmod(months, 12)
+    y_str = f"{years} year{'s' if years != 1 else ''}"
+    m_str = f"{rest} month{'s' if rest != 1 else ''}"
     if not years:
-        return f"{rest}개월"
-    return f"{years}년 {rest}개월" if rest else f"{years}년"
+        return m_str
+    return f"{y_str} {m_str}" if rest else y_str
 
 
 def _stated_text(s: StatedExperience) -> str:
     if s.high_months is None:
-        return f"{_span(s.low_months)} 이상"
+        return f"{_span(s.low_months)}+"
     if s.high_months != s.low_months:
-        return f"{_span(s.low_months)}~{_span(s.high_months)}"
-    return _span(s.low_months) if s.low_months else "0년"
+        return f"{_span(s.low_months)}–{_span(s.high_months)}"
+    return _span(s.low_months) if s.low_months else "0 years"
 
 
 def _relation(s: StatedExperience, required: int) -> Literal["met", "below", "crossing"]:
@@ -76,7 +78,7 @@ def _check(status: GateStatus, required: int, months: int | None, basis, reason:
 
 def min_experience_check(text: str, experiences: list[Experience], min_years: int, today: str) -> RequirementCheck:
     required = 12 * min_years
-    need = f"최소 경력 {min_years}년"
+    need = f"minimum {min_years} year{'s' if min_years != 1 else ''} of experience"
     months, period_lines = verified_experience(text, experiences, today)
     stated = stated_experience_candidates(text)
     stated_lines = [s.line for s in stated]
@@ -84,34 +86,34 @@ def min_experience_check(text: str, experiences: list[Experience], min_years: in
     if period_lines:
         if months >= required:
             # Employment periods take priority (D48); a lower stated total does not block them
-            return _check("PASS", required, months, "periods", f"근무 기간 기준 경력 약 {_span(months)} ({need})", period_lines)
+            return _check("PASS", required, months, "periods", f"About {_span(months)} from employment periods ({need})", period_lines)
         if stated and all(_relation(s, required) == "below" for s in stated):
             stated_part = ", ".join(_stated_text(s) for s in stated)
-            reason = f"근무 기간 약 {_span(months)}, 이력서 기재 경력 {stated_part}: {need}에 미달"
+            reason = f"Employment periods ~{_span(months)}, stated experience {stated_part}: below {need}"
             return _check("FAIL", required, months, "periods", reason, [*period_lines, *stated_lines])
         if stated:
             stated_part = ", ".join(_stated_text(s) for s in stated)
-            reason = f"근무 기간(약 {_span(months)})과 이력서 기재 경력({stated_part})이 일치하지 않아 확인 필요"
+            reason = f"Employment periods (~{_span(months)}) do not match stated experience ({stated_part}); review needed"
             return _check("REVIEW", required, months, "periods", reason, [*period_lines, *stated_lines])
         # Periods alone below the minimum: some periods may not be recognized (e.g. years without months)
-        reason = f"근무 기간 기준 경력 약 {_span(months)}: {need}에 미달하나 인식되지 않은 기간이 있을 수 있어 확인 필요"
+        reason = f"About {_span(months)} from employment periods: below {need}, though unrecognized periods may exist; review needed"
         return _check("REVIEW", required, months, "periods", reason, period_lines)
 
     if not stated:
-        return _check("REVIEW", required, None, None, "이력서에서 경력 정보를 확인할 수 없어 확인 필요", [])
+        return _check("REVIEW", required, None, None, "No experience information could be verified in the CV; review needed", [])
     relations = {_relation(s, required) for s in stated}
     lowest = min(s.low_months for s in stated)
     stated_part = ", ".join(_stated_text(s) for s in stated)
     if relations == {"met"}:
-        reason = f"이력서 기재 경력 {stated_part} ({need}), 근무 기간은 확인되지 않음"
+        reason = f"Stated experience {stated_part} ({need}); employment periods could not be verified"
         return _check("PASS", required, lowest, "stated", reason, stated_lines)
     if relations == {"below"}:
         highest = max(s.high_months for s in stated)  # every one is bounded when all are below
-        return _check("FAIL", required, highest, "stated", f"이력서 기재 경력 {stated_part}: {need}에 미달", stated_lines)
+        return _check("FAIL", required, highest, "stated", f"Stated experience {stated_part}: below {need}", stated_lines)
     if len(stated) > 1 and "crossing" not in relations:
-        reason = f"이력서에 서로 다른 경력({stated_part})이 기재되어 확인 필요"
+        reason = f"Conflicting stated experience totals ({stated_part}); review needed"
     else:
-        reason = f"이력서 기재 경력({stated_part})만으로는 {need} 충족 여부를 판단할 수 없어 확인 필요"
+        reason = f"Stated experience ({stated_part}) alone cannot confirm {need}; review needed"
     return _check("REVIEW", required, lowest, "stated", reason, stated_lines)
 
 

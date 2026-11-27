@@ -148,7 +148,7 @@ def hand_session(
         plan=data,
         plan_method="rules",
         plan_sha256=(plan_digest(data) if isinstance(data, dict) else None) if sha256 == "auto" else sha256,
-        prompt_version="v1",
+        prompt_version="v2",
         limits=dict(LIMITS),
         coverage=coverage,
         consent_version="2026-11-26",

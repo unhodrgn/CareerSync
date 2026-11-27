@@ -29,7 +29,7 @@ from ai.scoring.types import Candidate, Criterion, CriterionResult, JobContext, 
 
 log = logging.getLogger(__name__)
 
-NO_EVIDENCE = "근거를 찾지 못함"
+NO_EVIDENCE = "No evidence found"
 
 # Skill scoring
 SKILL_LISTED = 70  # the skill is on the CV
@@ -41,7 +41,7 @@ _LANGUAGE_CERTS = {"TOEIC", "OPIc"}
 # Education: only majors the criterion names count as related; 이공계/STEM criteria use this list
 _STEM_MAJOR = (
     "공학", "수학", "물리", "화학", "과학", "컴퓨터", "소프트웨어", "전산", "통계", "생명", "생물",
-    "engineering", "science", "math",
+    "engineering", "science", "math", "statistics", "physics", "chemistry", "biology", "computing", "informatics",
 )
 _STEM_WORDS = ("이공계", "이공", "stem")
 # Education criteria saved before a major was required ("관련 전공"): same score for everyone
@@ -49,12 +49,26 @@ EDUCATION_NEUTRAL_SCORE = 50
 # AI_MODE=rules (D27): project entries of the CV text; same neutral score when a free-text criterion cannot be judged
 PROJECT_LISTED, PROJECT_RELEVANT, PROJECT_RELEVANT_MANY = 25, 50, 75
 RULES_NEUTRAL_SCORE = 50
-RULES_NEUTRAL_REASON = "규칙 기반으로 평가 불가"
+RULES_NEUTRAL_REASON = "Cannot be evaluated by rules alone"
 # Skill criteria naming no skill of the dictionary (D28): found on the CV → at least this; not found → 0
 UNLISTED_SKILL_FOUND = 50
-UNLISTED_SKILL_MISSING = "이력서에서 확인되지 않음"
+UNLISTED_SKILL_MISSING = "Not confirmed in CV"
 _MAJOR_SUFFIXES = ("공학", "학과", "학부", "전공", "학")
 _NOT_MAJORS = {"관련", "유관", "해당", "동등", "전공", "학과", "학부", "대학", "입학", "재학", "휴학", "이공계", "이공"}
+_EN_NON_MAJORS = frozenset({
+    "related", "relevant", "equivalent", "similar", "any", "other", "preferred", "required",
+    "must", "have", "with", "from", "an", "a", "the", "or", "and", "of", "in", "for", "to", "at",
+    "major", "majors", "degree", "degrees", "field", "fields", "discipline", "disciplines",
+    "bachelor", "bachelors", "master", "masters", "doctorate", "phd", "associate",
+    "graduate", "graduated", "diploma", "year", "years", "university", "college", "school",
+    "education", "academic", "background", "stem",
+})
+_EN_MAJOR_HEADS = (
+    "engineering", "science", "sciences", "mathematics", "math", "statistics",
+    "physics", "chemistry", "biology", "economics", "administration", "management",
+    "finance", "accounting", "design", "architecture", "analytics", "informatics",
+    "computing", "security",
+)
 
 
 @dataclass
@@ -113,7 +127,7 @@ def _skill_uses(skill: str, text: str, skills: SkillDictionary) -> list[str]:
 def _direct_skill_score(skill: str, uses: list[str]) -> tuple[int, str]:
     return (
         min(100, SKILL_LISTED + SKILL_USE_BONUS * len(uses)),
-        f"{skill} 보유" + (f", 경력·프로젝트 {len(uses)}건에서 사용" if uses else ""),
+        f"{skill} listed" + (f", used in {len(uses)} experience/project {'entry' if len(uses) == 1 else 'entries'}" if uses else ""),
     )
 
 
@@ -152,11 +166,11 @@ def _score_named_skills(
         if related:
             name = related[0]
             traces.append(SkillTraceItem(skill, RELATED_SCORE, match="related", related_skill=name))
-            reasons.append(f"{skill} 직접 경험은 없으나 같은 계열 기술 {name} 보유")
+            reasons.append(f"No direct {skill} experience, but related skill {name} found")
             evidence.extend(dictionary.lines_mentioning(name, text)[:1])
         else:
             traces.append(SkillTraceItem(skill, 0, match="missing"))
-            reasons.append(f"{skill} 경험 확인 안 됨")
+            reasons.append(f"{skill} not confirmed")
     score = sum(item.score for item in traces) / len(traces)
     result = _result(criterion, score, "; ".join(reasons), list(dict.fromkeys(evidence)), "rule:skill")
     return result, DirectSkillTrace(tuple(traces))
@@ -194,21 +208,24 @@ _MONTHS = re.compile(r"(?<!\d)(\d{1,2})\s*(?:개월|months?)", re.IGNORECASE)
 
 
 def required_years(text: str) -> float | None:
-    """Years of experience a criterion asks for: months count as fractions, 신입 is 0, None if not stated."""
+    """Years of experience a criterion asks for: months count as fractions, 신입/entry-level is 0, None if not stated."""
     if m := _YEARS.search(text):
         return int(m.group(1)) + int(m.group(2) or 0) / 12
     if m := _MONTHS.search(text):
         return int(m.group(1)) / 12
-    if "신입" in text:
+    low = text.lower()
+    if "신입" in text or re.search(r"\b(?:entry[\s\-]?level|no experience|new grad(?:uate)?)\b", low):
         return 0
     return None
 
 
 def _span(months: int) -> str:
     years, rest = divmod(months, 12)
+    y_str = f"{years} year{'s' if years != 1 else ''}"
+    m_str = f"{rest} month{'s' if rest != 1 else ''}"
     if not years:
-        return f"{rest}개월"
-    return f"{years}년 {rest}개월" if rest else f"{years}년"
+        return m_str
+    return f"{y_str} {m_str}" if rest else y_str
 
 
 def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
@@ -216,23 +233,23 @@ def score_experience(c: Criterion, candidate: Candidate, ctx: ScoringContext) ->
     the CV states (`stated_experience`, method rule:experience-stated). Same formula for both."""
     required = required_years(f"{c.name} {c.description}")
     if required is None:
-        # The job's min_experience_years; NULL means 신입 가능 (0 years)
+        # The job's min_experience_years; NULL means entry-level eligible (0 years)
         required = ctx.job.min_experience_years or 0
     # Periods read from the CV text, not the seeker-edited dates
     months, evidence = verified_experience(candidate.text, candidate.profile.experiences, ctx.today)
     if required == 0:
-        # No experience required (신입): everyone meets it, so no CV evidence is needed
-        reason = "경력 요건 없음(신입)" + (f", 확인된 경력 약 {_span(months)}" if months else "")
+        # No experience required (entry-level): everyone meets it, so no CV evidence is needed
+        reason = "No experience requirement (entry-level)" + (f", ~{_span(months)} verified" if months else "")
         return _result(c, 100, reason, evidence, "rule:experience", evidence_required=False)
     target_months = round(12 * required)
     if not evidence and (stated := stated_experience(candidate.text)) is not None:
         # No employment period in the CV text: the total the CV states, reported as stated, not verified (D48)
         stated_months, line = stated
-        reason = f"이력서 기재 경력 {_span(stated_months) if stated_months else '0년'} (요구 {_span(target_months)}), 근무 기간은 확인되지 않음"
+        reason = f"Stated experience {_span(stated_months) if stated_months else '0 years'} (required {_span(target_months)}); employment periods not verified"
         return _result(c, 100 * stated_months / target_months, reason, [line], "rule:experience-stated")
     if not months:
-        return _result(c, 0, "확인된 경력 없음", [], "rule:experience")
-    reason = f"확인된 경력 약 {_span(months)} (요구 {_span(target_months)})"
+        return _result(c, 0, "No verified experience found", [], "rule:experience")
+    reason = f"~{_span(months)} verified experience (required {_span(target_months)})"
     return _result(c, 100 * months / target_months, reason, evidence, "rule:experience")
 
 
@@ -253,28 +270,37 @@ def score_certificate(c: Criterion, candidate: Candidate, ctx: ScoringContext) -
         for name in dict.fromkeys(named):
             if name in known:
                 scores.append(100)
-                reasons.append(f"{name} 보유")
+                reasons.append(f"{name} verified")
                 evidence.append(known[name].strip())
             else:
                 scores.append(0)
-                reasons.append(f"{name} 확인 안 됨")
+                reasons.append(f"{name} not confirmed")
         return _result(c, sum(scores) / len(scores), "; ".join(reasons), evidence, "rule:certificate")
-    # Generic "관련 자격증": count job-related certificates
+    # Generic "Relevant certificates": count job-related certificates
     related = [n for n in known if n not in _LANGUAGE_CERTS]
     others = [x for x in certs if x.name and not any(x.name in n or n in x.name for n in known)]
     points = len(related) + 0.5 * len(others)
     score = 0 if points == 0 else 35 if points < 1 else 70 if points < 2 else 100
     names = related + [x.name for x in others]
     evidence = [known[n].strip() for n in related] + [x.source.strip() for x in others]
-    reason = f"자격증 {len(names)}개 확인: {', '.join(names[:3])}" if names else "확인된 자격증 없음"
+    reason = f"{len(names)} certificate{'s' if len(names) != 1 else ''} verified: {', '.join(names[:3])}" if names else "No certificates verified"
     return _result(c, score, reason, evidence, "rule:certificate")
 
 
 # ── education ──
 
 
+def _clean_en_major(raw: str) -> str:
+    words = [w.strip(".,;:()") for w in raw.lower().split()]
+    while words and words[0] in _EN_NON_MAJORS:
+        words.pop(0)
+    while words and words[-1] in _EN_NON_MAJORS:
+        words.pop()
+    return " ".join(words)
+
+
 def wanted_majors(text: str) -> list[str]:
-    """Majors named in a criterion, e.g. "컴퓨터공학 관련 전공" → ["컴퓨터공학"], "경영학과" → ["경영"]."""
+    """Majors named in a criterion, e.g. '컴퓨터공학 관련 전공' -> ['컴퓨터공학'], 'Computer science major' -> ['computer science']."""
     majors = []
     for word in re.findall(r"[가-힣]{2,}", text):
         if word in _NOT_MAJORS or not word.endswith(_MAJOR_SUFFIXES):
@@ -282,6 +308,18 @@ def wanted_majors(text: str) -> list[str]:
         core = word.removesuffix("전공").removesuffix("학과").removesuffix("학부")
         if len(core) >= 2 and core not in _NOT_MAJORS:
             majors.append(core)
+    heads = "|".join(_EN_MAJOR_HEADS)
+    for m in re.finditer(rf"\b(?:[a-z]+(?:[ \-][a-z]+)?\s+)?(?:{heads})\b", text, re.IGNORECASE):
+        if phrase := _clean_en_major(m.group(0)):
+            majors.append(phrase)
+    for m in re.finditer(r"\b([a-z][a-z\- ]{1,35}?)\s+majors?\b", text, re.IGNORECASE):
+        for part in re.split(r"\s*(?:,|/|\bor\b|\band\b)\s*", m.group(1), flags=re.IGNORECASE):
+            if phrase := _clean_en_major(part):
+                majors.append(phrase)
+    for m in re.finditer(r"\b(?:major|degree)\s+in\s+([a-z][a-z\-,/ ]{1,50})", text, re.IGNORECASE):
+        for part in re.split(r"\s*(?:,|/|\bor\b|\band\b)\s*", m.group(1), flags=re.IGNORECASE):
+            if phrase := _clean_en_major(part):
+                majors.append(phrase)
     return list(dict.fromkeys(majors))
 
 
@@ -298,20 +336,20 @@ def score_education(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> 
     wanted, stem = education_target(c.name, c.description)
     if not wanted and not stem:
         # Saved before a major was required: nothing to compare, so the same neutral score for everyone
-        reason = "전공 미지정: 평가 기준에 전공이 없어 중립 점수"
+        reason = "No major specified: criterion names no major, neutral score applied"
         return _result(c, EDUCATION_NEUTRAL_SCORE, reason, [], "rule:education", evidence_required=False)
-    best, best_line, best_reason = 0, "", "확인된 전공 정보 없음"
+    best, best_line, best_reason = 0, "", "No education major verified in CV"
     for e in candidate.profile.education:
         major = e.major.lower()
         # The major counts only when its line is in the CV text and names it
         if not major or not line_in_text(e.source, candidate.text) or major not in e.source.lower():
             continue
         if any(w.lower() in major for w in wanted):
-            s, why = 100, f"요구 전공과 일치하는 {e.major}"
+            s, why = 100, f"Matches required major: {e.major}"
         elif stem and any(k in major for k in _STEM_MAJOR):
-            s, why = 100, f"이공계 전공 {e.major}"
+            s, why = 100, f"STEM major: {e.major}"
         else:
-            s, why = 30, f"요구 전공과 다른 전공 {e.major}"
+            s, why = 30, f"Different major from requirement: {e.major}"
         if s > best:
             best, best_line, best_reason = s, e.source.strip(), why
     return _result(c, best, best_reason, [best_line] if best_line else [], "rule:education")
@@ -339,10 +377,10 @@ def score_llm(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Criter
     if not passages:
         return _result(c, 0, NO_EVIDENCE, [], f"llm:{ctx.llm.model}")
     excerpts = "\n---\n".join(p.chunk.text for p in passages)
-    company = f"회사: {ctx.job.company_name}\n인재상: {ctx.job.talent_profile}\n" if ctx.job.talent_profile else ""
+    company = f"Company: {ctx.job.company_name}\nIdeal candidate: {ctx.job.talent_profile}\n" if ctx.job.talent_profile else ""
     user = (
-        f"{company}공고: {ctx.job.title}\n"
-        f"평가 항목: {c.name}\n평가 기준: {c.description or '(설명 없음)'}\n\n"
+        f"{company}Job: {ctx.job.title}\n"
+        f"Criterion: {c.name}\nCriteria details: {c.description or '(no description)'}\n\n"
         f"<cv_excerpts>\n{excerpts}\n</cv_excerpts>"
     )
     system = (PROMPT_DIR / "rubric_score.md").read_text(encoding="utf-8")
@@ -353,7 +391,7 @@ def score_llm(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> Criter
             log.warning("rubric scoring failed for criterion %s: %s", c.id, type(e).__name__)
             break
         if out.level == 0:
-            return _result(c, 0, out.reason or "관련 내용 없음", [], f"llm:{ctx.llm.model}")
+            return _result(c, 0, out.reason or "No relevant content", [], f"llm:{ctx.llm.model}")
         verified = verify_quotes(out.evidence, candidate.text)
         if verified:
             return _result(c, out.level, out.reason, verified, f"llm:{ctx.llm.model}")
@@ -374,8 +412,8 @@ def score_retrieval(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> 
     score = next((s for t, s in _RETRIEVAL_STEPS if top.relevance >= t), 0)
     lines = best_lines(top.chunk.text, query)
     if not score or not lines:
-        return _result(c, 0, "관련 내용을 찾지 못함", [], "retrieval")
-    return _result(c, score, f"관련 내용 확인 (키워드·유사도 기반 추정): {lines[0][:60]}", lines, "retrieval")
+        return _result(c, 0, "No relevant content found", [], "retrieval")
+    return _result(c, score, f"Relevant content found (keyword/similarity estimate): {lines[0][:60]}", lines, "retrieval")
 
 
 def _retrieval_or_neutral(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
@@ -415,20 +453,20 @@ def score_unlisted_skill(c: Criterion, candidate: Candidate, ctx: ScoringContext
     if not name_lines or result.score >= UNLISTED_SKILL_FOUND:
         return result
     evidence = list(dict.fromkeys([*name_lines[:2], *result.evidence]))
-    return _result(c, UNLISTED_SKILL_FOUND, f"이력서에서 '{c.name}' 관련 내용 확인: {name_lines[0][:60]}", evidence, "retrieval")
+    return _result(c, UNLISTED_SKILL_FOUND, f"Found '{c.name}' in CV: {name_lines[0][:60]}", evidence, "retrieval")
 
 
 def score_project_rules(c: Criterion, candidate: Candidate, ctx: ScoringContext) -> CriterionResult:
-    """Project criterion without an LLM (D27), from the entries of the 프로젝트 section of the CV text.
+    """Project criterion without an LLM (D27), from the entries of the project section of the CV text.
 
     An entry is relevant when it mentions a skill the criterion or the job (title, JD) names, or a keyword of the
     criterion. Any entry: PROJECT_LISTED; one relevant entry: PROJECT_RELEVANT; two or more: PROJECT_RELEVANT_MANY.
     """
     entries = _entries(candidate.text, ("project",))
     if not entries:
-        return _result(c, 0, "이력서에서 '프로젝트' 항목을 찾지 못함", [], "rule:project")
+        return _result(c, 0, "No project entries found in CV", [], "rule:project")
     named = ctx.skills.find_in_text(f"{c.name}\n{c.description}\n{ctx.job.title}\n{ctx.job.description}")
-    terms = [w for w in keywords(f"{c.name} {c.description}") if w != "프로젝트"]
+    terms = [w for w in keywords(f"{c.name} {c.description}") if w not in ("프로젝트", "project", "projects")]
 
     def relevant(entry: list[str]) -> bool:
         body = "\n".join(entry)
@@ -437,10 +475,10 @@ def score_project_rules(c: Criterion, candidate: Candidate, ctx: ScoringContext)
 
     hits = [e for e in entries if relevant(e)]
     if not hits:
-        reason = f"프로젝트 {len(entries)}건 확인 (직무 관련 기술·키워드는 확인 안 됨)"
+        reason = f"{len(entries)} project {'entry' if len(entries) == 1 else 'entries'} found (no job-related tech or keywords confirmed)"
         return _result(c, PROJECT_LISTED, reason, [e[0] for e in entries[:2]], "rule:project")
     score = PROJECT_RELEVANT_MANY if len(hits) >= 2 else PROJECT_RELEVANT
-    reason = f"직무 관련 프로젝트 {len(hits)}건 확인 (전체 {len(entries)}건)"
+    reason = f"{len(hits)} job-related project {'entry' if len(hits) == 1 else 'entries'} confirmed ({len(entries)} total)"
     return _result(c, score, reason, [e[0] for e in hits[:3]], "rule:project")
 
 

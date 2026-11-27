@@ -47,9 +47,9 @@ def test_rules_draft_is_not_saved(client, world, db):
     body = r.json()
     assert set(body) == {"job_id", "description", "sections", "dropped", "method", "limited", "notice"}
     assert body["method"] == "rules" and body["limited"] is False and "for reference only" in body["notice"]
-    assert "Java 실무 또는 프로젝트 경험" in body["sections"]["requirements"]
-    assert body["sections"]["requirements"][0] == "신입 지원 가능"  # min_experience_years NULL
-    assert "자격 요건" in body["description"] and body["dropped"] == []
+    assert "Hands-on or project experience with Java" in body["sections"]["requirements"]
+    assert body["sections"]["requirements"][0] == "Open to entry-level applicants"  # min_experience_years NULL
+    assert "Qualifications" in body["description"] and body["dropped"] == []
     db.expire_all()
     assert db.get(JobPosting, world["job"].id).description == before
 

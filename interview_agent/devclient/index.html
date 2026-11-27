@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>모의 면접 음성 테스트 (개발용)</title>
+  <title>Mock Interview Voice & Avatar Test (Dev Only)</title>
   <link rel="stylesheet" href="style.css">
   <!-- livekit-client 2.24.1, pinned and checked with a Subresource Integrity hash (the hash of the PoC page, same file) -->
   <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.24.1/dist/livekit-client.umd.js"
@@ -13,61 +13,61 @@
 </head>
 <body>
   <header>
-    <h1>모의 면접 음성·아바타 테스트 <span class="tag">개발용</span></h1>
-    <p class="note" role="note">개발자가 음성·아바타 모의 면접을 시험해 보는 페이지입니다. 서비스 화면이 아닙니다. 가상의 계정과 가상의 답변만 쓰세요. 마이크 음성만 LiveKit(면접관)으로 전달되며, 로컬 카메라 미리보기는 브라우저 안에서만 표시되고 전송되지 않습니다.</p>
-    <p class="ai-banner" role="note"><strong>AI 안내</strong> 화면의 아바타와 면접관은 AI입니다(D90: Anam 미설정·오류 시 음성 전용으로 자동 전환).</p>
+    <h1>Mock Interview Voice &amp; Avatar Test <span class="tag">Dev Only</span></h1>
+    <p class="note" role="note">Developer page for testing voice and avatar mock interviews. Not a production screen. Use synthetic accounts and synthetic answers only. Only your microphone audio is sent to LiveKit (the interviewer); the local camera preview stays in your browser and is never transmitted.</p>
+    <p class="ai-banner" role="note"><strong>AI Disclosure</strong> The on-screen avatar and interviewer are AI (D90: automatically falls back to audio-only if Anam is unconfigured or unavailable).</p>
   </header>
   <main>
-    <section id="login-box" aria-label="로그인">
-      <h2>1. 로그인 (가상의 구직자 계정)</h2>
-      <label>이메일 <input id="email" type="email" autocomplete="off"></label>
-      <label>비밀번호 <input id="password" type="password" autocomplete="off"></label>
-      <button id="login" type="button">로그인</button>
+    <section id="login-box" aria-label="Log in">
+      <h2>1. Log In (Synthetic Seeker Account)</h2>
+      <label>Email <input id="email" type="email" autocomplete="off"></label>
+      <label>Password <input id="password" type="password" autocomplete="off"></label>
+      <button id="login" type="button">Log in</button>
     </section>
-    <section id="start-box" aria-label="면접 시작" hidden>
-      <h2>2. 동의 확인과 시작</h2>
+    <section id="start-box" aria-label="Start interview" hidden>
+      <h2>2. Consent &amp; Start</h2>
       <h3 id="consent-title"></h3>
       <ul id="consent-items"></ul>
-      <label class="check"><input id="agree" type="checkbox"> 위 내용을 확인했고, 이 모의 면접에 동의합니다.</label>
-      <label>공고 번호 <input id="job-id" type="number" min="1" value="1"></label>
-      <label>질문 깊이
+      <label class="check"><input id="agree" type="checkbox"> I have reviewed and agree to the transcript consent above for this mock interview.</label>
+      <label>Job ID <input id="job-id" type="number" min="1" value="1"></label>
+      <label>Question depth
         <select id="depth">
-          <option value="1">1 기초</option>
-          <option value="2" selected>2 적용</option>
-          <option value="3">3 심화</option>
+          <option value="1">1 Introductory</option>
+          <option value="2" selected>2 Applied</option>
+          <option value="3">3 Advanced</option>
         </select>
       </label>
-      <label>기존 세션 번호 <span class="hint">(비워 두면 새로 만듭니다. 이미 만든 세션에 다시 입장해 볼 때만 적습니다.)</span>
+      <label>Existing session ID <span class="hint">(Leave blank to create a new session. Fill only to rejoin an already created session.)</span>
         <input id="session-id" type="number" min="1"></label>
       <div class="buttons">
-        <button id="start" type="button" disabled>면접 시작</button>
-        <button id="end" type="button" disabled>종료</button>
-        <button id="feedback" type="button" disabled>피드백 보기</button>
+        <button id="start" type="button" disabled>Start Interview</button>
+        <button id="end" type="button" disabled>End</button>
+        <button id="feedback" type="button" disabled>View Feedback</button>
       </div>
     </section>
-    <section class="stage" aria-label="아바타 및 카메라 미리보기">
+    <section class="stage" aria-label="Avatar and camera preview">
       <div class="avatar-box">
-        <video id="avatar-video" autoplay playsinline aria-label="AI 면접관 아바타"></video>
-        <p id="avatar-placeholder" class="placeholder">면접을 시작하면 AI 면접관 아바타(또는 음성 전용 모드)가 연결됩니다.</p>
+        <video id="avatar-video" autoplay playsinline aria-label="AI interviewer avatar"></video>
+        <p id="avatar-placeholder" class="placeholder">The AI interviewer avatar (or audio-only mode) will connect once you start the interview.</p>
       </div>
       <div class="preview-box">
-        <video id="preview-video" autoplay muted playsinline aria-label="내 카메라 미리보기"></video>
-        <p class="note">내 카메라 미리보기는 이 브라우저 안에서만 보이며 어디로도 전송되지 않습니다.</p>
+        <video id="preview-video" autoplay muted playsinline aria-label="My camera preview"></video>
+        <p class="note">Your camera preview stays inside this browser and is never transmitted anywhere.</p>
       </div>
     </section>
-    <p id="status" class="status" role="status" aria-live="polite">대기 중</p>
+    <p id="status" class="status" role="status" aria-live="polite">Idle</p>
     <p id="error" class="error" role="alert" hidden></p>
-    <section aria-label="대화 기록">
-      <h2>대화 기록 <span class="hint">(서버에 저장된, 개인정보가 가려진 텍스트)</span></h2>
+    <section aria-label="Transcript">
+      <h2>Transcript <span class="hint">(Stored server-side with personal data masked)</span></h2>
       <ol id="transcript"></ol>
     </section>
-    <section aria-label="측정값">
-      <h2>이 브라우저에서 잰 값</h2>
-      <pre id="metrics">아직 없음</pre>
-      <p class="hint">말이 끝난 뒤 면접관이 말하기까지의 시간은 이 페이지가 아니라 에이전트가 <code>interview_agent/.runs/</code>에 적는 보고서에 있습니다.</p>
+    <section aria-label="Measurements">
+      <h2>Browser Measurements</h2>
+      <pre id="metrics">None yet</pre>
+      <p class="hint">End-to-end turn latencies from the end of speech to interviewer audio are recorded by the agent under <code>interview_agent/.runs/</code>.</p>
     </section>
-    <section aria-label="피드백" id="feedback-box" hidden>
-      <h2>피드백 (규칙 기반 또는 모델)</h2>
+    <section aria-label="Feedback" id="feedback-box" hidden>
+      <h2>Feedback (Rules or Model)</h2>
       <pre id="feedback-text"></pre>
     </section>
   </main>

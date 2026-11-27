@@ -86,7 +86,7 @@ async function openPreview() {
   } catch {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      dom.avatarPlaceholder.textContent = '카메라를 사용할 수 없어 미리보기 없이 진행합니다. (음성·아바타 수신은 계속됩니다.)';
+      dom.avatarPlaceholder.textContent = 'Camera unavailable; continuing without local preview. (Voice/avatar audio still works.)';
     } catch {
       return; // LiveKit setMicrophoneEnabled will surface a missing microphone cleanly
     }
@@ -118,7 +118,7 @@ async function login() {
     dom.consentTitle.textContent = `${consent.title} (${consent.version})`;
     dom.consentItems.replaceChildren(...consent.items.map((item) => Object.assign(document.createElement('li'), { textContent: item.text })));
     dom.startBox.hidden = false;
-    setStatus('로그인했습니다. 동의 내용을 확인하세요.');
+    setStatus('Logged in. Please review the consent items.');
   } catch (error) {
     setError(describe(error));
   }
@@ -129,7 +129,7 @@ function renderTranscript(detail) {
     ...detail.turns.map((turn) => {
       const li = document.createElement('li');
       li.className = turn.role;
-      li.textContent = `${turn.role === 'agent' ? '면접관' : '나'}: ${turn.text}`;
+      li.textContent = `${turn.role === 'agent' ? 'Interviewer' : 'You'}: ${turn.text}`;
       return li;
     }),
   );
@@ -140,7 +140,7 @@ async function pollOnce() {
   try {
     const detail = await api(`/interview-sessions/${state.sessionId}`);
     renderTranscript(detail);
-    setStatus(`세션 ${detail.id}: ${detail.status}${detail.end_reason ? ` (${detail.end_reason})` : ''}`);
+    setStatus(`Session ${detail.id}: ${detail.status}${detail.end_reason ? ` (${detail.end_reason})` : ''}`);
     if (detail.status === 'completed' || detail.status === 'aborted') finish();
   } catch (error) {
     setError(describe(error));
@@ -164,14 +164,14 @@ function finish() {
 function onParticipantConnected(participant) {
   if (state.room) allowAgent(state.room, participant);
   if (isAvatarWorker(participant)) {
-    setStatus('아바타가 입장했습니다. 음성·영상을 준비하는 중...');
+    setStatus('Avatar joined. Preparing audio and video...');
     return;
   }
   if (participant.kind === ParticipantKind.AGENT || !participant.identity.startsWith('candidate-')) {
     state.marks.agentJoined = state.marks.agentJoined ?? performance.now();
     clearTimeout(state.agentTimer);
     setError(''); // a late join (a pending dispatch delivered after the 20 s message) must not leave the red error up
-    setStatus('면접관(AI)이 입장했습니다. 첫 질문을 기다리세요.');
+    setStatus('AI Interviewer joined. Waiting for the first question.');
     showMetrics();
   }
 }
@@ -193,7 +193,7 @@ function onTrackSubscribed(track, _publication, participant) {
 function onTrackUnsubscribed(track) {
   if (track.kind === 'video') {
     track.detach(dom.avatarVideo);
-    dom.avatarPlaceholder.textContent = '아바타 영상이 종료되었습니다. (음성 전용 모드)';
+    dom.avatarPlaceholder.textContent = 'Avatar video ended. (Audio-only mode)';
     dom.avatarPlaceholder.hidden = false;
   }
 }
@@ -208,16 +208,16 @@ async function connect(join) {
     stopPreview();
     state.allowedAgents.clear();
     dom.avatarPlaceholder.hidden = false;
-    setStatus('방에서 나왔습니다.');
+    setStatus('Left the room.');
   });
   await room.connect(join.url, join.token);
   state.marks.connected = performance.now();
   restrictMicrophoneSubscribers(room);
   room.remoteParticipants.forEach(onParticipantConnected);
-  setStatus('방에 들어왔습니다. 면접관(AI)을 기다리는 중...');
+  setStatus('Joined the room. Waiting for the AI interviewer...');
   state.agentTimer = setTimeout(() => {
     if (state.marks.agentJoined === undefined) {
-      setError('면접관이 20초 안에 입장하지 않았습니다. 에이전트가 꺼져 있었다면 켜질 때 이 방으로 입장하니 잠시 더 기다리세요. 켜져 있었다면 에이전트 이름과 LiveKit 프로젝트가 같은지, 이 방이 이미 있었는지(이미 있는 방에는 새로 배정되지 않습니다) 확인하세요.');
+      setError('The interviewer did not join within 20 seconds. If the agent was stopped, it may still join once started. Otherwise verify the agent name, LiveKit project, and that this room did not already exist before dispatch.');
     }
   }, AGENT_JOIN_TIMEOUT_MS);
   await room.localParticipant.setMicrophoneEnabled(true); // the only track this page publishes
@@ -228,7 +228,7 @@ async function connect(join) {
 async function start() {
   setError('');
   dom.start.disabled = true;
-  dom.avatarPlaceholder.textContent = '면접을 시작하면 AI 면접관 아바타(또는 음성 전용 모드)가 연결됩니다.';
+  dom.avatarPlaceholder.textContent = 'The AI interviewer avatar (or audio-only mode) will connect once you start the interview.';
   dom.avatarPlaceholder.hidden = false;
   try {
     await openPreview();

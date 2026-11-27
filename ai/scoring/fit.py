@@ -73,9 +73,9 @@ def summary_comment(names: Mapping[int, str], scores: Mapping[int, int], weights
     weak = [names[cid] for cid in ordered if scores.get(cid, 0) < 40]
     parts = []
     if strong:
-        parts.append(f"{', '.join(strong[:3])} 항목에서 근거가 충분합니다.")
+        parts.append(f"Strong evidence found for {', '.join(strong[:3])}.")
     if weak:
-        parts.append(f"{', '.join(weak[:3])} 항목은 이력서에서 근거가 부족하여 면접 등에서 확인이 필요합니다.")
+        parts.append(f"Limited evidence in CV for {', '.join(weak[:3])}; follow up in an interview.")
     if not parts:
-        parts.append("모든 항목이 중간 수준으로 평가되었습니다.")
+        parts.append("All criteria were evaluated at a moderate level.")
     return " ".join(parts)

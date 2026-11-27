@@ -73,7 +73,7 @@ def call(api, op, session_id, user=None, **kwargs):
 def success_session(db, world, clock, op):
     """A session for which `op` answers `op[3]`: a created one, and for the feedback a finished one with a stored report (no model, no quota)."""
     if op is FEEDBACK:
-        return add(db, world, clock, S.COMPLETED, feedback=STORED_REPORT, feedback_method="rules", feedback_prompt_version="v1", feedback_at=clock())
+        return add(db, world, clock, S.COMPLETED, feedback=STORED_REPORT, feedback_method="rules", feedback_prompt_version="v2", feedback_at=clock())
     return add(db, world, clock, S.CREATED, deadline=300)
 
 
